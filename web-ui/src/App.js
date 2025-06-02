@@ -22,6 +22,12 @@ import {
   CheckCircle as CheckIcon,
   Error as ErrorIcon,
 } from '@mui/icons-material';
+import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { docco } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+import xml from 'react-syntax-highlighter/dist/esm/languages/hljs/xml';
+
+// Register XML language for syntax highlighting
+SyntaxHighlighter.registerLanguage('xml', xml);
 
 // API Configuration
 const API_ENDPOINTS = {
@@ -310,22 +316,20 @@ function App() {
               <Divider />
               <Box sx={{ flexGrow: 1, overflow: 'auto', backgroundColor: '#f8f8f8' }}>
                 {outputXml ? (
-                  <Box
-                    component="pre"
-                    sx={{
+                  <SyntaxHighlighter
+                    language="xml"
+                    style={docco}
+                    customStyle={{
                       margin: 0,
                       padding: '16px',
                       backgroundColor: 'transparent',
                       fontSize: '14px',
                       lineHeight: '1.4',
-                      fontFamily: 'monospace',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      color: '#333',
                     }}
+                    showLineNumbers={true}
                   >
-                    <code>{outputXml}</code>
-                  </Box>
+                    {outputXml}
+                  </SyntaxHighlighter>
                 ) : (
                   <Box sx={{ p: 3, color: 'text.secondary', fontStyle: 'italic' }}>
                     Converted XML will appear here after transformation...

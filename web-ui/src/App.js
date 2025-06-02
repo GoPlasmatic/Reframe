@@ -29,8 +29,8 @@ import xml from 'react-syntax-highlighter/dist/esm/languages/hljs/xml';
 // Register XML language for syntax highlighting
 SyntaxHighlighter.registerLanguage('xml', xml);
 
-// API Configuration
-const API_ENDPOINT = 'https://reframe-api-prod-https.eastus.cloudapp.azure.com/reframe';
+// API Configuration - using relative URL since we're serving from the same origin
+const API_ENDPOINT = '/reframe';
 
 const SAMPLE_MT103 = `{1:F01BNPAFRPPXXX0000000000}{2:O1031234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
 :20:FT21001234567890

@@ -11,7 +11,7 @@ use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower::ServiceBuilder;
-use tower_http::cors::CorsLayer;
+use tower_http::services::ServeDir;
 
 mod parser;
 use parser::ParserFunction;
@@ -42,14 +42,17 @@ async fn main() -> anyhow::Result<()> {
         engine: Arc::new(Mutex::new(engine)),
     };
 
-    // Build the router
+    // Build the router with static file serving
     let app = Router::new()
         .route("/reframe", post(process_data))
         .route("/health", get(health_check))
-        .layer(ServiceBuilder::new().layer(CorsLayer::permissive()))
+        .nest_service("/", ServeDir::new("static"))
         .with_state(state);
 
     println!("🚀 Server starting on http://0.0.0.0:3000");
+    println!("📱 Web UI available at: http://0.0.0.0:3000/");
+    println!("🔄 API endpoint: http://0.0.0.0:3000/reframe");
+    println!("💚 Health check: http://0.0.0.0:3000/health");
 
     // Start the server
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;

@@ -1,14 +1,14 @@
 # Reframe - SWIFT MT103 to ISO 20022 pacs.008.001.13 Converter
 
-Reframe is a Rust-based REST API service that converts SWIFT MT103 messages to ISO 20022 pacs.008.001.13 (FIToFICustomerCreditTransferV13) XML format. Built with Rust, Axum, and the dataflow-rs workflow engine, it provides a high-performance solution for financial message transformation.
+Reframe is a Rust-based REST API service that converts SWIFT MT103 messages to ISO 20022 pacs.008.001.13 (FIToFICustomerCreditTransferV13) XML format. Built with Rust, Axum, and the dataflow-rs workflow engine, it provides a high-performance solution for financial message transformation with an integrated web interface.
 
 ## Features
 
 - 🚀 **High Performance**: Built with Rust and Axum for maximum throughput
 - 🔄 **Message Transformation**: Converts SWIFT MT103 messages to ISO 20022 pacs.008.001.13 format
 - 📋 **SWIFT MT Parsing**: Built-in SWIFT MT message parsing using swift-mt-message library
-- 🌐 **REST API**: Simple HTTP endpoint for message conversion
-- 🔒 **HTTPS Support**: Automated SSL termination with Azure Application Gateway
+- 🌐 **Integrated Web UI**: Material Design web interface served directly from the API
+- 🔧 **No CORS Issues**: Web UI and API served from the same origin
 - ⚡ **Workflow Engine**: Powered by dataflow-rs for robust message processing
 - 📊 **Error Handling**: Comprehensive error reporting for invalid messages
 - 🔧 **Extensible**: Modular design allows for additional message formats
@@ -16,21 +16,16 @@ Reframe is a Rust-based REST API service that converts SWIFT MT103 messages to I
 
 ## Quick Start
 
-### Web Interface
-Access the live web interface at: **https://GoPlasmatic.github.io/Reframe**
+### Production Deployment
+Access the live application at: **http://reframe-api-prod.eastus.azurecontainer.io:3000**
 
-The web interface provides:
-- Material UI design with split-panel layout
+The application provides:
+- **Web Interface**: Integrated Material UI with split-panel layout
+- **API Endpoint**: `/reframe` for programmatic access
+- **Health Check**: `/health` for monitoring
 - Sample MT103 message loader
 - XML syntax highlighting
 - Real-time error handling
-- Secure HTTPS endpoint connection
-
-### API Endpoints
-
-#### Production (HTTPS)
-- **HTTPS API**: `https://reframe-api-prod-https.eastus.cloudapp.azure.com/reframe`
-- **Health Check**: `https://reframe-api-prod-https.eastus.cloudapp.azure.com/health`
 
 ### Local Development
 
@@ -40,12 +35,21 @@ git clone <repository-url>
 cd Reframe
 ```
 
-2. Build and run the application:
+2. Build the web UI:
+```bash
+cd web-ui
+npm install
+npm run build
+cd ..
+cp -r web-ui/build/* static/
+```
+
+3. Build and run the application:
 ```bash
 cargo run
 ```
 
-3. The server will start on `http://0.0.0.0:3000`
+4. Open your browser to `http://localhost:3000`
 
 ## Deployment
 
@@ -54,56 +58,59 @@ cargo run
 The project includes a complete CI/CD pipeline that automatically:
 
 1. **Tests** the Rust code (format, clippy, unit tests)
-2. **Builds** and pushes Docker images to Azure Container Registry
-3. **Deploys** to staging environment for testing
-4. **Deploys** to production environment
-5. **Sets up HTTPS** infrastructure with Application Gateway
-6. **Cleans up** staging resources
+2. **Builds** the React web UI and creates static files
+3. **Builds** and pushes Docker images to Azure Container Registry
+4. **Deploys** to staging environment for testing
+5. **Deploys** to production environment
+6. **Tests** both web UI and API endpoints
+7. **Cleans up** staging resources
 
 #### Triggering Deployment
 
 - **Automatic**: Push to `main` branch
 - **Manual**: Use GitHub Actions workflow dispatch
 
-#### HTTPS Setup
+### Manual Deployment
 
-HTTPS is automatically configured as part of the deployment pipeline using Azure Application Gateway with:
-- SSL termination
-- HTTP to HTTPS redirect
-- Health probe monitoring
-- Self-signed certificate (for testing)
-
-#### Manual HTTPS Setup
-
-If you need to setup HTTPS independently:
+To deploy manually:
 
 ```bash
-# Run the manual HTTPS deployment script
-chmod +x scripts/deploy-https-manual.sh
-./scripts/deploy-https-manual.sh
+# Build the web UI
+cd web-ui
+npm run build
+cd ..
+cp -r web-ui/build/* static/
+
+# Build and run locally
+cargo run
+
+# Or build Docker image
+docker build -t reframe .
+docker run -p 3000:3000 reframe
 ```
 
 ## Architecture
 
-### Cloud Infrastructure
+### Simplified Architecture
 
-- **Azure Container Instances (ACI)**: Hosts the Rust API service
+- **Single Container**: Rust application serves both API and web UI
+- **Azure Container Instances (ACI)**: Hosts the unified service
 - **Azure Container Registry (ACR)**: Stores container images
-- **Azure Application Gateway**: Provides HTTPS termination and load balancing
-- **GitHub Actions**: CI/CD automation
-- **GitHub Pages**: Hosts the web UI
+- **GitHub Actions**: CI/CD automation with integrated web UI build
+- **Static File Serving**: Web UI files served directly from Rust application
 
 ### Components
 
-1. **API Layer**: Axum-based REST server with CORS support
-2. **Workflow Engine**: dataflow-rs engine orchestrating the conversion pipeline
-3. **Parser Module**: Custom SWIFT MT message parser using swift-mt-message
-4. **Publisher Module**: XML serialization using quick-xml and mx-message
-5. **Mapping Engine**: JSONLogic-based field mapping from MT103 to pacs.008.001.13
+1. **API Layer**: Axum-based REST server with static file serving
+2. **Web UI**: React Material-UI interface served from `/`
+3. **Workflow Engine**: dataflow-rs engine orchestrating the conversion pipeline
+4. **Parser Module**: Custom SWIFT MT message parser using swift-mt-message
+5. **Publisher Module**: XML serialization using quick-xml and mx-message
+6. **Mapping Engine**: JSONLogic-based field mapping from MT103 to pacs.008.001.13
 
 ### Message Flow
 
-1. Client sends raw SWIFT MT103 message to `/reframe` endpoint
+1. User accesses web interface at `/` or makes API request to `/reframe`
 2. **Parse Task**: Parses SWIFT MT103 into structured data using swift-mt-message
 3. **Mapping Tasks**: Series of mapping tasks that transform MT103 fields to pacs.008.001.13 structure:
    - Group Header mapping
@@ -117,29 +124,12 @@ chmod +x scripts/deploy-https-manual.sh
 4. **Publish Task**: Serializes the mapped data to pacs.008.001.13 XML format
 5. Returns XML response to client
 
-## Quick Start
-
-### Prerequisites
-
-- Rust 1.70+ installed
-- Cargo package manager
-
-### Installation & Running
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd Reframe
-```
-
-2. Build and run the application:
-```bash
-cargo run
-```
-
-3. The server will start on `http://0.0.0.0:3000`
-
 ## API Reference
+
+### Web Interface
+**GET** `/`
+
+Serves the integrated React web interface with Material Design.
 
 ### Convert SWIFT MT103 to pacs.008.001.13
 **POST** `/reframe`
@@ -152,7 +142,7 @@ Converts a SWIFT MT103 message to ISO 20022 pacs.008.001.13 XML format.
 
 **Example Request:**
 ```bash
-curl -X POST https://reframe-api-prod-https.eastus.cloudapp.azure.com/reframe \
+curl -X POST http://reframe-api-prod.eastus.azurecontainer.io:3000/reframe \
   -H "Content-Type: text/plain" \
   -d "{1:F01BNPAFRPPXXX0000000000}{2:O1031234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
 :20:FT21001234567890

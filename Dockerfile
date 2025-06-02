@@ -35,6 +35,9 @@ WORKDIR /app
 # Copy the binary from builder stage
 COPY --from=builder /app/target/release/Reframe /app/reframe
 
+# Copy static web UI files
+COPY static/ /app/static/
+
 # Change ownership to app user
 RUN chown -R appuser:appuser /app
 

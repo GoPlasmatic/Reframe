@@ -15,11 +15,6 @@ on:
         options:
         - production
         - staging
-      deploy_https:
-        description: 'Deploy HTTPS infrastructure'
-        required: false
-        default: true
-        type: boolean
 
 env:
   REGISTRY_NAME: reframeacr24bpw6jltlfzm
@@ -59,8 +54,42 @@ jobs:
     - name: Run tests
       run: cargo test
 
+  build-web-ui:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'web-ui/package-lock.json'
+    
+    - name: Install dependencies
+      run: |
+        cd web-ui
+        npm ci
+    
+    - name: Build web UI
+      run: |
+        cd web-ui
+        npm run build
+    
+    - name: Prepare static files
+      run: |
+        mkdir -p static
+        cp -r web-ui/build/* static/
+    
+    - name: Upload static files artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: static-files
+        path: static/
+        retention-days: 1
+
   build-and-push:
-    needs: test
+    needs: [test, build-web-ui]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     outputs:
@@ -69,6 +98,12 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+    
+    - name: Download static files
+      uses: actions/download-artifact@v4
+      with:
+        name: static-files
+        path: static/
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -223,147 +258,54 @@ jobs:
         
         echo "fqdn=$FQDN" >> $GITHUB_OUTPUT
         echo "🚀 Production ACI deployment successful!"
-        echo "ACI endpoint: http://${FQDN}:3000/reframe"
-
-  deploy-https:
-    needs: deploy-production
-    runs-on: ubuntu-latest
-    if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_https != false)
-    environment: production
+        echo "Web UI: http://${FQDN}:3000/"
+        echo "API endpoint: http://${FQDN}:3000/reframe"
+        echo "Health check: http://${FQDN}:3000/health"
     
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Login to Azure
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-    
-    - name: Deploy HTTPS Infrastructure
+    - name: Test production deployment
       run: |
-        ACI_FQDN="${{ needs.deploy-production.outputs.aci-fqdn }}"
+        FQDN="${{ steps.get-fqdn.outputs.fqdn }}"
         
-        if [ -z "$ACI_FQDN" ]; then
-          echo "❌ Could not get ACI FQDN from previous job"
-          exit 1
-        fi
+        # Wait for container to be ready
+        sleep 30
         
-        echo "🔒 Deploying HTTPS infrastructure for ACI: $ACI_FQDN"
+        echo "🧪 Testing production deployment..."
         
-        # Register Microsoft.Network resource provider if needed
-        echo "📋 Checking Microsoft.Network resource provider registration..."
-        NETWORK_PROVIDER_STATE=$(az provider show --namespace Microsoft.Network --query "registrationState" --output tsv)
+        # Test health endpoint
+        echo "Testing health endpoint..."
+        curl -f "http://${FQDN}:3000/health" || echo "Health check failed"
         
-        if [ "$NETWORK_PROVIDER_STATE" != "Registered" ]; then
-          echo "🔄 Attempting to register Microsoft.Network resource provider..."
-          
-          # Try to register the provider
-          if az provider register --namespace Microsoft.Network 2>/dev/null; then
-            # Wait for registration to complete
-            echo "⏳ Waiting for Microsoft.Network provider registration..."
-            while [ "$(az provider show --namespace Microsoft.Network --query 'registrationState' --output tsv)" != "Registered" ]; do
-              echo "Still registering... waiting 30 seconds"
-              sleep 30
-            done
-            echo "✅ Microsoft.Network provider registered successfully"
-          else
-            echo "⚠️  Could not register Microsoft.Network provider automatically"
-            echo "This usually means the service principal needs 'Resource Provider Contributor' role"
-            echo ""
-            echo "Solutions:"
-            echo "1. Ask Azure admin to register Microsoft.Network provider manually"
-            echo "2. Update service principal permissions (see scripts/fix-service-principal-permissions.sh)"
-            echo "3. Register provider manually: az provider register --namespace Microsoft.Network"
-            echo ""
-            echo "Continuing deployment - may fail if provider is not registered..."
-          fi
-        else
-          echo "✅ Microsoft.Network provider already registered"
-        fi
+        # Test web UI (check if index.html is served)
+        echo "Testing web UI..."
+        curl -f "http://${FQDN}:3000/" | grep -q "Reframe" || echo "Web UI test failed"
         
-        DEPLOYMENT_NAME="https-setup-$(date +%Y%m%d-%H%M%S)"
+        # Test API endpoint
+        echo "Testing API endpoint..."
+        curl -X POST "http://${FQDN}:3000/reframe" \
+          -H "Content-Type: text/plain" \
+          -d "{1:F01BNPAFRPPXXX0000000000}{2:O1031234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
+        :20:FT21001234567890
+        :23B:CRED
+        :32A:240101USD1000,00
+        :50K:/1234567890
+        ACME CORPORATION
+        :52A:BNPAFRPPXXX
+        :57A:DEUTDEFFXXX
+        :59:/DE89370400440532013000
+        MUELLER GMBH
+        :70:PAYMENT FOR INVOICE 12345
+        :71A:OUR
+        -}" \
+          --max-time 30 \
+          -w "\nHTTP Status: %{http_code}\n" || echo "API test failed"
         
-        az deployment group create \
-          --resource-group ${{ env.RESOURCE_GROUP }} \
-          --template-file infrastructure/azure-https-setup.bicep \
-          --parameters \
-            location=${{ env.LOCATION }} \
-            namePrefix=reframe \
-            environment=prod \
-            aciFqdn="$ACI_FQDN" \
-          --name "$DEPLOYMENT_NAME" \
-          --verbose
-        
-        if [ $? -eq 0 ]; then
-          echo "✅ HTTPS infrastructure deployed successfully!"
-          
-          # Get the HTTPS endpoint
-          HTTPS_ENDPOINT=$(az deployment group show \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --name "$DEPLOYMENT_NAME" \
-            --query "properties.outputs.httpsEndpoint.value" \
-            --output tsv)
-          
-          PUBLIC_IP=$(az deployment group show \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --name "$DEPLOYMENT_NAME" \
-            --query "properties.outputs.publicIpAddress.value" \
-            --output tsv)
-          
-          echo ""
-          echo "🎉 HTTPS Setup Complete!"
-          echo "=================================="
-          echo "HTTPS Endpoint: $HTTPS_ENDPOINT/reframe"
-          echo "Public IP: $PUBLIC_IP"
-          echo "Health Check: $HTTPS_ENDPOINT/health"
-          echo ""
-          echo "⚠️  Note: Using self-signed certificate for testing."
-          echo "Wait 5-10 minutes for Application Gateway to be fully ready."
-        else
-          echo "❌ HTTPS deployment failed"
-          exit 1
-        fi
-    
-    - name: Test HTTPS endpoint
-      run: |
-        # Wait for Application Gateway to be ready
-        echo "⏳ Waiting for Application Gateway to be ready (5 minutes)..."
-        sleep 300
-        
-        # Get the HTTPS endpoint
-        HTTPS_ENDPOINT=$(az deployment group list \
-          --resource-group ${{ env.RESOURCE_GROUP }} \
-          --query "[?contains(name, 'https-setup')].properties.outputs.httpsEndpoint.value | [0]" \
-          --output tsv)
-        
-        if [ -n "$HTTPS_ENDPOINT" ]; then
-          echo "🧪 Testing HTTPS endpoint: $HTTPS_ENDPOINT"
-          
-          # Test health endpoint (allow self-signed cert)
-          curl -k -f "$HTTPS_ENDPOINT/health" || echo "Health check failed"
-          
-          # Test main API endpoint
-          curl -k -X POST "$HTTPS_ENDPOINT/reframe" \
-            -H "Content-Type: text/plain" \
-            -d "{1:F01BNPAFRPPXXX0000000000}{2:O1031234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
-          :20:FT21001234567890
-          :23B:CRED
-          :32A:240101USD1000,00
-          :50K:/1234567890
-          ACME CORPORATION
-          :52A:BNPAFRPPXXX
-          :57A:DEUTDEFFXXX
-          :59:/DE89370400440532013000
-          MUELLER GMBH
-          :70:PAYMENT FOR INVOICE 12345
-          :71A:OUR
-          -}" \
-            --max-time 30 \
-            -w "\nHTTP Status: %{http_code}\n" || echo "API test failed"
-        fi
+        echo ""
+        echo "🎉 All tests completed!"
+        echo "✅ Web UI: http://${FQDN}:3000/"
+        echo "✅ API: http://${FQDN}:3000/reframe"
 
   cleanup-staging:
-    needs: [deploy-production, deploy-https]
+    needs: [deploy-production]
     runs-on: ubuntu-latest
     if: success()
     

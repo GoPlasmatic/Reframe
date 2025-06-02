@@ -2,7 +2,7 @@ use axum::{
     extract::State,
     http::{StatusCode, header},
     response::Response,
-    routing::post,
+    routing::{post, get},
     Router,
 };
 use dataflow_rs::{Engine, Workflow};
@@ -45,6 +45,7 @@ async fn main() -> anyhow::Result<()> {
     // Build the router
     let app = Router::new()
         .route("/reframe", post(process_data))
+        .route("/health", get(health_check))
         .layer(
             ServiceBuilder::new()
                 .layer(CorsLayer::permissive())
@@ -388,4 +389,15 @@ async fn process_data(
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
+}
+
+// Health check endpoint
+async fn health_check() -> Result<Response<String>, StatusCode> {
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(r#"{"status":"healthy","service":"reframe-api","version":"0.1.0"}"#.to_string())
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    Ok(response)
 }

@@ -1,0 +1,228 @@
+name: Deploy to Azure Container Instances
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+
+env:
+  REGISTRY_NAME: reframeacr24bpw6jltlfzm
+  IMAGE_NAME: reframe
+  RESOURCE_GROUP: rg-reframe-prod
+  CONTAINER_NAME: reframe-api
+  LOCATION: eastus
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+        components: rustfmt, clippy
+    
+    - name: Cache cargo dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Format check
+      run: cargo fmt -- --check
+    
+    - name: Clippy check
+      run: cargo clippy -- -D warnings
+    
+    - name: Run tests
+      run: cargo test
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Login to Azure Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY_NAME }}.azurecr.io
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix=sha-,format=short
+          type=raw,value=latest,enable={{is_default_branch}}
+    
+    - name: Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  deploy-staging:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: staging
+    
+    steps:
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Deploy to Azure Container Instances (Staging)
+      uses: azure/aci-deploy@v1
+      with:
+        resource-group: ${{ env.RESOURCE_GROUP }}
+        dns-name-label: reframe-api-staging-${{ github.sha }}
+        image: ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+        name: ${{ env.CONTAINER_NAME }}-staging
+        location: ${{ env.LOCATION }}
+        cpu: 0.5
+        memory: 1
+        ports: '3000'
+        protocol: TCP
+        environment-variables: |
+          RUST_LOG=info
+          PORT=3000
+        secure-environment-variables: |
+        registry-login-server: ${{ env.REGISTRY_NAME }}.azurecr.io
+        registry-username: ${{ secrets.ACR_USERNAME }}
+        registry-password: ${{ secrets.ACR_PASSWORD }}
+    
+    - name: Test staging deployment
+      run: |
+        # Wait for container to be ready
+        sleep 30
+        
+        # Get the FQDN
+        FQDN=$(az container show \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --name ${{ env.CONTAINER_NAME }}-staging \
+          --query ipAddress.fqdn \
+          --output tsv)
+        
+        # Test the health endpoint
+        curl -f "http://${FQDN}:3000/health" || echo "Health check endpoint not available"
+        
+        # Test the main API endpoint with sample data
+        echo "Testing main API endpoint..."
+        curl -X POST "http://${FQDN}:3000/reframe" \
+          -H "Content-Type: text/plain" \
+          -d "{1:F01BNPAFRPPXXX0000000000}{2:O1031234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
+        :20:FT21001234567890
+        :23B:CRED
+        :32A:240101USD1000,00
+        :50K:/1234567890
+        ACME CORPORATION
+        :52A:BNPAFRPPXXX
+        :57A:DEUTDEFFXXX
+        :59:/DE89370400440532013000
+        MUELLER GMBH
+        :70:PAYMENT FOR INVOICE 12345
+        :71A:OUR
+        -}" \
+          --max-time 30 \
+          -w "\nHTTP Status: %{http_code}\n" || echo "API test failed"
+
+  deploy-production:
+    needs: [build-and-push, deploy-staging]
+    runs-on: ubuntu-latest
+    if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment: production
+    
+    steps:
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Deploy to Azure Container Instances (Production)
+      uses: azure/aci-deploy@v1
+      with:
+        resource-group: ${{ env.RESOURCE_GROUP }}
+        dns-name-label: reframe-api-prod
+        image: ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+        name: ${{ env.CONTAINER_NAME }}-prod
+        location: ${{ env.LOCATION }}
+        cpu: 1
+        memory: 2
+        ports: '3000'
+        protocol: TCP
+        environment-variables: |
+          RUST_LOG=info
+          PORT=3000
+        secure-environment-variables: |
+        registry-login-server: ${{ env.REGISTRY_NAME }}.azurecr.io
+        registry-username: ${{ secrets.ACR_USERNAME }}
+        registry-password: ${{ secrets.ACR_PASSWORD }}
+    
+    - name: Get production endpoint
+      run: |
+        FQDN=$(az container show \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --name ${{ env.CONTAINER_NAME }}-prod \
+          --query ipAddress.fqdn \
+          --output tsv)
+        
+        echo "🚀 Production deployment successful!"
+        echo "API endpoint: http://${FQDN}:3000/reframe"
+        echo "Test with: curl -X POST http://${FQDN}:3000/reframe -H 'Content-Type: text/plain' -d '<SWIFT_MT103_MESSAGE>'"
+
+  cleanup-staging:
+    needs: deploy-production
+    runs-on: ubuntu-latest
+    if: success()
+    
+    steps:
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Cleanup staging environment
+      run: |
+        az container delete \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --name ${{ env.CONTAINER_NAME }}-staging \
+          --yes || echo "Staging container not found or already deleted" 

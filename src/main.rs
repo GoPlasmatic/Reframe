@@ -1,12 +1,12 @@
 use axum::{
     extract::State,
-    http::{StatusCode, header},
+    http::{header, StatusCode},
     response::Response,
-    routing::{post, get},
+    routing::{get, post},
     Router,
 };
-use dataflow_rs::{Engine, Workflow};
 use dataflow_rs::engine::message::Message;
+use dataflow_rs::{Engine, Workflow};
 use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -29,14 +29,14 @@ struct AppState {
 async fn main() -> anyhow::Result<()> {
     // Initialize the dataflow engine
     let mut engine = Engine::new();
-    
+
     // Register custom parse function
     engine.register_task_function("parse".to_string(), Box::new(ParserFunction));
     engine.register_task_function("publish".to_string(), Box::new(PublishFunction));
-    
+
     // Add sample workflows
     setup_workflows(&mut engine).await?;
-    
+
     // Create application state
     let state = AppState {
         engine: Arc::new(Mutex::new(engine)),
@@ -46,14 +46,11 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/reframe", post(process_data))
         .route("/health", get(health_check))
-        .layer(
-            ServiceBuilder::new()
-                .layer(CorsLayer::permissive())
-        )
+        .layer(ServiceBuilder::new().layer(CorsLayer::permissive()))
         .with_state(state);
 
     println!("🚀 Server starting on http://0.0.0.0:3000");
-    
+
     // Start the server
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
     axum::serve(listener, app).await?;
@@ -357,10 +354,10 @@ async fn process_data(
     payload: String,
 ) -> Result<Response<String>, StatusCode> {
     let engine = state.engine.lock().await;
-    
+
     // Create a message with the payload
     let mut message = Message::new(&Value::String(payload));
-    
+
     // Process the message through workflows
     match engine.process_message(&mut message).await {
         Ok(_) => {
@@ -371,7 +368,6 @@ async fn process_data(
                     .header(header::CONTENT_TYPE, "application/xml")
                     .body(result_string.to_string())
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
-                
             } else {
                 // Return the full message data as JSON if no specific result
                 Response::builder()
@@ -381,7 +377,8 @@ async fn process_data(
             }
         }
         Err(e) => {
-            let error_response = serde_json::json!({"error": format!("Error processing data: {:?}", e)});
+            let error_response =
+                serde_json::json!({"error": format!("Error processing data: {:?}", e)});
             Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
                 .header(header::CONTENT_TYPE, "application/json")
@@ -398,6 +395,6 @@ async fn health_check() -> Result<Response<String>, StatusCode> {
         .header(header::CONTENT_TYPE, "application/json")
         .body(r#"{"status":"healthy","service":"reframe-api","version":"0.1.0"}"#.to_string())
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
+
     Ok(response)
 }

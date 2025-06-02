@@ -250,6 +250,25 @@ jobs:
         
         echo "🔒 Deploying HTTPS infrastructure for ACI: $ACI_FQDN"
         
+        # Register Microsoft.Network resource provider if needed
+        echo "📋 Checking Microsoft.Network resource provider registration..."
+        NETWORK_PROVIDER_STATE=$(az provider show --namespace Microsoft.Network --query "registrationState" --output tsv)
+        
+        if [ "$NETWORK_PROVIDER_STATE" != "Registered" ]; then
+          echo "🔄 Registering Microsoft.Network resource provider..."
+          az provider register --namespace Microsoft.Network
+          
+          # Wait for registration to complete
+          echo "⏳ Waiting for Microsoft.Network provider registration..."
+          while [ "$(az provider show --namespace Microsoft.Network --query 'registrationState' --output tsv)" != "Registered" ]; do
+            echo "Still registering... waiting 30 seconds"
+            sleep 30
+          done
+          echo "✅ Microsoft.Network provider registered successfully"
+        else
+          echo "✅ Microsoft.Network provider already registered"
+        fi
+        
         DEPLOYMENT_NAME="https-setup-$(date +%Y%m%d-%H%M%S)"
         
         az deployment group create \

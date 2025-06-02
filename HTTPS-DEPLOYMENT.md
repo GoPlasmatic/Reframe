@@ -63,6 +63,32 @@ For immediate HTTPS setup without waiting for CI/CD:
 1. Azure CLI installed and logged in (`az login`)
 2. Existing ACI deployment
 3. Appropriate Azure permissions
+4. **Azure resource providers registered** (handled automatically by scripts)
+
+### Resource Provider Registration
+
+The deployment requires these Azure resource providers to be registered:
+- `Microsoft.ContainerInstance` (for ACI)
+- `Microsoft.ContainerRegistry` (for ACR)
+- `Microsoft.Network` (for Application Gateway)
+- `Microsoft.Resources` (for deployments)
+
+#### Automatic Registration
+Both the CI/CD pipeline and manual scripts automatically check and register required providers.
+
+#### Manual Registration
+If needed, you can register providers manually:
+
+```bash
+# Register all required providers at once
+chmod +x scripts/register-azure-providers.sh
+./scripts/register-azure-providers.sh
+
+# Or register individual providers
+az provider register --namespace Microsoft.Network
+az provider register --namespace Microsoft.ContainerInstance
+az provider register --namespace Microsoft.ContainerRegistry
+```
 
 ### Deploy HTTPS
 
@@ -200,6 +226,40 @@ az network application-gateway show-backend-health \
 2. **Timeout Errors**: Application Gateway may still be starting (wait 5-10 minutes)
 3. **DNS Issues**: Public IP DNS may need propagation time
 4. **Certificate Warnings**: Expected with self-signed certificates
+5. **Resource Provider Not Registered**: See troubleshooting below
+
+### Resource Provider Registration Errors
+
+If you see errors like:
+```
+The subscription is not registered to use namespace 'Microsoft.Network'
+```
+
+**Solutions:**
+
+1. **Automatic fix** (recommended):
+   ```bash
+   # Re-run the deployment - it will auto-register providers
+   ./scripts/deploy-https-manual.sh
+   ```
+
+2. **Manual registration**:
+   ```bash
+   # Register all providers
+   ./scripts/register-azure-providers.sh
+   
+   # Then retry deployment
+   ./scripts/deploy-https-manual.sh
+   ```
+
+3. **Individual provider registration**:
+   ```bash
+   az provider register --namespace Microsoft.Network
+   # Wait for completion (can take 5-10 minutes)
+   az provider show --namespace Microsoft.Network --query registrationState
+   ```
+
+**Note**: Resource provider registration is a one-time operation per subscription and can take 5-10 minutes to complete.
 
 ### Logs and Debugging
 

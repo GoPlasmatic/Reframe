@@ -27,6 +27,25 @@ if ! az account show &> /dev/null; then
     exit 1
 fi
 
+# Check and register Microsoft.Network resource provider if needed
+echo -e "${YELLOW}📋 Checking Microsoft.Network resource provider registration...${NC}"
+NETWORK_PROVIDER_STATE=$(az provider show --namespace Microsoft.Network --query "registrationState" --output tsv 2>/dev/null || echo "NotRegistered")
+
+if [ "$NETWORK_PROVIDER_STATE" != "Registered" ]; then
+    echo -e "${YELLOW}🔄 Registering Microsoft.Network resource provider...${NC}"
+    az provider register --namespace Microsoft.Network
+    
+    # Wait for registration to complete
+    echo -e "${YELLOW}⏳ Waiting for Microsoft.Network provider registration...${NC}"
+    while [ "$(az provider show --namespace Microsoft.Network --query 'registrationState' --output tsv 2>/dev/null || echo 'NotRegistered')" != "Registered" ]; do
+        echo "Still registering... waiting 30 seconds"
+        sleep 30
+    done
+    echo -e "${GREEN}✅ Microsoft.Network provider registered successfully${NC}"
+else
+    echo -e "${GREEN}✅ Microsoft.Network provider already registered${NC}"
+fi
+
 # Get the current ACI FQDN
 echo -e "${YELLOW}📋 Getting current ACI information...${NC}"
 ACI_NAME="reframe-api-prod"

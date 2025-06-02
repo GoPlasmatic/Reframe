@@ -10,9 +10,6 @@ param environment string = 'prod'
 @description('Existing ACI FQDN (without protocol)')
 param aciFqdn string
 
-@description('Custom domain name (optional)')
-param customDomain string = ''
-
 var appGatewayName = '${namePrefix}-appgw-${environment}'
 var publicIpName = '${namePrefix}-appgw-pip-${environment}'
 var vnetName = '${namePrefix}-vnet-${environment}'
@@ -104,16 +101,6 @@ resource publicIP 'Microsoft.Network/publicIPAddresses@2023-04-01' = {
     dnsSettings: {
       domainNameLabel: '${namePrefix}-api-${environment}-https'
     }
-  }
-}
-
-// Self-signed certificate for testing (replace with real certificate in production)
-resource certificate 'Microsoft.Network/applicationGateways/sslCertificates@2023-04-01' = {
-  name: 'default-ssl-cert'
-  parent: applicationGateway
-  properties: {
-    data: 'LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUN1RENDQWFDZ0F3SUJBZ0lKQU9QRzhrQVVQOHJvTUEwR0NTcUdTSWIzRFFFQkN3VUFNQlF4RWpBUUJnTlYKQkFNTUNXeHZZMkZzYUc5emREQWVGdzB5TXpBeE1qZ3hOekE1TURsYUZ3MHpNekF4TWpVeE56QTVNRGxhTUJReApFakFRQmdOVkJBTU1DV3h2WTJGc2FHOXPMREJ0Q0FRRUFvSUJBUUMvRTRKZHc4NDBGWTIxODNQcGtxTm8rLwoKY3l2L2ZBMElrNi9iOUZwQzJJNDdIekVDbUpEa1VhV09FeUV4aVBiQktVV01UdWJOSU1rUnNzYnNxRXZKVQpGUndKU1YrM3NFbG9MYUNvNUUzeWN1dVhVV2FYbUJySlJYWmtRcGVnKzN0MkIvQWtyOEJSZDlrR3U2VHhSCktqU2ZUWnNESmkxNi9LUTZlWGNzNGQrTEtyS3ZXUlVTbkp3N3dUSE5LQzdtK1c0TUhhNUxuUFZrdHAyVzoKZmpKSFNRK2NzQzFJY1J5dWkvcUlWa05kZjJ5WlByNjFEV1B0S2t5QlFXTThkaGZnNDJCQ1VqQWdNQkFBRwojQ1FBd0VBWUhLb1pJemowRUF3SUZBREErTUJ3R0ExVWREZ1FWQkJSTXFMUzBwcUQ3TGNVTStWRm1MemtBClEzZEZaMEF0Q2VCZ056ZytzUjdUVnFrV1ZyRGYKLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQ=='
-    password: 'test123'
   }
 }
 

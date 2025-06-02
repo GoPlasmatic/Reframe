@@ -110,12 +110,16 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
     
+    - name: Extract short SHA
+      id: sha
+      run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+    
     - name: Deploy to Azure Container Instances (Staging)
       uses: azure/aci-deploy@v1
       with:
         resource-group: ${{ env.RESOURCE_GROUP }}
-        dns-name-label: reframe-api-staging-${{ github.sha }}
-        image: ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+        dns-name-label: reframe-api-staging-${{ steps.sha.outputs.short }}
+        image: ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:sha-${{ steps.sha.outputs.short }}
         name: ${{ env.CONTAINER_NAME }}-staging
         location: ${{ env.LOCATION }}
         cpu: 0.5
@@ -177,12 +181,16 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
     
+    - name: Extract short SHA
+      id: sha
+      run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+    
     - name: Deploy to Azure Container Instances (Production)
       uses: azure/aci-deploy@v1
       with:
         resource-group: ${{ env.RESOURCE_GROUP }}
         dns-name-label: reframe-api-prod
-        image: ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+        image: ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:sha-${{ steps.sha.outputs.short }}
         name: ${{ env.CONTAINER_NAME }}-prod
         location: ${{ env.LOCATION }}
         cpu: 1

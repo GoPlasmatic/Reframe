@@ -10,7 +10,6 @@ use dataflow_rs::{Engine, Workflow};
 use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tower::ServiceBuilder;
 use tower_http::services::ServeDir;
 
 mod parser;

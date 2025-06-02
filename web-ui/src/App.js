@@ -22,14 +22,14 @@ import {
   CheckCircle as CheckIcon,
   Error as ErrorIcon,
 } from '@mui/icons-material';
-import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { docco } from 'react-syntax-highlighter/dist/esm/styles/hljs';
-import xml from 'react-syntax-highlighter/dist/esm/languages/hljs/xml';
 
-// Register XML language for syntax highlighting
-SyntaxHighlighter.registerLanguage('xml', xml);
-
-const API_ENDPOINT = 'http://reframe-api-prod.eastus.azurecontainer.io:3000/reframe';
+// API Configuration
+const API_ENDPOINTS = {
+  // HTTPS endpoint (Application Gateway)
+  https: 'https://reframe-api-prod-https.eastus.cloudapp.azure.com/reframe',
+  // HTTP endpoint (direct ACI) - for development only
+  http: 'http://reframe-api-prod.eastus.azurecontainer.io:3000/reframe'
+};
 
 const SAMPLE_MT103 = `{1:F01BNPAFRPPXXX0000000000}{2:O1031234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
 :20:FT21001234567890
@@ -55,6 +55,10 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [usingHttps, setUsingHttps] = useState(false);
+
+  // Detect if we're in development mode
+  const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   const formatXml = (xml) => {
     try {
@@ -96,49 +100,57 @@ function App() {
     setSuccess(false);
     setOutputXml('');
 
-    try {
-      const response = await fetch(API_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain',
-        },
-        body: inputMessage,
-      });
+    // Try HTTPS first, then HTTP for development
+    const endpointsToTry = isDevelopment 
+      ? [API_ENDPOINTS.http, API_ENDPOINTS.https]
+      : [API_ENDPOINTS.https, API_ENDPOINTS.http];
 
-      const responseText = await response.text();
+    for (const endpoint of endpointsToTry) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: inputMessage,
+        });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${responseText}`);
-      }
+        const responseText = await response.text();
 
-      // Check if response is XML or JSON
-      if (responseText.trim().startsWith('<')) {
-        // It's XML
-        setOutputXml(formatXml(responseText));
-        setSuccess(true);
-      } else {
-        // It's JSON, try to extract XML or show the JSON
-        try {
-          const jsonResponse = JSON.parse(responseText);
-          if (jsonResponse.result && jsonResponse.result.startsWith('<')) {
-            setOutputXml(formatXml(jsonResponse.result));
-            setSuccess(true);
-          } else {
-            // Show the JSON response as formatted XML for now
-            setOutputXml(JSON.stringify(jsonResponse, null, 2));
-            setSuccess(true);
-          }
-        } catch (jsonError) {
-          setOutputXml(responseText);
-          setSuccess(true);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${responseText}`);
         }
+
+        // Check if response is XML or JSON
+        if (responseText.trim().startsWith('<')) {
+          setOutputXml(formatXml(responseText));
+        } else {
+          try {
+            const jsonResponse = JSON.parse(responseText);
+            if (jsonResponse.result && jsonResponse.result.startsWith('<')) {
+              setOutputXml(formatXml(jsonResponse.result));
+            } else {
+              setOutputXml(JSON.stringify(jsonResponse, null, 2));
+            }
+          } catch (jsonError) {
+            setOutputXml(responseText);
+          }
+        }
+
+        setSuccess(true);
+        setUsingHttps(endpoint.startsWith('https'));
+        setLoading(false);
+        return; // Success, exit function
+
+      } catch (err) {
+        console.error(`Error with endpoint ${endpoint}:`, err);
+        // Continue to next endpoint
       }
-    } catch (err) {
-      console.error('Error:', err);
-      setError(`Failed to transform message: ${err.message}`);
-    } finally {
-      setLoading(false);
     }
+
+    // If we get here, all endpoints failed
+    setError(`Unable to connect to the API. ${isDevelopment ? 'Make sure the API is running and accessible.' : 'The HTTPS endpoint may not be configured yet.'}`);
+    setLoading(false);
   };
 
   const handleLoadSample = () => {
@@ -165,8 +177,14 @@ function App() {
             Reframe - SWIFT MT103 to ISO 20022 Converter
           </Typography>
           <Chip 
-            label="API Status: Connected" 
-            color="success" 
+            label={success 
+              ? (usingHttps ? 'Connected via HTTPS' : 'Connected via HTTP')
+              : isDevelopment ? 'Ready (Development)' : 'Ready (GitHub Pages)'
+            }
+            color={success 
+              ? (usingHttps ? 'success' : 'warning')
+              : 'default'
+            }
             size="small"
             icon={<CheckIcon />}
           />
@@ -185,6 +203,15 @@ function App() {
               Paste your SWIFT MT103 message in the left panel and click "Transform" to convert it to ISO 20022 pacs.008.001.13 XML format.
               The converted XML will appear in the right panel with syntax highlighting.
             </Typography>
+            
+            {!isDevelopment && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                <Typography variant="body2">
+                  <strong>HTTPS Setup:</strong> If the API is not responding, HTTPS may need to be configured. 
+                  Run <code>./scripts/setup-https.sh</code> to enable HTTPS support.
+                </Typography>
+              </Alert>
+            )}
           </CardContent>
         </Card>
 
@@ -225,7 +252,7 @@ function App() {
         {/* Success Alert */}
         {success && (
           <Alert severity="success" sx={{ mb: 3 }} icon={<CheckIcon />}>
-            Message transformed successfully!
+            Message transformed successfully using {usingHttps ? 'HTTPS' : 'HTTP'} endpoint!
           </Alert>
         )}
 
@@ -283,20 +310,22 @@ function App() {
               <Divider />
               <Box sx={{ flexGrow: 1, overflow: 'auto', backgroundColor: '#f8f8f8' }}>
                 {outputXml ? (
-                  <SyntaxHighlighter
-                    language="xml"
-                    style={docco}
-                    customStyle={{
+                  <Box
+                    component="pre"
+                    sx={{
                       margin: 0,
                       padding: '16px',
                       backgroundColor: 'transparent',
                       fontSize: '14px',
                       lineHeight: '1.4',
+                      fontFamily: 'monospace',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      color: '#333',
                     }}
-                    showLineNumbers={true}
                   >
-                    {outputXml}
-                  </SyntaxHighlighter>
+                    <code>{outputXml}</code>
+                  </Box>
                 ) : (
                   <Box sx={{ p: 3, color: 'text.secondary', fontStyle: 'italic' }}>
                     Converted XML will appear here after transformation...

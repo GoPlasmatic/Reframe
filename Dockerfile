@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.75-slim-bullseye AS builder
+FROM rust:latest AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -10,29 +10,19 @@ RUN apt-get update && apt-get install -y \
 # Create app directory
 WORKDIR /app
 
-# Copy manifests first for better layer caching
-COPY Cargo.toml ./
-COPY Cargo.lock ./
-
-# Create a dummy main.rs to build dependencies
-RUN mkdir src && echo "fn main() {}" > src/main.rs
-
-# Build dependencies (this layer will be cached unless Cargo.toml or Cargo.lock changes)
-RUN cargo build --release && rm -rf src
-
-# Copy source code
-COPY src ./src
+# Copy all source files
+COPY . .
 
 # Build for release
 RUN cargo build --release
 
 # Runtime stage
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     ca-certificates \
-    libssl1.1 \
+    libssl3 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 

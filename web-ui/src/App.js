@@ -65,7 +65,6 @@ function App() {
 
   // Detect if we're in development mode or GitHub Pages
   const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  const isGitHubPages = window.location.hostname.includes('github.io');
 
   const formatXml = (xml) => {
     try {

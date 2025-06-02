@@ -8,11 +8,94 @@ Reframe is a Rust-based REST API service that converts SWIFT MT103 messages to I
 - 🔄 **Message Transformation**: Converts SWIFT MT103 messages to ISO 20022 pacs.008.001.13 format
 - 📋 **SWIFT MT Parsing**: Built-in SWIFT MT message parsing using swift-mt-message library
 - 🌐 **REST API**: Simple HTTP endpoint for message conversion
+- 🔒 **HTTPS Support**: Automated SSL termination with Azure Application Gateway
 - ⚡ **Workflow Engine**: Powered by dataflow-rs for robust message processing
 - 📊 **Error Handling**: Comprehensive error reporting for invalid messages
 - 🔧 **Extensible**: Modular design allows for additional message formats
+- 🚢 **Production Ready**: Complete CI/CD pipeline with Azure deployment
+
+## Quick Start
+
+### Web Interface
+Access the live web interface at: **https://GoPlasmatic.github.io/Reframe**
+
+The web interface provides:
+- Material UI design with split-panel layout
+- Sample MT103 message loader
+- XML syntax highlighting
+- Real-time error handling
+- Automatic HTTPS/HTTP endpoint detection
+
+### API Endpoints
+
+#### Production (HTTPS)
+- **HTTPS API**: `https://reframe-api-prod-https.eastus.cloudapp.azure.com/reframe`
+- **Health Check**: `https://reframe-api-prod-https.eastus.cloudapp.azure.com/health`
+
+#### Direct ACI (HTTP - Fallback)
+- **HTTP API**: `http://reframe-api-prod.eastus.azurecontainer.io:3000/reframe`
+- **Health Check**: `http://reframe-api-prod.eastus.azurecontainer.io:3000/health`
+
+### Local Development
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd Reframe
+```
+
+2. Build and run the application:
+```bash
+cargo run
+```
+
+3. The server will start on `http://0.0.0.0:3000`
+
+## Deployment
+
+### Automated Deployment
+
+The project includes a complete CI/CD pipeline that automatically:
+
+1. **Tests** the Rust code (format, clippy, unit tests)
+2. **Builds** and pushes Docker images to Azure Container Registry
+3. **Deploys** to staging environment for testing
+4. **Deploys** to production environment
+5. **Sets up HTTPS** infrastructure with Application Gateway
+6. **Cleans up** staging resources
+
+#### Triggering Deployment
+
+- **Automatic**: Push to `main` branch
+- **Manual**: Use GitHub Actions workflow dispatch
+
+#### HTTPS Setup
+
+HTTPS is automatically configured as part of the deployment pipeline using Azure Application Gateway with:
+- SSL termination
+- HTTP to HTTPS redirect
+- Health probe monitoring
+- Self-signed certificate (for testing)
+
+#### Manual HTTPS Setup
+
+If you need to setup HTTPS independently:
+
+```bash
+# Run the manual HTTPS deployment script
+chmod +x scripts/deploy-https-manual.sh
+./scripts/deploy-https-manual.sh
+```
 
 ## Architecture
+
+### Cloud Infrastructure
+
+- **Azure Container Instances (ACI)**: Hosts the Rust API service
+- **Azure Container Registry (ACR)**: Stores container images
+- **Azure Application Gateway**: Provides HTTPS termination and load balancing
+- **GitHub Actions**: CI/CD automation
+- **GitHub Pages**: Hosts the web UI
 
 ### Components
 

@@ -15,6 +15,11 @@ on:
         options:
         - production
         - staging
+      deploy_https:
+        description: 'Deploy HTTPS infrastructure'
+        required: false
+        default: true
+        type: boolean
 
 env:
   REGISTRY_NAME: reframeacr24bpw6jltlfzm
@@ -174,6 +179,8 @@ jobs:
     runs-on: ubuntu-latest
     if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
     environment: production
+    outputs:
+      aci-fqdn: ${{ steps.get-fqdn.outputs.fqdn }}
     
     steps:
     - name: Login to Azure
@@ -206,6 +213,7 @@ jobs:
         registry-password: ${{ secrets.ACR_PASSWORD }}
     
     - name: Get production endpoint
+      id: get-fqdn
       run: |
         FQDN=$(az container show \
           --resource-group ${{ env.RESOURCE_GROUP }} \
@@ -213,12 +221,118 @@ jobs:
           --query ipAddress.fqdn \
           --output tsv)
         
-        echo "🚀 Production deployment successful!"
-        echo "API endpoint: http://${FQDN}:3000/reframe"
-        echo "Test with: curl -X POST http://${FQDN}:3000/reframe -H 'Content-Type: text/plain' -d '<SWIFT_MT103_MESSAGE>'"
+        echo "fqdn=$FQDN" >> $GITHUB_OUTPUT
+        echo "🚀 Production ACI deployment successful!"
+        echo "ACI endpoint: http://${FQDN}:3000/reframe"
+
+  deploy-https:
+    needs: deploy-production
+    runs-on: ubuntu-latest
+    if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_https != false)
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Deploy HTTPS Infrastructure
+      run: |
+        ACI_FQDN="${{ needs.deploy-production.outputs.aci-fqdn }}"
+        
+        if [ -z "$ACI_FQDN" ]; then
+          echo "❌ Could not get ACI FQDN from previous job"
+          exit 1
+        fi
+        
+        echo "🔒 Deploying HTTPS infrastructure for ACI: $ACI_FQDN"
+        
+        DEPLOYMENT_NAME="https-setup-$(date +%Y%m%d-%H%M%S)"
+        
+        az deployment group create \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --template-file infrastructure/azure-https-setup.bicep \
+          --parameters \
+            location=${{ env.LOCATION }} \
+            namePrefix=reframe \
+            environment=prod \
+            aciFqdn="$ACI_FQDN" \
+          --name "$DEPLOYMENT_NAME" \
+          --verbose
+        
+        if [ $? -eq 0 ]; then
+          echo "✅ HTTPS infrastructure deployed successfully!"
+          
+          # Get the HTTPS endpoint
+          HTTPS_ENDPOINT=$(az deployment group show \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --name "$DEPLOYMENT_NAME" \
+            --query "properties.outputs.httpsEndpoint.value" \
+            --output tsv)
+          
+          PUBLIC_IP=$(az deployment group show \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --name "$DEPLOYMENT_NAME" \
+            --query "properties.outputs.publicIpAddress.value" \
+            --output tsv)
+          
+          echo ""
+          echo "🎉 HTTPS Setup Complete!"
+          echo "=================================="
+          echo "HTTPS Endpoint: $HTTPS_ENDPOINT/reframe"
+          echo "Public IP: $PUBLIC_IP"
+          echo "Health Check: $HTTPS_ENDPOINT/health"
+          echo ""
+          echo "⚠️  Note: Using self-signed certificate for testing."
+          echo "Wait 5-10 minutes for Application Gateway to be fully ready."
+        else
+          echo "❌ HTTPS deployment failed"
+          exit 1
+        fi
+    
+    - name: Test HTTPS endpoint
+      run: |
+        # Wait for Application Gateway to be ready
+        echo "⏳ Waiting for Application Gateway to be ready (5 minutes)..."
+        sleep 300
+        
+        # Get the HTTPS endpoint
+        HTTPS_ENDPOINT=$(az deployment group list \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --query "[?contains(name, 'https-setup')].properties.outputs.httpsEndpoint.value | [0]" \
+          --output tsv)
+        
+        if [ -n "$HTTPS_ENDPOINT" ]; then
+          echo "🧪 Testing HTTPS endpoint: $HTTPS_ENDPOINT"
+          
+          # Test health endpoint (allow self-signed cert)
+          curl -k -f "$HTTPS_ENDPOINT/health" || echo "Health check failed"
+          
+          # Test main API endpoint
+          curl -k -X POST "$HTTPS_ENDPOINT/reframe" \
+            -H "Content-Type: text/plain" \
+            -d "{1:F01BNPAFRPPXXX0000000000}{2:O1031234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
+          :20:FT21001234567890
+          :23B:CRED
+          :32A:240101USD1000,00
+          :50K:/1234567890
+          ACME CORPORATION
+          :52A:BNPAFRPPXXX
+          :57A:DEUTDEFFXXX
+          :59:/DE89370400440532013000
+          MUELLER GMBH
+          :70:PAYMENT FOR INVOICE 12345
+          :71A:OUR
+          -}" \
+            --max-time 30 \
+            -w "\nHTTP Status: %{http_code}\n" || echo "API test failed"
+        fi
 
   cleanup-staging:
-    needs: deploy-production
+    needs: [deploy-production, deploy-https]
     runs-on: ubuntu-latest
     if: success()
     

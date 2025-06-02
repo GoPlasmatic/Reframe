@@ -31,9 +31,9 @@ SyntaxHighlighter.registerLanguage('xml', xml);
 
 // API Configuration
 const API_ENDPOINTS = {
-  // HTTPS endpoint (Application Gateway)
+  // HTTPS endpoint (Application Gateway) - Primary endpoint
   https: 'https://reframe-api-prod-https.eastus.cloudapp.azure.com/reframe',
-  // HTTP endpoint (direct ACI) - for development only
+  // HTTP endpoint (direct ACI) - Fallback for development
   http: 'http://reframe-api-prod.eastus.azurecontainer.io:3000/reframe'
 };
 
@@ -61,10 +61,11 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [usingHttps, setUsingHttps] = useState(false);
+  const [usingHttps, setUsingHttps] = useState(true); // Default to HTTPS
 
-  // Detect if we're in development mode
+  // Detect if we're in development mode or GitHub Pages
   const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const isGitHubPages = window.location.hostname.includes('github.io');
 
   const formatXml = (xml) => {
     try {
@@ -106,10 +107,8 @@ function App() {
     setSuccess(false);
     setOutputXml('');
 
-    // Try HTTPS first, then HTTP for development
-    const endpointsToTry = isDevelopment 
-      ? [API_ENDPOINTS.http, API_ENDPOINTS.https]
-      : [API_ENDPOINTS.https, API_ENDPOINTS.http];
+    // Always try HTTPS first, then HTTP as fallback
+    const endpointsToTry = [API_ENDPOINTS.https, API_ENDPOINTS.http];
 
     for (const endpoint of endpointsToTry) {
       try {
@@ -155,7 +154,10 @@ function App() {
     }
 
     // If we get here, all endpoints failed
-    setError(`Unable to connect to the API. ${isDevelopment ? 'Make sure the API is running and accessible.' : 'The HTTPS endpoint may not be configured yet.'}`);
+    setError(`Unable to connect to the API. ${isDevelopment 
+      ? 'Make sure the API is running and accessible.' 
+      : 'The HTTPS endpoint may not be fully configured yet. This can take 5-10 minutes after deployment.'
+    }`);
     setLoading(false);
   };
 

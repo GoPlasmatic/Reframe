@@ -30,12 +30,7 @@ import xml from 'react-syntax-highlighter/dist/esm/languages/hljs/xml';
 SyntaxHighlighter.registerLanguage('xml', xml);
 
 // API Configuration
-const API_ENDPOINTS = {
-  // HTTPS endpoint (Application Gateway) - Primary endpoint
-  https: 'https://reframe-api-prod-https.eastus.cloudapp.azure.com/reframe',
-  // HTTP endpoint (direct ACI) - Fallback for development
-  http: 'http://reframe-api-prod.eastus.azurecontainer.io:3000/reframe'
-};
+const API_ENDPOINT = 'https://reframe-api-prod-https.eastus.cloudapp.azure.com/reframe';
 
 const SAMPLE_MT103 = `{1:F01BNPAFRPPXXX0000000000}{2:O1031234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
 :20:FT21001234567890
@@ -61,7 +56,6 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [usingHttps, setUsingHttps] = useState(true); // Default to HTTPS
 
   // Detect if we're in development mode or GitHub Pages
   const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -106,58 +100,45 @@ function App() {
     setSuccess(false);
     setOutputXml('');
 
-    // Always try HTTPS first, then HTTP as fallback
-    const endpointsToTry = [API_ENDPOINTS.https, API_ENDPOINTS.http];
+    try {
+      const response = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain',
+        },
+        body: inputMessage,
+      });
 
-    for (const endpoint of endpointsToTry) {
-      try {
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'text/plain',
-          },
-          body: inputMessage,
-        });
+      const responseText = await response.text();
 
-        const responseText = await response.text();
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${responseText}`);
-        }
-
-        // Check if response is XML or JSON
-        if (responseText.trim().startsWith('<')) {
-          setOutputXml(formatXml(responseText));
-        } else {
-          try {
-            const jsonResponse = JSON.parse(responseText);
-            if (jsonResponse.result && jsonResponse.result.startsWith('<')) {
-              setOutputXml(formatXml(jsonResponse.result));
-            } else {
-              setOutputXml(JSON.stringify(jsonResponse, null, 2));
-            }
-          } catch (jsonError) {
-            setOutputXml(responseText);
-          }
-        }
-
-        setSuccess(true);
-        setUsingHttps(endpoint.startsWith('https'));
-        setLoading(false);
-        return; // Success, exit function
-
-      } catch (err) {
-        console.error(`Error with endpoint ${endpoint}:`, err);
-        // Continue to next endpoint
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${responseText}`);
       }
-    }
 
-    // If we get here, all endpoints failed
-    setError(`Unable to connect to the API. ${isDevelopment 
-      ? 'Make sure the API is running and accessible.' 
-      : 'The HTTPS endpoint may not be fully configured yet. This can take 5-10 minutes after deployment.'
-    }`);
-    setLoading(false);
+      // Check if response is XML or JSON
+      if (responseText.trim().startsWith('<')) {
+        setOutputXml(formatXml(responseText));
+      } else {
+        try {
+          const jsonResponse = JSON.parse(responseText);
+          if (jsonResponse.result && jsonResponse.result.startsWith('<')) {
+            setOutputXml(formatXml(jsonResponse.result));
+          } else {
+            setOutputXml(JSON.stringify(jsonResponse, null, 2));
+          }
+        } catch (jsonError) {
+          setOutputXml(responseText);
+        }
+      }
+
+      setSuccess(true);
+      setLoading(false);
+
+    } catch (err) {
+      console.error('API Error:', err);
+      setError(`Unable to connect to the API: ${err.message}`);
+      setLoading(false);
+    }
   };
 
   const handleLoadSample = () => {
@@ -184,14 +165,8 @@ function App() {
             Reframe - SWIFT MT103 to ISO 20022 Converter
           </Typography>
           <Chip 
-            label={success 
-              ? (usingHttps ? 'Connected via HTTPS' : 'Connected via HTTP')
-              : isDevelopment ? 'Ready (Development)' : 'Ready (GitHub Pages)'
-            }
-            color={success 
-              ? (usingHttps ? 'success' : 'warning')
-              : 'default'
-            }
+            label={success ? 'Connected via HTTPS' : isDevelopment ? 'Ready (Development)' : 'Ready (GitHub Pages)'}
+            color={success ? 'success' : 'default'}
             size="small"
             icon={<CheckIcon />}
           />
@@ -210,15 +185,6 @@ function App() {
               Paste your SWIFT MT103 message in the left panel and click "Transform" to convert it to ISO 20022 pacs.008.001.13 XML format.
               The converted XML will appear in the right panel with syntax highlighting.
             </Typography>
-            
-            {!isDevelopment && (
-              <Alert severity="info" sx={{ mt: 2 }}>
-                <Typography variant="body2">
-                  <strong>HTTPS Setup:</strong> If the API is not responding, HTTPS may need to be configured. 
-                  Run <code>./scripts/setup-https.sh</code> to enable HTTPS support.
-                </Typography>
-              </Alert>
-            )}
           </CardContent>
         </Card>
 
@@ -259,7 +225,7 @@ function App() {
         {/* Success Alert */}
         {success && (
           <Alert severity="success" sx={{ mb: 3 }} icon={<CheckIcon />}>
-            Message transformed successfully using {usingHttps ? 'HTTPS' : 'HTTP'} endpoint!
+            Message transformed successfully!
           </Alert>
         )}
 

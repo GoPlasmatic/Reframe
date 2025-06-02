@@ -24,17 +24,13 @@ The web interface provides:
 - Sample MT103 message loader
 - XML syntax highlighting
 - Real-time error handling
-- Automatic HTTPS/HTTP endpoint detection
+- Secure HTTPS endpoint connection
 
 ### API Endpoints
 
 #### Production (HTTPS)
 - **HTTPS API**: `https://reframe-api-prod-https.eastus.cloudapp.azure.com/reframe`
 - **Health Check**: `https://reframe-api-prod-https.eastus.cloudapp.azure.com/health`
-
-#### Direct ACI (HTTP - Fallback)
-- **HTTP API**: `http://reframe-api-prod.eastus.azurecontainer.io:3000/reframe`
-- **Health Check**: `http://reframe-api-prod.eastus.azurecontainer.io:3000/health`
 
 ### Local Development
 
@@ -156,7 +152,7 @@ Converts a SWIFT MT103 message to ISO 20022 pacs.008.001.13 XML format.
 
 **Example Request:**
 ```bash
-curl -X POST http://localhost:3000/reframe \
+curl -X POST https://reframe-api-prod-https.eastus.cloudapp.azure.com/reframe \
   -H "Content-Type: text/plain" \
   -d "{1:F01BNPAFRPPXXX0000000000}{2:O1031234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
 :20:FT21001234567890

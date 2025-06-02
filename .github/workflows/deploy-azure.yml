@@ -255,16 +255,28 @@ jobs:
         NETWORK_PROVIDER_STATE=$(az provider show --namespace Microsoft.Network --query "registrationState" --output tsv)
         
         if [ "$NETWORK_PROVIDER_STATE" != "Registered" ]; then
-          echo "🔄 Registering Microsoft.Network resource provider..."
-          az provider register --namespace Microsoft.Network
+          echo "🔄 Attempting to register Microsoft.Network resource provider..."
           
-          # Wait for registration to complete
-          echo "⏳ Waiting for Microsoft.Network provider registration..."
-          while [ "$(az provider show --namespace Microsoft.Network --query 'registrationState' --output tsv)" != "Registered" ]; do
-            echo "Still registering... waiting 30 seconds"
-            sleep 30
-          done
-          echo "✅ Microsoft.Network provider registered successfully"
+          # Try to register the provider
+          if az provider register --namespace Microsoft.Network 2>/dev/null; then
+            # Wait for registration to complete
+            echo "⏳ Waiting for Microsoft.Network provider registration..."
+            while [ "$(az provider show --namespace Microsoft.Network --query 'registrationState' --output tsv)" != "Registered" ]; do
+              echo "Still registering... waiting 30 seconds"
+              sleep 30
+            done
+            echo "✅ Microsoft.Network provider registered successfully"
+          else
+            echo "⚠️  Could not register Microsoft.Network provider automatically"
+            echo "This usually means the service principal needs 'Resource Provider Contributor' role"
+            echo ""
+            echo "Solutions:"
+            echo "1. Ask Azure admin to register Microsoft.Network provider manually"
+            echo "2. Update service principal permissions (see scripts/fix-service-principal-permissions.sh)"
+            echo "3. Register provider manually: az provider register --namespace Microsoft.Network"
+            echo ""
+            echo "Continuing deployment - may fail if provider is not registered..."
+          fi
         else
           echo "✅ Microsoft.Network provider already registered"
         fi

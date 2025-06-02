@@ -10,8 +10,15 @@ RUN apt-get update && apt-get install -y \
 # Create app directory
 WORKDIR /app
 
-# Copy manifests
-COPY Cargo.toml Cargo.lock ./
+# Copy manifests first for better layer caching
+COPY Cargo.toml ./
+COPY Cargo.lock ./
+
+# Create a dummy main.rs to build dependencies
+RUN mkdir src && echo "fn main() {}" > src/main.rs
+
+# Build dependencies (this layer will be cached unless Cargo.toml or Cargo.lock changes)
+RUN cargo build --release && rm -rf src
 
 # Copy source code
 COPY src ./src

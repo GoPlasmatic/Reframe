@@ -97,7 +97,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     outputs:
-      registry-name: ${{ steps.setup.outputs.registry-name }}
+      registry-name: ${{ steps.setup.outputs.registry-name || steps.existing-setup.outputs.registry-name }}
       setup-required: ${{ steps.check.outputs.setup-required }}
     
     steps:
@@ -201,7 +201,7 @@ jobs:
         echo "📦 Registry: $REGISTRY_NAME.azurecr.io"
     
     - name: Get existing registry name
-      id: setup
+      id: existing-setup
       if: steps.check.outputs.setup-required == 'false'
       run: |
         REGISTRY_NAME=$(az acr list --resource-group ${{ env.RESOURCE_GROUP }} --query "[0].name" --output tsv)

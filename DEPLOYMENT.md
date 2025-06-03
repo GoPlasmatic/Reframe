@@ -1,6 +1,6 @@
-# Deployment Guide
+# Automated Azure Deployment Guide
 
-This guide explains how to deploy the Reframe SWIFT MT to ISO 20022 converter to Azure using the automated CI/CD pipeline.
+This guide explains how to deploy the Reframe SWIFT MT to ISO 20022 converter to Azure using the fully automated GitHub Actions CI/CD pipeline.
 
 ## Architecture Overview
 
@@ -8,46 +8,66 @@ The deployment uses **Azure Container Instances (ACI)** as the most cost-effecti
 
 - **Azure Container Registry (ACR)**: Stores container images
 - **Azure Container Instances (ACI)**: Runs the containerized API
-- **GitHub Actions**: Automated CI/CD pipeline
+- **GitHub Actions**: Fully automated CI/CD pipeline with infrastructure provisioning
 - **Cost**: ~$15-30/month for light usage
 
 ## Prerequisites
 
 Before deploying, ensure you have:
 
-1. **Azure CLI** installed and configured
-2. **GitHub CLI** (optional, for automatic secret setup)
-3. **Azure subscription** with appropriate permissions
-4. **GitHub repository** with the source code
+1. **Azure subscription** with appropriate permissions
+2. **GitHub repository** with the source code
+3. **Azure service principal** configured for GitHub Actions
 
 ## Quick Setup
 
-### 1. Clone and Setup Repository
+### 1. Create Azure Service Principal
+
+**Option A: Using the Setup Script (Recommended)**
 
 ```bash
-git clone <your-repo-url>
-cd Reframe
-```
-
-### 2. Run Azure Setup Script
-
-```bash
-# Make script executable
-chmod +x scripts/setup-azure.sh
-
-# Run setup (will prompt for Azure login if needed)
-./scripts/setup-azure.sh
+# Make script executable and run
+chmod +x scripts/setup-github-secrets.sh
+./scripts/setup-github-secrets.sh
 ```
 
 This script will:
-- Create Azure resource group
-- Deploy Azure Container Registry
-- Create service principal for CI/CD
-- Set up GitHub secrets automatically
+- Create the Azure service principal with proper permissions
+- Automatically set GitHub secrets (if GitHub CLI is available)
+- Provide manual instructions if GitHub CLI is not installed
+
+**Option B: Manual Creation**
+
+```bash
+# Login to Azure
+az login
+
+# Create service principal with Contributor role at subscription level
+az ad sp create-for-rbac \
+  --name "sp-reframe-cicd" \
+  --role "Contributor" \
+  --scopes "/subscriptions/{your-subscription-id}" \
+  --sdk-auth
+```
+
+Copy the entire JSON output - you'll need it for GitHub secrets.
+
+### 2. Configure GitHub Secrets (if not done by script)
+
+In your GitHub repository, go to **Settings → Secrets and variables → Actions** and add:
+
+- `AZURE_CREDENTIALS`: Paste the complete JSON output from the service principal creation
+
+That's it! The workflow will automatically handle:
+- Azure resource provider registration
+- Resource group creation
+- Azure Container Registry setup
+- Infrastructure deployment
+- Container image building and deployment
 
 ### 3. Deploy
 
-Push to main branch to trigger deployment:
+Push to main branch to trigger the automated deployment:
 
 ```bash
 git add .
@@ -55,77 +75,42 @@ git commit -m "Initial deployment setup"
 git push origin main
 ```
 
-## Manual Setup (Alternative)
+## Automated Workflow Overview
 
-If you prefer to set up manually or the script fails:
-
-### 1. Create Azure Resources
-
-```bash
-# Login to Azure
-az login
-
-# Create resource group
-az group create --name rg-reframe-prod --location eastus
-
-# Deploy infrastructure
-az deployment group create \
-  --resource-group rg-reframe-prod \
-  --template-file infrastructure/azure-setup.bicep \
-  --parameters environment=prod
-```
-
-### 2. Configure GitHub Secrets
-
-Add these secrets to your GitHub repository (Settings → Secrets and variables → Actions):
-
-```bash
-# Get service principal credentials
-az ad sp create-for-rbac \
-  --name sp-reframe-cicd \
-  --role Contributor \
-  --scopes "/subscriptions/{subscription-id}/resourceGroups/rg-reframe-prod" \
-  --sdk-auth
-```
-
-Set GitHub secrets:
-- `AZURE_CREDENTIALS`: Output from the above command
-- `ACR_USERNAME`: From ACR admin credentials
-- `ACR_PASSWORD`: From ACR admin credentials
-
-### 3. Get ACR Credentials
-
-```bash
-# Get registry name
-REGISTRY_NAME=$(az acr list --resource-group rg-reframe-prod --query "[0].name" -o tsv)
-
-# Enable admin user and get credentials
-az acr update --name $REGISTRY_NAME --admin-enabled true
-az acr credential show --name $REGISTRY_NAME
-```
-
-## CI/CD Pipeline Overview
-
-The GitHub Actions workflow (`.github/workflows/deploy-azure.yml`) includes:
+The GitHub Actions workflow (`.github/workflows/deploy-azure.yml`) provides complete automation:
 
 ### 1. Test Stage
 - Rust format checking (`cargo fmt`)
 - Linting with Clippy (`cargo clippy`)
 - Unit tests (`cargo test`)
 
-### 2. Build & Push Stage
+### 2. Web UI Build
+- Node.js setup and dependency installation
+- React application build
+- Static file preparation
+
+### 3. Azure Infrastructure Setup
+- **Automatic detection**: Checks if infrastructure already exists
+- **Resource provider registration**: Registers required Azure providers
+- **Resource group creation**: Creates `rg-reframe-prod` in East US
+- **ACR deployment**: Sets up Azure Container Registry
+- **Credential management**: Automatically configures registry access
+
+### 4. Build & Push Stage
 - Multi-architecture Docker build
+- Automatic ACR credential retrieval
 - Push to Azure Container Registry
 - Image tagging with Git SHA
 
-### 3. Staging Deployment
+### 5. Staging Deployment
 - Deploy to staging ACI instance
 - Automated API testing
 - Health check validation
 
-### 4. Production Deployment
+### 6. Production Deployment
 - Deploy to production ACI instance
 - Manual approval required (GitHub environment protection)
+- Comprehensive testing
 - Cleanup staging resources
 
 ## Environment Configuration
@@ -160,6 +145,11 @@ Response:
 }
 ```
 
+### Web UI
+```bash
+GET http://{your-domain}:3000/
+```
+
 ### SWIFT MT103 Conversion
 ```bash
 POST http://{your-domain}:3000/reframe
@@ -180,6 +170,66 @@ MUELLER GMBH
 -}
 ```
 
+## Workflow Features
+
+### Intelligent Infrastructure Management
+- **Idempotent setup**: Only creates resources that don't exist
+- **Automatic detection**: Skips setup if infrastructure is already deployed
+- **Force setup option**: Manual trigger to recreate infrastructure if needed
+
+### Security Best Practices
+- **Dynamic credential retrieval**: No hardcoded secrets in workflow
+- **Masked sensitive data**: Passwords are automatically masked in logs
+- **Scoped permissions**: Service principal limited to necessary resources
+
+### Cost Optimization
+- **Pay-per-second billing**: Azure Container Instances
+- **Automatic cleanup**: Staging environments removed after production deployment
+- **Resource right-sizing**: Optimized CPU/memory allocation
+
+## Manual Operations
+
+### Force Infrastructure Rebuild
+If you need to recreate the Azure infrastructure:
+
+1. Go to **Actions** tab in your GitHub repository
+2. Click **Automated Azure Deployment**
+3. Click **Run workflow**
+4. Check **Force Azure infrastructure setup**
+5. Click **Run workflow**
+
+### Deploy to Staging Only
+1. Go to **Actions** tab in your GitHub repository
+2. Click **Automated Azure Deployment**
+3. Click **Run workflow**
+4. Select **staging** environment
+5. Click **Run workflow**
+
+## Monitoring and Maintenance
+
+### View Deployment Status
+- Check the **Actions** tab in your GitHub repository
+- Each deployment shows detailed logs for all stages
+- Failed deployments include error details and troubleshooting information
+
+### View Application Logs
+```bash
+# Production logs
+az container logs --resource-group rg-reframe-prod --name reframe-api-prod
+
+# Staging logs (if running)
+az container logs --resource-group rg-reframe-prod --name reframe-api-staging
+```
+
+### Check Resource Status
+```bash
+# View all containers
+az container list --resource-group rg-reframe-prod --output table
+
+# Check specific container
+az container show --resource-group rg-reframe-prod --name reframe-api-prod
+```
+
 ## Cost Optimization
 
 The deployment is optimized for cost:
@@ -191,64 +241,42 @@ The deployment is optimized for cost:
 
 Estimated monthly cost: **$15-30** for light usage.
 
-## Monitoring and Maintenance
-
-### View Logs
-```bash
-# Production logs
-az container logs --resource-group rg-reframe-prod --name reframe-api-prod
-
-# Staging logs (if running)
-az container logs --resource-group rg-reframe-prod --name reframe-api-staging
-```
-
-### Scale Resources
-Update `infrastructure/azure-setup.bicep` and redeploy:
-
-```bash
-az deployment group create \
-  --resource-group rg-reframe-prod \
-  --template-file infrastructure/azure-setup.bicep \
-  --parameters environment=prod
-```
-
-### Manual Deployment
-```bash
-# Deploy specific image tag
-az deployment group create \
-  --resource-group rg-reframe-prod \
-  --template-file infrastructure/azure-setup.bicep \
-  --parameters environment=prod imageTag=sha-abc123
-```
-
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Container startup failure**: Check logs and health endpoint
-2. **Image pull errors**: Verify ACR credentials and permissions
-3. **Resource limits**: Increase CPU/memory in Bicep template
-4. **Network issues**: Check container group public IP configuration
+1. **Service Principal Permissions**: Ensure the service principal has Contributor role at subscription level
+2. **Resource Provider Registration**: The workflow automatically handles this, but may take 5-15 minutes on first run
+3. **Container Startup**: Check logs if containers fail to start
+4. **Network Connectivity**: Verify container group public IP configuration
 
 ### Debug Commands
 
 ```bash
-# Check container status
-az container show --resource-group rg-reframe-prod --name reframe-api-prod
-
-# View recent deployments
+# Check deployment status
 az deployment group list --resource-group rg-reframe-prod
+
+# View container status
+az container show --resource-group rg-reframe-prod --name reframe-api-prod
 
 # Check service principal permissions
 az role assignment list --assignee {service-principal-id}
 ```
 
+### Workflow Debugging
+
+1. **Check Actions logs**: Detailed logs available in GitHub Actions tab
+2. **Review failed steps**: Each step shows specific error messages
+3. **Verify secrets**: Ensure `AZURE_CREDENTIALS` is properly configured
+4. **Check Azure permissions**: Service principal needs Contributor access
+
 ## Security Considerations
 
-1. **Service Principal**: Scoped to resource group only
-2. **Registry Access**: Admin credentials stored as GitHub secrets
+1. **Service Principal**: Scoped to subscription with Contributor role
+2. **Registry Access**: Credentials dynamically retrieved during deployment
 3. **Container Security**: Non-root user in container
 4. **Network**: Public IP with port 3000 only
+5. **Secrets Management**: No hardcoded credentials in workflow
 
 ## Scaling and Production Readiness
 
@@ -262,9 +290,9 @@ For production workloads, consider:
 
 ## Support
 
-For issues with the deployment:
+For deployment issues:
 
-1. Check GitHub Actions logs
-2. Review Azure resource status
-3. Consult Azure documentation
-4. Contact your Azure administrator 
+1. Check GitHub Actions logs for detailed error information
+2. Review Azure resource status in the Azure portal
+3. Verify service principal permissions
+4. Consult Azure documentation for specific error codes 

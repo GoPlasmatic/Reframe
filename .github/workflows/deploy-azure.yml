@@ -1,4 +1,4 @@
-name: Deploy to Azure Container Instances
+name: Automated Azure Deployment
 
 on:
   push:
@@ -15,13 +15,18 @@ on:
         options:
         - production
         - staging
+      force_setup:
+        description: 'Force Azure infrastructure setup'
+        required: false
+        default: false
+        type: boolean
 
 env:
-  REGISTRY_NAME: reframeacr24bpw6jltlfzm
-  IMAGE_NAME: reframe
   RESOURCE_GROUP: rg-reframe-prod
-  CONTAINER_NAME: reframe-api
   LOCATION: eastus
+  IMAGE_NAME: reframe
+  CONTAINER_NAME: reframe-api
+  SERVICE_PRINCIPAL_NAME: sp-reframe-cicd
 
 jobs:
   test:
@@ -88,13 +93,128 @@ jobs:
         path: static/
         retention-days: 1
 
+  setup-azure-infrastructure:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    outputs:
+      registry-name: ${{ steps.setup.outputs.registry-name }}
+      setup-required: ${{ steps.check.outputs.setup-required }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Check if infrastructure setup is required
+      id: check
+      run: |
+        # Check if resource group exists
+        if az group show --name ${{ env.RESOURCE_GROUP }} &> /dev/null; then
+          echo "Resource group exists"
+          
+          # Check if ACR exists
+          REGISTRY_COUNT=$(az acr list --resource-group ${{ env.RESOURCE_GROUP }} --query "length(@)" --output tsv)
+          if [ "$REGISTRY_COUNT" -gt 0 ]; then
+            echo "setup-required=false" >> $GITHUB_OUTPUT
+            echo "Infrastructure already exists"
+          else
+            echo "setup-required=true" >> $GITHUB_OUTPUT
+            echo "ACR not found, setup required"
+          fi
+        else
+          echo "setup-required=true" >> $GITHUB_OUTPUT
+          echo "Resource group not found, setup required"
+        fi
+        
+        # Force setup if requested
+        if [ "${{ github.event.inputs.force_setup }}" == "true" ]; then
+          echo "setup-required=true" >> $GITHUB_OUTPUT
+          echo "Force setup requested"
+        fi
+    
+    - name: Register Azure Resource Providers
+      if: steps.check.outputs.setup-required == 'true'
+      run: |
+        echo "🔧 Registering Azure Resource Providers..."
+        
+        PROVIDERS=(
+          "Microsoft.ContainerInstance"
+          "Microsoft.ContainerRegistry"
+          "Microsoft.Network"
+          "Microsoft.Resources"
+        )
+        
+        for PROVIDER in "${PROVIDERS[@]}"; do
+          echo "Checking: $PROVIDER"
+          PROVIDER_STATE=$(az provider show --namespace "$PROVIDER" --query "registrationState" --output tsv 2>/dev/null || echo "NotRegistered")
+          
+          if [ "$PROVIDER_STATE" != "Registered" ]; then
+            echo "🔄 Registering $PROVIDER..."
+            az provider register --namespace "$PROVIDER"
+            
+            # Wait for registration with timeout
+            TIMEOUT=300  # 5 minutes
+            ELAPSED=0
+            while [ "$(az provider show --namespace "$PROVIDER" --query 'registrationState' --output tsv 2>/dev/null || echo 'NotRegistered')" != "Registered" ] && [ $ELAPSED -lt $TIMEOUT ]; do
+              echo "  Waiting for $PROVIDER registration... (${ELAPSED}s)"
+              sleep 15
+              ELAPSED=$((ELAPSED + 15))
+            done
+            
+            if [ $ELAPSED -ge $TIMEOUT ]; then
+              echo "⚠️ Warning: $PROVIDER registration timed out, but continuing..."
+            else
+              echo "✅ $PROVIDER registered successfully"
+            fi
+          else
+            echo "✅ $PROVIDER already registered"
+          fi
+        done
+    
+    - name: Create Resource Group
+      if: steps.check.outputs.setup-required == 'true'
+      run: |
+        echo "🏗️ Creating resource group: ${{ env.RESOURCE_GROUP }}"
+        az group create --name ${{ env.RESOURCE_GROUP }} --location ${{ env.LOCATION }}
+    
+    - name: Deploy Azure Infrastructure
+      id: setup
+      if: steps.check.outputs.setup-required == 'true'
+      run: |
+        echo "🚀 Deploying Azure infrastructure..."
+        az deployment group create \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --template-file infrastructure/azure-setup.bicep \
+          --parameters environment=prod deployContainer=false
+        
+        # Get registry name
+        REGISTRY_NAME=$(az acr list --resource-group ${{ env.RESOURCE_GROUP }} --query "[0].name" --output tsv)
+        echo "registry-name=$REGISTRY_NAME" >> $GITHUB_OUTPUT
+        
+        # Enable admin user
+        az acr update --name $REGISTRY_NAME --admin-enabled true
+        
+        echo "✅ Infrastructure setup completed"
+        echo "📦 Registry: $REGISTRY_NAME.azurecr.io"
+    
+    - name: Get existing registry name
+      if: steps.check.outputs.setup-required == 'false'
+      run: |
+        REGISTRY_NAME=$(az acr list --resource-group ${{ env.RESOURCE_GROUP }} --query "[0].name" --output tsv)
+        echo "registry-name=$REGISTRY_NAME" >> $GITHUB_OUTPUT
+        echo "📦 Using existing registry: $REGISTRY_NAME.azurecr.io"
+
   build-and-push:
-    needs: [test, build-web-ui]
+    needs: [test, build-web-ui, setup-azure-infrastructure]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
       image-digest: ${{ steps.build.outputs.digest }}
+      registry-name: ${{ needs.setup-azure-infrastructure.outputs.registry-name }}
     
     steps:
     - uses: actions/checkout@v4
@@ -108,18 +228,33 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
     
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Get ACR credentials
+      id: acr-creds
+      run: |
+        REGISTRY_NAME="${{ needs.setup-azure-infrastructure.outputs.registry-name }}"
+        ACR_USERNAME=$(az acr credential show --name $REGISTRY_NAME --query username --output tsv)
+        ACR_PASSWORD=$(az acr credential show --name $REGISTRY_NAME --query passwords[0].value --output tsv)
+        echo "::add-mask::$ACR_PASSWORD"
+        echo "username=$ACR_USERNAME" >> $GITHUB_OUTPUT
+        echo "password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
+    
     - name: Login to Azure Container Registry
       uses: docker/login-action@v3
       with:
-        registry: ${{ env.REGISTRY_NAME }}.azurecr.io
-        username: ${{ secrets.ACR_USERNAME }}
-        password: ${{ secrets.ACR_PASSWORD }}
+        registry: ${{ needs.setup-azure-infrastructure.outputs.registry-name }}.azurecr.io
+        username: ${{ steps.acr-creds.outputs.username }}
+        password: ${{ steps.acr-creds.outputs.password }}
     
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}
+        images: ${{ needs.setup-azure-infrastructure.outputs.registry-name }}.azurecr.io/${{ env.IMAGE_NAME }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
@@ -154,12 +289,22 @@ jobs:
       id: sha
       run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
     
+    - name: Get ACR credentials
+      id: acr-creds
+      run: |
+        REGISTRY_NAME="${{ needs.build-and-push.outputs.registry-name }}"
+        ACR_USERNAME=$(az acr credential show --name $REGISTRY_NAME --query username --output tsv)
+        ACR_PASSWORD=$(az acr credential show --name $REGISTRY_NAME --query passwords[0].value --output tsv)
+        echo "::add-mask::$ACR_PASSWORD"
+        echo "username=$ACR_USERNAME" >> $GITHUB_OUTPUT
+        echo "password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
+    
     - name: Deploy to Azure Container Instances (Staging)
       uses: azure/aci-deploy@v1
       with:
         resource-group: ${{ env.RESOURCE_GROUP }}
         dns-name-label: reframe-api-staging-${{ steps.sha.outputs.short }}
-        image: ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:sha-${{ steps.sha.outputs.short }}
+        image: ${{ needs.build-and-push.outputs.registry-name }}.azurecr.io/${{ env.IMAGE_NAME }}:sha-${{ steps.sha.outputs.short }}
         name: ${{ env.CONTAINER_NAME }}-staging
         location: ${{ env.LOCATION }}
         cpu: 0.5
@@ -169,10 +314,9 @@ jobs:
         environment-variables: |
           RUST_LOG=info
           PORT=3000
-        secure-environment-variables: |
-        registry-login-server: ${{ env.REGISTRY_NAME }}.azurecr.io
-        registry-username: ${{ secrets.ACR_USERNAME }}
-        registry-password: ${{ secrets.ACR_PASSWORD }}
+        registry-login-server: ${{ needs.build-and-push.outputs.registry-name }}.azurecr.io
+        registry-username: ${{ steps.acr-creds.outputs.username }}
+        registry-password: ${{ steps.acr-creds.outputs.password }}
     
     - name: Test staging deployment
       run: |
@@ -185,6 +329,8 @@ jobs:
           --name ${{ env.CONTAINER_NAME }}-staging \
           --query ipAddress.fqdn \
           --output tsv)
+        
+        echo "🧪 Testing staging deployment at: http://${FQDN}:3000"
         
         # Test the health endpoint
         curl -f "http://${FQDN}:3000/health" || echo "Health check endpoint not available"
@@ -227,12 +373,22 @@ jobs:
       id: sha
       run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
     
+    - name: Get ACR credentials
+      id: acr-creds
+      run: |
+        REGISTRY_NAME="${{ needs.build-and-push.outputs.registry-name }}"
+        ACR_USERNAME=$(az acr credential show --name $REGISTRY_NAME --query username --output tsv)
+        ACR_PASSWORD=$(az acr credential show --name $REGISTRY_NAME --query passwords[0].value --output tsv)
+        echo "::add-mask::$ACR_PASSWORD"
+        echo "username=$ACR_USERNAME" >> $GITHUB_OUTPUT
+        echo "password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
+    
     - name: Deploy to Azure Container Instances (Production)
       uses: azure/aci-deploy@v1
       with:
         resource-group: ${{ env.RESOURCE_GROUP }}
         dns-name-label: reframe-api-prod
-        image: ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:sha-${{ steps.sha.outputs.short }}
+        image: ${{ needs.build-and-push.outputs.registry-name }}.azurecr.io/${{ env.IMAGE_NAME }}:sha-${{ steps.sha.outputs.short }}
         name: ${{ env.CONTAINER_NAME }}-prod
         location: ${{ env.LOCATION }}
         cpu: 1
@@ -242,10 +398,9 @@ jobs:
         environment-variables: |
           RUST_LOG=info
           PORT=3000
-        secure-environment-variables: |
-        registry-login-server: ${{ env.REGISTRY_NAME }}.azurecr.io
-        registry-username: ${{ secrets.ACR_USERNAME }}
-        registry-password: ${{ secrets.ACR_PASSWORD }}
+        registry-login-server: ${{ needs.build-and-push.outputs.registry-name }}.azurecr.io
+        registry-username: ${{ steps.acr-creds.outputs.username }}
+        registry-password: ${{ steps.acr-creds.outputs.password }}
     
     - name: Get production endpoint
       id: get-fqdn

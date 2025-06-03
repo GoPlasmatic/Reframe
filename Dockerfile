@@ -38,6 +38,9 @@ COPY --from=builder /app/target/release/Reframe /app/reframe
 # Copy static web UI files
 COPY static/ /app/static/
 
+# Copy workflows directory
+COPY workflows/ /app/workflows/
+
 # Change ownership to app user
 RUN chown -R appuser:appuser /app
 

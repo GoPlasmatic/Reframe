@@ -5,6 +5,7 @@ use dataflow_rs::engine::{
     message::{Change, Message},
     AsyncFunctionHandler,
 };
+use mx_message::{document::Document, pacs_008_001_13::FIToFICustomerCreditTransferV13};
 use quick_xml::se::to_string as xml_to_string;
 use serde_json::Value;
 
@@ -33,16 +34,11 @@ impl AsyncFunctionHandler for PublishFunction {
         if output_format == "pacs.008.001.13" {
             // Try to deserialize directly into the FIToFICustomerCreditTransferV13 structure
             if let Some(fi_to_fi) = data.get("FIToFICstmrCdtTrf") {
-                match serde_json::from_value::<
-                    mx_message::pacs_008_001_13::FIToFICustomerCreditTransferV13,
-                >(fi_to_fi.clone())
-                {
+                match serde_json::from_value::<FIToFICustomerCreditTransferV13>(fi_to_fi.clone()) {
                     Ok(pacs_data) => {
                         // Create the Document enum
                         let document =
-                            mx_message::document::Document::FIToFICustomerCreditTransferV13(
-                                Box::new(pacs_data),
-                            );
+                            Document::FIToFICustomerCreditTransferV13(Box::new(pacs_data));
 
                         // Serialize to XML
                         match xml_to_string(&document) {

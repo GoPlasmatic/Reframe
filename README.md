@@ -12,7 +12,33 @@ Reframe is a Rust-based REST API service that converts SWIFT MT103 messages to I
 - ⚡ **Workflow Engine**: Powered by dataflow-rs for robust message processing
 - 📊 **Error Handling**: Comprehensive error reporting for invalid messages
 - 🔧 **Extensible**: Modular design allows for additional message formats
+- 📁 **Configurable Workflows**: External JSON workflow definitions for easy customization
 - 🚢 **Production Ready**: Complete CI/CD pipeline with Azure deployment
+
+## Workflow Configuration
+
+Reframe uses externalized JSON workflow definitions that can be modified without touching the source code. This allows for easy customization of message transformation logic.
+
+### How It Works
+
+- **Automatic Loading**: At startup, the application scans the `workflows/` directory for `.json` files
+- **Hot Deployment**: Modify workflows and redeploy to update transformation logic
+- **Extensible**: Add new workflows for different message types or transformation rules
+
+### Default Workflow
+
+The application includes a default MT103 to pacs.008.001.13 transformation workflow:
+- **File**: `workflows/mt103-pacs008-mapping.json`
+- **Purpose**: Converts SWIFT MT103 messages to ISO 20022 pacs.008.001.13 format
+- **Tasks**: Parsing, field mapping, and XML serialization
+
+### Customizing Workflows
+
+1. **Modify Existing**: Edit `workflows/mt103-pacs008-mapping.json` to change transformation logic
+2. **Add New**: Create additional `.json` files in the `workflows/` directory
+3. **Deploy**: Push changes and redeploy to activate new workflows
+
+See the [Workflows README](workflows/README.md) for detailed configuration documentation.
 
 ## Quick Start
 

@@ -8,6 +8,8 @@ use axum::{
 use dataflow_rs::engine::message::Message;
 use dataflow_rs::{Engine, Workflow};
 use serde_json::Value;
+use std::fs;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::services::ServeDir;
@@ -33,7 +35,7 @@ async fn main() -> anyhow::Result<()> {
     engine.register_task_function("parse".to_string(), Box::new(ParserFunction));
     engine.register_task_function("publish".to_string(), Box::new(PublishFunction));
 
-    // Add sample workflows
+    // Load workflows from directory
     setup_workflows(&mut engine).await?;
 
     // Create application state
@@ -61,294 +63,77 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn setup_workflows(engine: &mut Engine) -> anyhow::Result<()> {
-    let workflow1_str = r#"
-    {
-        "id": "mt103_to_pacs008_mapper",
-        "name": "MT103 to pacs.008.001.13 Mapper",
-        "tasks": [
-            {
-                "id": "parse_mt103",
-                "name": "Parse MT103 Message",
-                "function": {
-                    "name": "parse",
-                    "input": { 
-                        "format": "SwiftMT",
-                        "input_field_name": "payload",
-                        "output_field_name": "SwiftMT"
-                    }
-                }
-            },
+    let workflows_dir = Path::new("workflows");
 
-            {
-                "id": "map_group_header",
-                "name": "Map Group Header",
-                "function": {
-                    "name": "map",
-                    "input": {
-                        "mappings": [
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.GrpHdr.MsgId",
-                                "logic": { "var": "data.SwiftMT.20" }
-                            },
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.GrpHdr.CreDtTm",
-                                "logic": {
-                                    "if": [
-                                        { "var": "metadata.timestamp" },
-                                        { "var": "metadata.timestamp" },
-                                        "2024-01-01T00:00:00Z"
-                                    ]
-                                }
-                            },
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.GrpHdr.NbOfTxs",
-                                "logic": "1"
-                            },
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.GrpHdr.CtrlSum",
-                                "logic": {
-                                    "if": [
-                                        { "var": "data.SwiftMT.32A_amount" },
-                                        { "var": "data.SwiftMT.32A_amount" },
-                                        0.0
-                                    ]
-                                }
-                            },
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.GrpHdr.InitgPty.Nm",
-                                "logic": "Reframe Processing System"
-                            },
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.SttlmMtd",
-                                "logic": "CLRG"
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                "id": "map_credit_transfer_info",
-                "name": "Map Credit Transfer Transaction Information",
-                "function": {
-                    "name": "map",
-                    "input": {
-                        "mappings": [
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.PmtId.InstrId",
-                                "logic": { "var": "data.SwiftMT.20" }
-                            },
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.PmtId.EndToEndId",
-                                "logic": { "var": "data.SwiftMT.20" }
-                            },
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.PmtId.UETR",
-                                "logic": { "var": "data.SwiftMT.20" }
-                            },
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.IntrBkSttlmAmt.@Ccy",
-                                "logic": {
-                                    "if": [
-                                        { "var": "data.SwiftMT.32A_currency" },
-                                        { "var": "data.SwiftMT.32A_currency" },
-                                        "USD"
-                                    ]
-                                }
-                            },
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.IntrBkSttlmAmt.$value",
-                                "logic": {
-                                    "if": [
-                                        { "var": "data.SwiftMT.32A_amount" },
-                                        { "var": "data.SwiftMT.32A_amount" },
-                                        0.0
-                                    ]
-                                }
-                            },
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.IntrBkSttlmDt",
-                                "logic": {
-                                    "if": [
-                                        { "var": "data.SwiftMT.32A_date" },
-                                        { "var": "data.SwiftMT.32A_date" },
-                                        "2024-01-01"
-                                    ]
-                                }
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                "id": "map_charge_bearer",
-                "name": "Map Charge Bearer",
-                "function": {
-                    "name": "map",
-                    "input": {
-                        "mappings": [
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.ChrgBr",
-                                "logic": {
-                                    "if": [
-                                        { "==": [{ "var": "data.SwiftMT.71A" }, "OUR"] },
-                                        "DEBT",
-                                        {
-                                            "if": [
-                                                { "==": [{ "var": "data.SwiftMT.71A" }, "BEN"] },
-                                                "CRED",
-                                                "SHAR"
-                                            ]
-                                        }
-                                    ]
-                                }
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                "id": "map_instructing_agent",
-                "name": "Map Instructing Agent",
-                "function": {
-                    "name": "map",
-                    "input": {
-                        "mappings": [
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.InstgAgt.FinInstnId.BICFI",
-                                "logic": { "var": "data.SwiftMT.52A" }
-                            },
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.InstdAgt.FinInstnId.BICFI",
-                                "logic": { "var": "data.SwiftMT.57A" }
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                "id": "map_debtor_info",
-                "name": "Map Debtor Information",
-                "function": {
-                    "name": "map",
-                    "input": {
-                        "mappings": [
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.Dbtr.Nm",
-                                "logic": { "var": "data.SwiftMT.50K" }
-                            },
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.DbtrAcct.Id.IBAN",
-                                "logic": { "var": "data.SwiftMT.50A_account" }
-                            },
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.DbtrAgt.FinInstnId.BICFI",
-                                "logic": { "var": "data.SwiftMT.52A" }
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                "id": "map_creditor_info",
-                "name": "Map Creditor Information",
-                "function": {
-                    "name": "map",
-                    "input": {
-                        "mappings": [
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.Cdtr.Nm",
-                                "logic": { "var": "data.SwiftMT.59" }
-                            },
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.CdtrAcct.Id.IBAN",
-                                "logic": { "var": "data.SwiftMT.59_account" }
-                            },
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.CdtrAgt.FinInstnId.BICFI",
-                                "logic": { "var": "data.SwiftMT.57A" }
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                "id": "map_remittance_info",
-                "name": "Map Remittance Information",
-                "function": {
-                    "name": "map",
-                    "input": {
-                        "mappings": [
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.RmtInf.Ustrd.0",
-                                "logic": { "var": "data.SwiftMT.70" }
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                "id": "map_intermediary_agents",
-                "name": "Map Intermediary Agents",
-                "function": {
-                    "name": "map",
-                    "input": {
-                        "mappings": [
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.IntrmyAgt1.FinInstnId.BICFI",
-                                "logic": { "var": "data.SwiftMT.56A" }
-                            },
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.IntrmyAgt2.FinInstnId.BICFI",
-                                "logic": { "var": "data.SwiftMT.56C" }
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                "id": "map_regulatory_reporting",
-                "name": "Map Regulatory Reporting",
-                "function": {
-                    "name": "map",
-                    "input": {
-                        "mappings": [
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.RgltryRptg.0.Dtls.0.Cd",
-                                "logic": { "var": "data.SwiftMT.79" }
-                            },
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.SplmtryData.0.PlcAndNm",
-                                "logic": "MT103_Original"
-                            },
-                            {
-                                "path": "data.MX.FIToFICstmrCdtTrf.CdtTrfTxInf.0.SplmtryData.0.Envlp",
-                                "logic": {}
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                "id": "publish_mx_message",
-                "name": "Publish MX Message",
-                "function": {
-                    "name": "publish",
-                    "input": {
-                        "input_field_name": "MX",
-                        "output_format": "pacs.008.001.13"
+    // Check if workflows directory exists
+    if !workflows_dir.exists() {
+        println!("⚠️  Workflows directory not found at 'workflows/'. Creating directory...");
+        fs::create_dir_all(workflows_dir)?;
+        println!(
+            "📁 Workflows directory created. Please add workflow JSON files to this directory."
+        );
+        return Ok(());
+    }
+
+    // Read all JSON files from the workflows directory
+    let mut workflow_count = 0;
+
+    match fs::read_dir(workflows_dir) {
+        Ok(entries) => {
+            for entry in entries {
+                let entry = entry?;
+                let path = entry.path();
+
+                // Only process .json files
+                if path.extension().and_then(|s| s.to_str()) == Some("json") {
+                    match load_workflow_from_file(&path) {
+                        Ok(workflow) => {
+                            engine.add_workflow(&workflow);
+                            workflow_count += 1;
+                            println!(
+                                "✅ Loaded workflow: {} from {}",
+                                workflow.name,
+                                path.display()
+                            );
+                        }
+                        Err(e) => {
+                            println!("❌ Failed to load workflow from {}: {}", path.display(), e);
+                        }
                     }
                 }
             }
-        ]
+        }
+        Err(e) => {
+            println!("❌ Failed to read workflows directory: {}", e);
+            return Err(anyhow::anyhow!("Could not read workflows directory: {}", e));
+        }
     }
-    "#;
 
-    // Parse and add workflows to the engine
-    let workflow1 = Workflow::from_json(workflow1_str)?;
-    engine.add_workflow(&workflow1);
+    if workflow_count == 0 {
+        println!("⚠️  No workflow files found in 'workflows/' directory.");
+        println!("💡 Add JSON workflow files to the 'workflows/' directory to enable message processing.");
+    } else {
+        println!("🎯 Successfully loaded {} workflow(s)", workflow_count);
+    }
 
-    println!("✅ MT103 to pacs.008.001.13 mapping workflow configured successfully");
     Ok(())
+}
+
+fn load_workflow_from_file(path: &Path) -> anyhow::Result<Workflow> {
+    // Read the file content
+    let content = fs::read_to_string(path)
+        .map_err(|e| anyhow::anyhow!("Failed to read file {}: {}", path.display(), e))?;
+
+    // Parse the JSON
+    let workflow = Workflow::from_json(&content).map_err(|e| {
+        anyhow::anyhow!(
+            "Failed to parse workflow JSON from {}: {}",
+            path.display(),
+            e
+        )
+    })?;
+
+    Ok(workflow)
 }
 
 async fn process_data(

@@ -161,28 +161,99 @@ async fn process_data(
     // Process the message through workflows
     match engine.process_message(&mut message).await {
         Ok(_) => {
-            // Check if we have a result and if it looks like XML
-            if let Some(result_value) = message.data.get("result") {
-                let result_string = result_value.as_str().unwrap_or("");
-                Response::builder()
-                    .header(header::CONTENT_TYPE, "application/xml")
-                    .body(result_string.to_string())
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
-            } else {
-                // Return the full message data as JSON if no specific result
-                Response::builder()
-                    .header(header::CONTENT_TYPE, "application/json")
-                    .body(serde_json::to_string(&message).unwrap_or_else(|_| "{}".to_string()))
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+            // Check if we have multiple results (for 1-to-many transformations like MT102)
+            if let Some(results_array) = message.data.get("results") {
+                if let Some(results) = results_array.as_array() {
+                    if !results.is_empty() {
+                        let xml_results: Vec<String> = results
+                            .iter()
+                            .map(|result| result.as_str().unwrap_or("").to_string())
+                            .collect();
+
+                        let response_json = serde_json::json!({
+                            "status": "success",
+                            "message_type": if xml_results.len() > 1 { "multiple" } else { "single" },
+                            "count": xml_results.len(),
+                            "results": xml_results
+                        });
+
+                        return Response::builder()
+                            .header(header::CONTENT_TYPE, "application/json")
+                            .body(
+                                serde_json::to_string(&response_json)
+                                    .unwrap_or_else(|_| "{}".to_string()),
+                            )
+                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR);
+                    }
+                }
             }
+
+            // Check for single result
+            if let Some(result_value) = message.data.get("result") {
+                let xml_result = result_value.as_str().unwrap_or("");
+
+                let response_json = serde_json::json!({
+                    "status": "success",
+                    "message_type": "single",
+                    "count": 1,
+                    "results": [xml_result]
+                });
+
+                return Response::builder()
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(
+                        serde_json::to_string(&response_json).unwrap_or_else(|_| "{}".to_string()),
+                    )
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR);
+            }
+
+            // No results found - this might be a parsing error or workflow issue
+            let error_details = if let Some(swift_data) = message.data.get("SwiftMT") {
+                if let Some(library_error) = swift_data.get("library_error") {
+                    format!(
+                        "SWIFT parsing error: {}",
+                        library_error.as_str().unwrap_or("Unknown parsing error")
+                    )
+                } else {
+                    "No matching workflow found for this message type".to_string()
+                }
+            } else {
+                "Failed to parse SWIFT message".to_string()
+            };
+
+            let response_json = serde_json::json!({
+                "status": "error",
+                "message_type": "none",
+                "count": 0,
+                "results": [],
+                "error": {
+                    "type": "processing_error",
+                    "message": error_details,
+                    "details": message.data
+                }
+            });
+
+            Response::builder()
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(serde_json::to_string(&response_json).unwrap_or_else(|_| "{}".to_string()))
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
         }
         Err(e) => {
-            let error_response =
-                serde_json::json!({"error": format!("Error processing data: {:?}", e)});
+            let response_json = serde_json::json!({
+                "status": "error",
+                "message_type": "none",
+                "count": 0,
+                "results": [],
+                "error": {
+                    "type": "engine_error",
+                    "message": format!("Processing failed: {}", e),
+                    "details": message.data
+                }
+            });
+
             Response::builder()
-                .status(StatusCode::INTERNAL_SERVER_ERROR)
                 .header(header::CONTENT_TYPE, "application/json")
-                .body(error_response.to_string())
+                .body(serde_json::to_string(&response_json).unwrap_or_else(|_| "{}".to_string()))
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
         }
     }

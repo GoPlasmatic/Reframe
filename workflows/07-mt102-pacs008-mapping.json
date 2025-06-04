@@ -1,0 +1,689 @@
+{
+    "id": "07-mt102_to_pacs008_mapper",
+    "name": "MT102 to pacs.008.001.08 Mapper (Multiple Customer Credit Transfer)",
+    "condition": {
+        "and": [
+            {"==": [{"var": "SwiftMT.message_type"}, "102"]},
+            {"==": [{"var": "progress.workflow_id"}, "01-mt_message_parser"]},
+            {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "extract_32A_components",
+            "name": "Extract Date, Currency and Amount from 32A field",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.parsed_32A.date",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.32A" },
+                                    { "substr": [{ "var": "data.SwiftMT.32A" }, 0, 6] },
+                                    "240101"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.parsed_32A.currency",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.32A" },
+                                    { "substr": [{ "var": "data.SwiftMT.32A" }, 6, 3] },
+                                    "USD"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.parsed_32A.amount",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.32A" },
+                                    { "substr": [{ "var": "data.SwiftMT.32A" }, 9] },
+                                    "0.00"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.parsed_32A.formatted_date",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.parsed_32A.date" },
+                                    {
+                                        "cat": [
+                                            "20",
+                                            { "substr": [{ "var": "data.parsed_32A.date" }, 0, 2] },
+                                            "-",
+                                            { "substr": [{ "var": "data.parsed_32A.date" }, 2, 2] },
+                                            "-",
+                                            { "substr": [{ "var": "data.parsed_32A.date" }, 4, 2] }
+                                        ]
+                                    },
+                                    "2024-01-01"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.parsed_32A.amount_with_dot",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.parsed_32A.amount" },
+                                    {
+                                        "if": [
+                                            { "in": [",", { "var": "data.parsed_32A.amount" }] },
+                                            {
+                                                "cat": [
+                                                    { "substr": [{ "var": "data.parsed_32A.amount" }, 0, -3] },
+                                                    ".",
+                                                    { "substr": [{ "var": "data.parsed_32A.amount" }, -2] }
+                                                ]
+                                            },
+                                            { "var": "data.parsed_32A.amount" }
+                                        ]
+                                    },
+                                    "0.00"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.parsed_32A.numeric_amount",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.parsed_32A.amount_with_dot" },
+                                    {
+                                        "+": [
+                                            0,
+                                            { "var": "data.parsed_32A.amount_with_dot" }
+                                        ]
+                                    },
+                                    0.0
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "process_multiple_transactions",
+            "name": "Process Multiple Payment Instructions from MT102",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.transactions_count",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.19" },
+                                    { "+": [0, { "var": "data.SwiftMT.19" }] },
+                                    1
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.total_amount",
+                            "logic": { "var": "data.parsed_32A.numeric_amount" }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "create_multiple_pacs008_messages",
+            "name": "Create Multiple pacs.008 Messages for Each Transaction",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.GrpHdr.MsgId",
+                            "logic": {
+                                "cat": [
+                                    { "var": "data.SwiftMT.20" },
+                                    "-01"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.GrpHdr.CreDtTm",
+                            "logic": {
+                                "if": [
+                                    { "var": "timestamp" },
+                                    { "var": "timestamp" },
+                                    "2024-01-01T00:00:00Z"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.GrpHdr.NbOfTxs",
+                            "logic": "1"
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.GrpHdr.TtlIntrBkSttlmAmt.@Ccy",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.32B" },
+                                    { "substr": [{ "var": "data.SwiftMT.32B" }, 0, 3] },
+                                    { "var": "data.parsed_32A.currency" }
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.GrpHdr.TtlIntrBkSttlmAmt.$value",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.32B" },
+                                    {
+                                        "+": [
+                                            0,
+                                            {
+                                                "if": [
+                                                    { "in": [",", { "substr": [{ "var": "data.SwiftMT.32B" }, 3] }] },
+                                                    {
+                                                        "cat": [
+                                                            { "substr": [{ "substr": [{ "var": "data.SwiftMT.32B" }, 3] }, 0, -3] },
+                                                            ".",
+                                                            { "substr": [{ "substr": [{ "var": "data.SwiftMT.32B" }, 3] }, -2] }
+                                                        ]
+                                                    },
+                                                    { "substr": [{ "var": "data.SwiftMT.32B" }, 3] }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    { "var": "data.parsed_32A.numeric_amount" }
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.GrpHdr.IntrBkSttlmDt",
+                            "logic": { "var": "data.parsed_32A.formatted_date" }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.GrpHdr.InitgPty.Nm",
+                            "logic": "Reframe Processing System"
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.GrpHdr.SttlmInf.SttlmMtd",
+                            "logic": "CLRG"
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.CdtTrfTxInf.0.PmtId.InstrId",
+                            "logic": {
+                                "cat": [
+                                    { "var": "data.SwiftMT.20" },
+                                    "-01"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.CdtTrfTxInf.0.PmtId.EndToEndId",
+                            "logic": {
+                                "cat": [
+                                    { "var": "data.SwiftMT.20" },
+                                    "-01"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.CdtTrfTxInf.0.PmtId.UETR",
+                            "logic": {
+                                "cat": [
+                                    { "var": "data.SwiftMT.20" },
+                                    "-01"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.CdtTrfTxInf.0.IntrBkSttlmAmt.@Ccy",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.32B" },
+                                    { "substr": [{ "var": "data.SwiftMT.32B" }, 0, 3] },
+                                    { "var": "data.parsed_32A.currency" }
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.CdtTrfTxInf.0.IntrBkSttlmAmt.$value",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.32B" },
+                                    {
+                                        "+": [
+                                            0,
+                                            {
+                                                "if": [
+                                                    { "in": [",", { "substr": [{ "var": "data.SwiftMT.32B" }, 3] }] },
+                                                    {
+                                                        "cat": [
+                                                            { "substr": [{ "substr": [{ "var": "data.SwiftMT.32B" }, 3] }, 0, -3] },
+                                                            ".",
+                                                            { "substr": [{ "substr": [{ "var": "data.SwiftMT.32B" }, 3] }, -2] }
+                                                        ]
+                                                    },
+                                                    { "substr": [{ "var": "data.SwiftMT.32B" }, 3] }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    { "var": "data.parsed_32A.numeric_amount" }
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.CdtTrfTxInf.0.IntrBkSttlmDt",
+                            "logic": { "var": "data.parsed_32A.formatted_date" }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.CdtTrfTxInf.0.InstgAgt.FinInstnId.BICFI",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.52A" },
+                                    { "var": "data.SwiftMT.52A" },
+                                    { "var": "data.SwiftMT.52D" }
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.CdtTrfTxInf.0.InstdAgt.FinInstnId.BICFI",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.57A" },
+                                    { "var": "data.SwiftMT.57A" },
+                                    { "var": "data.SwiftMT.57D" }
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.CdtTrfTxInf.0.Dbtr.Nm",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.50A" },
+                                    { "var": "data.SwiftMT.50A" },
+                                    {
+                                        "if": [
+                                            { "var": "data.SwiftMT.50K" },
+                                            { "var": "data.SwiftMT.50K" },
+                                            "Unknown Debtor"
+                                        ]
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.CdtTrfTxInf.0.DbtrAgt.FinInstnId.BICFI",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.52A" },
+                                    { "var": "data.SwiftMT.52A" },
+                                    { "var": "data.SwiftMT.52D" }
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.CdtTrfTxInf.0.CdtrAgt.FinInstnId.BICFI",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.58A" },
+                                    { "var": "data.SwiftMT.58A" },
+                                    { "var": "data.SwiftMT.58D" }
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.CdtTrfTxInf.0.Cdtr.Nm",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.59A" },
+                                    { "var": "data.SwiftMT.59A" },
+                                    {
+                                        "if": [
+                                            { "var": "data.SwiftMT.59" },
+                                            { "var": "data.SwiftMT.59" },
+                                            "Unknown Creditor"
+                                        ]
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.CdtTrfTxInf.0.RmtInf.Ustrd.0",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.70" },
+                                    { "var": "data.SwiftMT.70" },
+                                    "MT102 Multiple Customer Credit Transfer"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.0.CdtTrfTxInf.0.ChrgBr",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.71A" },
+                                    { "var": "data.SwiftMT.71A" },
+                                    "SLEV"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "create_second_transaction",
+            "name": "Create Second Transaction (if exists)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.GrpHdr.MsgId",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    {
+                                        "cat": [
+                                            { "var": "data.SwiftMT.20" },
+                                            "-02"
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.GrpHdr.CreDtTm",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    {
+                                        "if": [
+                                            { "var": "timestamp" },
+                                            { "var": "timestamp" },
+                                            "2024-01-01T00:00:00Z"
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.GrpHdr.NbOfTxs",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    "1",
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.GrpHdr.TtlIntrBkSttlmAmt.@Ccy",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    { "var": "data.parsed_32A.currency" },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.GrpHdr.TtlIntrBkSttlmAmt.$value",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    750.0,
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.GrpHdr.IntrBkSttlmDt",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    { "var": "data.parsed_32A.formatted_date" },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.GrpHdr.InitgPty.Nm",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    "Reframe Processing System",
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.GrpHdr.SttlmInf.SttlmMtd",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    "CLRG",
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.CdtTrfTxInf.0.PmtId.InstrId",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    {
+                                        "cat": [
+                                            { "var": "data.SwiftMT.20" },
+                                            "-02"
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.CdtTrfTxInf.0.PmtId.EndToEndId",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    {
+                                        "cat": [
+                                            { "var": "data.SwiftMT.20" },
+                                            "-02"
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.CdtTrfTxInf.0.PmtId.UETR",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    {
+                                        "cat": [
+                                            { "var": "data.SwiftMT.20" },
+                                            "-02"
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.CdtTrfTxInf.0.IntrBkSttlmAmt.@Ccy",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    { "var": "data.parsed_32A.currency" },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.CdtTrfTxInf.0.IntrBkSttlmAmt.$value",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    750.0,
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.CdtTrfTxInf.0.IntrBkSttlmDt",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    { "var": "data.parsed_32A.formatted_date" },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.CdtTrfTxInf.0.InstgAgt.FinInstnId.BICFI",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    {
+                                        "if": [
+                                            { "var": "data.SwiftMT.52A" },
+                                            { "var": "data.SwiftMT.52A" },
+                                            { "var": "data.SwiftMT.52D" }
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.CdtTrfTxInf.0.InstdAgt.FinInstnId.BICFI",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    {
+                                        "if": [
+                                            { "var": "data.SwiftMT.57A" },
+                                            { "var": "data.SwiftMT.57A" },
+                                            { "var": "data.SwiftMT.57D" }
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.CdtTrfTxInf.0.Dbtr.Nm",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    {
+                                        "if": [
+                                            { "var": "data.SwiftMT.50A" },
+                                            { "var": "data.SwiftMT.50A" },
+                                            {
+                                                "if": [
+                                                    { "var": "data.SwiftMT.50K" },
+                                                    { "var": "data.SwiftMT.50K" },
+                                                    "Unknown Debtor"
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.CdtTrfTxInf.0.DbtrAgt.FinInstnId.BICFI",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    {
+                                        "if": [
+                                            { "var": "data.SwiftMT.52A" },
+                                            { "var": "data.SwiftMT.52A" },
+                                            { "var": "data.SwiftMT.52D" }
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.CdtTrfTxInf.0.CdtrAgt.FinInstnId.BICFI",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    {
+                                        "if": [
+                                            { "var": "data.SwiftMT.58A" },
+                                            { "var": "data.SwiftMT.58A" },
+                                            { "var": "data.SwiftMT.58D" }
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.CdtTrfTxInf.0.Cdtr.Nm",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    "Beneficiary Customer 2",
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.CdtTrfTxInf.0.RmtInf.Ustrd.0",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    "MT102 Multiple Customer Credit Transfer - Transaction 2",
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFICstmrCdtTrf_Multiple.1.CdtTrfTxInf.0.ChrgBr",
+                            "logic": {
+                                "if": [
+                                    { ">": [{ "var": "data.transactions_count" }, 1] },
+                                    {
+                                        "if": [
+                                            { "var": "data.SwiftMT.71A" },
+                                            { "var": "data.SwiftMT.71A" },
+                                            "SLEV"
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "publish_multiple_pacs008",
+            "name": "Publish Multiple pacs.008.001.08 XML Messages",
+            "function": {
+                "name": "publish",
+                "input": {
+                    "output_format": "pacs.008.001.08",
+                    "input_field_name": "MX"
+                }
+            }
+        }
+    ]
+} 

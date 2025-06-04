@@ -39,7 +39,17 @@ impl AsyncFunctionHandler for PublishFunction {
 
         match output_format {
             "pacs.008.001.08" => {
-                // Handle pacs.008.001.08 for MT103, MT202, MT202COV
+                // Handle pacs.008.001.08 for MT103, MT103+, MT102, MT202COV
+
+                // Check if we have multiple FIToFI messages (for MT102)
+                if let Some(fi_to_fi_array) = data.get("FIToFICstmrCdtTrf_Multiple") {
+                    if let Some(messages) = fi_to_fi_array.as_array() {
+                        let messages_clone = messages.clone();
+                        return handle_multiple_pacs008(&messages_clone, message);
+                    }
+                }
+
+                // Handle single FIToFI message (MT103, MT103+, MT202COV)
                 if let Some(fi_to_fi) = data.get("FIToFICstmrCdtTrf") {
                     match serde_json::from_value::<FIToFICustomerCreditTransferV08>(
                         fi_to_fi.clone(),
@@ -47,7 +57,7 @@ impl AsyncFunctionHandler for PublishFunction {
                         Ok(pacs_data) => {
                             let document =
                                 Document::FIToFICustomerCreditTransferV08(Box::new(pacs_data));
-                            serialize_and_store(document, message)
+                            serialize_and_store_single(document, message)
                         }
                         Err(e) => {
                             println!(
@@ -77,7 +87,7 @@ impl AsyncFunctionHandler for PublishFunction {
                             let document = Document::FinancialInstitutionCreditTransferV08(
                                 Box::new(pacs_data),
                             );
-                            serialize_and_store(document, message)
+                            serialize_and_store_single(document, message)
                         }
                         Err(e) => {
                             println!(
@@ -103,7 +113,7 @@ impl AsyncFunctionHandler for PublishFunction {
                     match serde_json::from_value::<NotificationToReceiveV06>(notification.clone()) {
                         Ok(camt_data) => {
                             let document = Document::NotificationToReceiveV06(Box::new(camt_data));
-                            serialize_and_store(document, message)
+                            serialize_and_store_single(document, message)
                         }
                         Err(e) => {
                             println!("NotificationToReceiveV06 deserialization failed: {}", e);
@@ -129,7 +139,7 @@ impl AsyncFunctionHandler for PublishFunction {
                         Ok(camt_data) => {
                             let document =
                                 Document::FIToFIPaymentCancellationRequestV08(Box::new(camt_data));
-                            serialize_and_store(document, message)
+                            serialize_and_store_single(document, message)
                         }
                         Err(e) => {
                             println!(
@@ -157,7 +167,7 @@ impl AsyncFunctionHandler for PublishFunction {
                         Ok(camt_data) => {
                             let document =
                                 Document::ResolutionOfInvestigationV09(Box::new(camt_data));
-                            serialize_and_store(document, message)
+                            serialize_and_store_single(document, message)
                         }
                         Err(e) => {
                             println!("ResolutionOfInvestigationV09 deserialization failed: {}", e);
@@ -182,8 +192,70 @@ impl AsyncFunctionHandler for PublishFunction {
     }
 }
 
-// Helper function to serialize and store the document
-fn serialize_and_store(document: Document, message: &mut Message) -> Result<(usize, Vec<Change>)> {
+// Handle multiple pacs.008 messages for MT102
+fn handle_multiple_pacs008(
+    messages: &[Value],
+    message: &mut Message,
+) -> Result<(usize, Vec<Change>)> {
+    let mut xml_results = Vec::new();
+    let mut errors = Vec::new();
+
+    for (index, fi_to_fi) in messages.iter().enumerate() {
+        match serde_json::from_value::<FIToFICustomerCreditTransferV08>(fi_to_fi.clone()) {
+            Ok(pacs_data) => {
+                let document = Document::FIToFICustomerCreditTransferV08(Box::new(pacs_data));
+                match xml_to_string(&document) {
+                    Ok(xml_string) => {
+                        xml_results.push(Value::String(xml_string));
+                    }
+                    Err(e) => {
+                        let error_msg =
+                            format!("XML serialization failed for message {}: {}", index, e);
+                        errors.push(error_msg);
+                    }
+                }
+            }
+            Err(e) => {
+                let error_msg = format!(
+                    "FIToFICustomerCreditTransferV08 deserialization failed for message {}: {}",
+                    index, e
+                );
+                errors.push(error_msg);
+            }
+        }
+    }
+
+    if !errors.is_empty() {
+        return Err(DataflowError::Validation(format!(
+            "Multiple errors occurred: {}",
+            errors.join("; ")
+        )));
+    }
+
+    if xml_results.is_empty() {
+        return Err(DataflowError::Validation(
+            "No valid XML results generated".to_string(),
+        ));
+    }
+
+    // Store multiple results
+    message.data["results"] = Value::Array(xml_results.clone());
+
+    Ok((
+        200,
+        vec![Change {
+            path: "data.results".to_string(),
+            old_value: Value::Null,
+            new_value: Value::Array(xml_results),
+        }],
+    ))
+}
+
+// Helper function to serialize and store a single document (existing functionality)
+fn serialize_and_store_single(
+    document: Document,
+    message: &mut Message,
+) -> Result<(usize, Vec<Change>)> {
     match xml_to_string(&document) {
         Ok(xml_string) => {
             message.data["result"] = Value::String(xml_string);

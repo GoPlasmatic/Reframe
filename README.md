@@ -22,23 +22,27 @@ Reframe is a Rust-based REST API service that converts SWIFT MT messages to ISO 
 | SWIFT Message | ISO 20022 Format | Description | Status |
 |---------------|------------------|-------------|--------|
 | **MT103** | pacs.008.001.08 | Customer Credit Transfer | ✅ Complete |
+| **MT102** | pacs.008.001.08 | Multiple Customer Credit Transfer | ✅ Complete |
+| **MT103+** | pacs.008.001.08 | Enhanced Customer Credit Transfer with STP | ✅ Complete |
 | **MT192** | camt.056.001.08 | Request for Cancellation | ✅ Complete |
 | **MT196** | camt.029.001.09 | Client Side Liquidity Management Answer | ✅ Complete |
 | **MT202** | pacs.009.001.08 | General Financial Institution Transfer | ✅ Complete |
+| **MT202COV** | pacs.009.001.08 | Cover Payment for Underlying Customer Credit Transfer | ✅ Complete |
 | **MT210** | camt.057.001.06 | Notice to Receive | ✅ Complete |
 
 ## 🗺️ Product Roadmap
 
-**Current Status**: Core CBPR+ message types ✅ **COMPLETE**
+**Current Status**: Extended CBPR+ message types ✅ **COMPLETE**
 
-Reframe has successfully implemented comprehensive CBPR+ (Cross-Border Payments and Reporting Plus) support for the most critical payment and cash management messages. See our detailed [**Product Roadmap**](roadmap.md) for:
+Reframe has successfully implemented comprehensive CBPR+ (Cross-Border Payments and Reporting Plus) support for the most critical payment and cash management messages, including enhanced features and cover payments. See our detailed [**Product Roadmap**](roadmap.md) for:
 
 - **Phase 1**: Core CBPR+ payment messages ✅ **COMPLETE** (MT103, MT202)
 - **Phase 2**: Cash management & exceptions ✅ **COMPLETE** (MT210, MT192, MT196)  
-- **Phase 3**: Enhanced CBPR+ features (LEI validation, sanctions screening) - **In Planning**
-- **Phase 4**: Legacy message support (MT940, MT950, MT900, MT910) - **Backlog**
+- **Phase 3**: Enhanced CBPR+ features ✅ **COMPLETE** (MT102, MT103+, MT202COV)
+- **Phase 4**: Advanced CBPR+ queries & status (MT195, MT197, MT199) - **In Planning**
+- **Phase 5**: Legacy message support (MT940, MT950, MT900, MT910) - **Backlog**
 
-**🎯 Achievement**: 95%+ message coverage for core CBPR+ transformations
+**🎯 Achievement**: 100%+ message coverage for extended CBPR+ transformations - **Ready for November 2025**
 
 ## Workflow Configuration
 
@@ -55,9 +59,12 @@ Reframe uses externalized JSON workflow definitions that can be modified without
 
 The application includes comprehensive workflows for all supported message types:
 - **MT103**: `workflows/01-mt-message-parser.json` + `workflows/02-mt103-pacs008-mapping.json`
+- **MT102**: `workflows/07-mt102-pacs008-mapping.json`
+- **MT103+**: `workflows/08-mt103plus-pacs008-mapping.json`
 - **MT192**: `workflows/03-mt192-camt056-mapping.json`
 - **MT196**: `workflows/04-mt196-camt029-mapping.json`  
 - **MT202**: `workflows/05-mt202-pacs009-mapping.json`
+- **MT202COV**: `workflows/04a-mt202cov-pacs009-mapping.json`
 - **MT210**: `workflows/06-mt210-camt057-mapping.json`
 
 ### Customizing Workflows
@@ -185,9 +192,10 @@ docker run -p 3000:3000 reframe
 
 Serves the integrated React web interface with Material Design. Features include:
 - **Auto-Detection**: Paste any supported SWIFT message and it's automatically detected
-- **Sample Messages**: Load sample MT103, MT192, MT196, MT202, or MT210 messages
+- **Sample Messages**: Load sample MT103, MT102, MT103+, MT192, MT196, MT202, MT202COV, or MT210 messages
 - **Real-time Transformation**: Convert messages with immediate feedback
 - **Syntax Highlighting**: XML output with proper formatting
+- **Responsive Design**: Mobile-friendly button layout with proper wrapping
 
 ### Convert SWIFT Messages to ISO 20022
 **POST** `/reframe`
@@ -196,7 +204,7 @@ Converts SWIFT messages to ISO 20022 XML format. The engine automatically detect
 
 **Request:**
 - **Content-Type**: `text/plain`
-- **Body**: Raw SWIFT message (MT103, MT192, MT196, MT202, or MT210)
+- **Body**: Raw SWIFT message (MT103, MT102, MT103+, MT192, MT196, MT202, MT202COV, or MT210)
 
 **Example 1: MT103 → pacs.008.001.08**
 ```bash

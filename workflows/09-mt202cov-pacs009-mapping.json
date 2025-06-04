@@ -1,0 +1,234 @@
+{
+    "id": "09-mt202cov_to_pacs009_mapper",
+    "name": "MT202 COV to pacs.009.001.08 Mapper (Cover Payment)",
+    "condition": {
+        "and": [
+            {"==": [{"var": "SwiftMT.message_type"}, "202COV"]},
+            {"==": [{"var": "progress.workflow_id"}, "01-mt_message_parser"]},
+            {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "extract_32A_components",
+            "name": "Extract Date, Currency and Amount from 32A field",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.parsed_32A.date",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.32A" },
+                                    { "substr": [{ "var": "data.SwiftMT.32A" }, 0, 6] },
+                                    "240101"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.parsed_32A.currency",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.32A" },
+                                    { "substr": [{ "var": "data.SwiftMT.32A" }, 6, 3] },
+                                    "USD"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.parsed_32A.amount",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.32A" },
+                                    { "substr": [{ "var": "data.SwiftMT.32A" }, 9] },
+                                    "0.00"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.parsed_32A.formatted_date",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.parsed_32A.date" },
+                                    {
+                                        "cat": [
+                                            "20",
+                                            { "substr": [{ "var": "data.parsed_32A.date" }, 0, 2] },
+                                            "-",
+                                            { "substr": [{ "var": "data.parsed_32A.date" }, 2, 2] },
+                                            "-",
+                                            { "substr": [{ "var": "data.parsed_32A.date" }, 4, 2] }
+                                        ]
+                                    },
+                                    "2024-01-01"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.parsed_32A.amount_with_dot",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.parsed_32A.amount" },
+                                    {
+                                        "if": [
+                                            { "in": [",", { "var": "data.parsed_32A.amount" }] },
+                                            {
+                                                "cat": [
+                                                    { "substr": [{ "var": "data.parsed_32A.amount" }, 0, -3] },
+                                                    ".",
+                                                    { "substr": [{ "var": "data.parsed_32A.amount" }, -2] }
+                                                ]
+                                            },
+                                            { "var": "data.parsed_32A.amount" }
+                                        ]
+                                    },
+                                    "0.00"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.parsed_32A.numeric_amount",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.parsed_32A.amount_with_dot" },
+                                    {
+                                        "+": [
+                                            0,
+                                            { "var": "data.parsed_32A.amount_with_dot" }
+                                        ]
+                                    },
+                                    0.0
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_group_header",
+            "name": "Map Group Header",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.MX.FinInstnCdtTrf.GrpHdr.MsgId",
+                            "logic": { "var": "data.SwiftMT.20" }
+                        },
+                        {
+                            "path": "data.MX.FinInstnCdtTrf.GrpHdr.CreDtTm",
+                            "logic": {
+                                "if": [
+                                    { "var": "timestamp" },
+                                    { "var": "timestamp" },
+                                    "2024-01-01T00:00:00Z"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FinInstnCdtTrf.GrpHdr.NbOfTxs",
+                            "logic": "1"
+                        },
+                        {
+                            "path": "data.MX.FinInstnCdtTrf.GrpHdr.CtrlSum",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.parsed_32A.numeric_amount" },
+                                    { "var": "data.parsed_32A.numeric_amount" },
+                                    0.0
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FinInstnCdtTrf.GrpHdr.InitgPty.Nm",
+                            "logic": "Reframe Processing System"
+                        },
+                        {
+                            "path": "data.MX.FinInstnCdtTrf.GrpHdr.SttlmInf.SttlmMtd",
+                            "logic": "CLRG"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_credit_transfer_info",
+            "name": "Map Credit Transfer Transaction Information",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.MX.FinInstnCdtTrf.CdtTrfTxInf.0.PmtId.InstrId",
+                            "logic": { "var": "data.SwiftMT.20" }
+                        },
+                        {
+                            "path": "data.MX.FinInstnCdtTrf.CdtTrfTxInf.0.PmtId.EndToEndId",
+                            "logic": { "var": "data.SwiftMT.20" }
+                        },
+                        {
+                            "path": "data.MX.FinInstnCdtTrf.CdtTrfTxInf.0.PmtId.UETR",
+                            "logic": { "var": "data.SwiftMT.20" }
+                        },
+                        {
+                            "path": "data.MX.FinInstnCdtTrf.CdtTrfTxInf.0.IntrBkSttlmAmt.@Ccy",
+                            "logic": { "var": "data.parsed_32A.currency" }
+                        },
+                        {
+                            "path": "data.MX.FinInstnCdtTrf.CdtTrfTxInf.0.IntrBkSttlmAmt.$value",
+                            "logic": { "var": "data.parsed_32A.numeric_amount" }
+                        },
+                        {
+                            "path": "data.MX.FinInstnCdtTrf.CdtTrfTxInf.0.IntrBkSttlmDt",
+                            "logic": { "var": "data.parsed_32A.formatted_date" }
+                        },
+                        {
+                            "path": "data.MX.FinInstnCdtTrf.CdtTrfTxInf.0.Dbtr.FinInstnId.BICFI",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.52A" },
+                                    { "var": "data.SwiftMT.52A" },
+                                    "UNKNOWN"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FinInstnCdtTrf.CdtTrfTxInf.0.CdtrAgt.FinInstnId.BICFI",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.58A" },
+                                    { "var": "data.SwiftMT.58A" },
+                                    "UNKNOWN"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FinInstnCdtTrf.CdtTrfTxInf.0.Cdtr.FinInstnId.BICFI",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.58A" },
+                                    { "var": "data.SwiftMT.58A" },
+                                    "UNKNOWN"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "publish_pacs009",
+            "name": "Publish pacs.009.001.08 XML",
+            "function": {
+                "name": "publish",
+                "input": {
+                    "output_format": "pacs.009.001.08",
+                    "input_field_name": "MX"
+                }
+            }
+        }
+    ]
+} 

@@ -55,6 +55,55 @@ HAUPTSTRASSE 1
 :71A:OUR
 -}`
   },
+  'MT102': {
+    name: 'MT102 → ISO 20022 pacs.008.001.08 (Multiple)',
+    description: 'Multiple Customer Credit Transfer (1-to-Many)',
+    targetFormat: 'Multiple ISO 20022 pacs.008.001.08 XML',
+    sample: `{1:F01BNPAFRPPXXX0000000000}{2:O1021234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
+:20:MT102SAMPLE001
+:23B:CRED
+:32A:240101USD1500,00
+:19:2
+:32B:USD750,00
+:50K:/1234567890
+ORDERING CUSTOMER NAME
+123 MAIN STREET
+:52A:BNPAFRPPXXX
+:58A:DEUTDEFFXXX
+:59:987654321/BENEFICIARY NAME 1
+BENEFICIARY ADDRESS 1
+:70:PAYMENT DETAILS 1
+:32B:USD750,00
+:59:123456789/BENEFICIARY NAME 2
+BENEFICIARY ADDRESS 2
+:70:PAYMENT DETAILS 2
+-}`
+  },
+  'MT103+': {
+    name: 'MT103+ → ISO 20022 pacs.008.001.08 (Enhanced)',
+    description: 'Enhanced Customer Credit Transfer with STP',
+    targetFormat: 'ISO 20022 pacs.008.001.08 XML (Enhanced)',
+    sample: `{1:F01BNPAFRPPXXX0000000000}{2:O1031234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
+:20:FT21001234567890
+:23B:CRED
+:32A:240101USD1000,00
+:50K:/1234567890
+ACME CORPORATION
+123 MAIN STREET
+NEW YORK NY 10001
+:52A:BNPAFRPPXXX
+:57A:DEUTDEFFXXX
+:59:/DE89370400440532013000
+MUELLER GMBH
+HAUPTSTRASSE 1
+10115 BERLIN
+:70:PAYMENT FOR INVOICE 12345
+:71A:OUR
+:121:3ec6a2b8-7b2f-4c5e-8f4d-9a1b2c3e4f5g
+:77B:/ORDERRES/BE//MEILAAN 1, 1000 BRUSSELS
+:77T:/BENEFRES/DE//HAUPTSTRASSE 1, 10115 BERLIN
+-}`
+  },
   'MT192': {
     name: 'MT192 → ISO 20022 camt.056.001.08',
     description: 'Request for Cancellation',
@@ -99,6 +148,23 @@ HAUPTSTRASSE 1
 /INS/Payment instruction details
 -}`
   },
+  'MT202COV': {
+    name: 'MT202 COV → ISO 20022 pacs.009.001.08 (Cover)',
+    description: 'Cover Payment for Underlying Customer Credit Transfer',
+    targetFormat: 'ISO 20022 pacs.009.001.08 XML (Cover)',
+    sample: `{1:F01BNPAFRPPXXX0000000000}{2:O2021234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
+:20:COV21001234567890
+:21:FT21001234567890
+:32A:240101USD50000,00
+:50A:ORDERING CUSTOMER
+:52A:BNPAFRPPXXX
+:53A:CHASUS33XXX
+:58A:DEUTDEFFXXX
+:59:BENEFICIARY CUSTOMER
+:70:/COVPAY/Cover payment details
+/ORIG/Original payment reference
+-}`
+  },
   'MT210': {
     name: 'MT210 → ISO 20022 camt.057.001.06',
     description: 'Notice to Receive',
@@ -124,6 +190,9 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [processingInfo, setProcessingInfo] = useState(null);
+  const [resultCount, setResultCount] = useState(0);
+  const [messageType, setMessageType] = useState('single');
 
   // Detect if we're in development mode or GitHub Pages
   const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -134,6 +203,9 @@ function App() {
     setError('');
     setOutputXml('');
     setSuccess(false);
+    setProcessingInfo(null);
+    setResultCount(0);
+    setMessageType('single');
   }, [selectedTransformation]);
 
   const formatXml = (xml) => {
@@ -175,6 +247,9 @@ function App() {
     setError('');
     setSuccess(false);
     setOutputXml('');
+    setProcessingInfo(null);
+    setResultCount(0);
+    setMessageType('single');
 
     try {
       const response = await fetch(API_ENDPOINT, {
@@ -185,35 +260,62 @@ function App() {
         body: inputMessage,
       });
 
-      const responseText = await response.text();
-
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${responseText}`);
+        throw new Error(`HTTP ${response.status}: Server error`);
       }
 
-      // Check if response is XML or JSON
-      if (responseText.trim().startsWith('<')) {
-        setOutputXml(formatXml(responseText));
-      } else {
-        try {
-          const jsonResponse = JSON.parse(responseText);
-          if (jsonResponse.result && jsonResponse.result.startsWith('<')) {
-            setOutputXml(formatXml(jsonResponse.result));
+      const responseText = await response.text();
+      let jsonResponse;
+
+      try {
+        jsonResponse = JSON.parse(responseText);
+      } catch (jsonError) {
+        throw new Error('Invalid response format from server');
+      }
+
+      // Handle the new consistent JSON response format
+      if (jsonResponse.status === 'success') {
+        // Success case
+        setSuccess(true);
+        setProcessingInfo(jsonResponse.processing_info);
+        setResultCount(jsonResponse.count);
+        setMessageType(jsonResponse.message_type);
+
+        if (jsonResponse.results && jsonResponse.results.length > 0) {
+          if (jsonResponse.message_type === 'multiple') {
+            // Multiple results - show as numbered XML outputs
+            const formattedResults = jsonResponse.results.map((xml, index) => 
+              `<!-- Result ${index + 1}/${jsonResponse.count} -->\n${formatXml(xml)}`
+            ).join('\n\n<!-- ========================== -->\n\n');
+            setOutputXml(formattedResults);
           } else {
-            setOutputXml(JSON.stringify(jsonResponse, null, 2));
+            // Single result
+            setOutputXml(formatXml(jsonResponse.results[0]));
           }
-        } catch (jsonError) {
-          setOutputXml(responseText);
+        } else {
+          setOutputXml('No XML output generated');
         }
+      } else {
+        // Error case
+        setSuccess(false);
+        if (jsonResponse.error) {
+          setError(`${jsonResponse.error.message}`);
+          if (jsonResponse.error.details) {
+            console.log('Detailed error info:', jsonResponse.error.details);
+          }
+        } else {
+          setError('Unknown error occurred during processing');
+        }
+        setProcessingInfo(jsonResponse.processing_info);
       }
 
-      setSuccess(true);
       setLoading(false);
 
     } catch (err) {
       console.error('API Error:', err);
       setError(`Unable to connect to the API: ${err.message}`);
       setLoading(false);
+      setProcessingInfo(null);
     }
   };
 
@@ -227,6 +329,9 @@ function App() {
     setOutputXml('');
     setError('');
     setSuccess(false);
+    setProcessingInfo(null);
+    setResultCount(0);
+    setMessageType('single');
   };
 
   return (
@@ -409,16 +514,63 @@ function App() {
                   height: '70px'
                 }}
               >
-                <Group gap="md" align="center">
-                  <IconTransform size={24} />
-                  <Box>
-                    <Title order={5} style={{ fontWeight: 700, marginBottom: '2px' }}>
-                      ISO 20022 XML Output
-                    </Title>
-                    <Text size="xs" style={{ opacity: 0.9 }}>
-                      Converted XML with syntax highlighting
-                    </Text>
-                  </Box>
+                <Group gap="md" align="center" justify="space-between">
+                  <Group gap="md" align="center">
+                    <IconTransform size={24} />
+                    <Box>
+                      <Title order={5} style={{ fontWeight: 700, marginBottom: '2px' }}>
+                        ISO 20022 XML Output
+                        {resultCount > 0 && (
+                          <Badge 
+                            size="xs" 
+                            variant="light" 
+                            color="white"
+                            style={{ 
+                              marginLeft: '8px',
+                              color: 'white',
+                              backgroundColor: 'rgba(255, 255, 255, 0.2)'
+                            }}
+                          >
+                            {resultCount} {messageType === 'multiple' ? 'Messages' : 'Message'}
+                          </Badge>
+                        )}
+                      </Title>
+                      <Text size="xs" style={{ opacity: 0.9 }}>
+                        {processingInfo ? 
+                          `${processingInfo.detected_format} → Converted XML (${processingInfo.workflows_executed} workflows)` :
+                          'Converted XML with syntax highlighting'
+                        }
+                      </Text>
+                    </Box>
+                  </Group>
+                  
+                  {processingInfo && (
+                    <Group gap="xs">
+                      <Badge 
+                        size="xs" 
+                        variant="outline"
+                        color="white"
+                        style={{ 
+                          color: 'white',
+                          borderColor: 'rgba(255, 255, 255, 0.5)'
+                        }}
+                      >
+                        {processingInfo.input_size} chars
+                      </Badge>
+                      {messageType === 'multiple' && (
+                        <Badge 
+                          size="xs" 
+                          variant="filled"
+                          color="yellow"
+                          style={{ 
+                            color: '#333'
+                          }}
+                        >
+                          1-to-Many
+                        </Badge>
+                      )}
+                    </Group>
+                  )}
                 </Group>
               </Box>
               <Box style={{ 
@@ -501,10 +653,10 @@ function App() {
           radius="md"
           p="lg"
         >
-          <Group justify="space-between" align="flex-start" gap="xl">
-            {/* Left Side - Action Buttons */}
-            <Stack gap="md" style={{ flex: '0 0 auto' }}>
-              <Group gap="md" align="center">
+          <Stack gap="xl">
+            {/* Action Buttons Section */}
+            <Stack gap="md">
+              <Group gap="md" align="center" style={{ flexWrap: 'wrap' }}>
                 <Button
                   variant="filled"
                   leftSection={loading ? <Loader size={18} color="white" /> : <IconPlayerPlay size={18} />}
@@ -515,6 +667,8 @@ function App() {
                   style={{
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     boxShadow: '0 4px 20px rgba(102, 126, 234, 0.4)',
+                    minWidth: 'fit-content',
+                    flexShrink: 0,
                   }}
                 >
                   {loading ? 'Processing...' : 'Transform Message'}
@@ -529,6 +683,8 @@ function App() {
                   style={{
                     border: '2px solid #667eea',
                     color: '#667eea',
+                    minWidth: 'fit-content',
+                    flexShrink: 0,
                   }}
                 >
                   Clear All
@@ -543,11 +699,20 @@ function App() {
                       style={styles}
                       variant="light"
                       color="red"
-                      title="Error"
+                      title="Processing Error"
                       icon={<IconAlertCircle size={18} />}
                       radius="md"
                     >
-                      {error}
+                      <Stack gap="xs">
+                        <Text size="sm">{error}</Text>
+                        {processingInfo && (
+                          <Text size="xs" c="dimmed">
+                            Detected: {processingInfo.detected_format} • 
+                            Input size: {processingInfo.input_size} chars • 
+                            Workflows: {processingInfo.workflows_executed}
+                          </Text>
+                        )}
+                      </Stack>
                     </Alert>
                   )}
                 </Transition>
@@ -559,11 +724,25 @@ function App() {
                       style={styles}
                       variant="light"
                       color="green"
-                      title="Success"
+                      title="Transformation Complete"
                       icon={<IconCheck size={18} />}
                       radius="md"
                     >
-                      Message transformed successfully!
+                      <Stack gap="xs">
+                        <Text size="sm">
+                          {messageType === 'multiple' 
+                            ? `Generated ${resultCount} XML messages successfully!`
+                            : 'Message transformed successfully!'
+                          }
+                        </Text>
+                        {processingInfo && (
+                          <Text size="xs" c="dimmed">
+                            {processingInfo.detected_format} → ISO 20022 • 
+                            {processingInfo.workflows_executed} workflow{processingInfo.workflows_executed !== 1 ? 's' : ''} executed • 
+                            Output: {resultCount} message{resultCount !== 1 ? 's' : ''}
+                          </Text>
+                        )}
+                      </Stack>
                     </Alert>
                   )}
                 </Transition>
@@ -575,20 +754,18 @@ function App() {
                   style={{ 
                     height: 6,
                     backgroundColor: 'rgba(102, 126, 234, 0.2)',
-                    width: '300px'
+                    width: '100%',
+                    maxWidth: '300px'
                   }}
                   radius="md"
                 />
               )}
             </Stack>
 
-            {/* Right Side - Sample Message Buttons */}
-            <Stack gap="sm" style={{ flex: 1, minWidth: '400px' }}>
+            {/* Sample Message Buttons Section */}
+            <Stack gap="sm">
               <Title order={5} mb="xs">Sample Messages</Title>
-              <Text size="sm" c="dimmed" mb="md">
-                Load pre-configured samples to test different message types
-              </Text>
-              <Group gap="sm" justify="flex-start">
+              <Group gap="sm" style={{ flexWrap: 'wrap' }}>
                 {Object.keys(TRANSFORMATIONS).map((transformation) => (
                   <Button
                     key={transformation}
@@ -602,6 +779,8 @@ function App() {
                       border: selectedTransformation === transformation 
                         ? 'none'
                         : '2px solid #e0e0e0',
+                      minWidth: 'fit-content',
+                      flexShrink: 0,
                     }}
                     radius="md"
                     size="sm"
@@ -611,7 +790,7 @@ function App() {
                 ))}
               </Group>
             </Stack>
-          </Group>
+          </Stack>
         </Card>
       </Container>
 

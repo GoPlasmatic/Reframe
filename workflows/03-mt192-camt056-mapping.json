@@ -1,0 +1,162 @@
+{
+    "id": "03-mt192_to_camt056_mapper",
+    "name": "MT192 to camt.056.001.08 Mapper",
+    "condition": {
+        "and": [
+            {"==": [{"var": "SwiftMT.message_type"}, "192"]},
+            {"==": [{"var": "progress.workflow_id"}, "01-mt_message_parser"]},
+            {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "map_assignment",
+            "name": "Map Assignment Information",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.MX.FIToFIPmtCxlReq.Assgnmt.Id",
+                            "logic": { "var": "data.SwiftMT.20" }
+                        },
+                        {
+                            "path": "data.MX.FIToFIPmtCxlReq.Assgnmt.Assgnr.Agt.FinInstnId.BICFI",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.52A" },
+                                    { "var": "data.SwiftMT.52A" },
+                                    "UNKNOWN"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFIPmtCxlReq.Assgnmt.Assgne.Agt.FinInstnId.BICFI",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.57A" },
+                                    { "var": "data.SwiftMT.57A" },
+                                    "UNKNOWN"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFIPmtCxlReq.Assgnmt.CreDtTm",
+                            "logic": {
+                                "if": [
+                                    { "var": "metadata.timestamp" },
+                                    { "var": "metadata.timestamp" },
+                                    "2024-01-01T00:00:00Z"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_underlying_transaction",
+            "name": "Map Underlying Transaction Information",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.MX.FIToFIPmtCxlReq.Undrlyg.0.TxInf.0.CxlId",
+                            "logic": { "var": "data.SwiftMT.20" }
+                        },
+                        {
+                            "path": "data.MX.FIToFIPmtCxlReq.Undrlyg.0.TxInf.0.OrgnlGrpInf.OrgnlMsgId",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.21" },
+                                    { "var": "data.SwiftMT.21" },
+                                    "UNKNOWN"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFIPmtCxlReq.Undrlyg.0.TxInf.0.OrgnlGrpInf.OrgnlMsgNmId",
+                            "logic": "pacs.008.001.08"
+                        },
+                        {
+                            "path": "data.MX.FIToFIPmtCxlReq.Undrlyg.0.TxInf.0.OrgnlInstrId",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.21" },
+                                    { "var": "data.SwiftMT.21" },
+                                    "UNKNOWN"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFIPmtCxlReq.Undrlyg.0.TxInf.0.OrgnlEndToEndId",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.21" },
+                                    { "var": "data.SwiftMT.21" },
+                                    "UNKNOWN"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFIPmtCxlReq.Undrlyg.0.TxInf.0.CxlRsnInf.0.Rsn.Cd",
+                            "logic": "RQDA"
+                        },
+                        {
+                            "path": "data.MX.FIToFIPmtCxlReq.Undrlyg.0.TxInf.0.CxlRsnInf.0.AddtlInf.0",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.79" },
+                                    { "var": "data.SwiftMT.79" },
+                                    "Request for cancellation"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_group_header",
+            "name": "Map Group Header",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.MX.FIToFIPmtCxlReq.GrpHdr.MsgId",
+                            "logic": { "var": "data.SwiftMT.20" }
+                        },
+                        {
+                            "path": "data.MX.FIToFIPmtCxlReq.GrpHdr.CreDtTm",
+                            "logic": {
+                                "if": [
+                                    { "var": "metadata.timestamp" },
+                                    { "var": "metadata.timestamp" },
+                                    "2024-01-01T00:00:00Z"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.MX.FIToFIPmtCxlReq.GrpHdr.InitgPty.Nm",
+                            "logic": "Reframe Processing System"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "publish_camt056",
+            "name": "Publish camt.056.001.08 XML",
+            "function": {
+                "name": "publish",
+                "input": {
+                    "output_format": "camt.056.001.08",
+                    "input_field_name": "MX"
+                }
+            }
+        }
+    ]
+} 

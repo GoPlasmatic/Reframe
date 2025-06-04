@@ -80,25 +80,38 @@ async fn setup_workflows(engine: &mut Engine) -> anyhow::Result<()> {
 
     match fs::read_dir(workflows_dir) {
         Ok(entries) => {
-            for entry in entries {
-                let entry = entry?;
-                let path = entry.path();
+            // Collect all JSON file paths and sort them by filename
+            let mut json_files: Vec<_> = entries
+                .filter_map(|entry| {
+                    let entry = entry.ok()?;
+                    let path = entry.path();
 
-                // Only process .json files
-                if path.extension().and_then(|s| s.to_str()) == Some("json") {
-                    match load_workflow_from_file(&path) {
-                        Ok(workflow) => {
-                            engine.add_workflow(&workflow);
-                            workflow_count += 1;
-                            println!(
-                                "✅ Loaded workflow: {} from {}",
-                                workflow.name,
-                                path.display()
-                            );
-                        }
-                        Err(e) => {
-                            println!("❌ Failed to load workflow from {}: {}", path.display(), e);
-                        }
+                    // Only include .json files
+                    if path.extension().and_then(|s| s.to_str()) == Some("json") {
+                        Some(path)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            // Sort by filename
+            json_files.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
+
+            // Process files in sorted order
+            for path in json_files {
+                match load_workflow_from_file(&path) {
+                    Ok(workflow) => {
+                        engine.add_workflow(&workflow);
+                        workflow_count += 1;
+                        println!(
+                            "✅ Loaded workflow: {} from {}",
+                            workflow.name,
+                            path.display()
+                        );
+                    }
+                    Err(e) => {
+                        println!("❌ Failed to load workflow from {}: {}", path.display(), e);
                     }
                 }
             }
@@ -159,7 +172,7 @@ async fn process_data(
                 // Return the full message data as JSON if no specific result
                 Response::builder()
                     .header(header::CONTENT_TYPE, "application/json")
-                    .body(serde_json::to_string(&message.data).unwrap_or_else(|_| "{}".to_string()))
+                    .body(serde_json::to_string(&message).unwrap_or_else(|_| "{}".to_string()))
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
             }
         }

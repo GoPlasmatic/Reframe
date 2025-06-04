@@ -39,6 +39,8 @@ impl AsyncFunctionHandler for ParserFunction {
                 .to_string()
         };
 
+        let mut message_type = "unknown";
+
         if format == "SwiftMT" {
             let parsed_data = match parse_message(payload.as_str()) {
                 Ok(mt_message) => {
@@ -69,10 +71,7 @@ impl AsyncFunctionHandler for ParserFunction {
                             }
                         }
                     }
-                    fields_dict.insert(
-                        "message_type".to_string(),
-                        mt_message.message_type().to_string(),
-                    );
+                    message_type = mt_message.message_type();
                     json!(fields_dict)
                 }
                 Err(e) => {
@@ -92,6 +91,21 @@ impl AsyncFunctionHandler for ParserFunction {
             } else {
                 message.data = json!({
                     output_field_name: parsed_data
+                });
+            }
+
+            if let Some(data_obj) = message.metadata.as_object_mut() {
+                data_obj.insert(
+                    format.to_string(),
+                    json!({
+                        "message_type": message_type
+                    }),
+                );
+            } else {
+                message.metadata = json!({
+                    format.to_string(): {
+                        "message_type": message_type
+                    }
                 });
             }
 

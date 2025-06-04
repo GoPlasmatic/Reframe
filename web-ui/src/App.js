@@ -1,30 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import {
-  AppBar,
-  Toolbar,
-  Typography,
   Container,
   Grid,
-  TextField,
-  Button,
-  Box,
-  Alert,
-  CircularProgress,
-  Chip,
   Card,
-  CardContent,
+  Text,
+  Title,
+  Button,
+  Textarea,
   Stack,
-  Fade,
-  LinearProgress,
-} from '@mui/material';
+  Group,
+  Alert,
+  Loader,
+  Badge,
+  Box,
+  Progress,
+  Transition,
+  Paper,
+} from '@mantine/core';
 import {
-  Transform as TransformIcon,
-  Code as CodeIcon,
-  CheckCircle as CheckIcon,
-  Error as ErrorIcon,
-  PlayArrow as PlayIcon,
-  Refresh as RefreshIcon,
-} from '@mui/icons-material';
+  IconTransform,
+  IconCode,
+  IconCheck,
+  IconAlertCircle,
+  IconPlayerPlay,
+  IconRefresh,
+} from '@tabler/icons-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -230,415 +230,217 @@ function App() {
   };
 
   return (
-    <Box sx={{ 
-      flexGrow: 1, 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      position: 'relative'
-    }}>
-      {/* Modern Header */}
-      <AppBar 
-        position="static" 
-        elevation={0}
-        sx={{ 
+    <Box 
+      style={{ 
+        minHeight: '100vh', 
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        position: 'relative'
+      }}
+    >
+      {/* Header with Title */}
+      <Paper 
+        p="lg"
+        style={{ 
           background: 'rgba(255, 255, 255, 0.1)',
           backdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+          borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+          borderRadius: 0
         }}
       >
-        <Toolbar sx={{ py: 1 }}>
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 2,
-            background: 'rgba(255, 255, 255, 0.1)',
-            px: 2,
-            py: 1,
-            borderRadius: 2
-          }}>
-            <CodeIcon sx={{ fontSize: 28, color: 'white' }} />
-            <Typography variant="h5" component="div" sx={{ 
-              fontWeight: 700,
-              color: 'white',
-              letterSpacing: '-0.5px'
-            }}>
-              Reframe
-            </Typography>
+        <Group justify="space-between" align="center">
+          <Box style={{ width: '200px' }}>
+            {/* Left spacer for centering */}
           </Box>
-          <Box sx={{ flexGrow: 1 }} />
-          <Chip 
-            label={success ? 'Transform Complete' : isDevelopment ? 'Development Mode' : 'Production Ready'}
-            color={success ? 'success' : 'default'}
-            variant="outlined"
-            sx={{ 
-              color: 'white',
-              borderColor: 'rgba(255, 255, 255, 0.3)',
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              fontWeight: 500
+          
+          <Group 
+            gap="lg"
+            style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              padding: '12px 24px',
+              borderRadius: '12px',
+              textAlign: 'center'
             }}
-            icon={<CheckIcon sx={{ color: 'white !important' }} />}
-          />
-        </Toolbar>
-      </AppBar>
-
-      {/* Content Sections - Contained */}
-      <Box sx={{ py: 4 }}>
-        {/* Hero Section */}
-        <Container maxWidth="xl" sx={{ mb: 4, px: 2 }}>
-          <Fade in timeout={800}>
-            <Card sx={{ 
-              background: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(20px)',
-              borderRadius: 4,
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-            }}>
-              <CardContent sx={{ p: 4 }}>
-                <Stack spacing={2} alignItems="center" textAlign="center">
-                  <Typography variant="h3" sx={{ 
-                    fontWeight: 800,
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    backgroundClip: 'text',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    mb: 1
-                  }}>
-                    SWIFT to ISO 20022 Converter
-                  </Typography>
-                  <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 800, fontWeight: 400 }}>
-                    Transform SWIFT MT messages to ISO 20022 XML format with intelligent auto-detection
-                  </Typography>
-                  <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 900 }}>
-                    Paste your SWIFT message below or load a sample. Our engine automatically detects the message type 
-                    and converts it to the appropriate ISO 20022 format with real-time validation.
-                  </Typography>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Fade>
-        </Container>
-
-        {/* Sample Message Buttons */}
-        <Container maxWidth="xl" sx={{ mb: 3, px: 2 }}>
-          <Card sx={{ 
-            background: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(20px)',
-            borderRadius: 3,
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)'
-          }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                Sample Messages
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Load pre-configured samples to test different message types
-              </Typography>
-              <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-                {Object.keys(TRANSFORMATIONS).map((transformation) => (
-                  <Button
-                    key={transformation}
-                    variant={selectedTransformation === transformation ? 'contained' : 'outlined'}
-                    onClick={() => handleTransformationChange(transformation)}
-                    disabled={loading}
-                    sx={{
-                      minWidth: '140px',
-                      py: 1.5,
-                      px: 3,
-                      borderRadius: 3,
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      fontSize: '0.95rem',
-                      background: selectedTransformation === transformation 
-                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                        : 'transparent',
-                      border: selectedTransformation === transformation 
-                        ? 'none'
-                        : '2px solid #e0e0e0',
-                      '&:hover': {
-                        background: selectedTransformation === transformation 
-                          ? 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)'
-                          : 'rgba(102, 126, 234, 0.1)',
-                        border: '2px solid #667eea',
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
-                      },
-                      transition: 'all 0.3s ease'
-                    }}
-                  >
-                    {transformation}
-                  </Button>
-                ))}
-              </Stack>
-            </CardContent>
-          </Card>
-        </Container>
-
-        {/* Action Buttons */}
-        <Container maxWidth="xl" sx={{ mb: 4, px: 2 }}>
-          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
-            <Button
-              variant="contained"
-              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <PlayIcon />}
-              onClick={handleTransform}
-              disabled={loading}
-              size="large"
-              sx={{
-                py: 1.5,
-                px: 4,
-                borderRadius: 3,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                fontWeight: 600,
-                fontSize: '1.1rem',
-                textTransform: 'none',
-                boxShadow: '0 4px 20px rgba(102, 126, 234, 0.4)',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 6px 25px rgba(102, 126, 234, 0.5)'
-                },
-                '&:disabled': {
-                  background: 'rgba(0, 0, 0, 0.12)'
-                },
-                transition: 'all 0.3s ease'
-              }}
-            >
-              {loading ? 'Processing...' : 'Transform Message'}
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<RefreshIcon />}
-              onClick={handleClear}
-              disabled={loading}
-              sx={{
-                py: 1.5,
-                px: 3,
-                borderRadius: 3,
-                border: '2px solid rgba(255, 255, 255, 0.8)',
-                color: 'white',
-                fontWeight: 600,
-                textTransform: 'none',
-                '&:hover': {
-                  border: '2px solid white',
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  transform: 'translateY(-1px)'
-                },
-                transition: 'all 0.3s ease'
-              }}
-            >
-              Clear All
-            </Button>
-            
-            {/* Status Messages */}
-            {error && (
-              <Fade in>
-                <Alert 
-                  severity="error" 
-                  icon={<ErrorIcon />}
-                  sx={{ 
-                    borderRadius: 3,
-                    background: 'rgba(211, 47, 47, 0.1)',
-                    border: '1px solid rgba(211, 47, 47, 0.3)',
-                    '& .MuiAlert-icon': { color: '#d32f2f' }
-                  }}
-                >
-                  {error}
-                </Alert>
-              </Fade>
-            )}
-            {success && !error && (
-              <Fade in>
-                <Alert 
-                  severity="success" 
-                  icon={<CheckIcon />}
-                  sx={{ 
-                    borderRadius: 3,
-                    background: 'rgba(46, 125, 50, 0.1)',
-                    border: '1px solid rgba(46, 125, 50, 0.3)',
-                    '& .MuiAlert-icon': { color: '#2e7d32' }
-                  }}
-                >
-                  Message transformed successfully!
-                </Alert>
-              </Fade>
-            )}
-          </Stack>
-          {loading && (
-            <Box sx={{ mt: 2 }}>
-              <LinearProgress 
-                sx={{ 
-                  borderRadius: 2,
-                  height: 6,
-                  backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                  '& .MuiLinearProgress-bar': {
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                  }
-                }} 
-              />
+          >
+            <Box style={{ textAlign: 'center' }}>
+              <Title 
+                order={1} 
+                style={{ 
+                  fontWeight: 900,
+                  color: 'white',
+                  letterSpacing: '-1px',
+                  marginBottom: '4px',
+                  fontSize: '2.5rem',
+                  textShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                }}
+              >
+                Reframe
+              </Title>
+              <Text size="md" style={{ 
+                color: 'rgba(255, 255, 255, 0.9)',
+                fontWeight: 500,
+                letterSpacing: '0.5px'
+              }}>
+                SWIFT to ISO 20022 Transformer
+              </Text>
+              <Text size="sm" style={{ 
+                color: 'rgba(255, 255, 255, 0.7)',
+                marginTop: '2px'
+              }}>
+                Transform MT messages to XML format with intelligent auto-detection
+              </Text>
             </Box>
-          )}
-        </Container>
-      </Box>
+          </Group>
+          
+          <Box style={{ width: '200px', display: 'flex', justifyContent: 'flex-end' }}>
+            <Badge 
+              variant="outline"
+              color="white"
+              style={{ 
+                color: 'white',
+                borderColor: 'rgba(255, 255, 255, 0.3)',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              }}
+              leftSection={<IconCheck size={16} />}
+            >
+              {success ? 'Transform Complete' : isDevelopment ? 'Development Mode' : 'Production Ready'}
+            </Badge>
+          </Box>
+        </Group>
+      </Paper>
 
-      {/* Main Panels - Full Width Container */}
-      <Container maxWidth="xl" sx={{ px: 2, pb: 4 }}>
-        <Grid container spacing={2} sx={{ 
-          height: '600px',
-          width: '100%'
-        }}>
+      {/* Main Panels */}
+      <Container size="xl" py="md">
+        <Grid gutter="md">
           {/* Input Panel */}
-          <Grid item xs={12} lg={6} sx={{ 
-            height: '600px',
-            display: 'flex'
-          }}>
-            <Card sx={{ 
-              width: '100%',
-              height: '600px',
-              display: 'flex', 
-              flexDirection: 'column',
-              background: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(20px)',
-              borderRadius: 4,
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-              overflow: 'hidden'
-            }}>
-              <Box sx={{ 
-                p: 3, 
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-                color: 'white', 
-                flexShrink: 0,
-                height: '100px'
-              }}>
-                <Stack direction="row" alignItems="center" spacing={2}>
-                  <CodeIcon sx={{ fontSize: 28 }} />
-                  <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
-                      SWIFT Message Input
-                    </Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                      Paste your SWIFT message or use a sample
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Box>
-              <Box sx={{ 
-                p: 3, 
+          <Grid.Col span={{ base: 12, lg: 6 }}>
+            <Card
+              style={{ 
                 height: '500px',
-                overflow: 'hidden',
-                display: 'flex'
-              }}>
-                <TextField
-                  multiline
-                  fullWidth
+                display: 'flex', 
+                flexDirection: 'column',
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+                overflow: 'hidden'
+              }}
+              radius="lg"
+              p={0}
+            >
+              <Box 
+                style={{ 
+                  padding: '1rem', 
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+                  color: 'white', 
+                  flexShrink: 0,
+                  height: '70px'
+                }}
+              >
+                <Group gap="md" align="center">
+                  <IconCode size={24} />
+                  <Box>
+                    <Title order={5} style={{ fontWeight: 700, marginBottom: '2px' }}>
+                      SWIFT Message Input
+                    </Title>
+                    <Text size="xs" style={{ opacity: 0.9 }}>
+                      Paste your SWIFT message or use a sample
+                    </Text>
+                  </Box>
+                </Group>
+              </Box>
+              <Box style={{ padding: '1rem', flex: 1, display: 'flex' }}>
+                <Textarea
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   placeholder="Paste your SWIFT message here..."
-                  variant="outlined"
-                  sx={{
-                    height: '100%',
-                    '& .MuiOutlinedInput-root': {
+                  style={{
+                    flex: 1,
+                    fontFamily: 'SF Mono, Monaco, Consolas, "Courier New", monospace',
+                    fontSize: '13px',
+                    lineHeight: '1.4',
+                  }}
+                  styles={{
+                    input: {
                       height: '100%',
-                      borderRadius: 2,
                       backgroundColor: '#fafafa',
-                      '& fieldset': {
-                        border: '2px solid #f0f0f0',
-                      },
-                      '&:hover fieldset': {
+                      border: '2px solid #f0f0f0',
+                      borderRadius: '8px',
+                      width: '100%',
+                      resize: 'none',
+                      '&:hover': {
                         border: '2px solid #667eea',
                       },
-                      '&.Mui-focused fieldset': {
+                      '&:focus': {
                         border: '2px solid #667eea',
                         boxShadow: '0 0 0 4px rgba(102, 126, 234, 0.1)'
                       },
-                    },
-                    '& .MuiInputBase-input': {
-                      fontFamily: 'SF Mono, Monaco, Consolas, "Courier New", monospace',
-                      fontSize: '14px',
-                      lineHeight: '1.5',
-                      height: '100% !important',
-                      overflow: 'auto !important',
-                      resize: 'none',
-                      padding: '16px !important',
-                      color: '#2d3748',
-                      boxSizing: 'border-box'
-                    },
+                    }
                   }}
+                  autosize
+                  minRows={18}
+                  maxRows={18}
                 />
               </Box>
             </Card>
-          </Grid>
+          </Grid.Col>
 
           {/* Output Panel */}
-          <Grid item xs={12} lg={6} sx={{ 
-            height: '600px',
-            display: 'flex'
-          }}>
-            <Card sx={{ 
-              width: '100%',
-              height: '600px',
-              display: 'flex', 
-              flexDirection: 'column',
-              background: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(20px)',
-              borderRadius: 4,
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-              overflow: 'hidden'
-            }}>
-              <Box sx={{ 
-                p: 3, 
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-                color: 'white', 
-                flexShrink: 0,
-                height: '100px'
-              }}>
-                <Stack direction="row" alignItems="center" spacing={2}>
-                  <TransformIcon sx={{ fontSize: 28 }} />
-                  <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
-                      ISO 20022 XML Output
-                    </Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                      Converted XML with syntax highlighting
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Box>
-              <Box sx={{ 
-                backgroundColor: '#1a1a1a',
+          <Grid.Col span={{ base: 12, lg: 6 }}>
+            <Card
+              style={{ 
                 height: '500px',
+                display: 'flex', 
+                flexDirection: 'column',
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+                overflow: 'hidden'
+              }}
+              radius="lg"
+              p={0}
+            >
+              <Box 
+                style={{ 
+                  padding: '1rem', 
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+                  color: 'white', 
+                  flexShrink: 0,
+                  height: '70px'
+                }}
+              >
+                <Group gap="md" align="center">
+                  <IconTransform size={24} />
+                  <Box>
+                    <Title order={5} style={{ fontWeight: 700, marginBottom: '2px' }}>
+                      ISO 20022 XML Output
+                    </Title>
+                    <Text size="xs" style={{ opacity: 0.9 }}>
+                      Converted XML with syntax highlighting
+                    </Text>
+                  </Box>
+                </Group>
+              </Box>
+              <Box style={{ 
+                backgroundColor: '#1a1a1a',
+                flex: 1,
                 overflow: 'hidden',
                 position: 'relative'
               }}>
                 {outputXml ? (
-                  <Box sx={{ 
+                  <Box style={{ 
                     height: '100%',
                     overflow: 'auto',
-                    '&::-webkit-scrollbar': {
-                      width: '8px',
-                      height: '8px'
-                    },
-                    '&::-webkit-scrollbar-track': {
-                      background: '#2d2d2d'
-                    },
-                    '&::-webkit-scrollbar-thumb': {
-                      background: '#666',
-                      borderRadius: '4px',
-                      '&:hover': {
-                        background: '#888'
-                      }
-                    }
                   }}>
                     <SyntaxHighlighter
                       language="xml"
                       style={vscDarkPlus}
                       customStyle={{
                         margin: 0,
-                        padding: '20px',
+                        padding: '16px',
                         backgroundColor: 'transparent',
-                        fontSize: '14px',
-                        lineHeight: '1.6',
+                        fontSize: '12px',
+                        lineHeight: '1.4',
                         height: '100%',
                         minHeight: '100%',
                         fontFamily: 'SF Mono, Monaco, Consolas, "Courier New", monospace',
@@ -650,8 +452,8 @@ function App() {
                       wrapLines={true}
                       wrapLongLines={true}
                       lineNumberStyle={{
-                        minWidth: '3em',
-                        paddingRight: '1em',
+                        minWidth: '2.5em',
+                        paddingRight: '0.8em',
                         color: '#666',
                         textAlign: 'right'
                       }}
@@ -660,41 +462,167 @@ function App() {
                     </SyntaxHighlighter>
                   </Box>
                 ) : (
-                  <Box sx={{ 
+                  <Box style={{ 
                     height: '100%',
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'center',
                     color: '#888',
                     textAlign: 'center',
-                    p: 4,
+                    padding: '2rem',
                     background: 'linear-gradient(45deg, #1a1a1a 0%, #2d2d2d 100%)'
                   }}>
-                    <Stack alignItems="center" spacing={2}>
-                      <TransformIcon sx={{ fontSize: 48, opacity: 0.3 }} />
-                      <Typography variant="h6" sx={{ fontWeight: 500, color: '#ccc' }}>
+                    <Stack align="center" gap="md">
+                      <IconTransform size={40} style={{ opacity: 0.3 }} />
+                      <Title order={5} style={{ fontWeight: 500, color: '#ccc' }}>
                         XML Output Preview
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: '#888', maxWidth: 300 }}>
-                        Your converted ISO 20022 XML will appear here with beautiful syntax highlighting
-                      </Typography>
+                      </Title>
+                      <Text size="sm" style={{ color: '#888', maxWidth: 280 }}>
+                        Your converted ISO 20022 XML will appear here with syntax highlighting
+                      </Text>
                     </Stack>
                   </Box>
                 )}
               </Box>
             </Card>
-          </Grid>
+          </Grid.Col>
         </Grid>
       </Container>
 
+      {/* Action Buttons and Sample Messages */}
+      <Container size="xl" px="md" pb="md">
+        <Card
+          style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+          }}
+          radius="md"
+          p="lg"
+        >
+          <Group justify="space-between" align="flex-start" gap="xl">
+            {/* Left Side - Action Buttons */}
+            <Stack gap="md" style={{ flex: '0 0 auto' }}>
+              <Group gap="md" align="center">
+                <Button
+                  variant="filled"
+                  leftSection={loading ? <Loader size={18} color="white" /> : <IconPlayerPlay size={18} />}
+                  onClick={handleTransform}
+                  disabled={loading}
+                  size="lg"
+                  radius="md"
+                  style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    boxShadow: '0 4px 20px rgba(102, 126, 234, 0.4)',
+                  }}
+                >
+                  {loading ? 'Processing...' : 'Transform Message'}
+                </Button>
+                <Button
+                  variant="outline"
+                  leftSection={<IconRefresh size={18} />}
+                  onClick={handleClear}
+                  disabled={loading}
+                  size="lg"
+                  radius="md"
+                  style={{
+                    border: '2px solid #667eea',
+                    color: '#667eea',
+                  }}
+                >
+                  Clear All
+                </Button>
+              </Group>
+              
+              {/* Status Messages */}
+              {error && (
+                <Transition mounted transition="fade">
+                  {(styles) => (
+                    <Alert 
+                      style={styles}
+                      variant="light"
+                      color="red"
+                      title="Error"
+                      icon={<IconAlertCircle size={18} />}
+                      radius="md"
+                    >
+                      {error}
+                    </Alert>
+                  )}
+                </Transition>
+              )}
+              {success && !error && (
+                <Transition mounted transition="fade">
+                  {(styles) => (
+                    <Alert 
+                      style={styles}
+                      variant="light"
+                      color="green"
+                      title="Success"
+                      icon={<IconCheck size={18} />}
+                      radius="md"
+                    >
+                      Message transformed successfully!
+                    </Alert>
+                  )}
+                </Transition>
+              )}
+              {loading && (
+                <Progress 
+                  value={100}
+                  animated
+                  style={{ 
+                    height: 6,
+                    backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                    width: '300px'
+                  }}
+                  radius="md"
+                />
+              )}
+            </Stack>
+
+            {/* Right Side - Sample Message Buttons */}
+            <Stack gap="sm" style={{ flex: 1, minWidth: '400px' }}>
+              <Title order={5} mb="xs">Sample Messages</Title>
+              <Text size="sm" c="dimmed" mb="md">
+                Load pre-configured samples to test different message types
+              </Text>
+              <Group gap="sm" justify="flex-start">
+                {Object.keys(TRANSFORMATIONS).map((transformation) => (
+                  <Button
+                    key={transformation}
+                    variant={selectedTransformation === transformation ? 'filled' : 'outline'}
+                    onClick={() => handleTransformationChange(transformation)}
+                    disabled={loading}
+                    style={{
+                      background: selectedTransformation === transformation 
+                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                        : 'transparent',
+                      border: selectedTransformation === transformation 
+                        ? 'none'
+                        : '2px solid #e0e0e0',
+                    }}
+                    radius="md"
+                    size="sm"
+                  >
+                    {transformation}
+                  </Button>
+                ))}
+              </Group>
+            </Stack>
+          </Group>
+        </Card>
+      </Container>
+
       {/* Footer */}
-      <Box sx={{ textAlign: 'center', py: 3 }}>
-        <Typography variant="body2" sx={{ 
+      <Box style={{ textAlign: 'center', padding: '1rem' }}>
+        <Text size="sm" style={{ 
           color: 'rgba(255, 255, 255, 0.8)',
           fontWeight: 500 
         }}>
-          Powered by Reframe API • Built with React & Material-UI v7
-        </Typography>
+          Powered by Reframe API • Built with React & Mantine
+        </Text>
       </Box>
     </Box>
   );

@@ -1,15 +1,33 @@
 # Reframe Web UI
 
-A modern Material-UI web interface for testing the Reframe SWIFT MT103 to ISO 20022 converter API.
+This is the React-based web interface for the Reframe SWIFT to ISO 20022 converter. Built with Material UI v7.1.1 and featuring a modern, responsive design.
 
 ## Features
 
-- 🎨 Modern Material-UI design
-- 📝 Large text area for SWIFT MT103 input
-- 🔄 Real-time API integration
-- 🎯 XML syntax highlighting
-- 📱 Responsive design
-- ⚡ Fast and lightweight
+- 🎨 **Material UI v7.1.1**: Latest version with improved ESM support and performance
+- 🚀 **Auto-Detection**: Automatically detects SWIFT message type
+- 📱 **Responsive Design**: Works seamlessly on desktop and mobile devices  
+- 🎯 **Sample Loading**: One-click sample message loading for all supported types
+- ✨ **Syntax Highlighting**: XML output with beautiful syntax coloring
+- 🔄 **Real-time Feedback**: Inline success/error messages with Material icons
+- 🎭 **Split Panel Layout**: Side-by-side input and output for easy comparison
+
+## Technology Stack
+
+- **React** 18.3.1
+- **Material UI** 7.1.1 (latest stable release)
+- **Material Icons** 7.1.1
+- **React Syntax Highlighter** 15.6.1
+- **Emotion** for styling (11.13.5)
+
+## Recent Updates
+
+### Material UI v7.1.1 Upgrade (January 2025)
+- ✅ **Updated from v5.15.15 to v7.1.1** - Latest stable release
+- ✅ **Improved ESM Support** - Better compatibility with modern bundlers
+- ✅ **Enhanced Performance** - Optimized bundle size and loading times
+- ✅ **Future-Ready** - Prepared for upcoming Material Design 3 updates
+- ✅ **Backward Compatibility** - No breaking changes required in existing code
 
 ## Live Demo
 

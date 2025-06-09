@@ -6,11 +6,9 @@ use dataflow_rs::engine::{
     AsyncFunctionHandler,
 };
 use mx_message::{
-    camt_029_001_09::ResolutionOfInvestigationV09,
-    camt_056_001_08::FIToFIPaymentCancellationRequestV08,
-    camt_057_001_06::NotificationToReceiveV06, document::Document,
-    pacs_008_001_08::FIToFICustomerCreditTransferV08,
-    pacs_009_001_08::FinancialInstitutionCreditTransferV08,
+    app_document::Document,
+    document::pacs_008_001_08::FIToFICustomerCreditTransferV08,
+    header::bah_pacs_008_001_08::BusinessApplicationHeaderV02
 };
 use quick_xml::se::to_string as xml_to_string;
 use serde_json::Value;
@@ -20,259 +18,132 @@ pub struct PublishFunction;
 #[async_trait]
 impl AsyncFunctionHandler for PublishFunction {
     async fn execute(&self, message: &mut Message, input: &Value) -> Result<(usize, Vec<Change>)> {
-        let output_format = input
-            .get("output_format")
+        let source_format = input
+            .get("source_format")
             .and_then(Value::as_str)
-            .ok_or_else(|| DataflowError::Validation("Missing output_format".to_string()))?;
+            .ok_or_else(|| DataflowError::Validation("Missing source_format".to_string()))?;
 
         let input_field_name = input
             .get("input_field_name")
             .and_then(Value::as_str)
             .ok_or_else(|| DataflowError::Validation("Missing input_field_name".to_string()))?;
 
+        let output_field_name = input
+            .get("output_field_name")
+            .and_then(Value::as_str)
+            .ok_or_else(|| DataflowError::Validation("Missing output_field_name".to_string()))?;
+
         let data = message.data.get(input_field_name).ok_or_else(|| {
             DataflowError::Validation(format!(
-                "Field {} not found in message data",
-                input_field_name
+                "Field {} not found in message data {}",
+                input_field_name, message.data
             ))
         })?;
 
-        match output_format {
-            "pacs.008.001.08" => {
-                // Handle pacs.008.001.08 for MT103, MT103+, MT102, MT202COV
-
-                // Check if we have multiple FIToFI messages (for MT102)
-                if let Some(fi_to_fi_array) = data.get("FIToFICstmrCdtTrf_Multiple") {
-                    if let Some(messages) = fi_to_fi_array.as_array() {
-                        let messages_clone = messages.clone();
-                        return handle_multiple_pacs008(&messages_clone, message);
-                    }
-                }
-
-                // Handle single FIToFI message (MT103, MT103+, MT202COV)
-                if let Some(fi_to_fi) = data.get("FIToFICstmrCdtTrf") {
-                    match serde_json::from_value::<FIToFICustomerCreditTransferV08>(
-                        fi_to_fi.clone(),
-                    ) {
-                        Ok(pacs_data) => {
-                            let document =
-                                Document::FIToFICustomerCreditTransferV08(Box::new(pacs_data));
-                            serialize_and_store_single(document, message)
-                        }
-                        Err(e) => {
-                            println!(
-                                "FIToFICustomerCreditTransferV08 deserialization failed: {}",
-                                e
-                            );
-                            Err(DataflowError::Validation(format!(
-                                "FIToFICustomerCreditTransferV08 deserialization failed: {}",
-                                e
-                            )))
-                        }
-                    }
-                } else {
-                    Err(DataflowError::Validation(
-                        "FIToFICustomerCreditTransferV08 not found in data".to_string(),
-                    ))
-                }
+        match source_format {
+            "MT103.Header" => {
+                // Handle MT103.Header
+                handle_mt103_header(data.clone(), message, output_field_name)
             }
-
-            "pacs.009.001.08" => {
-                // Handle pacs.009.001.08 for MT202 and financial institution credit transfers
-                if let Some(fi_credit) = data.get("FinInstnCdtTrf") {
-                    match serde_json::from_value::<FinancialInstitutionCreditTransferV08>(
-                        fi_credit.clone(),
-                    ) {
-                        Ok(pacs_data) => {
-                            let document = Document::FinancialInstitutionCreditTransferV08(
-                                Box::new(pacs_data),
-                            );
-                            serialize_and_store_single(document, message)
-                        }
-                        Err(e) => {
-                            println!(
-                                "FinancialInstitutionCreditTransferV08 deserialization failed: {}",
-                                e
-                            );
-                            Err(DataflowError::Validation(format!(
-                                "FinancialInstitutionCreditTransferV08 deserialization failed: {}",
-                                e
-                            )))
-                        }
-                    }
-                } else {
-                    Err(DataflowError::Validation(
-                        "FinancialInstitutionCreditTransferV08 not found in data".to_string(),
-                    ))
-                }
-            }
-
-            "camt.057.001.06" => {
-                // Handle camt.057.001.06 for MT210 (Notice to Receive)
-                if let Some(notification) = data.get("NtfctnToRcv") {
-                    match serde_json::from_value::<NotificationToReceiveV06>(notification.clone()) {
-                        Ok(camt_data) => {
-                            let document = Document::NotificationToReceiveV06(Box::new(camt_data));
-                            serialize_and_store_single(document, message)
-                        }
-                        Err(e) => {
-                            println!("NotificationToReceiveV06 deserialization failed: {}", e);
-                            Err(DataflowError::Validation(format!(
-                                "NotificationToReceiveV06 deserialization failed: {}",
-                                e
-                            )))
-                        }
-                    }
-                } else {
-                    Err(DataflowError::Validation(
-                        "NotificationToReceiveV06 not found in data".to_string(),
-                    ))
-                }
-            }
-
-            "camt.056.001.08" => {
-                // Handle camt.056.001.08 for MT192 (Payment Cancellation Request)
-                if let Some(cancellation) = data.get("FIToFIPmtCxlReq") {
-                    match serde_json::from_value::<FIToFIPaymentCancellationRequestV08>(
-                        cancellation.clone(),
-                    ) {
-                        Ok(camt_data) => {
-                            let document =
-                                Document::FIToFIPaymentCancellationRequestV08(Box::new(camt_data));
-                            serialize_and_store_single(document, message)
-                        }
-                        Err(e) => {
-                            println!(
-                                "FIToFIPaymentCancellationRequestV08 deserialization failed: {}",
-                                e
-                            );
-                            Err(DataflowError::Validation(format!(
-                                "FIToFIPaymentCancellationRequestV08 deserialization failed: {}",
-                                e
-                            )))
-                        }
-                    }
-                } else {
-                    Err(DataflowError::Validation(
-                        "FIToFIPaymentCancellationRequestV08 not found in data".to_string(),
-                    ))
-                }
-            }
-
-            "camt.029.001.09" => {
-                // Handle camt.029.001.09 for MT196 (Resolution of Investigation)
-                if let Some(resolution) = data.get("RsltnOfInvstgtn") {
-                    match serde_json::from_value::<ResolutionOfInvestigationV09>(resolution.clone())
-                    {
-                        Ok(camt_data) => {
-                            let document =
-                                Document::ResolutionOfInvestigationV09(Box::new(camt_data));
-                            serialize_and_store_single(document, message)
-                        }
-                        Err(e) => {
-                            println!("ResolutionOfInvestigationV09 deserialization failed: {}", e);
-                            Err(DataflowError::Validation(format!(
-                                "ResolutionOfInvestigationV09 deserialization failed: {}",
-                                e
-                            )))
-                        }
-                    }
-                } else {
-                    Err(DataflowError::Validation(
-                        "ResolutionOfInvestigationV09 not found in data".to_string(),
-                    ))
-                }
+            "MT103.Document" => {
+                // Handle MT103.Document
+                handle_mt103_document(data.clone(), message, output_field_name)
             }
 
             _ => Err(DataflowError::Validation(format!(
                 "Unsupported output format: {}",
-                output_format
+                source_format
             ))),
         }
     }
 }
 
-// Handle multiple pacs.008 messages for MT102
-fn handle_multiple_pacs008(
-    messages: &[Value],
+// Handle MT103 Header - generates AppHdr XML
+fn handle_mt103_header(
+    data: Value,
     message: &mut Message,
+    output_field_name: &str,
 ) -> Result<(usize, Vec<Change>)> {
-    let mut xml_results = Vec::new();
-    let mut errors = Vec::new();
+    // Try to use the BusinessApplicationHeaderV02 from mx-message if the data structure is compatible
+    match serde_json::from_value::<BusinessApplicationHeaderV02>(data.clone()) {
+        Ok(header_data) => {
+            // Use mx-message serialization
+            match xml_to_string(&header_data) {
+                Ok(xml_string) => {
+                    let result_value = Value::String(xml_string);
+                    message.data[output_field_name] = result_value.clone();
 
-    for (index, fi_to_fi) in messages.iter().enumerate() {
-        match serde_json::from_value::<FIToFICustomerCreditTransferV08>(fi_to_fi.clone()) {
-            Ok(pacs_data) => {
-                let document = Document::FIToFICustomerCreditTransferV08(Box::new(pacs_data));
-                match xml_to_string(&document) {
-                    Ok(xml_string) => {
-                        xml_results.push(Value::String(xml_string));
-                    }
-                    Err(e) => {
-                        let error_msg =
-                            format!("XML serialization failed for message {}: {}", index, e);
-                        errors.push(error_msg);
-                    }
+                    Ok((
+                        200,
+                        vec![Change {
+                            path: format!("data.{}", output_field_name),
+                            old_value: Value::Null,
+                            new_value: result_value,
+                        }],
+                    ))
+                }
+                Err(e) => {
+                    println!("Header XML serialization failed: {}", e);
+                    Err(DataflowError::Validation(format!(
+                        "Header XML serialization failed: {}",
+                        e
+                    )))
                 }
             }
-            Err(e) => {
-                let error_msg = format!(
-                    "FIToFICustomerCreditTransferV08 deserialization failed for message {}: {}",
-                    index, e
-                );
-                errors.push(error_msg);
-            }
-        }
-    }
-
-    if !errors.is_empty() {
-        return Err(DataflowError::Validation(format!(
-            "Multiple errors occurred: {}",
-            errors.join("; ")
-        )));
-    }
-
-    if xml_results.is_empty() {
-        return Err(DataflowError::Validation(
-            "No valid XML results generated".to_string(),
-        ));
-    }
-
-    // Store multiple results
-    message.data["results"] = Value::Array(xml_results.clone());
-
-    Ok((
-        200,
-        vec![Change {
-            path: "data.results".to_string(),
-            old_value: Value::Null,
-            new_value: Value::Array(xml_results),
-        }],
-    ))
-}
-
-// Helper function to serialize and store a single document (existing functionality)
-fn serialize_and_store_single(
-    document: Document,
-    message: &mut Message,
-) -> Result<(usize, Vec<Change>)> {
-    match xml_to_string(&document) {
-        Ok(xml_string) => {
-            message.data["result"] = Value::String(xml_string);
-
-            Ok((
-                200,
-                vec![Change {
-                    path: "data.result".to_string(),
-                    old_value: Value::Null,
-                    new_value: message.data["result"].clone(),
-                }],
-            ))
         }
         Err(e) => {
-            println!("XML serialization failed: {}", e);
+            println!("BusinessApplicationHeaderV02 deserialization failed: {}", e);
             Err(DataflowError::Validation(format!(
-                "XML serialization failed: {}",
+                "BusinessApplicationHeaderV02 deserialization failed: {}",
+                e
+            )))
+        }
+    }
+}
+
+// Handle MT103 Document - generates Document XML in array format
+fn handle_mt103_document(
+    data: Value,
+    message: &mut Message,
+    output_field_name: &str,
+) -> Result<(usize, Vec<Change>)> {
+    // Extract FIToFICstmrCdtTrf from the data
+    let fi_to_fi = data.get("FIToFICstmrCdtTrf").ok_or_else(|| {
+        DataflowError::Validation("FIToFICstmrCdtTrf not found in document".to_string())
+    })?;
+
+    // Serialize using mx-message structures
+    match serde_json::from_value::<FIToFICustomerCreditTransferV08>(fi_to_fi.clone()) {
+        Ok(pacs_data) => {
+            let document = Document::FIToFICustomerCreditTransferV08(Box::new(pacs_data));
+            match xml_to_string(&document) {
+                Ok(xml_string) => {
+                    // Store as array with single document
+                    let result_array = vec![Value::String(xml_string)];
+                    let result_value = Value::Array(result_array);
+                    message.data[output_field_name] = result_value.clone();
+
+                    Ok((
+                        200,
+                        vec![Change {
+                            path: format!("data.{}", output_field_name),
+                            old_value: Value::Null,
+                            new_value: result_value,
+                        }],
+                    ))
+                }
+                Err(e) => {
+                    println!("Document XML serialization failed: {}", e);
+                    Err(DataflowError::Validation(format!(
+                        "Document XML serialization failed: {}",
+                        e
+                    )))
+                }
+            }
+        }
+        Err(e) => {
+            Err(DataflowError::Validation(format!(
+                "FIToFICustomerCreditTransferV08 deserialization failed: {}",
                 e
             )))
         }

@@ -5,7 +5,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use dataflow_rs::engine::message::Message;
+use dataflow_rs::{engine::message::Message, RetryConfig};
 use dataflow_rs::{Engine, Workflow};
 use serde_json::Value;
 use std::fs;
@@ -29,7 +29,11 @@ struct AppState {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Initialize the dataflow engine
-    let mut engine = Engine::new();
+    let mut engine = Engine::new().with_retry_config(RetryConfig {
+        max_retries: 0,
+        retry_delay_ms: 1,
+        use_backoff: false,
+    });
 
     // Register custom parse function
     engine.register_task_function("parse".to_string(), Box::new(ParserFunction));
@@ -162,7 +166,7 @@ async fn process_data(
     match engine.process_message(&mut message).await {
         Ok(_) => {
             // Check if we have multiple results (for 1-to-many transformations like MT102)
-            if let Some(results_array) = message.data.get("results") {
+            if let Some(results_array) = message.data.get("result") {
                 if let Some(results) = results_array.as_array() {
                     if !results.is_empty() {
                         let xml_results: Vec<String> = results
@@ -172,9 +176,8 @@ async fn process_data(
 
                         let response_json = serde_json::json!({
                             "status": "success",
-                            "message_type": if xml_results.len() > 1 { "multiple" } else { "single" },
-                            "count": xml_results.len(),
-                            "results": xml_results
+                            "results": xml_results,
+                            "debug_message": message
                         });
 
                         return Response::builder()
@@ -186,25 +189,6 @@ async fn process_data(
                             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 }
-            }
-
-            // Check for single result
-            if let Some(result_value) = message.data.get("result") {
-                let xml_result = result_value.as_str().unwrap_or("");
-
-                let response_json = serde_json::json!({
-                    "status": "success",
-                    "message_type": "single",
-                    "count": 1,
-                    "results": [xml_result]
-                });
-
-                return Response::builder()
-                    .header(header::CONTENT_TYPE, "application/json")
-                    .body(
-                        serde_json::to_string(&response_json).unwrap_or_else(|_| "{}".to_string()),
-                    )
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR);
             }
 
             // No results found - this might be a parsing error or workflow issue
@@ -223,14 +207,13 @@ async fn process_data(
 
             let response_json = serde_json::json!({
                 "status": "error",
-                "message_type": "none",
-                "count": 0,
                 "results": [],
                 "error": {
                     "type": "processing_error",
                     "message": error_details,
                     "details": message.data
-                }
+                },
+                "debug_message": message
             });
 
             Response::builder()
@@ -241,14 +224,13 @@ async fn process_data(
         Err(e) => {
             let response_json = serde_json::json!({
                 "status": "error",
-                "message_type": "none",
-                "count": 0,
                 "results": [],
                 "error": {
                     "type": "engine_error",
                     "message": format!("Processing failed: {}", e),
                     "details": message.data
-                }
+                },
+                "debug_message": message
             });
 
             Response::builder()

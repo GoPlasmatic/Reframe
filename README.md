@@ -29,6 +29,8 @@ Reframe is a Rust-based REST API service that converts SWIFT MT messages to ISO 
 | **MT202** | pacs.009.001.08 | General Financial Institution Transfer | ✅ Complete |
 | **MT202COV** | pacs.009.001.08 | Cover Payment for Underlying Customer Credit Transfer | ✅ Complete |
 | **MT210** | camt.057.001.06 | Notice to Receive | ✅ Complete |
+| **MT195** | camt.027.001.07 | Claim Non-Receipt (Queries) | ✅ Complete |
+| **MT197** | camt.028.001.09 | Additional Payment Information (Answers) | ✅ Complete |
 
 ## 🗺️ Product Roadmap
 
@@ -39,7 +41,7 @@ Reframe has successfully implemented comprehensive CBPR+ (Cross-Border Payments 
 - **Phase 1**: Core CBPR+ payment messages ✅ **COMPLETE** (MT103, MT202)
 - **Phase 2**: Cash management & exceptions ✅ **COMPLETE** (MT210, MT192, MT196)  
 - **Phase 3**: Enhanced CBPR+ features ✅ **COMPLETE** (MT102, MT103+, MT202COV)
-- **Phase 4**: Advanced CBPR+ queries & status (MT195, MT197, MT199) - **In Planning**
+- **Phase 4**: Advanced CBPR+ queries & status (MT195, MT197, MT199) - **In Progress** (MT195, MT197 ✅ Complete)
 - **Phase 5**: Legacy message support (MT940, MT950, MT900, MT910) - **Backlog**
 
 **🎯 Achievement**: 100%+ message coverage for extended CBPR+ transformations - **Ready for November 2025**
@@ -64,8 +66,10 @@ The application includes comprehensive workflows for all supported message types
 - **MT192**: `workflows/03-mt192-camt056-mapping.json`
 - **MT196**: `workflows/04-mt196-camt029-mapping.json`  
 - **MT202**: `workflows/05-mt202-pacs009-mapping.json`
-- **MT202COV**: `workflows/04a-mt202cov-pacs009-mapping.json`
+- **MT202COV**: `workflows/09-mt202cov-pacs009-mapping.json`
 - **MT210**: `workflows/06-mt210-camt057-mapping.json`
+- **MT195**: `workflows/15-mt195-camt027-mapping.json`
+- **MT197**: `workflows/16-mt197-camt028-mapping.json`
 
 ### Customizing Workflows
 

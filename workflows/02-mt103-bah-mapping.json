@@ -1,10 +1,11 @@
 {
-    "id": "09-mt202cov_to_pacs009_mapper",
-    "name": "MT202 COV to pacs.009.001.08 Mapper (Cover Payment)",
+    "id": "02-mt103-bah-mapper",
+    "name": "MT103 Business Application Header Mapping for CBPR+",
+    "description": "Maps MT103 message to ISO 20022 Business Application Header (AppHdr) using head.001.001.02 schema",
     "condition": {
         "and": [
-            {"==": [{"var": "SwiftMT.message_type"}, "202COV"]},
-            {"==": [{"var": "progress.workflow_id"}, "01-mt_message_parser"]},
+            {"==": [{"var": "SwiftMT.message_type"}, "103"]},
+            {"==": [{"var": "progress.workflow_id"}, "01-parser"]},
             {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
             {"==": [{"var": "progress.status_code"}, 200]}
         ]
@@ -108,111 +109,68 @@
             }
         },
         {
-            "id": "map_group_header",
-            "name": "Map Group Header",
+            "id": "map_cbpr_plus_business_application_header",
+            "name": "Map CBPR+ Business Application Header (AppHdr)",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.MX.FinInstnCdtTrf.GrpHdr.MsgId",
-                            "logic": { "var": "data.SwiftMT.20" }
+                            "path": "data.MXheader.Fr.FIId.FinInstnId.BICFI",
+                            "logic": { "var": "data.SwiftMT.52A" }
                         },
                         {
-                            "path": "data.MX.FinInstnCdtTrf.GrpHdr.CreDtTm",
+                            "path": "data.MXheader.To.FIId.FinInstnId.BICFI",
+                            "logic": { "var": "data.SwiftMT.57A" }
+                        },
+                        {
+                            "path": "data.MXheader.BizMsgIdr",
                             "logic": {
-                                "if": [
-                                    { "var": "timestamp" },
-                                    { "var": "timestamp" },
-                                    "2024-01-01T00:00:00Z"
+                                "cat": [
+                                    { "var": "data.SwiftMT.20" },
+                                    "-pacs.008-001"
                                 ]
                             }
                         },
                         {
-                            "path": "data.MX.FinInstnCdtTrf.GrpHdr.NbOfTxs",
-                            "logic": "1"
+                            "path": "data.MXheader.MsgDefIdr",
+                            "logic": "pacs.008.001.08"
                         },
                         {
-                            "path": "data.MX.FinInstnCdtTrf.GrpHdr.CtrlSum",
+                            "path": "data.MXheader.BizSvc",
+                            "logic": "swift.cbprplus.02"
+                        },
+                        {
+                            "path": "data.MXheader.CreDt",
                             "logic": {
                                 "if": [
-                                    { "var": "data.parsed_32A.numeric_amount" },
-                                    { "var": "data.parsed_32A.numeric_amount" },
-                                    0.0
+                                    { "var": "data.parsed_32A.formatted_date" },
+                                    {
+                                        "cat": [
+                                            { "var": "data.parsed_32A.formatted_date" },
+                                            "T00:00:00+00:00"
+                                        ]
+                                    },
+                                    "2024-01-01T00:00:00+00:00"
                                 ]
                             }
                         },
                         {
-                            "path": "data.MX.FinInstnCdtTrf.GrpHdr.InitgPty.Nm",
-                            "logic": "Reframe Processing System"
+                            "path": "data.MXheader.CpyDplct",
+                            "logic": "CODU"
                         },
                         {
-                            "path": "data.MX.FinInstnCdtTrf.GrpHdr.SttlmInf.SttlmMtd",
-                            "logic": "CLRG"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_credit_transfer_info",
-            "name": "Map Credit Transfer Transaction Information",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.MX.FinInstnCdtTrf.CdtTrfTxInf.0.PmtId.InstrId",
-                            "logic": { "var": "data.SwiftMT.20" }
+                            "path": "data.MXheader.PssblDplct",
+                            "logic": false
                         },
                         {
-                            "path": "data.MX.FinInstnCdtTrf.CdtTrfTxInf.0.PmtId.EndToEndId",
-                            "logic": { "var": "data.SwiftMT.20" }
-                        },
-                        {
-                            "path": "data.MX.FinInstnCdtTrf.CdtTrfTxInf.0.PmtId.UETR",
-                            "logic": { "var": "data.SwiftMT.20" }
-                        },
-                        {
-                            "path": "data.MX.FinInstnCdtTrf.CdtTrfTxInf.0.IntrBkSttlmAmt.@Ccy",
-                            "logic": { "var": "data.parsed_32A.currency" }
-                        },
-                        {
-                            "path": "data.MX.FinInstnCdtTrf.CdtTrfTxInf.0.IntrBkSttlmAmt.$value",
-                            "logic": { "var": "data.parsed_32A.numeric_amount" }
-                        },
-                        {
-                            "path": "data.MX.FinInstnCdtTrf.CdtTrfTxInf.0.IntrBkSttlmDt",
-                            "logic": { "var": "data.parsed_32A.formatted_date" }
-                        },
-                        {
-                            "path": "data.MX.FinInstnCdtTrf.CdtTrfTxInf.0.Dbtr.FinInstnId.BICFI",
+                            "path": "data.MXheader.Prty",
                             "logic": {
                                 "if": [
-                                    { "var": "data.SwiftMT.52A" },
-                                    { "var": "data.SwiftMT.52A" },
-                                    "UNKNOWN"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.MX.FinInstnCdtTrf.CdtTrfTxInf.0.CdtrAgt.FinInstnId.BICFI",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.58A" },
-                                    { "var": "data.SwiftMT.58A" },
-                                    "UNKNOWN"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.MX.FinInstnCdtTrf.CdtTrfTxInf.0.Cdtr.FinInstnId.BICFI",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.58A" },
-                                    { "var": "data.SwiftMT.58A" },
-                                    "UNKNOWN"
-                                ]
+                                    { "==": [{ "var": "data.SwiftMT.23B" }, "URGP"] },
+                                    "URGT",
+                                    "NORM"
+                                                                ]
                             }
                         }
                     ]
@@ -220,13 +178,56 @@
             }
         },
         {
-            "id": "publish_pacs009",
-            "name": "Publish pacs.009.001.08 XML",
+            "id": "map_cbpr_plus_message_metadata",
+            "name": "Map CBPR+ Message Metadata",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.MXheader.Rltd.Fr.FIId.FinInstnId.BICFI",
+                            "logic": { "var": "data.SwiftMT.52A" }
+                        },
+                        {
+                            "path": "data.MXheader.Rltd.To.FIId.FinInstnId.BICFI",
+                            "logic": { "var": "data.SwiftMT.57A" }
+                        },
+                        {
+                            "path": "data.MXheader.Rltd.MsgDefIdr",
+                            "logic": "pacs.008.001.08"
+                        },
+                        {
+                            "path": "data.MXheader.Rltd.BizMsgIdr",
+                            "logic": { "var": "data.SwiftMT.20" }
+                        },
+                        {
+                            "path": "data.MXheader.Rltd.CreDt",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.parsed_32A.formatted_date" },
+                                    {
+                                        "cat": [
+                                            { "var": "data.parsed_32A.formatted_date" },
+                                            "T00:00:00+00:00"
+                                        ]
+                                    },
+                                    "2024-01-01T00:00:00+00:00"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "publish_header_xml",
+            "name": "Publish Header XML",
             "function": {
                 "name": "publish",
                 "input": {
-                    "output_format": "pacs.009.001.08",
-                    "input_field_name": "MX"
+                    "input_field_name": "MXheader",
+                    "output_field_name": "header",
+                    "source_format": "MT103.Header"
                 }
             }
         }

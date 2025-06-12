@@ -1,0 +1,422 @@
+0,MT103 Single Customer Credit Transfer ,,,,,, -> ,pacs.008.001.08 FIToFICustomerCreditTransferV08,,,,,,,,,
+1,Multiplicity,FieldTag,OptionLetter,Field Name,Option Format,Subfield Name, -> ,Message Building Block,Nesting Level 1,Nesting Level 2,Nesting Level 3,Nesting Level 4,Master function,"Translation 
+Function",Comments,MT103 STP to pacs.008 CORE - Deltas,Comments
+2,,,,Temp~Sender (TR001),4!a2!a2!c3!c,, -> ,CreditTransferTransactionInformation,InstructingAgent,FinancialInstitutionIdentification,BICFI,,,Copy,,A ,"A means applicable as in MT103 to pacs.008
+N/A means not applicable in MT103 STP to pacs.008
+
+MT103 STP is a restriction versus MT103. This means that the MT103 to pacs.008 Translation rules can be applied. If an implementation of translation MT103 STP to pacs.008 core is needed, col Q provides the deltas. "
+4,,,,Temp~Sender (TR001),4!a2!a2!c3!c,, -> ,CreditTransferTransactionInformation,DebtorAgent,FinancialInstitutionIdentification,BICFI,,,"IF OrderingInstitution IsAbsent THEN 
+ Copy BIC of the Sender
+ENDIF","DebtorAgent is mandatory in the MX target message, whereas field 52a Ordering Institution is optional in the MT source message and absence of the field implies that the Sender is the Ordering Institution.",A ,
+5,,,,,,, -> ,GroupHeader,CreationDateTime,,,,,Default value Sheet,,A,
+6,,,,Temp~Receiver (TR001),4!a2!a2!c3!c,, -> ,CreditTransferTransactionInformation,InstructedAgent,FinancialInstitutionIdentification,BICFI,,,Copy,,A,
+7,,,,Temp~Receiver (TR001),4!a2!a2!c3!c,, -> ,CreditTransferTransactionInformation,ChargesInformation [71G],Agent,FinancialInstitutionIdentification,BICFI,,"
+IF 71G IsPresent THEN
+TR005
+ENDIF",,A,
+8,,,,Temp~Receiver (TR001),4!a2!a2!c3!c,, -> ,CreditTransferTransactionInformation,CreditorAgent,FinancialInstitutionIdentification,BICFI,,,"IF AccountWithInstitution IsAbsent THEN
+Copy BIC of the Receiver
+ENDIF","CreditorAgent is mandatory in the MX target message, whereas field 57a Account With Institution is optional in the MT source message and absence of the field implies that the Receiver is the Account With Institution.",A,
+,,,,Block3/EndToEndReference/ServiceTypeIdentifier,3!n,,,CreditTransferTransactionInformation,PaymentTypeInformation,ServiceLevel,Code,,,TR006,,A,
+,1..1,,,Block3/EndToEndReference/UniqueEndToEndTransactionReference,36!c,,,CreditTransferTransactionInformation,PaymentIdentification,UETR,,,,Copy,"UETR Pattern 
+[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}",A,
+10,1..1,20,,Sender's Reference,16x,, -> ,GroupHeader,MessageIdentification,,,,,Copy,MessageIdentification is mandatory in the MX target message as the identification for the group of transactions. The MT 103 is a single transaction and field 20 Sender's Reference is therefore both instruction and message reference.,A,
+12,1..1,20,,Sender's Reference,16x,, -> ,CreditTransferTransactionInformation,PaymentIdentification,InstructionIdentification,,,,Copy,,A,
+14,,,,,,, -> ,CreditTransferTransactionInformation,PaymentIdentification,TransactionIdentification,,,,No translation,,,
+15,0..*,13,C,Time Indication/SNDTIME,/8c/HHMM1!xHHMM,, -> ,CreditTransferTransactionInformation,SettlementTimeIndication,DebitDateTime,,,,"MT_To_MXTimeOffset(MTTimeOffset;MXTimeOffset)
+Copy(Concatenate  (""0001-01-01T"", MXTimeOffset))","Because field 13C does not contain a date, it is required to add a date for the mapping to CreditDateTime and DebitDateTime. In order to avoid dispute, especially for transactions sent close to cut-off time, it is recommended to use a dummy date ""0001-01-01""
+Please add the comment in Translator",A,
+16,,13,C,Time Indication/RNCTIME,/8c/HHMM1!xHHMM,, -> ,CreditTransferTransactionInformation,SettlementTimeIndication,CreditDateTime,,,,,,A,
+17,,13,C,Time Indication/CLSTIME,/8c/HHMM1!xHHMM,, -> ,CreditTransferTransactionInformation,SettlementTimeRequest,CLSTime,,,,"MT_To_MXTimeOffset
+",,A,
+,,13,C,Time Indication/TILTIME,/8c/HHMM1!xHHMM,,,CreditTransferTransactionInformation,SettlementTimeRequest,TillTime,,,,,,A,
+,,13,C,Time Indication/FROTIME,/8c/HHMM1!xHHMM,,,CreditTransferTransactionInformation,SettlementTimeRequest,FromTime,,,,,,A,
+,,13,C,Time Indication/REJTIME,/8c/HHMM1!xHHMM,,,CreditTransferTransactionInformation,SettlementTimeRequest,RejectTime,,,,,,A,
+,,,,,,,,,,,,,,,,,
+18,1..1,23,B,Bank Operation Code,4!c,, -> ,,,,,,,No translation,,A,
+,,,,,,,,,,,,,,,,,
+25,0..*,23,E,Instruction Code,4!c[/30x],, -> ,,,,,,,,,,
+27,,23,E,Instruction Code/CHQB,4!c,Code, -> ,CreditTransferTransactionInformation,InstructionForCreditorAgent,Code/CHQB,,,,MT_To_MXInstructionForCreditorAgent,,N/A,
+28,,23,E,Instruction Code/HOLD,4!c,Code, -> ,CreditTransferTransactionInformation,InstructionForCreditorAgent,Code/HOLD,,,,,,N/A,
+28,,23,E,Instruction Code/HOLD/AdditionalInformation,[/30x],AdditionalInformation, -> ,CreditTransferTransactionInformation,InstructionForCreditorAgent [HOLD],AdditionalInformation,,,,,,N/A,
+29,,23,E,Instruction Code/PHOB,4!c,Code, -> ,CreditTransferTransactionInformation,InstructionForCreditorAgent,Code/PHOB,,,,,,N/A,
+29,,23,E,Instruction Code/PHOB/AdditionalInformation,[/30x],AdditionalInformation, -> ,CreditTransferTransactionInformation,InstructionForCreditorAgent [PHOB],AdditionalInformation,,,,,,N/A,
+30,,23,E,Instruction Code/TELB,4!c,Code, -> ,CreditTransferTransactionInformation,InstructionForCreditorAgent,Code/TELB,,,,,,N/A,
+30,,23,E,Instruction Code/TELB/AdditionalInformation,[30x],AdditionalInformation, -> ,CreditTransferTransactionInformation,InstructionForCreditorAgent [TELB],AdditionalInformation,,,,,,N/A,
+,,23,E,Instruction Code/PHOI or PHON or REPA or TELE or TELI,4!c,Code,,,,,,,,No translation,,A,
+,,,,Instruction Code/PHOI or PHON or REPA or TELE or TELI/AdditionalInformation,[30x],AdditionalInformation,,,,,,,,,,A,
+30,,23,E,Instruction Code/CORT,4!c,Code, -> ,CreditTransferTransactionInformation,PaymentTypeInformation,CategoryPurpose,Code/CORT,,,TR012,,A,
+30,,23,E,Instruction Code/INTC,4!c,Code, -> ,CreditTransferTransactionInformation,PaymentTypeInformation,CategoryPurpose,Code/INTC,,,,,A,
+30,,23,E,Instruction Code/SDVA,4!c,Code, -> ,CreditTransferTransactionInformation,PaymentTypeInformation,ServiceLevel,Code/SDVA,,,Copy,,A,
+34,,,,,,, -> ,,,,,,,,,,
+35,0..1,26,T,Transaction Type Code,3!c,, -> ,CreditTransferTransactionInformation,Purpose,Proprietary,,,,"Copy(Concatenate("":26T:"", Transaction Type Code))",Concatenation with :26T: requested - CBPR+ Workshop 19 November 2019,A,
+36,1..1,32,A,Value Date/Currency/Interbank Settled Amount,YYMMDD3!a15d,, -> ,,,,,,,,,,
+38,,32,A,Value Date/Currency/Interbank Settled Amount/Date,YYMMDD,Date, -> ,CreditTransferTransactionInformation,InterbankSettlementDate,,,,,MT_To_MXDate,,A,
+41,,32,A,Value Date/Currency/Interbank Settled Amount,3!a,Currency, -> ,CreditTransferTransactionInformation,InterbankSettlementAmount,Currency,,,,MT_To_MXCurrencyAmount,,A,
+42,,32,A,Value Date/Currency/Interbank Settled Amount,15d,Amount, -> ,CreditTransferTransactionInformation,InterbankSettlementAmount,Amount,,,,,,A,
+,,,,,,,,,,,,,,,,,
+43,0..1,33,B,Currency/Instructed Amount,3!a15d,, -> ,CreditTransferTransactionInformation,InstructedAmount,,,,,MT_To_MXCurrencyAmount,,A,
+,,,,,,,,,,,,,,,,,
+44,0..1,36,,Exchange Rate,12d,, -> ,CreditTransferTransactionInformation,ExchangeRate,,,,,MT_To_MXRate,,A,
+,,,,,,,,,,,,,,,,,
+54,1..1,50,a,Ordering Customer,,, -> ,,,,,,,,,,
+45,,50,A,Ordering Customer,[/34x],Account, -> ,CreditTransferTransactionInformation,DebtorAccount,,,,,"IF 50A/Account IsAbsent THEN Copy ""NOTPROVIDED"" to Debtor/Id/OrgID/Other/ID and ""TXID"" to SchemeName/Code
+ELSE
+ MT_To_MXPartyAccount
+ENDIF",,A,
+46,,,,,4!a2!a2!c[3!c],BIC,,,Debtor,,,,,MT_To_MXAnyBIC,"CBPR+:If BIC is present and if DebtorAccount is absent, then Debtor/ Organisation Identification /Other must be present. 
+Dummy values needed in MX when 50A Is present
+",A,
+49,,50,F,Ordering Customer,35x,PartyIdentifier, -> ,CreditTransferTransactionInformation,Debtor,,,,,"IF PartyIdentifier does not start with ""/"" 
+THEN  MT_To_MXFATFIdentification 
+ENDIF","PartyIdentifier is present and does not start with ""/"" means it is not an account.",A,
+50,,,,,4*1!n/33x,NameAndAddress,,,,,,,,"MT_To_MXFATFNameAndAddress
+",,A,
+51,,50,F,Ordering Customer,35x,PartyIdentifier, -> ,CreditTransferTransactionInformation,DebtorAccount,,,,,"IF PartyIdentifier starts with ""/"" 
+THEN MT_To_MXPartyAccount
+ENDIF",,A,
+52,,,,,4*1!n/33x,NameAndAddress,,,Debtor,,,,,MT_To_MXFATFNameAndAddress,,A,
+53,,50,K,Ordering Customer,[/34x],Account, -> ,CreditTransferTransactionInformation,DebtorAccount,,,,,"IF 50K/Account IsAbsent THEN Copy ""NOTPROVIDED"" to Debtor/Id/OrgID/Other/ID AND ""TXID"" to SchemeName/Code (default value needed)
+ELSE
+MT_To_MXPartyAccount
+ENDIF",Dummy value needed in MX when 50K Is present,A,
+54,,,,,4*35x,NameAndAddress,,,Debtor,,,,,MT_To_MXPartyNameAndAddress,,A,
+62,0..1,52,a,Ordering Institution,,, -> ,,,,,,,,,,
+59,,52,A,Ordering Institution,[[/1!a][/34x]],Party Identifier, -> ,CreditTransferTransactionInformation,DebtorAgent,,,,,"IF PartyIdentifier starts with ""//"" AND does not start with ""//CH"" AND does not start with ""//FW""
+THEN
+MT_To_MXClearingIdentifier
+ENDIF
+","
+
+Use the table in word document ""MT and ISO 20022 “Externalised” MX Clearing System Lists""
+
+",A,
+60,,,,,4!a2!a2!c[3!c],BIC,,,,,,,,"
+MT_To_MXBICFI",,A,
+61,,52,A,Ordering Institution,[[/1!a][/34x]],Party Identifier, -> ,CreditTransferTransactionInformation,DebtorAgentAccount,,,,,"IF PartyIdentifier does not start with ""//"" or starts with ""//CH""
+MT_To_MXFinancialInstitutionAccount",,A,
+62,,,,,4!a2!a2!c[3!c],BIC,,,DebtorAgent,,,,,MT_To_MXBICFI,,A,
+64,,,,,4*35x,,,,,,,,,,,,
+65,,52,D,Ordering Institution,[[/1!a][/34x]],Party Identifier, -> ,CreditTransferTransactionInformation,DebtorAgent,,,,,"IF PartyIdentifier starts with ""//"" AND does not start with ""//CH"" 
+THEN
+MT_To_MXClearingIdentifier
+ENDIF","Use the table in word document ""MT and ISO 20022 “Externalised” MX Clearing System Lists""
+",N/A,
+66,,,,,4*35x,NameAndAddress,,,,,,,,MT_To_MXFinancialInstitutionNameAndUnstructuredAddress,,N/A,
+67,,52,D,Ordering Institution,[[/1!a][/34x]],PartyIdentifier, -> ,CreditTransferTransactionInformation,DebtorAgentAccount,,,,,"IF PartyIdentifier does not start with ""//"" OR starts with ""//CH"" 
+THEN MT_To_MXFinancialInstitutionAccount
+ENDIF",,N/A,
+68,,,,,4*35x,NameAndAddress,,,DebtorAgent,,,,,MT_To_MXFinancialInstitutionNameAndUnstructuredAddress,,N/A,
+69,0..1,53,a,Sender's Correspondent,,, -> ,,,,,,METAFCT001,,"METAFCT001 is the entry point for the  translation of the field 53a, 54a and 55a",,
+70,,53,A,Sender's Correspondent,[[/1!a][/34x]],, -> ,GroupHeader,SettlementInformation,SettlementMethod,,,,,"METAFCT001 is the entry point for the  translation of the field 53a, 54a and 55a",A,
+71,,,,,4!a2!a2!c[3!c],,,,,,,,,,,A,
+72,,53,A,Sender's Correspondent,[[/1!a][/34x]],PartyIdentifier, -> ,GroupHeader,SettlementInformation,InstructingReimbursementAgent,,,,"IF PartyIdentifier starts with ""//"" AND does not start with ""//CH"" 
+THEN MT_To_MXClearingIdentifier
+ENDIF
+","Use the table in word document ""MT and ISO 20022 “Externalised” MX Clearing System Lists""
+",A,
+73,,,,,4!a2!a2!c[3!c],BIC,,,,,,,,MT_To_MXBICFI,,A,
+74,,53,A,Sender's Correspondent,[[/1!a][/34x]],Account, -> ,GroupHeader,SettlementInformation,InstructingReimbursementAgentAccount,,,,"IF PartyIdentifier does not start with ""//"" OR starts with ""//CH"" 
+THEN MT_To_MXFinancialInstitutionAccount
+ENDIF",,A,
+75,,,,,4!a2!a2!c[3!c],BIC,,,,InstructingReimbursementAgent,,,,MT_To_MXBICFI,,A,
+76,,53,B,Sender's Correspondent,[[/1!a][/34x]],, -> ,GroupHeader,SettlementInformation,SettlementMethod,,,,,"METAFCT001 is the entry point for the  translation of the field 53a, 54a and 55a",A,53B/PartyIdentifier is mandatory in STP
+77,,,,,[35x],, -> ,,,,,,,,,A,
+78,,53,B,Sender's Correspondent,[[/1!a][/34x]],Party Identifier, -> ,GroupHeader,SettlementInformation,SettlementAccount,,,,"
+IF PartyIdentifier does not start with ""//"" or starts with ""//CH"" THEN
+MT_To_MXFinancialInstitutionAccount
+ENDIF
+
+
+",The PartyIdentifier subfield of field 53B is translated to the SettlementAccount indicating the account (relationship) between Sender and Receiver for settlement of the transaction.,A,53B/PartyIdentifier is mandatory in STP
+79,,,,,[35x],Location,,,,,,,,,"METAFCT001 is the entry point for the  translation of the field 53a, 54a and 55a",A,
+78,,53,B,Sender's Correspondent,[[/1!a][/34x]],Party Identifier, -> ,GroupHeader,SettlementInformation,InstructingReimbursementAgent,,,,"IF PartyIdentifier starts with ""//"" AND does not start with ""//CH"" THEN
+T20001 /* Error code list*/
+ENDIF
+
+",53B/ClearingSystemIdentifier will never be translated as per METAFCT001,A,53B/PartyIdentifier is mandatory in STP
+79,,,,,[35x],Location,,,,,,,,, ,A,
+82,,53,D,Sender's Correspondent,[[/1!a][/34x]],, -> ,GroupHeader,SettlementInformation,SettlementMethod,,,,,"METAFCT001 is the entry point for the  translation of the field 53a, 54a and 55a",N/A,
+83,,,,,4*35x,,,,,,,,,,,N/A,
+84,,53,D,Sender's Correspondent,[[/1!a][/34x]],PartyIdentifier, -> ,GroupHeader,SettlementInformation,InstructingReimbursementAgent,,,,"IF PartyIdentifier starts with ""//"" AND does not start with ""//CH"" 
+THEN MT_To_MXClearingIdentifier
+ENDIF
+
+","Use the table in word docunment ""MT and ISO 20022 “Externalised” MX Clearing System Lists""
+",N/A,
+85,,,,,4*35x,NameAndAddress,,,,,,,,MT_To_MXFinancialInstitutionNameAndUnstructuredAddress,,N/A,
+86,,53,D,Sender's Correspondent,[[/1!a][/34x]],PartyIdentifier, -> ,GroupHeader,SettlementInformation,InstructingReimbursementAgentAccount,,,,"IF PartyIdentifier does not start with ""//"" or starts with ""//CH""
+THEN MT_To_MXFinancialInstitutionAccount
+ENDIF",,N/A,
+87,,,,,4*35x,NameAndAddress,,,,InstructingReimbursementAgent,,,,MT_To_MXFinancialInstitutionNameAndUnstructuredAddress,,N/A,
+88,0..1,54,a,Receiver's Correspondent,,, -> ,,,,,,,"
+",,,
+89,,,,,,, -> ,,,,,,,,,,
+90,,54,A,Receiver's Correspondent,[[/1!a][/34x]],, -> ,GroupHeader,SettlementInformation,SettlementMethod,,,,,,A,
+91,,,,,4!a2!a2!c[3!c],,,,,,,,,,"METAFCT001 is the entry point for the  translation of the field 53a, 54a and 55a",A,
+92,,54,A,Receiver's Correspondent,[[/1!a][/34x]],PartyIdentifier, -> ,GroupHeader,SettlementInformation,InstructedReimbursementAgent,,,,"IF PartyIdentifier starts with ""//"" AND does not start with ""//CH"" 
+THEN MT_To_MXClearingIdentifier
+ENDIF","Use the table in word docunment ""MT and ISO 20022 “Externalised” MX Clearing System Lists""",A,
+93,,,,,4!a2!a2!c[3!c],BIC,,,,,,,,MT_To_MXBICFI,,A,
+94,,54,A,Receiver's Correspondent,[[/1!a][/34x]],PartyIdentifier, -> ,GroupHeader,SettlementInformation,InstructedReimbursementAgentAccount,,,,"IF PartyIdentifier does not start with ""//"" or starts with ""//CH""
+THEN MT_To_MXFinancialInstitutionAccount
+ENDIF
+",,A,
+95,,,,,4!a2!a2!c[3!c],BIC,,,,InstructedReimbursementAgent,,,,MT_To_MXBICFI,,A,
+96,,54,B,Receiver's Correspondent,[[/1!a][/34x]],PartyIdentifier, -> ,GroupHeader,SettlementInformation,InstructedReimbursementAgent,,,,"IF PartyIdentifier starts with ""//"" AND does not start with ""//CH"" THEN 
+TR010
+ENDIF",,N/A,
+97,,,,,[35x],Location,,,,,,,,"
+IF Location is present and PartyIdentifier is Absent THEN
+{T20004 T11001 /* Error code list */
+Copy ""NOTPROVIDED"" to InstructedReimbursementAgent/Name
+Copy Location to InstructedReimbursementAgent/PostalAddress/AddressLine[1]}
+ENDIF
+
+",,N/A,
+96,,54,B,Receiver's Correspondent,[[/1!a][/34x]],PartyIdentifier, -> ,GroupHeader,SettlementInformation,InstructedReimbursementAgentAccount,,,,"IF PartyIdentifier does not start with ""//"" or starts with ""//CH"" THEN
+{MT_To_MXFinancialInstitutionAccount
+Copy ""NOTPROVIDED"" to  InstructedReimbursementAgent/FinancialInstitutionIdentification/Name
+   IF Location IsPresent THEN
+        Copy Location to  InstructedReimbursementAgent/FinancialInstitutionIdentification/PostalAddress/AddressLine[1]
+    ELSE Copy ""NOTPROVIDED"" to  InstructedReimbursementAgent/FinancialInstitutionIdentification/PostalAddress/AddressLine[1]
+    ENDIF
+}
+ENDIF",,N/A,
+97,,,,,[35x],Location,,,,InstructedReimbursementAgent,,,,,,N/A,
+98,,54,D,Receiver's Correspondent,[[/1!a][/34x]],PartyIdentifier, -> ,GroupHeader,SettlementInformation,SettlementMethod,,,,,"METAFCT001 is the entry point for the  translation of the field 53a, 54a and 55a",N/A,
+99,,,,,4*35x,NameAndAddress,,,,,,,,,,N/A,
+100,,54,D,Receiver's Correspondent,[[/1!a][/34x]],PartyIdentifier, -> ,GroupHeader,SettlementInformation,InstructedReimbursementAgent,,,,"IF PartyIdentifier starts with ""//"" AND does not start with ""//CH"" 
+THEN MT_To_MXClearingIdentifier
+ENDIF
+","Use the table in word docunment ""MT and ISO 20022 “Externalised” MX Clearing System Lists""",N/A,
+101,,,,,4*35x,NameAndAddress,,,,,,,,MT_To_MXFinancialInstitutionNameAndUnstructuredAddress,,N/A,
+102,,54,D,Receiver's Correspondent,[[/1!a][/34x]],PartyIdentifier, -> ,GroupHeader,SettlementInformation,InstructedReimbursementAgentAccount,,,,"IF PartyIdentifier does not start with ""//"" or starts with ""//CH""
+THEN MT_To_MXFinancialInstitutionAccount
+ENDIF",,N/A,
+103,,,,,4*35x,NameAndAddress,,,,InstructedReimbursementAgent,,,,MT_To_MXFinancialInstitutionNameAndUnstructuredAddress,,N/A,
+104,0..1,55,a,Third Reimbursement Institution,,, -> ,,,,,,,,"METAFCT001 is the entry point for the  translation of the field 53a, 54a and 55a",,
+105,,55,A,Third Reimbursement Institution,[[/1!a][/34x]],PartyIdentifier, -> ,GroupHeader,SettlementInformation,ThirdReimbursementAgent,,,,"IF PartyIdentifier starts with ""//"" AND does not start with ""//CH"" 
+THEN MT_To_MXClearingIdentifier
+ENDIF
+","Use the table in word docunment ""MT and ISO 20022 “Externalised” MX Clearing System Lists""
+",A,
+106,,,,,4!a2!a2!c[3!c],BIC,,,,,,,,MT_To_MXBICFI,,A,
+107,,55,A,Third Reimbursement Institution,[[/1!a][/34x]],PartyIdentifier, -> ,GroupHeader,SettlementInformation,ThirdReimbursementAgentAccount,,,,"IF PartyIdentifier does not start with ""//"" or starts with ""//CH""
+THEN MT_To_MXFinancialInstitutionAccount
+ENDIF",,A,
+108,,,,,4!a2!a2!c[3!c],BIC,,,,ThirdReimbursementAgent,,,,MT_To_MXBICFI,,A,
+96,,55,B,Third Reimbursement Institution,[[/1!a][/34x]],PartyIdentifier, -> ,GroupHeader,SettlementInformation,ThirdReimbursementAgent,,,,"IF PartyIdentifier starts with ""//"" AND does not start with ""//CH"" THEN
+TR014
+ENDIF
+",,N/A,
+97,,,,,[35x],Location,,,,,,,,"IF Location is present and PartyIdentifier is Absent THEN
+{ T20005 T11001 /* Error code list */
+Copy ""NOTPROVIDED"" to ThirdReimbursementAgent/Name
+Copy Location to ThirdReimbursementAgent/PostalAddress/AddressLine[1]}
+ENDIF
+
+
+",,N/A,
+96,,55,B,Third Reimbursement Institution,[[/1!a][/34x]],PartyIdentifier, -> ,GroupHeader,SettlementInformation,ThirdReimbursementAgentAccount,,,,"IF PartyIdentifier does not start with ""//"" or starts with ""//CH"" THEN
+{MT_To_MXFinancialInstitutionAccount
+Copy ""NOTPROVIDED"" to  ThirdReimbursementAgent/FinancialInstitutionIdentification/Name
+   IF Location IsPresent THEN
+        Copy Location to  ThirdReimbursementAgent/FinancialInstitutionIdentification/PostalAddress/AddressLine[1]
+     ELSE Copy ""NOTPROVIDED"" to  ThirdReimbursementAgent/FinancialInstitutionIdentification/PostalAddress/AddressLine[1]
+     ENDIF
+}
+ENDIF",,N/A,
+97,,,,,[35x],Location,,,,ThirdReimbursementAgent,,,,,,N/A,
+111,,55,D,Third Reimbursement Institution,[[/1!a][/34x]],PartyIdentifier, -> ,GroupHeader,SettlementInformation,ThirdReimbursementAgent,,,,"IF PartyIdentifier starts with ""//"" AND does not start with ""//CH"" 
+THEN MT_To_MXClearingIdentifier
+ENDIF
+
+
+","Use the table in word docunment ""MT and ISO 20022 “Externalised” MX Clearing System Lists""",N/A,
+112,,,,,4*35x,NameAndAddress,,,,,,,,MT_To_MXFinancialInstitutionNameAndUnstructuredAddress,,N/A,
+113,,55,D,Third Reimbursement Institution,[[/1!a][/34x]],PartyIdentifier, -> ,GroupHeader,SettlementInformation,ThirdReimbursementAgentAccount,,,,"IF PartyIdentifier does not start with ""//"" or starts with ""//CH""
+THEN MT_To_MXFinancialInstitutionAccount
+ENDIF",,N/A,
+114,,,,,4*35x,NameAndAddress,,,,ThirdReimbursementAgent,,,,MT_To_MXFinancialInstitutionNameAndUnstructuredAddress,,N/A,
+95,0..1,56,a,Intermediary Institution,,, -> ,,,,,,,,,,
+115,,56,A,Intermediary Institution,[[/1!a][/34x]],PartyIdentifier, -> ,CreditTransferTransactionInformation,PaymentTypeInformation,ClearingChannel,,,,TR009,,A,
+116,,,,,4!a2!a2!c[3!c],BIC,,,,,,,,,,A,
+117,,56,A,Intermediary Institution,[[/1!a][/34x]],PartyIdentifier, -> ,CreditTransferTransactionInformation,IntermediaryAgent1,,,,,"IF PartyIdentifier starts with ""//"" AND does not start with {""//CH"", ""//FW"", ""//RT""}
+THEN MT_To_MXClearingIdentifier
+ENDIF
+","After ""//RT"", no other information is allowed in option A
+Use the table in word docunment ""MT and ISO 20022 “Externalised” MX Clearing System Lists""
+",A,
+118,,,,,4!a2!a2!c[3!c],BIC,,,,,,,,MT_To_MXBICFI,,A,
+119,,56,A,Intermediary Institution,[[/1!a][/34x]],PartyIdentifier, -> ,CreditTransferTransactionInformation,IntermediaryAgent1Account,,,,,"IF PartyIdentifier does not start with ""//"" or starts with ""//CH""
+THEN MT_To_MXFinancialInstitutionAccount
+ENDIF",,A,
+120,,,,,4!a2!a2!c[3!c],BIC,,,IntermediaryAgent1,,,,,MT_To_MXBICFI,,A,
+121,,56,C,Intermediary Institution,/34x,, -> ,CreditTransferTransactionInformation,PaymentTypeInformation,ClearingChannel,,,,TR009,,N/A,
+122,,56,C,Intermediary Institution,/34x,PartyIdentifier, -> ,CreditTransferTransactionInformation,IntermediaryAgent1,,,,,"IF PartyIdentifier starts with ""//"" AND does not start with ""//CH"" THEN
+TR002
+ENDIF
+
+
+
+
+
+","Dummy values might be used in Agent's Name and PostalAddresss in order to meet the CBPR+ rule for the agents in case of International payments ""IF BIC IsAbsent, Then Name and PostalAddress are mandatory"". A ClearingCode alone is allowed in case of national payments. Dummy values are still used if needed, to comply with International payment rule. For example, value ""NOTPROVIDED"" in AddressLine, if no (structured or unstructured) address is provided.
+After ""//RT"", another Domestic Clearing code can follow in option C
+MTClearingSystemCode might be proprietary and not listed in ISO list. ",N/A,
+123,,56,C,Intermediary Institution,/34x,PartyIdentifier, -> ,CreditTransferTransactionInformation,IntermediaryAgent1Account,,,,,"IF PartyIdentifier does not start with ""//"" or starts with ""//CH"" THEN
+{ MT_To_MXFinancialInstitutionAccount
+
+Copy ""NOTPROVIDED"" to IntermediaryAgent1/FinancialInstitutionIdentification/Name
+Copy ""NOTPROVIDED"" to IntermediaryAgent1/FinancialInstitutionIdentification/PostalAddress/AddressLine}
+ENDIF
+
+",Dummy values because if Account is present then Agent is mandatory in MX,N/A,
+124,,56,D,Intermediary Institution,[[/1!a][/34x]],PartyIdentifier, -> ,CreditTransferTransactionInformation,PaymentTypeInformation,ClearingChannel,,,,TR009,,N/A,
+125,,,,,4*35x,,,,,,,,,,,N/A,
+126,,56,D,Intermediary Institution,[[/1!a][/34x]],PartyIdentifier, -> ,CreditTransferTransactionInformation,IntermediaryAgent1,,,,,"IF PartyIdentifier starts with ""//"" AND does not start with ""//CH"" 
+THEN MT_To_MXClearingIdentifier
+ENDIF","After ""//RT"", another Domestic Clearing code can follow in option D
+Use the table in word docunment ""MT and ISO 20022 “Externalised” MX Clearing System Lists""
+",N/A,
+127,,,,,4*35x,NameAndAddress,,,,,,,,MT_To_MXFinancialInstitutionNameAndUnstructuredAddress,,N/A,
+128,,56,D,Intermediary Institution,[[/1!a][/34x]],PartyIdentifier, -> ,CreditTransferTransactionInformation,IntermediaryAgent1Account,,,,,"IF PartyIdentifier does not start with ""//"" or starts with ""//CH""
+THEN MT_To_MXFinancialInstitutionAccount
+ENDIF",,N/A,
+129,,,,,4*35x,NameAndAddress,,,IntermediaryAgent1,,,,,MT_To_MXFinancialInstitutionNameAndUnstructuredAddress,,N/A,
+130,0..1,57,a,Account With Institution,,, -> ,,,,,,,,,,
+131,,57,A,Account With Institution,[[/1!a][/34x]],PartyIdentifier, -> ,CreditTransferTransactionInformation,PaymentTypeInformation,ClearingChannel,,,,TR009,,A,
+132,,,,,4!a2!a2!c[3!c],BIC,,,,,,,,,,A,
+133,,57,A,Account With Institution,[[/1!a][/34x]],PartyIdentifier, -> ,CreditTransferTransactionInformation,CreditorAgent,,,,,"IF PartyIdentifier starts with ""//"" AND does not start with {""//CH"", ""//RT"",""//FW""}
+THEN MT_To_MXClearingIdentifier
+ENDIF
+","After ""//RT"", no other information is allowed in option A
+Use the table in word docunment ""MT and ISO 20022 “Externalised” MX Clearing System Lists""
+",A,
+134,,,,,4!a2!a2!c[3!c],BIC,,,,,,,,MT_To_MXBICFI,,A,
+135,,57,A,Account With Institution,[[/1!a][/34x]],PartyIdentifier, -> ,CreditTransferTransactionInformation,CreditorAgentAccount,,,,,"IF PartyIdentifier does not start with ""//"" or starts with ""//CH""
+THEN MT_To_MXFinancialInstitutionAccount
+ENDIF",,A,
+136,,,,,4!a2!a2!c[3!c],BIC,,,CreditorAgent,,,,,MT_To_MXBICFI,,A,
+137,,57,B,Account With Institution,[[/1!a][/34x]],PartyIdentifier, -> ,CreditTransferTransactionInformation,CreditorAgent,,,,,"IF PartyIdentifier starts with ""//"" AND does not start with ""//CH"" THEN
+TR003
+ENDIF",,N/A,
+138,,,,,[35x],Location,,,,,,,,"
+IF Location is present and PartyIdentifier is Absent THEN
+T20007 T11001
+Copy ""NOTPROVIDED"" to CreditorAgent/Name
+Copy Location to CreditorAgent/PostalAddress/AddressLine[1]
+ENDIF
+
+
+
+
+",,N/A,
+137,,57,B,Account With Institution,[[/1!a][/34x]],PartyIdentifier, -> ,CreditTransferTransactionInformation,CreditorAgentAccount,,,,,"IF PartyIdentifier does not start with ""//"" or starts with ""//CH"" THEN
+{MT_To_MXFinancialInstitutionAccount
+Copy ""NOTPROVIDED"" to CreditorAgent/FinancialInstitutionIdentification/Name
+   IF Location IsPresent THEN
+        Copy Location to CreditorAgent/FinancialInstitutionIdentification/PostalAddress/AddressLine[1]
+    ELSE Copy ""NOTPROVIDED"" to CreditorAgent/FinancialInstitutionIdentification/PostalAddress/AddressLine[1]
+    ENDIF
+}
+ENDIF
+
+",,N/A,
+138,,,,,[35x],Location,,,CreditorAgent,,,,,,,N/A,
+139,,57,C,Account With Institution,/34x,, -> ,CreditTransferTransactionInformation,PaymentTypeInformation,ClearingChannel,,,,TR009,,N/A,
+140,,57,C,Account With Institution,/34x,PartyIdentifier, -> ,CreditTransferTransactionInformation,CreditorAgent,,,,,"IF PartyIdentifier starts with ""//"" AND does not start with ""//CH"" THEN
+TR015
+ENDIF
+","Dummy values might be used in Agent's Name and PostalAddresss in order to meet the CBPR+ rule for the agents in case of International payments ""IF BIC IsAbsent, Then Name and PostalAddress are mandatory"". A ClearingCode alone is alowed in case of national payments. Dummy values are still used if needed, to comply with International payment rule. For example, value ""NOTPROVIDED"" in AddressLine, if no (structured or unstructured) address is provided.
+After ""//RT"", another Domestic Clearing code can follow in option C
+MTClearingSystemCode might be proprietary and not listed in ISO list. 
+",N/A,
+141,,57,C,Account With Institution,/34x,PartyIdentifier, -> ,CreditTransferTransactionInformation,CreditorAgentAccount,,,,,"IF PartyIdentifier does not start with ""//"" or starts with ""//CH"" THEN
+{MT_To_MXFinancialInstitutionAccount
+Copy ""NOTPROVIDED"" to CreditorAgent/FinancialInstitutionIdentification/Name
+Copy ""NOTPROVIDED"" to CreditorAgent/FinancialInstitutionIdentification/PostalAddress/AddressLine}
+ENDIF",,N/A,
+142,,57,D,Account With Institution,[[/1!a][/34x]],PartyIdentifier, -> ,CreditTransferTransactionInformation,PaymentTypeInformation,ClearingChannel,,,,TR009,,N/A,
+143,,,,,4*35x,NameAndAddress,,,,,,,,,,N/A,
+144,,57,D,Account With Institution,[[/1!a][/34x]],PartyIdentifier, -> ,CreditTransferTransactionInformation,CreditorAgent,,,,,"IF PartyIdentifier starts with ""//"" AND does not start with ""//CH"" 
+THEN MT_To_MXClearingIdentifier
+ENDIF
+","After ""//RT"", another Domestic Clearing code can follow in option D
+Use the table in word docunment ""MT and ISO 20022 “Externalised” MX Clearing System Lists""
+",N/A,
+145,,,,,4*35x,NameAndAddress,,,,,,,,MT_To_MXFinancialInstitutionNameAndUnstructuredAddress,,N/A,
+146,,57,D,Account With Institution,[[/1!a][/34x]],PartyIdentifier, -> ,CreditTransferTransactionInformation,CreditorAgentAccount,,,,,"IF PartyIdentifier does not start with ""//"" or starts with ""//CH""
+THEN MT_To_MXFinancialInstitutionAccount
+ENDIF",,N/A,
+147,,,,,4*35x,NameAndAddress,,,CreditorAgent,,,,,MT_To_MXFinancialInstitutionNameAndUnstructuredAddress,,N/A,
+116,1..1,59,a,Beneficiary Customer,,, -> ,,,,,,,,,,
+150,,59,,Beneficiary Customer,[/34x],Account, -> ,CreditTransferTransactionInformation,CreditorAccount,,,,,"
+IF 59/Account IsAbsent THEN Copy ""NOTPROVIDED"" to Creditor/Id/OrgID/Other/ID  
+ELSE
+MT_To_MXPartyAccount
+ENDIF
+",Dummy value needed in MX when 59 No option Is present,A,59a/Account is mandatory
+151,,,,,4*35x,NameAndAddress,,,Creditor,,,,,MT_To_MXPartyNameAndAddress,,A,
+154,,59,A,Beneficiary Customer,[/34x],Account, -> ,CreditTransferTransactionInformation,CreditorAccount,,,,,"IF 59A/Account IsAbsent THEN Copy ""NOTPROVIDED"" to Creditor/Id/OrgID/Other/ID 
+ELSE
+MT_To_MXPartyAccount
+ENDIF
+",Dummy value needed in MX when 59A Is present,A,59a/Account is mandatory
+155,,,,,4!a2!a2!c[3!c],BIC,,,Creditor,,,,,MT_To_MXAnyBIC,,A,
+154,,59,F,Beneficiary Customer,[/34x],Account, -> ,CreditTransferTransactionInformation,CreditorAccount,,,,,"IF 59F/Account IsAbsent THEN Copy ""NOTPROVIDED"" to Creditor/Id/OrgID/Other/ID 
+ELSE
+MT_To_MXPartyAccount
+ENDIF
+
+",Dummy value needed in MX when 59F Is present,A,59a/Account is mandatory
+155,,,,,4*(1!n/33x),NameAndAddress,,CreditTransferTransactionInformation,Creditor,,,,,"MT_To_MXPartyNameAndStructuredAddress
+
+",,A,
+156,0..1,70,,Remittance Information,4*35x,, -> ,CreditTransferTransactionInformation,PaymentIdentification,EndToEndIdentification,,,,"IF 70 IsAbsent THEN
+ Copy ""NOTPROVIDED"" 
+ELSE
+   TR013
+ENDIF",,A,
+157,,70,,Remittance Information,4*35x,Narrative, -> ,,,,,,,,,,
+158,,70,,Remittance Information,4*35x,Line, -> ,CreditTransferTransactionInformation,RemittanceInformation,Unstructured,,,,  MT_To_MXRemittanceInformation,,A,
+159,1..1,71,A,Details of Charges,3!a,, -> ,CreditTransferTransactionInformation,ChargeBearer,,,,,"Translate as following
+BEN => CRED
+OUR => DEBT
+SHA => SHAR",,A,
+167,0..*,71,F,Sender's Charges ,3!a15d,, -> ,,,,,,,,,,
+168,0..*,71,F,Sender's Charges,3!a15d,, -> ,CreditTransferTransactionInformation,ChargesInformation [71F],Amount,,,,"TR004
+",,A,
+,,,,,,,,CreditTransferTransactionInformation,ChargesInformation [71F],Agent,,,,,,A,
+170,0..1,71,G,Receiver's Charges,3!a15d,, -> ,CreditTransferTransactionInformation,ChargesInformation [71G],Amount,,,,"TR005
+",,A,
+,,,,,,,,CreditTransferTransactionInformation,ChargesInformation [71G],Agent,,,,,,A,
+171,0..1,72,,Sender to Receiver Information[INS],6*35x,, -> ,CreditTransferTransactionInformation,"PreviousInstructingAgent1,2,3[INS]",FinancialInstitutionIdentification,BIC,,,MT72INS_To_MXAgent,"IMPORTANT : MX Agent only allows FI BIC. So the BIC following /INS/ must be a FI BIC. Otherwise replace non FI BIC by the Name in the MT message (CBPR+ WG decision, November 2022). Using a non FI BIC after /INS/ will generate an invalid MX message.",A,
+172,,,,,,, -> ,,,,,,,,,,
+173,,72,,Sender to Receiver Information[INS],6*35x,, -> ,CreditTransferTransactionInformation,"PreviousInstructingAgent1,2,3[INS]",FinancialInstitutionIdentification,Name,,,,,N/A,
+174,,,,,,, -> ,,,,AdressLine ,,,,,N/A,
+175,,72,,Sender to Receiver Information[ACC],6*35x,, -> ,CreditTransferTransactionInformation,InstructionForCreditorAgent [ACC],InstructionInformation,,,,MT_To_MXInstructionForCreditorAgent ,"Call once the function (see Field 23E)
+IF /ACC/ is present several times in Field 72, only the first occurrence is translated as it is not expected to have a same code present several times. If the information is longer than 30 char, it should be continued on the next line starting with ""//""",A,
+176,,,,,,, -> ,,,,,,,,,,
+177,,72,,"Sender to Receiver Information[CODE, max 8 char]",6*35x,, -> ,CreditTransferTransactionInformation,InstructionForNextAgent [CODE]  [/FIN54/]  [/FIN53/],,,,,"IF Code is NOT InList {/ACC/, /INS/, /INTA/, /SVCLVL/, /LOCINS/, /CATPURP/} THEN
+TR011
+ENDIF","/FIN53/ (InstructionForNextAgent53, output from METAFCT001) is also translated to InstructionForNextAgent ",A,
+188,0..1,77,B,Regulatory Reporting,3*35x,Line, -> ,CreditTransferTransactionInformation,RegulatoryReporting,Details,Information,,,MT_To_MXRegulatoryReporting,,A,
+189,,,,,,/BENEFRES/ , -> ,,Creditor,CountryOfResidence,,,,,,A,
+190,,,,,,/ORDERRES/, -> ,,Debtor,CountryOfResidence,,,,,,A,
+,Additional Translation due to payment originated in MX ,,,,,,,,,,,,,,Refer to function MX_To_MT72FullField for the additional new code words,,
+,,72,,Sender to Receiver Information[INTA],6*35x,, -> ,CreditTransferTransactionInformation,"IntermediaryAgent2,3",FinancialInstitutionIdentification,"BIC or ClearingSystemMemberIdentification,or (Name, CountryCode, TownName)",,,MT_To_MXField72NewCodeWords,,N/A,"pacs.008 STP is translated to MT103 core, so these MX code words are not expected in MT103 STP to pac.008"
+,,72,,Sender to Receiver Information[SVCLVL],,,,CreditTransferTransactionInformation,PaymentTypeInformation,ServiceLevel,Code or Proprietary,,,,,N/A,
+,,72,,Sender to Receiver Information[LOCINS],,,,CreditTransferTransactionInformation,PaymentTypeInformation,LocalInstrument,Code or Proprietary,,,,,N/A,
+,,72,,Sender to Receiver Information[CATPURP],,,,CreditTransferTransactionInformation,PaymentTypeInformation,CategoryPurpose,Code or Proprietary,,,,,N/A,
+,,,,,,,,,,,,,,,,,
+,,70,,Remittance Information[ULTB],6*35,,,CreditTransferTransactionInformation,UltimateCreditor,,,,,MT_To_MXUltimateParty ,"
+CBPR+ decision 23 February 2021 : do not translate back field 70 to MX corresponding element in in-flow translation. ",,
+,,70,,Remittance Information[ULTD],,,,CreditTransferTransactionInformation,UltimateDebtor,,,,,,,,
+,,70,,Remittance Information[PURP],,,,CreditTransferTransactionInformation,Purpose,Code or Proprietary,,,,MT_To_MXPurpose,,,
+,,70,,Remittance Information[URI],,,,CreditTransferTransactionInformation,RemittanceInformation,Unstructured,,,,MT_To_MXRINewCodeWords,"
+
+CBPR+ decision 23 February 2021 : do not translate back field 70 to MX corresponding element in in-flow translation.",,
+,,70,,Remittance Information[SRI],,,,CreditTransferTransactionInformation,RemittanceInformation,Unstructured,,,,,,,
+,,70,,Remittance Information[RELID],,,,CreditTransferTransactionInformation,RelatedRemittanceInformation,RemittanceIdentification,,,,,,,

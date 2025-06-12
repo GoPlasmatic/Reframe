@@ -12,103 +12,6 @@
     },
     "tasks": [
         {
-            "id": "extract_32A_components",
-            "name": "Extract Date, Currency and Amount from 32A field",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.parsed_32A.date",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.32A" },
-                                    { "substr": [{ "var": "data.SwiftMT.32A" }, 0, 6] },
-                                    "240101"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.parsed_32A.currency",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.32A" },
-                                    { "substr": [{ "var": "data.SwiftMT.32A" }, 6, 3] },
-                                    "USD"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.parsed_32A.amount",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.32A" },
-                                    { "substr": [{ "var": "data.SwiftMT.32A" }, 9] },
-                                    "0.00"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.parsed_32A.formatted_date",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.parsed_32A.date" },
-                                    {
-                                        "cat": [
-                                            "20",
-                                            { "substr": [{ "var": "data.parsed_32A.date" }, 0, 2] },
-                                            "-",
-                                            { "substr": [{ "var": "data.parsed_32A.date" }, 2, 2] },
-                                            "-",
-                                            { "substr": [{ "var": "data.parsed_32A.date" }, 4, 2] }
-                                        ]
-                                    },
-                                    "2024-01-01"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.parsed_32A.amount_with_dot",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.parsed_32A.amount" },
-                                    {
-                                        "if": [
-                                            { "in": [",", { "var": "data.parsed_32A.amount" }] },
-                                            {
-                                                "cat": [
-                                                    { "substr": [{ "var": "data.parsed_32A.amount" }, 0, -3] },
-                                                    ".",
-                                                    { "substr": [{ "var": "data.parsed_32A.amount" }, -2] }
-                                                ]
-                                            },
-                                            { "var": "data.parsed_32A.amount" }
-                                        ]
-                                    },
-                                    "0.00"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.parsed_32A.numeric_amount",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.parsed_32A.amount_with_dot" },
-                                    {
-                                        "+": [
-                                            0,
-                                            { "var": "data.parsed_32A.amount_with_dot" }
-                                        ]
-                                    },
-                                    0.0
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
             "id": "map_cbpr_plus_business_application_header",
             "name": "Map CBPR+ Business Application Header (AppHdr)",
             "function": {
@@ -116,38 +19,38 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.MXheader.Fr.FIId.FinInstnId.BICFI",
-                            "logic": { "var": "data.SwiftMT.52A" }
+                            "path": "data.AppHdr.Fr.FIId.FinInstnId.BICFI",
+                            "logic": { "var": "data.SwiftMT.fields.52A.bic" }
                         },
                         {
-                            "path": "data.MXheader.To.FIId.FinInstnId.BICFI",
-                            "logic": { "var": "data.SwiftMT.57A" }
+                            "path": "data.AppHdr.To.FIId.FinInstnId.BICFI",
+                            "logic": { "var": "data.SwiftMT.fields.57A.bic" }
                         },
                         {
-                            "path": "data.MXheader.BizMsgIdr",
+                            "path": "data.AppHdr.BizMsgIdr",
                             "logic": {
                                 "cat": [
-                                    { "var": "data.SwiftMT.20" },
+                                    { "var": "data.SwiftMT.fields.20.transaction_reference" },
                                     "-pacs.008-001"
                                 ]
                             }
                         },
                         {
-                            "path": "data.MXheader.MsgDefIdr",
+                            "path": "data.AppHdr.MsgDefIdr",
                             "logic": "pacs.008.001.08"
                         },
                         {
-                            "path": "data.MXheader.BizSvc",
+                            "path": "data.AppHdr.BizSvc",
                             "logic": "swift.cbprplus.02"
                         },
                         {
-                            "path": "data.MXheader.CreDt",
+                            "path": "data.AppHdr.CreDt",
                             "logic": {
                                 "if": [
-                                    { "var": "data.parsed_32A.formatted_date" },
+                                    { "var": "data.SwiftMT.fields.32A.value_date" },
                                     {
                                         "cat": [
-                                            { "var": "data.parsed_32A.formatted_date" },
+                                            { "var": "data.SwiftMT.fields.32A.value_date" },
                                             "T00:00:00+00:00"
                                         ]
                                     },
@@ -156,21 +59,21 @@
                             }
                         },
                         {
-                            "path": "data.MXheader.CpyDplct",
+                            "path": "data.AppHdr.CpyDplct",
                             "logic": "CODU"
                         },
                         {
-                            "path": "data.MXheader.PssblDplct",
+                            "path": "data.AppHdr.PssblDplct",
                             "logic": false
                         },
                         {
-                            "path": "data.MXheader.Prty",
+                            "path": "data.AppHdr.Prty",
                             "logic": {
                                 "if": [
-                                    { "==": [{ "var": "data.SwiftMT.23B" }, "URGP"] },
+                                    { "==": [{ "var": "data.SwiftMT.fields.23B.bank_operation_code" }, "URGP"] },
                                     "URGT",
                                     "NORM"
-                                                                ]
+                                ]
                             }
                         }
                     ]
@@ -185,29 +88,29 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.MXheader.Rltd.Fr.FIId.FinInstnId.BICFI",
-                            "logic": { "var": "data.SwiftMT.52A" }
+                            "path": "data.AppHdr.Rltd.Fr.FIId.FinInstnId.BICFI",
+                            "logic": { "var": "data.SwiftMT.fields.52A.bic" }
                         },
                         {
-                            "path": "data.MXheader.Rltd.To.FIId.FinInstnId.BICFI",
-                            "logic": { "var": "data.SwiftMT.57A" }
+                            "path": "data.AppHdr.Rltd.To.FIId.FinInstnId.BICFI",
+                            "logic": { "var": "data.SwiftMT.fields.57A.bic" }
                         },
                         {
-                            "path": "data.MXheader.Rltd.MsgDefIdr",
+                            "path": "data.AppHdr.Rltd.MsgDefIdr",
                             "logic": "pacs.008.001.08"
                         },
                         {
-                            "path": "data.MXheader.Rltd.BizMsgIdr",
-                            "logic": { "var": "data.SwiftMT.20" }
+                            "path": "data.AppHdr.Rltd.BizMsgIdr",
+                            "logic": { "var": "data.SwiftMT.fields.20.transaction_reference" }
                         },
                         {
-                            "path": "data.MXheader.Rltd.CreDt",
+                            "path": "data.AppHdr.Rltd.CreDt",
                             "logic": {
                                 "if": [
-                                    { "var": "data.parsed_32A.formatted_date" },
+                                    { "var": "data.SwiftMT.fields.32A.value_date" },
                                     {
                                         "cat": [
-                                            { "var": "data.parsed_32A.formatted_date" },
+                                            { "var": "data.SwiftMT.fields.32A.value_date" },
                                             "T00:00:00+00:00"
                                         ]
                                     },
@@ -225,8 +128,8 @@
             "function": {
                 "name": "publish",
                 "input": {
-                    "input_field_name": "MXheader",
-                    "output_field_name": "header",
+                    "input_field_name": "AppHdr",
+                    "output_field_name": "header_xml",
                     "source_format": "MT103.Header"
                 }
             }

@@ -55,132 +55,6 @@ HAUPTSTRASSE 1
 :71A:OUR
 -}`
   },
-  'MT102': {
-    name: 'MT102 → ISO 20022 pacs.008.001.08 (Multiple)',
-    description: 'Multiple Customer Credit Transfer (1-to-Many)',
-    targetFormat: 'Multiple ISO 20022 pacs.008.001.08 XML',
-    sample: `{1:F01BNPAFRPPXXX0000000000}{2:O1021234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
-:20:MT102SAMPLE001
-:23B:CRED
-:32A:240101USD1500,00
-:19:2
-:32B:USD750,00
-:50K:/1234567890
-ORDERING CUSTOMER NAME
-123 MAIN STREET
-:52A:BNPAFRPPXXX
-:58A:DEUTDEFFXXX
-:59:987654321/BENEFICIARY NAME 1
-BENEFICIARY ADDRESS 1
-:70:PAYMENT DETAILS 1
-:32B:USD750,00
-:59:123456789/BENEFICIARY NAME 2
-BENEFICIARY ADDRESS 2
-:70:PAYMENT DETAILS 2
--}`
-  },
-  'MT103+': {
-    name: 'MT103+ → ISO 20022 pacs.008.001.08 (Enhanced)',
-    description: 'Enhanced Customer Credit Transfer with STP',
-    targetFormat: 'ISO 20022 pacs.008.001.08 XML (Enhanced)',
-    sample: `{1:F01BNPAFRPPXXX0000000000}{2:O1031234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
-:20:FT21001234567890
-:23B:CRED
-:32A:240101USD1000,00
-:50K:/1234567890
-ACME CORPORATION
-123 MAIN STREET
-NEW YORK NY 10001
-:52A:BNPAFRPPXXX
-:57A:DEUTDEFFXXX
-:59:/DE89370400440532013000
-MUELLER GMBH
-HAUPTSTRASSE 1
-10115 BERLIN
-:70:PAYMENT FOR INVOICE 12345
-:71A:OUR
-:121:3ec6a2b8-7b2f-4c5e-8f4d-9a1b2c3e4f5g
-:77B:/ORDERRES/BE//MEILAAN 1, 1000 BRUSSELS
-:77T:/BENEFRES/DE//HAUPTSTRASSE 1, 10115 BERLIN
--}`
-  },
-  'MT192': {
-    name: 'MT192 → ISO 20022 camt.056.001.08',
-    description: 'Request for Cancellation',
-    targetFormat: 'ISO 20022 camt.056.001.08 XML',
-    sample: `{1:F01BNPAFRPPXXX0000000000}{2:O1921234240101DEUTDEFFXXXX12345678952401011234N}{3:{108:MT192}}{4:
-:20:REQ240101001
-:21:FT21001234567890
-:11S:103
-:32A:240101USD1000,00
-:52A:BNPAFRPPXXX
-:57A:DEUTDEFFXXX
-:72:/RETN/AC01/Invalid account number
-/CASE/CASE240101001
--}`
-  },
-  'MT196': {
-    name: 'MT196 → ISO 20022 camt.029.001.09',
-    description: 'Client Side Liquidity Management Answer',
-    targetFormat: 'ISO 20022 camt.029.001.09 XML',
-    sample: `{1:F01BNPAFRPPXXX0000000000}{2:O1961234240101DEUTDEFFXXXX12345678952401011234N}{3:{108:MT196}}{4:
-:20:ANSW240101001
-:21:REQ240101001
-:32A:240101USD1000,00
-:52A:BNPAFRPPXXX
-:57A:DEUTDEFFXXX
-:72:/ACC/Account management request
-/ANSW/ACCP
--}`
-  },
-  'MT202': {
-    name: 'MT202 → ISO 20022 pacs.009.001.08',
-    description: 'General Financial Institution Transfer',
-    targetFormat: 'ISO 20022 pacs.009.001.08 XML',
-    sample: `{1:F01BNPAFRPPXXX0000000000}{2:O2021234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
-:20:FTI21001234567890
-:21:ORI240101001
-:32A:240101USD50000,00
-:52A:BNPAFRPPXXX
-:53A:CHASUS33XXX
-:58A:DEUTDEFFXXX
-:72:/BNF/Final beneficiary information
-/INS/Payment instruction details
--}`
-  },
-  'MT202COV': {
-    name: 'MT202 COV → ISO 20022 pacs.009.001.08 (Cover)',
-    description: 'Cover Payment for Underlying Customer Credit Transfer',
-    targetFormat: 'ISO 20022 pacs.009.001.08 XML (Cover)',
-    sample: `{1:F01BNPAFRPPXXX0000000000}{2:O2021234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
-:20:COV21001234567890
-:21:FT21001234567890
-:32A:240101USD50000,00
-:50A:ORDERING CUSTOMER
-:52A:BNPAFRPPXXX
-:53A:CHASUS33XXX
-:58A:DEUTDEFFXXX
-:59:BENEFICIARY CUSTOMER
-:70:/COVPAY/Cover payment details
-/ORIG/Original payment reference
--}`
-  },
-  'MT210': {
-    name: 'MT210 → ISO 20022 camt.057.001.06',
-    description: 'Notice to Receive',
-    targetFormat: 'ISO 20022 camt.057.001.06 XML',
-    sample: `{1:F01BNPAFRPPXXX0000000000}{2:O2101234240101DEUTDEFFXXXX12345678952401011234N}{3:{108:MT210}}{4:
-:20:NTR240101001
-:25:12345678/001
-:32A:240101USD2500,00
-:50A:ACME CORPORATION
-:52A:BNPAFRPPXXX
-:57A:DEUTDEFFXXX
-:58A:CITIUS33XXX
-:72:/REC/Expected incoming payment
-/REF/Reference information
--}`
-  }
 };
 
 function App() {
@@ -188,7 +62,7 @@ function App() {
   const [inputMessage, setInputMessage] = useState('');
   const [outputXml, setOutputXml] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState([]);
   const [success, setSuccess] = useState(false);
   const [processingInfo, setProcessingInfo] = useState(null);
   const [resultCount, setResultCount] = useState(0);
@@ -239,12 +113,12 @@ function App() {
 
   const handleTransform = async () => {
     if (!inputMessage.trim()) {
-      setError('Please enter a SWIFT message');
+      setError(['Please enter a SWIFT message']);
       return;
     }
 
     setLoading(true);
-    setError('');
+    setError([]);
     setSuccess(false);
     setOutputXml('');
     setProcessingInfo(null);
@@ -298,13 +172,14 @@ function App() {
       } else {
         // Error case
         setSuccess(false);
-        if (jsonResponse.error) {
-          setError(`${jsonResponse.error.message}`);
-          if (jsonResponse.error.details) {
-            console.log('Detailed error info:', jsonResponse.error.details);
-          }
+        if (jsonResponse.errors && jsonResponse.errors.length > 0) {
+          // Extract all error messages from the errors array
+          const errorMessages = jsonResponse.errors.map(errorObj => {
+            return errorObj.error_message || 'Unknown error';
+          });
+          setError(errorMessages);
         } else {
-          setError('Unknown error occurred during processing');
+          setError(['Unknown error occurred during processing']);
         }
         setProcessingInfo(jsonResponse.processing_info);
       }
@@ -313,7 +188,7 @@ function App() {
 
     } catch (err) {
       console.error('API Error:', err);
-      setError(`Unable to connect to the API: ${err.message}`);
+      setError([`Unable to connect to the API: ${err.message}`]);
       setLoading(false);
       setProcessingInfo(null);
     }
@@ -327,7 +202,7 @@ function App() {
   const handleClear = () => {
     setInputMessage('');
     setOutputXml('');
-    setError('');
+    setError([]);
     setSuccess(false);
     setProcessingInfo(null);
     setResultCount(0);
@@ -692,19 +567,28 @@ function App() {
               </Group>
               
               {/* Status Messages */}
-              {error && (
+              {error && error.length > 0 && (
                 <Transition mounted transition="fade">
                   {(styles) => (
                     <Alert 
                       style={styles}
                       variant="light"
                       color="red"
-                      title="Processing Error"
+                      title={`Processing Error${error.length > 1 ? 's' : ''}`}
                       icon={<IconAlertCircle size={18} />}
                       radius="md"
                     >
                       <Stack gap="xs">
-                        <Text size="sm">{error}</Text>
+                        {error.map((errorMessage, index) => (
+                          <Text key={index} size="sm" style={{ 
+                            padding: error.length > 1 ? '4px 8px' : '0',
+                            backgroundColor: error.length > 1 ? 'rgba(255, 0, 0, 0.05)' : 'transparent',
+                            borderRadius: error.length > 1 ? '4px' : '0',
+                            borderLeft: error.length > 1 ? '3px solid rgba(255, 0, 0, 0.3)' : 'none'
+                          }}>
+                            {error.length > 1 && <strong>Error {index + 1}:</strong>} {errorMessage}
+                          </Text>
+                        ))}
                         {processingInfo && (
                           <Text size="xs" c="dimmed">
                             Detected: {processingInfo.detected_format} • 

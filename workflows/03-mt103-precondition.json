@@ -1,0 +1,75 @@
+{
+    "id": "03-mt103-precondition",
+    "name": "MT Message Precondition",
+    "description": "Precondition checks for MT103 message",
+    "condition": {
+        "and": [
+            {"==": [{"var": "SwiftMT.message_type"}, "103"]},
+            {"==": [{"var": "progress.workflow_id"}, "02-mt103-bah-mapper"]},
+            {"==": [{"var": "progress.task_id"}, "publish_header_xml"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "PREC001_header_translation_setup",
+            "name": "PREC001: MT Header Translation Setup",
+            "description": "Define Translation BAH/../From and BAH/../To to InstructingAgent and InstructedAgent",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.Sender",
+                            "logic": { "var": "data.SwiftMT.fields.52A.bic" }
+                        },
+                        {
+                            "path": "temp_data.Receiver",
+                            "logic": { "var": "data.SwiftMT.fields.57A.bic" }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC002_rejection_return_check",
+            "name": "PREC002: Check for Rejection/Return in Field 72",
+            "description": "IF Field 72, Line[1] starts with '/REJT/' OR '/RETN/' THEN T20063 STOP Translation",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.SwiftMT.fields.72"},
+                                    {
+                                        "!": {
+                                            "or": [
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.72"}, "/REJT/"]},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.72"}, "/RETN/"]}
+                                            ]
+                                        }
+                                    },
+                                    true
+                                ]
+                            },
+                            "message": "Translation stopped: Rejection or Return message detected in Field 72"
+                        },
+                        {
+                            "path": "temp_data",
+                            "logic": {
+                                "and": [
+                                    { "exists": [ "temp_data", "Sender" ] },
+                                    { "exists": [ "temp_data", "Receiver" ] }
+                                ]
+                            },
+                            "message": "Translation stopped: TempSender or TempReceiver is not provided"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+} 

@@ -191,28 +191,11 @@ async fn process_data(
                 }
             }
 
-            // No results found - this might be a parsing error or workflow issue
-            let error_details = if let Some(swift_data) = message.data.get("SwiftMT") {
-                if let Some(library_error) = swift_data.get("library_error") {
-                    format!(
-                        "SWIFT parsing error: {}",
-                        library_error.as_str().unwrap_or("Unknown parsing error")
-                    )
-                } else {
-                    "No matching workflow found for this message type".to_string()
-                }
-            } else {
-                "Failed to parse SWIFT message".to_string()
-            };
 
             let response_json = serde_json::json!({
                 "status": "error",
                 "results": [],
-                "error": {
-                    "type": "processing_error",
-                    "message": error_details,
-                    "details": message.data
-                },
+                "errors": message.errors,
                 "debug_message": message
             });
 
@@ -221,15 +204,11 @@ async fn process_data(
                 .body(serde_json::to_string(&response_json).unwrap_or_else(|_| "{}".to_string()))
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
         }
-        Err(e) => {
+        Err(_) => {
             let response_json = serde_json::json!({
                 "status": "error",
                 "results": [],
-                "error": {
-                    "type": "engine_error",
-                    "message": format!("Processing failed: {}", e),
-                    "details": message.data
-                },
+                "errors": message.errors,
                 "debug_message": message
             });
 

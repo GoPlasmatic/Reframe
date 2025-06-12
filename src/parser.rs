@@ -6,7 +6,7 @@ use dataflow_rs::engine::{
     AsyncFunctionHandler,
 };
 use serde_json::{json, Value};
-use swift_mt_message::parse_message;
+use swift_mt_message::{field_parser::SwiftMessage, json::ToJson};
 
 pub struct ParserFunction;
 
@@ -39,40 +39,19 @@ impl AsyncFunctionHandler for ParserFunction {
                 .to_string()
         };
 
-        let mut message_type = "unknown";
+        let mut message_type = "unknown".to_string();
 
         if format == "SwiftMT" {
-            let parsed_data = match parse_message(payload.as_str()) {
-                Ok(mt_message) => {
-                    // Convert MT message to key-value dictionary
-                    let mut fields_dict = std::collections::HashMap::new();
-
-                    if let Ok(mt_value) = serde_json::to_value(&mt_message) {
-                        // Navigate to the fields array and convert to dictionary
-                        if let Some(mt_obj) = mt_value.as_object() {
-                            for (_, message_data) in mt_obj {
-                                if let Some(message_obj) = message_data.as_object() {
-                                    if let Some(fields_array) =
-                                        message_obj.get("fields").and_then(|f| f.as_array())
-                                    {
-                                        for field in fields_array {
-                                            if let Some(field_obj) = field.as_object() {
-                                                if let (Some(tag), Some(value)) = (
-                                                    field_obj.get("tag").and_then(|t| t.as_str()),
-                                                    field_obj.get("value").and_then(|v| v.as_str()),
-                                                ) {
-                                                    fields_dict
-                                                        .insert(tag.to_string(), value.to_string());
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+            let parsed_data = match SwiftMessage::parse(&payload) {
+                Ok(swift_message) => {
+                    // Try to convert to JSON if possible
+                    match swift_message.to_json() {
+                        Ok(json) => {
+                            message_type = swift_message.message_type.clone();
+                            json
                         }
+                        Err(_) => json!({}),
                     }
-                    message_type = mt_message.message_type();
-                    json!(fields_dict)
                 }
                 Err(e) => {
                     println!("Library parser failed: {:?}", e);

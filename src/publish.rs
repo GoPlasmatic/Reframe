@@ -6,9 +6,8 @@ use dataflow_rs::engine::{
     AsyncFunctionHandler,
 };
 use mx_message::{
-    app_document::Document,
-    document::pacs_008_001_08::FIToFICustomerCreditTransferV08,
-    header::bah_pacs_008_001_08::BusinessApplicationHeaderV02
+    app_document::Document, document::pacs_008_001_08::FIToFICustomerCreditTransferV08,
+    header::bah_pacs_008_001_08::BusinessApplicationHeaderV02,
 };
 use quick_xml::se::to_string as xml_to_string;
 use serde_json::Value;
@@ -64,7 +63,7 @@ fn handle_mt103_header(
     message: &mut Message,
     output_field_name: &str,
 ) -> Result<(usize, Vec<Change>)> {
-    // Try to use the BusinessApplicationHeaderV02 from mx-message if the data structure is compatible
+    // Try to use the AppHdr from mx-message if the data structure is compatible
     match serde_json::from_value::<BusinessApplicationHeaderV02>(data.clone()) {
         Ok(header_data) => {
             // Use mx-message serialization
@@ -92,9 +91,9 @@ fn handle_mt103_header(
             }
         }
         Err(e) => {
-            println!("BusinessApplicationHeaderV02 deserialization failed: {}", e);
+            println!("AppHdr deserialization failed: {}", e);
             Err(DataflowError::Validation(format!(
-                "BusinessApplicationHeaderV02 deserialization failed: {}",
+                "AppHdr deserialization failed: {}",
                 e
             )))
         }
@@ -141,11 +140,9 @@ fn handle_mt103_document(
                 }
             }
         }
-        Err(e) => {
-            Err(DataflowError::Validation(format!(
-                "FIToFICustomerCreditTransferV08 deserialization failed: {}",
-                e
-            )))
-        }
+        Err(e) => Err(DataflowError::Validation(format!(
+            "FIToFICustomerCreditTransferV08 deserialization failed: {}",
+            e
+        ))),
     }
 }

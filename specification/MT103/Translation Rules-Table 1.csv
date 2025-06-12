@@ -1,0 +1,268 @@
+0,"Reference
+Number",Rule Definition,Comment,
+1,,"TRANSLATE(MT103 Single Customer Credit Transfer, FIToFICustomerCreditTransferV08) - CBPR+ UG",,
+,Rules,,,
+2,TR001,"/* define global variable Temp~Sender, Temp~Receiver : string */
+
+IF BAH/From/FinancialInstitutionIdentification/FinancialInstitutionIdentification/BICFI Is Present THEN
+    Copy BAH/From/FinancialInstitutionIdentification/FinancialInstitutionIdentification/BICFI to Temp~Sender
+ENDIF
+
+IF BAH/To/FinancialInstitutionIdentification/FinancialInstitutionIdentification/BICFI Is Present THEN
+    Copy BAH/To/FinancialInstitutionIdentification/FinancialInstitutionIdentification/BICFI to Temp~Receiver
+ENDIF
+
+",,
+,TR002,"IF IsMTClearingSystemCodeInList THEN
+{56C Translates [MT_To_MXClearingIdentifier] to CT/IntermediaryAgent1 
+Copy ""NOTPROVIDED"" to IntermediaryAgent1/FinancialInstitutionIdentification/Name
+Copy ""NOTPROVIDED"" to IntermediaryAgent1/FinancialInstitutionIdentification/PostalAddress/AddressLine}
+ELSE
+56C Translates [MT_To_MXClearingSystemToNameAndAddressLine] to CT/IntermediaryAgent1 
+ENDIF","Function IsMTClearingSystemCodeInList described in the word document. 
+Use the table in word docunment ""MT and ISO 20022 “Externalised” MX Clearing System Lists""
+",
+,TR003,"/*Local variables 
+AddressLine1Indicator = Boolean
+path  :string  */
+path = CT/CreditorAgent/FinancialInstitutionIdentification/PostalAddress
+AddressLine1Indicator = false
+IF IsMTClearingSystemCodeInList THEN
+    57B Translates [MT_To_MXClearingIdentifier] to CT/CreditorAgent
+ELSE
+    57B Translates [MT_To_MXClearingSystemToNameAndAddressLine] to CT/CreditorAgent
+     AddressLine1Indicator = true
+ENDIF
+
+IF Location IsPresent THEN
+   IF AddressLine1Indicator = true Then
+        path/AddressLine[2] = Location
+   ELSE
+         path/AddressLine[1] = Location
+   ENDIF
+ENDIF
+
+IF Location IsPresent AND AddressLine1Indicator = false THEN
+         CT/CreditorAgent/FinancialInstitutionIdentification/Name = ""NOTPROVIDED""
+         /* For Agents Name and PostalAddress must be present together */
+ENDIF
+
+IF AddressLine1Indicator = false THEN
+         CT/CreditorAgent/FinancialInstitutionIdentification/Name = ""NOTPROVIDED""
+          IF Location IsAbsent THEN
+                path/AddressLine[1]  = ""NOTPROVIDED""
+          ENDIF
+         /* For Agents Name and PostalAddress must be present together */
+ENDIF
+
+","Use the table in word docunment ""MT and ISO 20022 “Externalised” MX Clearing System Lists""
+
+Clearingcode must be translated even if there is no ISO code equivalent as it is the only identification for the agent.",
+,TR004,"/*Local variables
+MXAmount : string
+ i : integer */
+
+For i = 1 to NumberOfOccurrences(71F) 
+
+MT_To_MXCurrencyAmount(MTCurrency, MTAmount ; MXAmount)  
+Copy MXAmount to ChargesInformation[i]/Amount
+
+Copy ""NOTPROVIDED"" to ChargesInformation[i]/Agent/FinancialInstitutionIdentification/Name
+Copy ""NOTPROVIDED"" to ChargesInformation[i]/Agent/FinancialInstitutionIdentification/PostalAddress/AddressLine[1]
+
+Next i
+","Each occurrence of 71F/Amount is copied in the same occurrence position (ie., same order)  to ChargesInformation/Amount.
+The Agent's name and AddressLine will be ""NOTPROVIDED"" except for the last occurrence of 71F for which the Agent's BIC would be the BIC of the MT sender. This means that the charges taken by the sender MUST be indicated even if zero charge is taken.
+
+BUT as one cannot be sure that the sender will have added the charges even zero, all Charge Agents will get the value ""NOTPROVIDED"" in Name and AddressLine.",
+,TR005,"/*Local variables
+MXAmount : string */
+
+MT_To_MXCurrencyAmount(MTCurrency, MTAmount ; MXAmount)  
+
+Copy MXAmount to ChargesInformation[1]/Amount
+Copy Temp~Receiver (TR001) to ChargesInformation[1 ]/Agent/FinancialInstitutionIdentification/BICFI
+",,
+,TR006,"IF Block3/EndToEndReference/ServiceTypeIdentifier has a pattern ""00n"" where n is an integer (1,2,3, 4.. 9 for the moment up to 4  but to cater for future neededs extension to 9)
+THEN 
+Copy (Concatenate(""G"",ServiceTypeIdentifier)) to CreditTransferTransactionInformation/PaymentTypeInformation/ServiceLevel/Code
+ENDIF",The FIN code is not hardcoded to cater for future evolution. ,
+42,TR007,"/* Local variables
+CodeTable : table of string
+Field70String : string
+i: integer
+Complex70 : boolean */
+
+Complex70 = ""False""
+/* build one string with the lines of field 70, removing CRLF in the concatenation */
+For i = 1 to 4
+    Field70String = Concatenate(Field70String, TrimRight(Line[i],CRLF))
+next i
+   
+CodeTable[1]=""/ULTB/""
+CodeTable[2]=""/ULTD/""
+CodeTable[3]=""/PURP/""
+CodeTable[4]=""/URI/""
+CodeTable[5]=""/RELID/""
+CodeTable[6]=""/SRI/""
+
+For i = 1 to 6
+    IF IsPresentPattern (Field70String, CodeTable[i]) THEN
+    Complex70 = ""True""
+    Exit loop
+    ENDIF
+next i
+
+IF NOT Complex70 THEN
+    MT_To_MXRemittanceInformation
+ENDIF","this function was developed in case field 70 has to be translated back to corresponding MX elements. 
+CBPR+ decision on 23 February 2021 : keep simple translation. Translate field 70 to Unstructured RI.",
+22,TR008,Not used anymore,,
+26,TR009,"IF 
+{56A/PartyIdentifier(1..4) = (""//RT"" OR ""//FW"") OR
+56C/PartyIdentifier(1..4) = ""//RT"" OR  
+56D/PartyIdentifier(1..4) = ""//RT"" OR
+
+57A/PartyIdentifier(1..4) = (""//RT"" OR ""//FW"") OR
+57C/PartyIdentifier(1..4) = ""//RT"" OR  
+57D/PartyIdentifier(1..4) = ""//RT""}
+THEN 
+Copy ""RTGS"" to ClearingChannel
+ENDIF",,
+28,TR010,"/*Local variable 
+AddressLine1Indicator = Boolean
+path  :string  */
+path = GH/SettlementInformation/InstructedReimbursementAgent /FinancialInstitutionIdentification/PostalAddress
+AddressLine1Indicator = false
+IF IsMTClearingSystemCodeInList THEN
+    54B Translates [MT_To_MXClearingIdentifier] to GH/SettlementInformation/InstructedReimbursementAgent
+ELSE
+    54B Translates [MT_To_MXClearingSystemToNameAndAddressLine] to GH/SettlementInformation/InstructedReimbursementAgent
+     AddressLine1Indicator = true
+ENDIF
+
+IF 54B/Location IsPresent THEN
+   IF AddressLine1Indicator = true THEN
+        path/AddressLine[2] = 54B/Location
+   ELSE
+         path/AddressLine[1] = 54B/Location
+   ENDIF
+ENDIF
+
+IF Location IsPresent AND AddressLine1Indicator = false THEN
+          GH/SettlementInformation/InstructedReimbursementAgent/FinancialInstitutionIdentification/Name = ""NOTPROVIDED""
+         /* For Agents Name and PostalAddress must be present together */
+ENDIF
+
+IF AddressLine1Indicator = false THEN
+          GH/SettlementInformation/InstructedReimbursementAgent/FinancialInstitutionIdentification/Name = ""NOTPROVIDED""
+          IF Location IsAbsent THEN
+                path/AddressLine[1]  = ""NOTPROVIDED""
+          ENDIF
+         /* For Agents Name and PostalAddress must be present together */
+ENDIF
+
+
+","Use the table in word docunment ""MT and ISO 20022 “Externalised” MX Clearing System Lists""
+
+",
+46,TR011,"This function translates codes from Field72 to InstructionForNextAgent but also the output parameter InstructionForNextAgentFIN53 generated  from the function METAFCT001 defined in the sheet SettlementMethodAndAgents. InstructionForNextAgentFIN53 has priority 1 to be translated to InstructionForNextAgent. That means that precondition for TR011 is the execution of METAFCT001. 
+
+InstructionForNextAgentFIN53 has the format ""/FIN53/BIC(8 or 11)"" where the BIC is the BIC of the Institution to which the Receiver will claim the money.
+
+TR011 will then search for all codes max 8 char between slashes contained in field MT72 by using ExtractLines(MT72, /CODE in max 8 char/, //) and extract each code and the following related information to a Table Instruction [n]. Particular CODES are /REC/ , /INTA/ and /INT/ but also proprietary CODES.Code must be different from /INS/ and /ACC/.  Do not store  in the table code /ACC/, /INS/ and related information*. These codes are handled in another functions.
+
+*Other codes coming from a previous translation MX to MT (ie., /INTA/, /SVCLVL/, LOCINS/, /CATPURP/) must be also removed from MT72. 
+
+FullString = Concatenation ( InstructionForNextAgentFIN53,Instruction[1], Instruction[2], ... Instruction[n])
+
+IF Length (FullString) > 4*140 6*35 THEN
+FullString = Concatenate(Substring (FullString, 1, 559 209), ""+"")
+ENDIF
+
+InstructionForNextAgent[1].InstructionInformation = Substring (FullString, 1, 140)
+InstructionForNextAgent[2].InstructionInformation = Substring (FullString, 141, 140)
+InstructionForNextAgent[3].InstructionInformation = Substring (FullString, 281, 140)
+InstructionForNextAgent[4].InstructionInformation = Substring (FullString, 420, 140)
+
+/* Split the concatenated string to up to 6 occurrences of InstructionForNextAgent, if needed */
+InstructionForNextAgent[1].InstructionInformation = Substring (FullString, 1, 35)
+InstructionForNextAgent[2].InstructionInformation = Substring (FullString, 36, 35)
+InstructionForNextAgent[3].InstructionInformation = Substring (FullString, 71, 35)
+InstructionForNextAgent[4].InstructionInformation = Substring (FullString, 106, 35)
+InstructionForNextAgent[4].InstructionInformation = Substring (FullString, 141, 35)
+InstructionForNextAgent[4].InstructionInformation = Substring (FullString, 176, 35)
+
+
+
+
+
+
+
+
+","MT72 is 6 * 35 char = 210 char and To add information from METAFCT001 /FIN53/BIC(8 or 11) => max 18 => 228 char max
+ InstructionForNextAgent 4 * 140 char = 560. So no truncation.
+
+CR for UG 2.1 => InstructionForNextAgent : 6 * 35 char. Truncation is possible if /FIN53/BIC is filling the MX target element. 
+",
+,TR012,"IF 23E/Instruction Code/CORT AND 23E/Instruction Code/INTC are both present THEN
+CategoryPurpose/Proprietary = Concatenate (""INTC"", "" "" , ""CORT"")
+ELSE
+     IF 23EInstruction Code/CORT OR 23EInstruction Code/INTC IsPresent
+     THEN
+      CategoryPurpose/Code = 23E/Instruction Code [CORT or INTC]
+     ENDIF
+ENDIF","If the 2 codes ""CORT"" and ""INTC"" are both present, they are copied in CategoryPurpose/Proprietary. If only one of the codes is present, it is copied in  CategoryPurpose/Code. ",
+,TR013,"IF IsPresentPattern(MT70, ""/ROC/"")
+THEN
+MT70ROC_To_MX35Text
+ELSE
+Copy ""NOTPROVIDED"" 
+ENDIF
+","/ROC/ reference is truncated after 34 char if longer than 35 and ""+"" is appended to indicate truncation. Full information will be copied in the Unstructured remittance information in MX. 
+
+Note that if ROC is split between 2 lines, before checking if /ROC/ is present, the lines are concatenated with the following principle. If a line is full (exact 35 char) concatenation with next line is without space as it is expected the next line is the continuation of the previous one. If the line is not full, it is concatenated with the next one but a space is added in between. In that case /ROC/ will not be identified as the search code word. The RI is built based on the same principle. ",
+,TR014,"/*Local variables 
+AddressLine1Indicator = Boolean
+path  :string  */
+path = GH/SettlementInformation/ThirdReimbursementAgent /FinancialInstitutionIdentification/PostalAddress
+AddressLine1Indicator = false
+IF IsMTClearingSystemCodeInList THEN
+    55B Translates [MT_To_MXClearingIdentifier] to GH/SettlementInformation/ThirdReimbursementAgent
+ELSE
+    55B Translates [MT_To_MXClearingSystemToNameAndAddressLine] to GH/SettlementInformation/ThirdReimbursementAgent
+     AddressLine1Indicator = true
+ENDIF
+
+IF 55B/Location IsPresent THEN
+   IF AddressLine1Indicator = true Then
+        path/AddressLine[2] = 55B/Location
+   ELSE
+         path/AddressLine[1] = 55B/Location
+   ENDIF
+ENDIF
+
+IF Location IsPresent AND AddressLine1Indicator = false THEN
+          GH/SettlementInformation/ThirdReimbursementAgent/FinancialInstitutionIdentification/Name = ""NOTPROVIDED""
+         /* For Agents Name and PostalAddress must be present together */
+ENDIF
+
+IF AddressLine1Indicator = false THEN
+         GH/SettlementInformation/ThirdReimbursementAgent/FinancialInstitutionIdentification/Name = ""NOTPROVIDED""
+          IF Location IsAbsent THEN
+                path/AddressLine[1]  = ""NOTPROVIDED""
+          ENDIF
+         /* For Agents Name and PostalAddress must be present together */
+ENDIF
+
+","Use the table in word docunment ""MT and ISO 20022 “Externalised” MX Clearing System Lists""
+",
+,TR015,"IF IsMTClearingSystemCodeInList THEN
+{57C Translates [MT_To_MXClearingIdentifier] to CT/CreditorAgent
+Copy ""NOTPROVIDED"" to CreditorAgent/FinancialInstitutionIdentification/Name
+Copy ""NOTPROVIDED"" to CreditorAgent/FinancialInstitutionIdentification/PostalAddress/AddressLine}
+
+ELSE
+57C Translates [MT_To_MXClearingSystemToNameAndAddressLine] to CT/CreditorAgent
+ENDIF","Use the table in word docunment ""MT and ISO 20022 “Externalised” MX Clearing System Lists""
+",

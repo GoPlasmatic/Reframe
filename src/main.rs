@@ -1,12 +1,12 @@
 use axum::{
+    Router,
     extract::State,
-    http::{header, StatusCode},
+    http::{StatusCode, header},
     response::Response,
     routing::{get, post},
-    Router,
 };
-use dataflow_rs::{engine::message::Message, RetryConfig};
 use dataflow_rs::{Engine, Workflow};
+use dataflow_rs::{RetryConfig, engine::message::Message};
 use serde_json::Value;
 use std::fs;
 use std::path::Path;
@@ -128,7 +128,9 @@ async fn setup_workflows(engine: &mut Engine) -> anyhow::Result<()> {
 
     if workflow_count == 0 {
         println!("⚠️  No workflow files found in 'workflows/' directory.");
-        println!("💡 Add JSON workflow files to the 'workflows/' directory to enable message processing.");
+        println!(
+            "💡 Add JSON workflow files to the 'workflows/' directory to enable message processing."
+        );
     } else {
         println!("🎯 Successfully loaded {} workflow(s)", workflow_count);
     }

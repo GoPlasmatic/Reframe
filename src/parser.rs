@@ -1,12 +1,13 @@
 use async_trait::async_trait;
 use dataflow_rs::engine::error::DataflowError;
 use dataflow_rs::engine::{
+    AsyncFunctionHandler,
     error::Result,
     message::{Change, Message},
-    AsyncFunctionHandler,
 };
-use serde_json::{json, Value};
-use swift_mt_message::{field_parser::SwiftMessage, json::ToJson};
+use serde_json::{Value, json};
+use swift_mt_message::SwiftParser;
+use swift_mt_message::messages::mt103::MT103;
 
 pub struct ParserFunction;
 
@@ -42,15 +43,21 @@ impl AsyncFunctionHandler for ParserFunction {
         let mut message_type = "unknown".to_string();
 
         if format == "SwiftMT" {
-            let parsed_data = match SwiftMessage::parse(&payload) {
-                Ok(swift_message) => {
-                    // Try to convert to JSON if possible
-                    match swift_message.to_json() {
-                        Ok(json) => {
-                            message_type = swift_message.message_type.clone();
-                            json
+            let parsed_data = match SwiftParser::parse::<MT103>(&payload) {
+                Ok(mt103_message) => {
+                    message_type = mt103_message.message_type.clone();
+
+                    // Convert to JSON using serde_json
+                    match serde_json::to_value(&mt103_message) {
+                        Ok(json_value) => json_value,
+                        Err(e) => {
+                            println!("JSON conversion failed: {:?}", e);
+                            json!({
+                                "conversion_error": format!("{:?}", e),
+                                "message_type": message_type,
+                                "raw_payload": payload
+                            })
                         }
-                        Err(_) => json!({}),
                     }
                 }
                 Err(e) => {

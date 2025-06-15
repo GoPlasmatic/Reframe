@@ -1,0 +1,117 @@
+{
+    "id": "06-mt103-rejt-bah-mapper",
+    "name": "MT103 REJT Business Application Header Mapping for CBPR+",
+    "description": "Maps MT103 REJT message to ISO 20022 Business Application Header (AppHdr) using head.001.001.02 schema for pacs.002 rejection messages",
+    "condition": {
+        "and": [
+            {"==": [{"var": "SwiftMT.message_type"}, "103"]},
+            {"==": [{"var": "SwiftMT.method"}, "reject"]},
+            {"==": [{"var": "progress.workflow_id"}, "01-parser"]},
+            {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "map_cbpr_plus_rejection_header",
+            "name": "Map CBPR+ Business Application Header for Rejection (AppHdr)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.AppHdr.Fr.FIId.FinInstnId.BICFI",
+                            "logic": { "val": [ "data", "SwiftMT", "fields", "52A", "bic" ]}
+                        },
+                        {
+                            "path": "data.AppHdr.To.FIId.FinInstnId.BICFI",
+                            "logic": { "val": [ "data", "SwiftMT", "fields", "57A", "bic" ] }
+                        },
+                        {
+                            "path": "data.AppHdr.BizMsgIdr",
+                            "logic": {
+                                "cat": [
+                                    { "val": [ "data", "SwiftMT", "fields", "20", "transaction_reference" ] },
+                                    "-pacs.002-001"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.AppHdr.MsgDefIdr",
+                            "logic": "pacs.002.001.10"
+                        },
+                        {
+                            "path": "data.AppHdr.BizSvc",
+                            "logic": "swift.cbprplus.02"
+                        },
+                        {
+                            "path": "data.AppHdr.CreDt",
+                            "logic": "9999-12-31T00:00:00+00:00"
+                        },
+                        {
+                            "path": "data.AppHdr.CpyDplct",
+                            "logic": "CODU"
+                        },
+                        {
+                            "path": "data.AppHdr.PssblDplct",
+                            "logic": false
+                        },
+                        {
+                            "path": "data.AppHdr.Prty",
+                            "logic": {
+                                "if": [
+                                    { "==": [{ "val": [ "data", "SwiftMT", "fields", "23B", "bank_operation_code" ] }, "URGP"] },
+                                    "URGT",
+                                    "NORM"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_cbpr_plus_rejection_metadata",
+            "name": "Map CBPR+ Rejection Message Metadata",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.AppHdr.Rltd.Fr.FIId.FinInstnId.BICFI",
+                            "logic": { "val": [ "data", "SwiftMT", "fields", "52A", "bic" ] }
+                        },
+                        {
+                            "path": "data.AppHdr.Rltd.To.FIId.FinInstnId.BICFI",
+                            "logic": { "val": [ "data", "SwiftMT", "fields", "57A", "bic" ] }
+                        },
+                        {
+                            "path": "data.AppHdr.Rltd.MsgDefIdr",
+                            "logic": "pacs.002.001.10"
+                        },
+                        {
+                            "path": "data.AppHdr.Rltd.BizMsgIdr",
+                            "logic": { "val": [ "data", "SwiftMT", "fields", "20", "transaction_reference" ] }
+                        },
+                        {
+                            "path": "data.AppHdr.Rltd.CreDt",
+                            "logic": "9999-12-31T00:00:00+00:00"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "publish_rejection_header_xml",
+            "name": "Publish Rejection Header XML",
+            "function": {
+                "name": "publish",
+                "input": {
+                    "input_field_name": "AppHdr",
+                    "output_field_name": "header_xml",
+                    "source_format": "MT103_REJT.Header"
+                }
+            }
+        }
+    ]
+} 

@@ -1,0 +1,140 @@
+{
+    "id": "13-mt103-retn-combine-cbpr",
+    "name": "MT103 RETN CBPR+ Simple XML Combiner",
+    "description": "Combines header and documents XML for MT103 RETN to pacs.004 return messages using direct publishing of MX structures",
+    "condition": {
+        "and": [
+            { "==": [ { "var": "SwiftMT.message_type" }, "103" ] },
+            { "==": [ { "var": "SwiftMT.method" }, "return" ] },
+            { "==": [ { "var": "progress.workflow_id" }, "12-mt103-retn-document-mapper"] },
+            { "==": [ { "var": "progress.task_id" }, "publish_return_document_xml" ] },
+            { "==": [ { "var": "progress.status_code" }, 200 ] }
+        ]
+    },
+    "tasks": [
+        {
+            "id": "POSTC001_validate_charges_and_instructed_amount",
+            "name": "POSTC001: Validate Charges and Instructed Amount Rules",
+            "description": "Implements postcondition checks for ChargesInformation and ReturnedInstructedAmount as per specification",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.charges_from_field72",
+                            "logic": {
+                                "if": [
+                                    { "and": [
+                                        { "!": { "var": "data.SwiftMT.fields.71F" } },
+                                        { "!": { "var": "data.SwiftMT.fields.71G" } }
+                                    ]},
+                                    {
+                                        "if": [
+                                            { "var": "data.SwiftMT.fields.72.sender_to_receiver_info" },
+                                            {
+                                                "reduce": [
+                                                    { "var": "data.SwiftMT.fields.72.sender_to_receiver_info" },
+                                                    {
+                                                        "if": [
+                                                            { "starts_with": [{ "var": "current" }, "/CHGS/"] },
+                                                            { "substr": [{ "var": "current" }, 6] },
+                                                            { "var": "accumulator" }
+                                                        ]
+                                                    },
+                                                    ""
+                                                ]
+                                            },
+                                            ""
+                                        ]
+                                    },
+                                    ""
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.Document.PmtRtr.TxInf.RtrdInstdAmt.@Ccy",
+                            "logic": {
+                                "if": [
+                                    { "and": [
+                                        { "var": "temp_data.charges_from_field72" },
+                                        { "!": { "var": "data.SwiftMT.fields.33B" } }
+                                    ]},
+                                    { "var": "data.SwiftMT.fields.32A.currency" },
+                                    { "var": "data.Document.PmtRtr.TxInf.RtrdInstdAmt.@Ccy" }
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.Document.PmtRtr.TxInf.RtrdInstdAmt.$value",
+                            "logic": {
+                                "if": [
+                                    { "and": [
+                                        { "var": "temp_data.charges_from_field72" },
+                                        { "!": { "var": "data.SwiftMT.fields.33B" } }
+                                    ]},
+                                    0,
+                                    { "var": "data.Document.PmtRtr.TxInf.RtrdInstdAmt.$value" }
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.Document.PmtRtr.TxInf.ChrgsInf.2.Amt.@Ccy",
+                            "logic": {
+                                "if": [
+                                    { "var": "temp_data.charges_from_field72" },
+                                    { "substr": [{ "var": "temp_data.charges_from_field72" }, 0, 3] },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.Document.PmtRtr.TxInf.ChrgsInf.2.Amt.$value",
+                            "logic": {
+                                "if": [
+                                    { "var": "temp_data.charges_from_field72" },
+                                    { "parseFloat": [{ "substr": [{ "var": "temp_data.charges_from_field72" }, 3] }] },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.Document.PmtRtr.TxInf.ChrgsInf.2.Agt.FinInstnId.Nm",
+                            "logic": {
+                                "if": [
+                                    { "var": "temp_data.charges_from_field72" },
+                                    "NOTPROVIDED",
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "combine_xml_strings",
+            "name": "Combine Header and Document XML Strings",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.result",
+                            "logic": {
+                                "map": [
+                                    { "val": [ "data", "document_xml" ] },
+                                    { "cat": [
+                                        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
+                                        { "val": [ [2], "data", "header_xml" ] },
+                                        "\n",
+                                        { "val": [] }
+                                    ]}
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+} 

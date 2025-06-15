@@ -1,0 +1,131 @@
+{
+    "id": "11-mt103-retn-precondition",
+    "name": "MT103 RETN Message Precondition",
+    "description": "Precondition checks for MT103 RETN return message including UETR validation and field 72 validation",
+    "condition": {
+        "and": [
+            {"==": [{"var": "SwiftMT.message_type"}, "103"]},
+            {"==": [{"var": "SwiftMT.method"}, "return"]},
+            {"==": [{"var": "progress.workflow_id"}, "10-mt103-retn-bah-mapper"]},
+            {"==": [{"var": "progress.task_id"}, "publish_return_header_xml"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "PREC001_validate_temp_variables",
+            "name": "PREC001: Validate Temp Variables from TR001",
+            "description": "Ensure Temp~Sender and Temp~Receiver are properly defined from BAH translation",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "temp_data",
+                            "logic": {
+                                "and": [
+                                    { "exists": [ "temp_data", "Sender" ] },
+                                    { "exists": [ "temp_data", "Receiver" ] },
+                                    { "!=": [ { "var": "temp_data.Sender" }, "NOTPROVIDED" ] },
+                                    { "!=": [ { "var": "temp_data.Receiver" }, "NOTPROVIDED" ] }
+                                ]
+                            },
+                            "message": "Translation stopped: TempSender or TempReceiver is not properly provided from TR001"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC002_uetr_validation",
+            "name": "PREC002: Validate UETR Presence",
+            "description": "IF Block3/EndToEndReference/UniqueEndToEndTransactionReference IsAbsent THEN T20087 STOP Translation",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {
+                                "and": [
+                                    { "exists": [ "data", "SwiftMT", "user_header", "unique_end_to_end_reference" ] },
+                                    { "!=": [ { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" }, "" ] },
+                                    { "!=": [ { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" }, null ] }
+                                ]
+                            },
+                            "message": "Translation stopped: UETR is mandatory for MT103 RETN messages (T20087)"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "TR007_extract_mref",
+            "name": "TR007: Extract MREF from Field 72",
+            "description": "Extract Original Message Reference from field 72 line with /MREF/",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.original_instruction_id",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.fields.72.sender_to_receiver_info" },
+                                    {
+                                        "reduce": [
+                                            { "var": "data.SwiftMT.fields.72.sender_to_receiver_info" },
+                                            {
+                                                "if": [
+                                                    { "starts_with": [{ "var": "current" }, "/MREF/"] },
+                                                    { "substr": [{ "var": "current" }, 6] },
+                                                    { "var": "accumulator" }
+                                                ]
+                                            },
+                                            ""
+                                        ]
+                                    },
+                                    ""
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "TR008_extract_tref",
+            "name": "TR008: Extract TREF from Field 72",
+            "description": "Extract Original End-to-End Reference from field 72 line with /TREF/",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.original_end_to_end_id",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.fields.72.sender_to_receiver_info" },
+                                    {
+                                        "reduce": [
+                                            { "var": "data.SwiftMT.fields.72.sender_to_receiver_info" },
+                                            {
+                                                "if": [
+                                                    { "starts_with": [{ "var": "current" }, "/TREF/"] },
+                                                    { "substr": [{ "var": "current" }, 6] },
+                                                    { "var": "accumulator" }
+                                                ]
+                                            },
+                                            "NOTPROVIDED"
+                                        ]
+                                    },
+                                    "NOTPROVIDED"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+} 

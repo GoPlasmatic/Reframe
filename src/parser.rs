@@ -7,7 +7,6 @@ use dataflow_rs::engine::{
 };
 use serde_json::{Value, json};
 use swift_mt_message::SwiftParser;
-use swift_mt_message::messages::mt103::MT103;
 
 pub struct ParserFunction;
 
@@ -40,35 +39,65 @@ impl AsyncFunctionHandler for ParserFunction {
                 .to_string()
         };
 
-        let mut message_type = "unknown".to_string();
-
         if format == "SwiftMT" {
-            let parsed_data = match SwiftParser::parse::<MT103>(&payload) {
-                Ok(mt103_message) => {
-                    message_type = mt103_message.message_type.clone();
+            let parsed_message = SwiftParser::parse_auto(&payload)
+                .map_err(|e| DataflowError::Validation(format!("SwiftMT parser error: {:?}", e)))?;
+            let message_type = parsed_message.message_type().to_string();
+            let method: String;
 
-                    // Convert to JSON using serde_json
-                    match serde_json::to_value(&mt103_message) {
-                        Ok(json_value) => json_value,
-                        Err(e) => {
-                            println!("JSON conversion failed: {:?}", e);
-                            json!({
-                                "conversion_error": format!("{:?}", e),
-                                "message_type": message_type,
-                                "raw_payload": payload
-                            })
-                        }
+            let parsed_data = if message_type == "103" {
+                let Some(mt103_message) = parsed_message.into_mt103() else {
+                    return Err(DataflowError::Validation(
+                        "MT103 message not found in SwiftMT message".to_string(),
+                    ));
+                };
+
+                method = if mt103_message.fields.has_reject_codes() {
+                    "reject".to_string()
+                } else if mt103_message.fields.has_return_codes() {
+                    "return".to_string()
+                } else if mt103_message.fields.is_stp_compliant() {
+                    "stp".to_string()
+                } else {
+                    "normal".to_string()
+                };
+
+                match serde_json::to_value(&mt103_message) {
+                    Ok(json_value) => json_value,
+                    Err(e) => {
+                        println!("JSON conversion failed: {:?}", e);
+                        json!({
+                            "conversion_error": format!("{:?}", e),
+                            "message_type": message_type,
+                            "raw_payload": payload
+                        })
                     }
                 }
-                Err(e) => {
-                    println!("Library parser failed: {:?}", e);
-
-                    json!({
-                        "library_error": format!("{:?}", e),
-                        "raw_payload": payload,
-                        "format": format
-                    })
+            } else if message_type == "202" {
+                let Some(mt202_message) = parsed_message.into_mt202() else {
+                    return Err(DataflowError::Validation(
+                        "MT202 message not found in SwiftMT message".to_string(),
+                    ));
+                };
+                method = "normal".to_string();
+                match serde_json::to_value(&mt202_message) {
+                    Ok(json_value) => json_value,
+                    Err(e) => {
+                        println!("JSON conversion failed: {:?}", e);
+                        json!({
+                            "conversion_error": format!("{:?}", e),
+                            "message_type": message_type,
+                            "raw_payload": payload
+                        })
+                    }
                 }
+            } else {
+                method = "normal".to_string();
+                json!({
+                    "conversion_error": "Unsupported message type",
+                    "message_type": message_type,
+                    "raw_payload": payload
+                })
             };
 
             // Store the parsed result in message data
@@ -84,13 +113,15 @@ impl AsyncFunctionHandler for ParserFunction {
                 data_obj.insert(
                     format.to_string(),
                     json!({
-                        "message_type": message_type
+                        "message_type": message_type,
+                        "method": method
                     }),
                 );
             } else {
                 message.metadata = json!({
                     format.to_string(): {
-                        "message_type": message_type
+                        "message_type": message_type,
+                        "method": method
                     }
                 });
             }

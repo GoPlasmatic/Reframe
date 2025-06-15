@@ -20,6 +20,20 @@ on:
         required: false
         default: false
         type: boolean
+      version_bump:
+        description: 'Version bump type'
+        required: false
+        default: 'patch'
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
+      skip_release:
+        description: 'Skip creating GitHub release'
+        required: false
+        default: false
+        type: boolean
 
 env:
   RESOURCE_GROUP: rg-reframe-prod
@@ -58,6 +72,126 @@ jobs:
     
     - name: Run tests
       run: cargo test
+
+  version-and-release:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      changelog: ${{ steps.version.outputs.changelog }}
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Configure Git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+    
+    - name: Install cargo-edit for version bumping
+      run: cargo install cargo-edit
+    
+    - name: Get current version
+      id: current-version
+      run: |
+        CURRENT_VERSION=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+        echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        echo "Current version: $CURRENT_VERSION"
+    
+    - name: Determine version bump type
+      id: bump-type
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          BUMP_TYPE="${{ github.event.inputs.version_bump }}"
+        else
+          # Auto-determine based on commit messages
+          if git log --format=%B -n 20 | grep -qE '\[major\]|\bbreaking\b|\bBREAKING\b'; then
+            BUMP_TYPE="major"
+          elif git log --format=%B -n 20 | grep -qE '\[minor\]|\bfeat\b|\bfeature\b'; then
+            BUMP_TYPE="minor"
+          else
+            BUMP_TYPE="patch"
+          fi
+        fi
+        echo "type=$BUMP_TYPE" >> $GITHUB_OUTPUT
+        echo "Version bump type: $BUMP_TYPE"
+    
+    - name: Bump version
+      id: version
+      run: |
+        BUMP_TYPE="${{ steps.bump-type.outputs.type }}"
+        
+        # Bump version in Cargo.toml
+        cargo set-version --bump $BUMP_TYPE
+        
+        # Get new version
+        NEW_VERSION=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+        TAG="v$NEW_VERSION"
+        
+        echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+        
+        echo "Bumped version to: $NEW_VERSION"
+        echo "Git tag will be: $TAG"
+        
+        # Generate changelog
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        if [ -n "$PREVIOUS_TAG" ]; then
+          echo "Generating changelog from $PREVIOUS_TAG to HEAD"
+          CHANGELOG=$(git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..HEAD --no-merges | head -20)
+        else
+          echo "No previous tag found, generating changelog from recent commits"
+          CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges -10)
+        fi
+        
+        # Save changelog to output (escape for GitHub Actions)
+        {
+          echo "changelog<<EOF"
+          echo "$CHANGELOG"
+          echo "EOF"
+        } >> $GITHUB_OUTPUT
+    
+    - name: Update Cargo.lock
+      run: |
+        cargo check --quiet
+        echo "Cargo.lock updated"
+    
+    - name: Commit version bump
+      run: |
+        git add Cargo.toml Cargo.lock
+        git commit -m "chore: bump version to ${{ steps.version.outputs.version }}"
+        git push origin main
+    
+    - name: Create and push tag
+      run: |
+        git tag ${{ steps.version.outputs.tag }}
+        git push origin ${{ steps.version.outputs.tag }}
+        echo "Created and pushed tag: ${{ steps.version.outputs.tag }}"
+    
+    - name: Create GitHub Release
+      if: github.event.inputs.skip_release != 'true'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.version.outputs.tag }}
+        release_name: Release ${{ steps.version.outputs.tag }}
+        body: |
+          ## Changes in ${{ steps.version.outputs.tag }}
+          
+          ${{ steps.version.outputs.changelog }}
+          
+          ## Deployment Information
+          - **Environment**: Production
+          - **Build**: ${{ github.sha }}
+          - **Workflow**: [View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+        draft: false
+        prerelease: ${{ contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'rc') }}
 
   build-web-ui:
     runs-on: ubuntu-latest
@@ -209,7 +343,7 @@ jobs:
         echo "📦 Using existing registry: $REGISTRY_NAME.azurecr.io"
 
   build-and-push:
-    needs: [test, build-web-ui, setup-azure-infrastructure]
+    needs: [test, build-web-ui, setup-azure-infrastructure, version-and-release]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     outputs:
@@ -219,6 +353,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: main  # Ensure we get the updated version
     
     - name: Download static files
       uses: actions/download-artifact@v4
@@ -261,6 +397,8 @@ jobs:
           type=ref,event=pr
           type=sha,prefix=sha-,format=short
           type=raw,value=latest,enable={{is_default_branch}}
+          type=raw,value=${{ needs.version-and-release.outputs.version }}
+          type=raw,value=${{ needs.version-and-release.outputs.tag }}
     
     - name: Build and push Docker image
       id: build
@@ -270,12 +408,15 @@ jobs:
         platforms: linux/amd64
         push: true
         tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
+        labels: |
+          ${{ steps.meta.outputs.labels }}
+          org.opencontainers.image.version=${{ needs.version-and-release.outputs.version }}
+          org.opencontainers.image.revision=${{ github.sha }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
   deploy-staging:
-    needs: build-and-push
+    needs: [build-and-push, version-and-release]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: staging
@@ -305,7 +446,7 @@ jobs:
       with:
         resource-group: ${{ env.RESOURCE_GROUP }}
         dns-name-label: reframe-api-staging-${{ steps.sha.outputs.short }}
-        image: ${{ needs.build-and-push.outputs.registry-name }}.azurecr.io/${{ env.IMAGE_NAME }}:sha-${{ steps.sha.outputs.short }}
+        image: ${{ needs.build-and-push.outputs.registry-name }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ needs.version-and-release.outputs.version }}
         name: ${{ env.CONTAINER_NAME }}-staging
         location: ${{ env.LOCATION }}
         cpu: 0.5
@@ -315,6 +456,7 @@ jobs:
         environment-variables: |
           RUST_LOG=info
           PORT=3000
+          APP_VERSION=${{ needs.version-and-release.outputs.version }}
         registry-login-server: ${{ needs.build-and-push.outputs.registry-name }}.azurecr.io
         registry-username: ${{ steps.acr-creds.outputs.username }}
         registry-password: ${{ steps.acr-creds.outputs.password }}
@@ -332,6 +474,7 @@ jobs:
           --output tsv)
         
         echo "🧪 Testing staging deployment at: http://${FQDN}:3000"
+        echo "📦 Version: ${{ needs.version-and-release.outputs.version }}"
         
         # Test the health endpoint
         curl -f "http://${FQDN}:3000/health" || echo "Health check endpoint not available"
@@ -357,7 +500,7 @@ jobs:
           -w "\nHTTP Status: %{http_code}\n" || echo "API test failed"
 
   deploy-production:
-    needs: [build-and-push, deploy-staging]
+    needs: [build-and-push, deploy-staging, version-and-release]
     runs-on: ubuntu-latest
     if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
     environment: production
@@ -389,7 +532,7 @@ jobs:
       with:
         resource-group: ${{ env.RESOURCE_GROUP }}
         dns-name-label: reframe-api-prod
-        image: ${{ needs.build-and-push.outputs.registry-name }}.azurecr.io/${{ env.IMAGE_NAME }}:sha-${{ steps.sha.outputs.short }}
+        image: ${{ needs.build-and-push.outputs.registry-name }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ needs.version-and-release.outputs.version }}
         name: ${{ env.CONTAINER_NAME }}-prod
         location: ${{ env.LOCATION }}
         cpu: 1
@@ -399,6 +542,7 @@ jobs:
         environment-variables: |
           RUST_LOG=info
           PORT=3000
+          APP_VERSION=${{ needs.version-and-release.outputs.version }}
         registry-login-server: ${{ needs.build-and-push.outputs.registry-name }}.azurecr.io
         registry-username: ${{ steps.acr-creds.outputs.username }}
         registry-password: ${{ steps.acr-creds.outputs.password }}
@@ -413,7 +557,9 @@ jobs:
           --output tsv)
         
         echo "fqdn=$FQDN" >> $GITHUB_OUTPUT
-        echo "🚀 Production ACI deployment successful!"
+        echo "🚀 Production deployment successful!"
+        echo "📦 Version: ${{ needs.version-and-release.outputs.version }}"
+        echo "🏷️ Tag: ${{ needs.version-and-release.outputs.tag }}"
         echo "Web UI: http://${FQDN}:3000/"
         echo "API endpoint: http://${FQDN}:3000/reframe"
         echo "Health check: http://${FQDN}:3000/health"
@@ -426,6 +572,7 @@ jobs:
         sleep 30
         
         echo "🧪 Testing production deployment..."
+        echo "📦 Version: ${{ needs.version-and-release.outputs.version }}"
         
         # Test health endpoint
         echo "Testing health endpoint..."
@@ -457,8 +604,50 @@ jobs:
         
         echo ""
         echo "🎉 All tests completed!"
+        echo "✅ Version: ${{ needs.version-and-release.outputs.version }}"
         echo "✅ Web UI: http://${FQDN}:3000/"
         echo "✅ API: http://${FQDN}:3000/reframe"
+    
+    - name: Update GitHub Release with deployment info
+      if: needs.version-and-release.outputs.tag != ''
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const fqdn = "${{ steps.get-fqdn.outputs.fqdn }}";
+          const version = "${{ needs.version-and-release.outputs.version }}";
+          const tag = "${{ needs.version-and-release.outputs.tag }}";
+          
+          try {
+            // Get the release
+            const release = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: tag
+            });
+            
+            // Update the release body with deployment information
+            const updatedBody = release.data.body + `
+          
+          ## 🚀 Deployment Completed
+          
+          - **Production URL**: [http://${fqdn}:3000/](http://${fqdn}:3000/)
+          - **API Endpoint**: [http://${fqdn}:3000/reframe](http://${fqdn}:3000/reframe)
+          - **Health Check**: [http://${fqdn}:3000/health](http://${fqdn}:3000/health)
+          - **Deployed At**: ${new Date().toISOString()}
+          - **Git SHA**: ${context.sha}`;
+            
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.data.id,
+              body: updatedBody
+            });
+            
+            console.log(`Updated release ${tag} with deployment information`);
+          } catch (error) {
+            console.log(`Could not update release: ${error.message}`);
+          }
 
   cleanup-staging:
     needs: [deploy-production]

@@ -1,83 +1,96 @@
 # Reframe - SWIFT Message to ISO 20022 Converter
 
-Reframe is a Rust-based REST API service that converts SWIFT MT messages to ISO 20022 XML format. Supporting multiple message types including MT103, MT192, MT196, MT202, and MT210, it provides a high-performance solution for financial message transformation with an integrated web interface. Built with Rust, Axum, and the dataflow-rs workflow engine.
+Reframe is a Rust-based REST API service that converts SWIFT MT messages to ISO 20022 XML format. Currently specialized in comprehensive MT103 transformations supporting normal processing, STP (Straight Through Processing), rejection, and return scenarios. Built with Rust, Axum, and the dataflow-rs workflow engine for enterprise-grade CBPR+ compliance.
 
 ## Features
 
 - 🚀 **High Performance**: Built with Rust and Axum for maximum throughput
-- 🔄 **Multiple Message Types**: Supports MT103, MT192, MT196, MT202, and MT210 transformations
-- 🤖 **Auto-Detection**: Automatically detects SWIFT message type and applies appropriate transformation
-- 📋 **SWIFT MT Parsing**: Built-in SWIFT MT message parsing using swift-mt-message library
+- 🔄 **Comprehensive MT103 Support**: Complete implementation of all MT103 variants including STP, rejection, and return processing
+- 🤖 **Auto-Detection**: Automatically detects SWIFT message type and processing method
+- 📋 **Advanced SWIFT MT Parsing**: Built-in SWIFT MT message parsing with method detection using swift-mt-message library
 - 🌐 **Integrated Web UI**: Modern Material Design web interface with automatic sample loading
 - 🔧 **No CORS Issues**: Web UI and API served from the same origin
-- ⚡ **Workflow Engine**: Powered by dataflow-rs for robust message processing
-- 📊 **Error Handling**: Comprehensive error reporting for invalid messages
+- ⚡ **Advanced Workflow Engine**: Powered by dataflow-rs with 13+ specialized workflow stages
+- 📊 **CBPR+ Compliance**: Full Cross-Border Payments and Reporting Plus compliance
 - 🔧 **Extensible**: Modular design allows for additional message formats
-- 📁 **Configurable Workflows**: External JSON workflow definitions for easy customization
+- 📁 **Complex Workflow Management**: External JSON workflow definitions with conditional processing
 - 🚢 **Production Ready**: Complete CI/CD pipeline with Azure deployment
 - ✅ **Schema Validated**: Full ISO 20022 schema compliance with real-time validation
 
 ## Supported Transformations
 
+### MT103 Message Types (Fully Implemented)
+
+| SWIFT Message | ISO 20022 Format | Processing Method | Description | Status |
+|---------------|------------------|------------------|-------------|--------|
+| **MT103** | pacs.008.001.08 | Normal | Customer Credit Transfer | ✅ Complete |
+| **MT103 STP** | pacs.008.001.08 | Straight Through Processing | Enhanced Customer Credit Transfer with STP compliance | ✅ Complete |
+| **MT103 REJT** | pacs.002.001.10 | Rejection Processing | Payment Status Report for rejected transactions | ✅ Complete |
+| **MT103 RETN** | pacs.004.001.09 | Return Processing | Payment Return for returned transactions | ✅ Complete |
+
+### Other Message Types (Limited/Partial Implementation)
+
 | SWIFT Message | ISO 20022 Format | Description | Status |
 |---------------|------------------|-------------|--------|
-| **MT103** | pacs.008.001.08 | Customer Credit Transfer | ✅ Complete |
-| **MT102** | pacs.008.001.08 | Multiple Customer Credit Transfer | ✅ Complete |
-| **MT103+** | pacs.008.001.08 | Enhanced Customer Credit Transfer with STP | ✅ Complete |
-| **MT192** | camt.056.001.08 | Request for Cancellation | ✅ Complete |
-| **MT196** | camt.029.001.09 | Client Side Liquidity Management Answer | ✅ Complete |
-| **MT202** | pacs.009.001.08 | General Financial Institution Transfer | ✅ Complete |
-| **MT202COV** | pacs.009.001.08 | Cover Payment for Underlying Customer Credit Transfer | ✅ Complete |
-| **MT210** | camt.057.001.06 | Notice to Receive | ✅ Complete |
-| **MT195** | camt.027.001.07 | Claim Non-Receipt (Queries) | ✅ Complete |
-| **MT197** | camt.028.001.09 | Additional Payment Information (Answers) | ✅ Complete |
+| **MT202** | pacs.009.001.08 | General Financial Institution Transfer | 🔄 Parser Only |
+| **MT192** | camt.056.001.08 | Request for Cancellation | ❌ Not Implemented |
+| **MT196** | camt.029.001.09 | Client Side Liquidity Management Answer | ❌ Not Implemented |
+| **MT210** | camt.057.001.06 | Notice to Receive | ❌ Not Implemented |
 
-## 🗺️ Product Roadmap
+## 🗺️ Current Implementation Status
 
-**Current Status**: Extended CBPR+ message types ✅ **COMPLETE**
+**Focus**: Complete MT103 ecosystem with CBPR+ compliance ✅ **COMPLETE**
 
-Reframe has successfully implemented comprehensive CBPR+ (Cross-Border Payments and Reporting Plus) support for the most critical payment and cash management messages, including enhanced features and cover payments. See our detailed [**Product Roadmap**](roadmap.md) for:
+The system has achieved comprehensive MT103 transformation capabilities covering all business scenarios:
 
-- **Phase 1**: Core CBPR+ payment messages ✅ **COMPLETE** (MT103, MT202)
-- **Phase 2**: Cash management & exceptions ✅ **COMPLETE** (MT210, MT192, MT196)  
-- **Phase 3**: Enhanced CBPR+ features ✅ **COMPLETE** (MT102, MT103+, MT202COV)
-- **Phase 4**: Advanced CBPR+ queries & status (MT195, MT197, MT199) - **In Progress** (MT195, MT197 ✅ Complete)
-- **Phase 5**: Legacy message support (MT940, MT950, MT900, MT910) - **Backlog**
+- **Phase 1**: Core MT103 payment processing ✅ **COMPLETE**
+- **Phase 2**: STP-compliant processing ✅ **COMPLETE** 
+- **Phase 3**: Exception handling (rejection/return) ✅ **COMPLETE**
+- **Phase 4**: CBPR+ Business Application Header mapping ✅ **COMPLETE**
+- **Future**: Expansion to other MT message types - **Planned**
 
-**🎯 Achievement**: 100%+ message coverage for extended CBPR+ transformations - **Ready for November 2025**
+**🎯 Achievement**: 100% MT103 coverage for all processing scenarios - **Production Ready**
 
-## Workflow Configuration
+## Advanced Workflow System
 
-Reframe uses externalized JSON workflow definitions that can be modified without touching the source code. This allows for easy customization of message transformation logic.
+Reframe uses a sophisticated multi-stage workflow system with 13 specialized workflow files for comprehensive MT103 processing:
 
-### How It Works
+### Workflow Architecture
 
-- **Automatic Loading**: At startup, the application scans the `workflows/` directory for `.json` files
-- **Hot Deployment**: Modify workflows and redeploy to update transformation logic
-- **Auto-Detection**: Engine automatically detects message type and applies appropriate workflow
-- **Extensible**: Add new workflows for different message types or transformation rules
+- **Conditional Processing**: Each workflow has complex condition logic for different message types and scenarios
+- **Sequential Execution**: Workflows execute in dependency order based on previous task completion
+- **Error Handling**: Comprehensive validation and precondition checks at each stage
+- **CBPR+ Compliance**: Full implementation of Cross-Border Payments and Reporting Plus standards
 
-### Current Workflows
+### MT103 Processing Workflows
 
-The application includes comprehensive workflows for all supported message types:
-- **MT103**: `workflows/01-mt-message-parser.json` + `workflows/02-mt103-pacs008-mapping.json`
-- **MT102**: `workflows/07-mt102-pacs008-mapping.json`
-- **MT103+**: `workflows/08-mt103plus-pacs008-mapping.json`
-- **MT192**: `workflows/03-mt192-camt056-mapping.json`
-- **MT196**: `workflows/04-mt196-camt029-mapping.json`  
-- **MT202**: `workflows/05-mt202-pacs009-mapping.json`
-- **MT202COV**: `workflows/09-mt202cov-pacs009-mapping.json`
-- **MT210**: `workflows/06-mt210-camt057-mapping.json`
-- **MT195**: `workflows/15-mt195-camt027-mapping.json`
-- **MT197**: `workflows/16-mt197-camt028-mapping.json`
+#### Core Processing Pipeline
+1. **01-parse.json** - Initial SWIFT MT message parsing with method detection
+2. **02-mt103-bah-mapping.json** - Business Application Header mapping for normal/STP
+3. **03-mt103-precondition.json** - Validation and precondition checks
+4. **04-mt103-document-mapping.json** - Document structure mapping (58KB, 1099 lines)
+5. **05-mt103-combine-cbpr.json** - XML combination and final output
 
-### Customizing Workflows
+#### Rejection Processing Pipeline  
+6. **06-mt103-rejt-bah-mapping.json** - BAH mapping for rejection messages
+7. **07-mt103-rejt-precondition.json** - Rejection-specific validation
+8. **08-mt103-rejt-document-mapping.json** - pacs.002 document mapping
+9. **09-mt103-rejt-combine-cbpr.json** - Rejection XML combination
 
-1. **Modify Existing**: Edit workflow JSON files to change transformation logic
-2. **Add New**: Create additional `.json` files in the `workflows/` directory
-3. **Deploy**: Push changes and redeploy to activate new workflows
+#### Return Processing Pipeline
+10. **10-mt103-retn-bah-mapping.json** - BAH mapping for return messages  
+11. **11-mt103-retn-precondition.json** - Return-specific validation (includes UETR checks)
+12. **12-mt103-retn-document-mapping.json** - pacs.004 document mapping (27KB, 576 lines)
+13. **13-mt103-retn-combine-cbpr.json** - Return XML combination with charge validation
 
-See the [Workflows README](workflows/README.md) for detailed configuration documentation.
+### Workflow Features
+
+- **Auto-Detection**: Workflows automatically determine processing path based on message content
+- **Method Classification**: Automatic detection of normal, STP, rejection, or return processing
+- **Field Validation**: Comprehensive field validation and mandatory field checks
+- **Complex Mapping**: Advanced JSONLogic-based field transformation
+- **Settlement Logic**: Sophisticated settlement method determination
+- **Charge Processing**: Advanced charge information handling
 
 ## Quick Start
 
@@ -88,9 +101,9 @@ The application provides:
 - **Web Interface**: Integrated Material UI with split-panel layout
 - **API Endpoint**: `/reframe` for programmatic access
 - **Health Check**: `/health` for monitoring
-- Sample MT103 message loader
-- XML syntax highlighting
-- Real-time error handling
+- **Sample MT103 Variants**: Load sample normal, STP, rejection, and return messages
+- **XML Syntax Highlighting**: Real-time formatted output
+- **Method Detection**: Automatic processing method identification
 
 ### Local Development
 
@@ -156,38 +169,39 @@ docker run -p 3000:3000 reframe
 
 ## Architecture
 
-### Simplified Architecture
+### Enhanced Architecture
 
 - **Single Container**: Rust application serves both API and web UI
 - **Azure Container Instances (ACI)**: Hosts the unified service
 - **Azure Container Registry (ACR)**: Stores container images
 - **GitHub Actions**: CI/CD automation with integrated web UI build
 - **Static File Serving**: Web UI files served directly from Rust application
-- **Multi-Message Support**: Automatic detection and transformation of 5 SWIFT message types
+- **Advanced MT103 Processing**: Comprehensive support for all MT103 business scenarios
 
 ### Components
 
 1. **API Layer**: Axum-based REST server with static file serving
-2. **Web UI**: React Material-UI interface with automatic sample loading and message detection
-3. **Workflow Engine**: dataflow-rs engine orchestrating multiple transformation pipelines
-4. **Parser Module**: Custom SWIFT MT message parser supporting MT103/192/196/202/210
-5. **Publisher Module**: XML serialization for multiple ISO 20022 formats (pacs, camt)
-6. **Mapping Engine**: JSONLogic-based field mapping with schema validation
+2. **Web UI**: React Material-UI interface with automatic sample loading and method detection
+3. **Advanced Workflow Engine**: dataflow-rs engine orchestrating 13+ specialized transformation pipelines
+4. **Parser Module**: Enhanced SWIFT MT message parser with method detection (normal/STP/rejection/return)
+5. **Publisher Module**: XML serialization for multiple ISO 20022 formats (pacs.008, pacs.002, pacs.004)
+6. **Mapping Engine**: Complex JSONLogic-based field mapping with CBPR+ compliance
 
 ### Message Flow
 
 1. User accesses web interface at `/` or makes API request to `/reframe`
-2. **Parse Task**: Parses incoming SWIFT message and detects type (MT103/192/196/202/210)
-3. **Auto-Detection**: Engine automatically selects appropriate workflow based on message type
-4. **Mapping Tasks**: Message-specific transformation tasks:
-   - **MT103**: Customer Credit Transfer → pacs.008.001.08
-   - **MT192**: Request for Cancellation → camt.056.001.08  
-   - **MT196**: Investigation Answer → camt.029.001.09
-   - **MT202**: Financial Institution Transfer → pacs.009.001.08
-   - **MT210**: Notice to Receive → camt.057.001.06
-5. **Publish Task**: Serializes mapped data to appropriate ISO 20022 XML format
-6. **Validation**: Real-time schema compliance checking
-7. Returns validated XML response to client
+2. **Parse Task**: Parses incoming SWIFT message and detects type and processing method
+3. **Method Detection**: Engine determines processing path:
+   - **Normal**: Standard MT103 → pacs.008.001.08
+   - **STP**: STP-compliant MT103 → pacs.008.001.08 (STP variant)
+   - **Rejection**: MT103 with rejection codes → pacs.002.001.10
+   - **Return**: MT103 with return codes → pacs.004.001.09
+4. **Workflow Execution**: Appropriate workflow pipeline executes based on detected method
+5. **Business Application Header**: CBPR+ compliant header generation
+6. **Document Mapping**: Comprehensive field mapping with settlement logic
+7. **XML Generation**: Schema-validated ISO 20022 XML output
+8. **Validation**: Real-time schema compliance checking
+9. Returns complete XML response with proper headers
 
 ## API Reference
 
@@ -195,22 +209,22 @@ docker run -p 3000:3000 reframe
 **GET** `/`
 
 Serves the integrated React web interface with Material Design. Features include:
-- **Auto-Detection**: Paste any supported SWIFT message and it's automatically detected
-- **Sample Messages**: Load sample MT103, MT102, MT103+, MT192, MT196, MT202, MT202COV, or MT210 messages
-- **Real-time Transformation**: Convert messages with immediate feedback
+- **Method Auto-Detection**: Paste any MT103 variant and processing method is automatically detected
+- **Sample Messages**: Load sample MT103 normal, STP, rejection, or return messages
+- **Real-time Transformation**: Convert messages with immediate feedback and method identification
 - **Syntax Highlighting**: XML output with proper formatting
-- **Responsive Design**: Mobile-friendly button layout with proper wrapping
+- **Processing Method Display**: Clear indication of detected processing method
 
 ### Convert SWIFT Messages to ISO 20022
 **POST** `/reframe`
 
-Converts SWIFT messages to ISO 20022 XML format. The engine automatically detects the message type and applies the appropriate transformation workflow.
+Converts SWIFT MT103 messages to appropriate ISO 20022 XML format. The engine automatically detects the message type and processing method, applying the appropriate transformation workflow.
 
 **Request:**
 - **Content-Type**: `text/plain`
-- **Body**: Raw SWIFT message (MT103, MT102, MT103+, MT192, MT196, MT202, MT202COV, or MT210)
+- **Body**: Raw SWIFT MT103 message (any variant)
 
-**Example 1: MT103 → pacs.008.001.08**
+**Example 1: MT103 Normal → pacs.008.001.08**
 ```bash
 curl -X POST http://reframe-api-prod.eastus.azurecontainer.io:3000/reframe \
   -H "Content-Type: text/plain" \
@@ -233,98 +247,93 @@ HAUPTSTRASSE 1
 -}"
 ```
 
-**Example 2: MT192 → camt.056.001.08**
+**Example 2: MT103 STP → pacs.008.001.08 (STP)**
 ```bash
 curl -X POST http://reframe-api-prod.eastus.azurecontainer.io:3000/reframe \
   -H "Content-Type: text/plain" \
-  -d "{1:F01BNPAFRPPXXX0000000000}{2:O1921234240101DEUTDEFFXXXX12345678952401011234N}{3:{108:MT192}}{4:
-:20:REQ240101001
-:21:FT21001234567890
-:11S:103
-:32A:240101USD1000,00
-:52A:BNPAFRPPXXX
-:57A:DEUTDEFFXXX
-:72:/RETN/AC01/Invalid account number
-/CASE/CASE240101001
+  -d "{1:F01CHASUS33AXXX0000000000}{2:I103DEUTDEFFAXXXN}{3:{113:SEPA}{121:180f1e65-90e0-44d5-a49a-92b55eb3025f}}{4:
+:20:STP2024123456
+:23B:CRED
+:32A:241231USD1500000,00
+:50K:/1234567890
+GLOBAL TECH CORPORATION
+:52A:CHASUS33
+:57A:DEUTDEFF
+:59A:/DE89370400440532013000
+DEUTDEFF
+:70:/INV/INVOICE-2024-Q4-789
+:71A:SHA
 -}"
 ```
 
-**Example 3: MT210 → camt.057.001.06**
+**Example 3: MT103 Rejection → pacs.002.001.10**
 ```bash
 curl -X POST http://reframe-api-prod.eastus.azurecontainer.io:3000/reframe \
   -H "Content-Type: text/plain" \
-  -d "{1:F01BNPAFRPPXXX0000000000}{2:O2101234240101DEUTDEFFXXXX12345678952401011234N}{3:{108:MT210}}{4:
-:20:NTR240101001
-:25:12345678/001
-:32A:240101USD2500,00
-:50A:ACME CORPORATION
-:52A:BNPAFRPPXXX
-:57A:DEUTDEFFXXX
-:58A:CITIUS33XXX
-:72:/REC/Expected incoming payment
-/REF/Reference information
+  -d "{1:F01DEUTDEFFAXXX0000000000}{2:I103CHASUS33XXXXN}{3:{108:MT103REJT001}{121:12345678-1234-4123-8123-123456789012}}{4:
+:20:FT23001234567890
+:23B:CRED
+:32A:231201USD1000000,00
+:50K:/1234567890
+ACME CORPORATION
+:52A:DEUTDEFFXXX
+:57A:CHASUS33XXX
+:59:/9876543210
+BENEFICIARY COMPANY INC
+:70:INVOICE PAYMENT REF 2023-INV-001
+:71A:OUR
+:72:/REJT/
+/MREF/FT23001234567890
+/TREF/E2E-REF-2023-001
+/ReasonCode/AC01
+/TEXT/ACCOUNT IDENTIFIER INCORRECT
 -}"
 ```
 
-## Field Mapping
+## Advanced Field Mapping
 
-The application performs comprehensive mapping from SWIFT MT103 fields to ISO 20022 pacs.008.001.13 fields:
+The application performs comprehensive mapping with different target schemas based on processing method:
 
-### Group Header (GrpHdr)
-| MT103 Field | pacs.008 Field | Description |
-|-------------|----------------|-------------|
-| :20: | MsgId | Message ID/Transaction Reference |
-| System timestamp | CreDtTm | Creation Date Time |
-| Fixed: "1" | NbOfTxs | Number of Transactions |
-| :32A: amount | CtrlSum | Control Sum |
-| Fixed: "Reframe Processing System" | InitgPty.Nm | Initiating Party Name |
-| Fixed: "CLRG" | SttlmInf.SttlmMtd | Settlement Method |
+### Normal/STP Processing (→ pacs.008.001.08)
+- **Group Header (GrpHdr)**: Message identification, creation date/time, settlement information
+- **Credit Transfer Transaction Info**: Payment identification, settlement amounts, charge bearer
+- **Agents and Parties**: Debtor/creditor agents, intermediary agents, settlement agents
+- **Settlement Logic**: Advanced 4-table decision logic for settlement method determination
+- **Charge Processing**: Comprehensive charge information mapping
 
-### Credit Transfer Transaction Information (CdtTrfTxInf)
-| MT103 Field | pacs.008 Field | Description |
-|-------------|----------------|-------------|
-| :20: | PmtId.InstrId | Instruction ID |
-| :20: | PmtId.EndToEndId | End to End ID |
-| :20: | PmtId.UETR | Unique End-to-end Transaction Reference |
-| :32A: currency | IntrBkSttlmAmt.@Ccy | Settlement Amount Currency |
-| :32A: amount | IntrBkSttlmAmt.$value | Settlement Amount Value |
-| :32A: date | IntrBkSttlmDt | Settlement Date |
-| :71A: | ChrgBr | Charge Bearer (OUR→DEBT, BEN→CRED, default→SHAR) |
+### Rejection Processing (→ pacs.002.001.10)
+- **Payment Status Report**: Transaction status, original transaction references
+- **Status Reason Information**: Rejection codes, additional information
+- **Original Group Information**: References to original MT103 message
 
-### Agents and Parties
-| MT103 Field | pacs.008 Field | Description |
-|-------------|----------------|-------------|
-| :52A: | InstgAgt.FinInstnId.BICFI | Instructing Agent BIC |
-| :57A: | InstdAgt.FinInstnId.BICFI | Instructed Agent BIC |
-| :50K: | Dbtr.Nm | Debtor Name |
-| :50A: account | DbtrAcct.Id.IBAN | Debtor Account |
-| :52A: | DbtrAgt.FinInstnId.BICFI | Debtor Agent BIC |
-| :59: | Cdtr.Nm | Creditor Name |
-| :59: account | CdtrAcct.Id.IBAN | Creditor Account |
-| :57A: | CdtrAgt.FinInstnId.BICFI | Creditor Agent BIC |
-| :56A: | IntrmyAgt1.FinInstnId.BICFI | Intermediary Agent 1 BIC |
-| :56C: | IntrmyAgt2.FinInstnId.BICFI | Intermediary Agent 2 BIC |
+### Return Processing (→ pacs.004.001.09)
+- **Payment Return**: Return identification, original UETR, return amounts
+- **Return Chain**: Original debtor/creditor information, return path
+- **Return Reason**: Return codes, additional explanatory information
+- **Charges Information**: Return-related charges and fees
 
-### Additional Information
-| MT103 Field | pacs.008 Field | Description |
-|-------------|----------------|-------------|
-| :70: | RmtInf.Ustrd.0 | Remittance Information |
-| :79: | RgltryRptg.0.Dtls.0.Cd | Regulatory Reporting Code |
+### CBPR+ Business Application Header (All Methods)
+- **From/To Financial Institution**: BIC code mapping with fallback logic
+- **Business Message Identifier**: Unique message identification
+- **Message Definition Identifier**: Appropriate schema version
+- **Business Service**: CBPR+ service identification
+- **Priority**: Message priority mapping (URGT/NORM)
 
 ## Error Handling
 
 The application provides detailed error messages for various failure scenarios:
 
-- **Parse Errors**: Invalid SWIFT MT103 format
-- **Validation Errors**: Missing required fields
+- **Parse Errors**: Invalid SWIFT MT103 format or unsupported message types
+- **Method Detection Errors**: Unable to determine processing method
+- **Validation Errors**: Missing required fields, invalid field values
+- **Workflow Errors**: Precondition failures, mapping errors
 - **Serialization Errors**: XML generation failures
-- **Mapping Errors**: Field transformation issues
 
 Example error responses:
 ```json
 {"error": "Error processing data: Validation(\"Missing required field: 20\")"}
 {"error": "Error processing data: Validation(\"Invalid MT103 format\")"}
-{"error": "Error processing data: Validation(\"XML serialization failed\")"}
+{"error": "Error processing data: Validation(\"UETR is mandatory for MT103 RETN messages\")"}
 ```
 
 ## Development
@@ -332,9 +341,24 @@ Example error responses:
 ### Project Structure
 ```
 src/
-├── main.rs          # Application entry point and workflow configuration
-├── parser.rs        # SWIFT MT message parsing functionality
-└── publish.rs       # XML serialization and publishing
+├── main.rs          # Application entry point and workflow management
+├── parser.rs        # SWIFT MT message parsing with method detection
+└── publish.rs       # XML serialization for multiple ISO 20022 formats
+
+workflows/
+├── 01-parse.json                      # Initial parsing and method detection
+├── 02-mt103-bah-mapping.json         # BAH mapping (normal/STP)
+├── 03-mt103-precondition.json        # Validation checks
+├── 04-mt103-document-mapping.json    # Document mapping (58KB)
+├── 05-mt103-combine-cbpr.json        # XML combination
+├── 06-mt103-rejt-bah-mapping.json    # BAH mapping (rejection)
+├── 07-mt103-rejt-precondition.json   # Rejection validation
+├── 08-mt103-rejt-document-mapping.json # Rejection document mapping
+├── 09-mt103-rejt-combine-cbpr.json   # Rejection XML combination
+├── 10-mt103-retn-bah-mapping.json    # BAH mapping (return)
+├── 11-mt103-retn-precondition.json   # Return validation
+├── 12-mt103-retn-document-mapping.json # Return document mapping (27KB)
+└── 13-mt103-retn-combine-cbpr.json   # Return XML combination
 ```
 
 ### Building
@@ -354,37 +378,19 @@ cargo run
 
 ### Adding Support for Other Message Types
 
-To extend support for other SWIFT message types or ISO 20022 formats:
+To extend support for other SWIFT message types:
 
-1. **Add new parser logic** in `src/parser.rs` for different SWIFT message types
-2. **Create new mapping workflows** in `setup_workflows()` function
-3. **Extend publisher** in `src/publish.rs` for different output formats
-4. **Register new custom functions** if needed
+1. **Add parser logic** in `src/parser.rs` for new message types
+2. **Create workflow pipelines** following the MT103 pattern
+3. **Extend publisher** in `src/publish.rs` for new output formats
+4. **Add method detection** for different processing scenarios
 
-Example workflow for MT202 support:
-```rust
-let mt202_workflow = r#"
-{
-    "id": "mt202_to_pacs009_mapper",
-    "name": "MT202 to pacs.009.001.11 Mapper",
-    "tasks": [
-        {
-            "id": "parse_mt202",
-            "name": "Parse MT202 Message", 
-            "function": {
-                "name": "parse",
-                "input": {
-                    "format": "SwiftMT",
-                    "input_field_name": "payload",
-                    "output_field_name": "SwiftMT"
-                }
-            }
-        },
-        // ... mapping tasks specific to MT202 → pacs.009
-    ]
-}
-"#;
-```
+Example workflow structure for new message types:
+- Parse workflow for message detection
+- BAH mapping workflow for header generation
+- Precondition workflow for validation
+- Document mapping workflow for field transformation
+- Combination workflow for final XML output
 
 ## Dependencies
 
@@ -402,9 +408,9 @@ let mt202_workflow = r#"
 - **quick-xml** (0.31): XML serialization
 
 ### Financial Message Processing
-- **dataflow-rs** (0.1.8): Workflow processing engine
-- **swift-mt-message** (0.1.1): SWIFT MT message parsing
-- **mx-message** (0.1.1): ISO 20022 message structures
+- **dataflow-rs** (0.1.8): Advanced workflow processing engine
+- **swift-mt-message** (0.1.1): SWIFT MT message parsing with method detection
+- **mx-message** (0.1.1): ISO 20022 message structures (pacs.008, pacs.002, pacs.004)
 
 ## License
 
@@ -419,3 +425,13 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
+
+## 🔧 Settlement Method Logic
+
+**Fixed Settlement Method Determination:**
+- **INDA** (Instructed Agent): Default for most MT103 payments and serial payments with intermediaries
+- **INGA** (Instructing Agent): When field 53B contains "/C" prefix (clearing instruction)  
+- **COVE** (Cover Payment): Only when fields 53A AND 54A are present AND no serial routing fields (56A/57A)
+- **CLRG** (Clearing): For domestic clearing system settlement
+
+**Recent Fix:** Corrected logic that incorrectly set COVE for serial payments with field 54A present. Now properly distinguishes cover payments from serial payments with correspondent banks.

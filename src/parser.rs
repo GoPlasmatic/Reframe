@@ -56,7 +56,7 @@ impl AsyncFunctionHandler for ParserFunction {
                     "reject".to_string()
                 } else if mt103_message.fields.has_return_codes() {
                     "return".to_string()
-                } else if mt103_message.fields.is_stp_compliant() {
+                } else if mt103_message.fields.is_stp_compliant_enhanced() {
                     "stp".to_string()
                 } else {
                     "normal".to_string()

@@ -11,6 +11,8 @@ The deployment uses **Azure Container Instances (ACI)** as the most cost-effecti
 - **GitHub Actions**: Fully automated CI/CD pipeline with infrastructure provisioning
 - **Cost**: ~$15-30/month for light usage
 
+**Current Focus**: The system is specialized for comprehensive MT103 message processing, supporting normal, STP, rejection, and return scenarios with full CBPR+ compliance.
+
 ## Prerequisites
 
 Before deploying, ensure you have:
@@ -104,13 +106,13 @@ The GitHub Actions workflow (`.github/workflows/deploy-azure.yml`) provides comp
 
 ### 5. Staging Deployment
 - Deploy to staging ACI instance
-- Automated API testing
+- Automated MT103 API testing
 - Health check validation
 
 ### 6. Production Deployment
 - Deploy to production ACI instance
 - Manual approval required (GitHub environment protection)
-- Comprehensive testing
+- Comprehensive MT103 testing
 - Cleanup staging resources
 
 ## Environment Configuration
@@ -150,7 +152,11 @@ Response:
 GET http://{your-domain}:3000/
 ```
 
-### SWIFT MT103 Conversion
+### MT103 Message Conversion
+
+The API supports all MT103 variants with automatic method detection:
+
+#### MT103 Normal Processing
 ```bash
 POST http://{your-domain}:3000/reframe
 Content-Type: text/plain
@@ -167,6 +173,51 @@ ACME CORPORATION
 MUELLER GMBH
 :70:PAYMENT FOR INVOICE 12345
 :71A:OUR
+-}
+```
+
+#### MT103 STP Processing
+```bash
+POST http://{your-domain}:3000/reframe
+Content-Type: text/plain
+
+{1:F01CHASUS33AXXX0000000000}{2:I103DEUTDEFFAXXXN}{3:{113:SEPA}{121:180f1e65-90e0-44d5-a49a-92b55eb3025f}}{4:
+:20:STP2024123456
+:23B:CRED
+:32A:241231USD1500000,00
+:50K:/1234567890
+GLOBAL TECH CORPORATION
+:52A:CHASUS33
+:57A:DEUTDEFF
+:59A:/DE89370400440532013000
+DEUTDEFF
+:70:/INV/INVOICE-2024-Q4-789
+:71A:SHA
+-}
+```
+
+#### MT103 Rejection Processing
+```bash
+POST http://{your-domain}:3000/reframe
+Content-Type: text/plain
+
+{1:F01DEUTDEFFAXXX0000000000}{2:I103CHASUS33XXXXN}{3:{108:MT103REJT001}{121:12345678-1234-4123-8123-123456789012}}{4:
+:20:FT23001234567890
+:23B:CRED
+:32A:231201USD1000000,00
+:50K:/1234567890
+ACME CORPORATION
+:52A:DEUTDEFFXXX
+:57A:CHASUS33XXX
+:59:/9876543210
+BENEFICIARY COMPANY INC
+:70:INVOICE PAYMENT REF 2023-INV-001
+:71A:OUR
+:72:/REJT/
+/MREF/FT23001234567890
+/TREF/E2E-REF-2023-001
+/ReasonCode/AC01
+/TEXT/ACCOUNT IDENTIFIER INCORRECT
 -}
 ```
 

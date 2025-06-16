@@ -449,7 +449,7 @@ function App() {
                 </Group>
               </Box>
               <Box style={{ 
-                backgroundColor: '#1a1a1a',
+                backgroundColor: '#fafafa',
                 flex: 1,
                 overflow: 'hidden',
                 position: 'relative'
@@ -458,35 +458,101 @@ function App() {
                   <Box style={{ 
                     height: '100%',
                     overflow: 'auto',
+                    position: 'relative'
                   }}>
-                    <SyntaxHighlighter
-                      language="xml"
-                      style={vscDarkPlus}
-                      customStyle={{
-                        margin: 0,
-                        padding: '16px',
-                        backgroundColor: 'transparent',
-                        fontSize: '12px',
-                        lineHeight: '1.4',
-                        height: '100%',
-                        minHeight: '100%',
-                        fontFamily: 'SF Mono, Monaco, Consolas, "Courier New", monospace',
-                        overflow: 'auto',
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word'
-                      }}
-                      showLineNumbers={true}
-                      wrapLines={true}
-                      wrapLongLines={true}
-                      lineNumberStyle={{
-                        minWidth: '2.5em',
-                        paddingRight: '0.8em',
-                        color: '#666',
-                        textAlign: 'right'
-                      }}
-                    >
-                      {outputXml}
-                    </SyntaxHighlighter>
+                    <Box style={{ height: '100%', display: 'flex' }}>
+                      {/* Copy Button */}
+                      <Button
+                        variant="subtle"
+                        size="xs"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(outputXml);
+                            // You could add a notification here if needed
+                          } catch (err) {
+                            console.error('Failed to copy:', err);
+                          }
+                        }}
+                        style={{
+                          position: 'absolute',
+                          top: '8px',
+                          right: '8px',
+                          zIndex: 10,
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          color: '#667eea',
+                          border: '1px solid rgba(102, 126, 234, 0.3)',
+                          fontSize: '11px',
+                          padding: '4px 8px',
+                          height: 'auto'
+                        }}
+                      >
+                        Copy XML
+                      </Button>
+                      
+                      {/* Line Numbers - Not selectable */}
+                      <Box
+                        style={{
+                          width: '3.5em',
+                          backgroundColor: '#f5f5f5',
+                          borderRight: '1px solid #e0e0e0',
+                          fontSize: '12px',
+                          lineHeight: '1.4',
+                          fontFamily: 'SF Mono, Monaco, Consolas, "Courier New", monospace',
+                          color: '#999',
+                          textAlign: 'right',
+                          padding: '16px 8px 16px 4px',
+                          userSelect: 'none',
+                          WebkitUserSelect: 'none',
+                          MozUserSelect: 'none',
+                          overflow: 'hidden',
+                          whiteSpace: 'pre',
+                          flexShrink: 0
+                        }}
+                      >
+                        {outputXml.split('\n').map((_, index) => (
+                          <div key={index} style={{ height: '16.8px' }}>
+                            {index + 1}
+                          </div>
+                        ))}
+                      </Box>
+                      
+                      {/* XML Content - Selectable with syntax highlighting */}
+                      <Box style={{ flex: 1, overflow: 'auto' }}>
+                        <SyntaxHighlighter
+                          language="xml"
+                          style={vscDarkPlus}
+                          customStyle={{
+                            margin: 0,
+                            padding: '16px',
+                            backgroundColor: '#fafafa',
+                            fontSize: '12px',
+                            lineHeight: '1.4',
+                            height: '100%',
+                            minHeight: '100%',
+                            fontFamily: 'SF Mono, Monaco, Consolas, "Courier New", monospace',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                            color: '#333',
+                            border: 'none'
+                          }}
+                          showLineNumbers={false}
+                          wrapLines={true}
+                          wrapLongLines={true}
+                          CodeTag={({ children, ...props }) => (
+                            <code {...props} style={{ userSelect: 'text', WebkitUserSelect: 'text', MozUserSelect: 'text' }}>
+                              {children}
+                            </code>
+                          )}
+                          PreTag={({ children, ...props }) => (
+                            <pre {...props} style={{ userSelect: 'text', WebkitUserSelect: 'text', MozUserSelect: 'text' }}>
+                              {children}
+                            </pre>
+                          )}
+                        >
+                          {outputXml}
+                        </SyntaxHighlighter>
+                      </Box>
+                    </Box>
                   </Box>
                 ) : (
                   <Box style={{ 
@@ -497,7 +563,7 @@ function App() {
                     color: '#888',
                     textAlign: 'center',
                     padding: '2rem',
-                    background: 'linear-gradient(45deg, #1a1a1a 0%, #2d2d2d 100%)'
+                    background: '#fafafa'
                   }}>
                     <Stack align="center" gap="md">
                       <IconTransform size={40} style={{ opacity: 0.3 }} />

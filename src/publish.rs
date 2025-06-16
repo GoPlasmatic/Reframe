@@ -60,6 +60,14 @@ impl AsyncFunctionHandler for PublishFunction {
                 // Handle MT103_RETN.Document
                 handle_mt103_retn_document(data.clone(), message, output_field_name)
             }
+            "MT103_STP.Header" => {
+                // Handle MT103_STP.Header
+                handle_mt103_stp_header(data.clone(), message, output_field_name)
+            }
+            "MT103_STP.Document" => {
+                // Handle MT103_STP.Document
+                handle_mt103_stp_document(data.clone(), message, output_field_name)
+            }
             _ => Err(DataflowError::Validation(format!(
                 "Unsupported output format: {}",
                 source_format
@@ -342,6 +350,100 @@ fn handle_mt103_retn_document(
         }
         Err(e) => Err(DataflowError::Validation(format!(
             "PaymentReturnV09 deserialization failed: {}",
+            e
+        ))),
+    }
+}
+
+fn handle_mt103_stp_header(
+    data: Value,
+    message: &mut Message,
+    output_field_name: &str,
+) -> Result<(usize, Vec<Change>)> {
+    use mx_message::header::bah_pacs_008_001_08_stp::BusinessApplicationHeaderV02;
+
+    // Try to use the AppHdr from mx-message if the data structure is compatible
+    match serde_json::from_value::<BusinessApplicationHeaderV02>(data.clone()) {
+        Ok(header_data) => {
+            // Use mx-message serialization
+            match xml_to_string(&header_data) {
+                Ok(xml_string) => {
+                    let result_value = Value::String(xml_string);
+                    message.data[output_field_name] = result_value.clone();
+
+                    Ok((
+                        200,
+                        vec![Change {
+                            path: format!("data.{}", output_field_name),
+                            old_value: Value::Null,
+                            new_value: result_value,
+                        }],
+                    ))
+                }
+                Err(e) => {
+                    println!("STP Header XML serialization failed: {}", e);
+                    Err(DataflowError::Validation(format!(
+                        "STP Header XML serialization failed: {}",
+                        e
+                    )))
+                }
+            }
+        }
+        Err(e) => {
+            println!("STP AppHdr deserialization failed: {}", e);
+            Err(DataflowError::Validation(format!(
+                "STP AppHdr deserialization failed: {}",
+                e
+            )))
+        }
+    }
+}
+
+fn handle_mt103_stp_document(
+    data: Value,
+    message: &mut Message,
+    output_field_name: &str,
+) -> Result<(usize, Vec<Change>)> {
+    use mx_message::{
+        app_document::Document, document::pacs_008_001_08_stp::FIToFICustomerCreditTransferV08,
+    };
+
+    // Extract FIToFICstmrCdtTrf from the data (STP uses same structure as regular MT103)
+    let fi_to_fi = data.get("FIToFICstmrCdtTrf").ok_or_else(|| {
+        DataflowError::Validation("FIToFICstmrCdtTrf not found in STP document".to_string())
+    })?;
+
+    // Serialize using mx-message structures
+    match serde_json::from_value::<FIToFICustomerCreditTransferV08>(fi_to_fi.clone()) {
+        Ok(pacs_data) => {
+            let document = Document::FIToFICustomerCreditTransferV08STP(Box::new(pacs_data));
+            match xml_to_string(&document) {
+                Ok(xml_string) => {
+                    // Store as array with single document
+                    let result_array = vec![Value::String(xml_string)];
+                    let result_value = Value::Array(result_array);
+                    message.data[output_field_name] = result_value.clone();
+
+                    Ok((
+                        200,
+                        vec![Change {
+                            path: format!("data.{}", output_field_name),
+                            old_value: Value::Null,
+                            new_value: result_value,
+                        }],
+                    ))
+                }
+                Err(e) => {
+                    println!("STP Document XML serialization failed: {}", e);
+                    Err(DataflowError::Validation(format!(
+                        "STP Document XML serialization failed: {}",
+                        e
+                    )))
+                }
+            }
+        }
+        Err(e) => Err(DataflowError::Validation(format!(
+            "STP FIToFICustomerCreditTransferV08 deserialization failed: {}",
             e
         ))),
     }

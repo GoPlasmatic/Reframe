@@ -79,60 +79,61 @@ async fn setup_workflows(engine: &mut Engine) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    // Read all JSON files from the workflows directory
+    // Check if index.json exists
+    let index_path = workflows_dir.join("index.json");
+    if !index_path.exists() {
+        println!("⚠️  index.json not found in workflows directory.");
+        println!("💡 Please create an index.json file to define workflow loading order.");
+        return Ok(());
+    }
+
+    // Load and parse index.json
+    let index_content = fs::read_to_string(&index_path)
+        .map_err(|e| anyhow::anyhow!("Failed to read index.json: {}", e))?;
+
+    let index_data: Value = serde_json::from_str(&index_content)
+        .map_err(|e| anyhow::anyhow!("Failed to parse index.json: {}", e))?;
+
+    // Get workflows array from index
+    let workflows_array = index_data
+        .get("workflows")
+        .and_then(|w| w.as_array())
+        .ok_or_else(|| anyhow::anyhow!("index.json must contain a 'workflows' array"))?;
+
     let mut workflow_count = 0;
 
-    match fs::read_dir(workflows_dir) {
-        Ok(entries) => {
-            // Collect all JSON file paths and sort them by filename
-            let mut json_files: Vec<_> = entries
-                .filter_map(|entry| {
-                    let entry = entry.ok()?;
-                    let path = entry.path();
+    // Load workflows in the order specified by index.json
+    for workflow_entry in workflows_array {
+        let workflow_path = workflow_entry
+            .get("path")
+            .and_then(|p| p.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Each workflow entry must have a 'path' field"))?;
 
-                    // Only include .json files
-                    if path.extension().and_then(|s| s.to_str()) == Some("json") {
-                        Some(path)
-                    } else {
-                        None
-                    }
-                })
-                .collect();
+        let full_path = workflows_dir.join(workflow_path);
 
-            // Sort by filename
-            json_files.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
-
-            // Process files in sorted order
-            for path in json_files {
-                match load_workflow_from_file(&path) {
-                    Ok(workflow) => {
-                        engine.add_workflow(&workflow);
-                        workflow_count += 1;
-                        println!(
-                            "✅ Loaded workflow: {} from {}",
-                            workflow.name,
-                            path.display()
-                        );
-                    }
-                    Err(e) => {
-                        println!("❌ Failed to load workflow from {}: {}", path.display(), e);
-                    }
-                }
+        match load_workflow_from_file(&full_path) {
+            Ok(workflow) => {
+                engine.add_workflow(&workflow);
+                workflow_count += 1;
+                println!(
+                    "✅ Loaded workflow: {} (id: {}) from {}",
+                    workflow.name, workflow.id, workflow_path
+                );
             }
-        }
-        Err(e) => {
-            println!("❌ Failed to read workflows directory: {}", e);
-            return Err(anyhow::anyhow!("Could not read workflows directory: {}", e));
+            Err(e) => {
+                println!("❌ Failed to load workflow from {}: {}", workflow_path, e);
+            }
         }
     }
 
     if workflow_count == 0 {
-        println!("⚠️  No workflow files found in 'workflows/' directory.");
-        println!(
-            "💡 Add JSON workflow files to the 'workflows/' directory to enable message processing."
-        );
+        println!("⚠️  No workflows were successfully loaded.");
+        println!("💡 Check that all workflow files referenced in index.json exist and are valid.");
     } else {
-        println!("🎯 Successfully loaded {} workflow(s)", workflow_count);
+        println!(
+            "🎯 Successfully loaded {} workflow(s) from index.json",
+            workflow_count
+        );
     }
 
     Ok(())

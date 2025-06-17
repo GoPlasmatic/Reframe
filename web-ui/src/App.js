@@ -86,7 +86,9 @@ function App() {
     try {
       const PADDING = ' '.repeat(2);
       const reg = /(>)(<)(\/*)/g;
-      let formatted = xml.replace(reg, '$1\r\n$2$3');
+      let formatted = xml.replace(reg, function(match, p1, p2, p3) {
+        return p1 + '\r\n' + p2 + p3;
+      });
       let pad = 0;
       
       return formatted.split('\r\n').map((node) => {

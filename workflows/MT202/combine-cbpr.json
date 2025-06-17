@@ -1,0 +1,42 @@
+{
+    "id": "mt202-combine-cbpr",
+    "name": "MT202 CBPR+ Simple XML Combiner",
+    "description": "Combines header and documents XML using direct publishing of MX structures for all MT202 variants",
+    "priority": 5,
+    "condition": {
+        "and": [
+            { "in": [ { "var": "SwiftMT.message_type" }, ["202", "205"] ] },
+            { "==": [ { "var": "SwiftMT.method" }, "normal" ] },
+            { "==": [ { "var": "progress.workflow_id" }, "mt202-document-mapper"] },
+            { "in": [ { "var": "progress.task_id" }, ["publish_document_xml", "publish_cov_document_xml", "publish_rejt_document_xml", "publish_retn_document_xml"] ] },
+            { "==": [ { "var": "progress.status_code" }, 200 ] }
+        ]
+    },
+    "tasks": [
+        {
+            "id": "combine_xml_strings",
+            "name": "Combine Header and Document XML Strings",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.result",
+                            "logic": {
+                                "map": [
+                                    { "val": [ "data", "document_xml" ] },
+                                    { "cat": [
+                                        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
+                                        { "val": [ [2], "data", "header_xml" ] },
+                                        "\n",
+                                        { "val": [] }
+                                    ]}
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+} 

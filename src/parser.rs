@@ -79,7 +79,16 @@ impl AsyncFunctionHandler for ParserFunction {
                         "MT202 message not found in SwiftMT message".to_string(),
                     ));
                 };
-                method = "normal".to_string();
+                method = if mt202_message.fields.has_reject_codes() {
+                    "reject".to_string()
+                } else if mt202_message.fields.has_return_codes() {
+                    "return".to_string()
+                } else if mt202_message.fields.is_cover_message() {
+                    "cover".to_string()
+                } else {
+                    "normal".to_string()
+                };
+
                 match serde_json::to_value(&mt202_message) {
                     Ok(json_value) => json_value,
                     Err(e) => {

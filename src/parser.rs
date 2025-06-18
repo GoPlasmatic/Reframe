@@ -79,11 +79,22 @@ impl AsyncFunctionHandler for ParserFunction {
                         "MT202 message not found in SwiftMT message".to_string(),
                     ));
                 };
+
+                // Extract sender and receiver BICs from headers
+                let sender_bic = mt202_message.basic_header.logical_terminal.to_string();
+                let receiver_bic = mt202_message
+                    .application_header
+                    .destination_address
+                    .to_string();
+
                 method = if mt202_message.fields.has_reject_codes() {
                     "reject".to_string()
                 } else if mt202_message.fields.has_return_codes() {
                     "return".to_string()
-                } else if mt202_message.fields.is_cover_message() {
+                } else if mt202_message
+                    .fields
+                    .is_cover_message(&sender_bic, &receiver_bic)
+                {
                     "cover".to_string()
                 } else {
                     "normal".to_string()

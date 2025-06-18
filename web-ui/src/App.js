@@ -136,7 +136,7 @@ REGULATORY REQUIREMENTS
     name: 'MT202 COV → ISO 20022 pacs.009.001.08 COVE',
     description: 'Cover Payment using Correspondent Banks',
     targetFormat: 'ISO 20022 pacs.009.001.08 COVE XML',
-    sample: `{1:F01BANKUS33AXXX0000000000}{2:I202BANKDE55XXXXN}{3:{113:NOMF}{108:COVER001}{119:COV}}{4:
+    sample: `{1:F01BANKUS33AXXX0000000000}{2:I202BANKDE55XXXXN}{3:{113:NOMF}{108:COVER001}{119:COV}{121:12345678-1234-4123-8123-123456789012}}{4:
 :20:FT220315001
 :21:REL220315001
 :32A:220315USD1000000,00
@@ -228,7 +228,7 @@ CORPBEBBXXX
 :58A:/SG56HSBC000012345679
 HSBCSGSG
 :72:/INS/CORPORATE COVER PAYMENT
-/PUR/QUARTERLY DIVIDEND DISTRIBUTION
+/PUR/QUARTERLY DIVIDEND DIST
 CORPORATE CORRESPONDENT ROUTING
 -}`
   },
@@ -340,6 +340,13 @@ function App() {
     }
   };
 
+  // Helper function to safely escape special characters in XML content
+  const escapeXmlForTemplateString = (xml) => {
+    if (typeof xml !== 'string') return xml;
+    // Escape dollar signs and backslashes that could be interpreted as template literal placeholders
+    return xml.replace(/\$/g, '\\$').replace(/`/g, '\\`');
+  };
+
   const handleTransform = async () => {
     if (!inputMessage.trim()) {
       setError(['Please enter a SWIFT message']);
@@ -387,9 +394,10 @@ function App() {
         if (jsonResponse.results && jsonResponse.results.length > 0) {
           if (jsonResponse.message_type === 'multiple') {
             // Multiple results - show as numbered XML outputs
-            const formattedResults = jsonResponse.results.map((xml, index) => 
-              `<!-- Result ${index + 1}/${jsonResponse.count} -->\n${formatXml(xml)}`
-            ).join('\n\n<!-- ========================== -->\n\n');
+            const formattedResults = jsonResponse.results.map((xml, index) => {
+              const safeXml = escapeXmlForTemplateString(formatXml(xml));
+              return `<!-- Result ${index + 1}/${jsonResponse.count} -->\n${safeXml}`;
+            }).join('\n\n<!-- ========================== -->\n\n');
             setOutputXml(formattedResults);
           } else {
             // Single result

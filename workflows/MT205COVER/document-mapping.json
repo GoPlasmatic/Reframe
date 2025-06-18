@@ -1,0 +1,192 @@
+{
+    "id": "mt205cov-document-mapper",
+    "name": "MT205 COV to pacs.009 Document Mapping for CBPR+",
+    "description": "Maps MT205 COV message to ISO 20022 pacs.009.001.08 FinancialInstitutionCreditTransferV08 document structure for Corporate Cover payments",
+    "priority": 4,
+    "condition": {
+        "and": [
+            {"==": [{"var": "SwiftMT.message_type"}, "205"]},
+            {"==": [{"var": "SwiftMT.method"}, "cover"]},
+            {"==": [{"var": "progress.workflow_id"}, "mt205cov-precondition"]},
+            {"==": [{"var": "progress.task_id"}, "MT205COV_set_cover_translation"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "METAFCT002_settlement_method_determination",
+            "name": "METAFCT002: Settlement Method and Agents Determination for COV",
+            "description": "Implements the 4-table decision logic for fields 53a, 54a to determine settlement method and reimbursement agents for cover payments",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.settlement_method",
+                            "logic": "INDA"
+                        },
+                        {
+                            "path": "temp_data.instructing_reimbursement_agent_bic",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.SwiftMT.fields.53A.bic"},
+                                    {"var": "data.SwiftMT.fields.53A.bic"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.instructed_reimbursement_agent_bic",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.SwiftMT.fields.54A.bic"},
+                                    {"var": "data.SwiftMT.fields.54A.bic"},
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_group_header",
+            "name": "Map pacs.009 Group Header for COV",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.Document.FIToFICdtTrf.GrpHdr.MsgId",
+                            "logic": {"var": "data.SwiftMT.fields.20.transaction_reference"}
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.GrpHdr.CreDtTm",
+                            "logic": {
+                                "cat": [
+                                    {"var": "data.SwiftMT.fields.32A.value_date"},
+                                    "T",
+                                    {
+                                        "format_date": [
+                                            {"now": []},
+                                            "HH:mm:ss"
+                                        ]
+                                    },
+                                    "+00:00"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.GrpHdr.NbOfTxs",
+                            "logic": "1"
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmMtd",
+                            "logic": {"var": "temp_data.settlement_method"}
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf.InstrReimbAgt.FinInstnId.BICFI",
+                            "logic": {"var": "temp_data.instructing_reimbursement_agent_bic"}
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf.InstdReimbAgt.FinInstnId.BICFI",
+                            "logic": {"var": "temp_data.instructed_reimbursement_agent_bic"}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_credit_transfer_transaction",
+            "name": "Map Credit Transfer Transaction Information for COV",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtId.InstrId",
+                            "logic": {"var": "data.SwiftMT.fields.20.transaction_reference"}
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtId.EndToEndId",
+                            "logic": {"var": "data.SwiftMT.fields.21.related_reference"}
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtId.UETR",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                    {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy",
+                            "logic": {"var": "data.SwiftMT.fields.32A.currency"}
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.IntrBkSttlmAmt.$value",
+                            "logic": {"var": "data.SwiftMT.fields.32A.amount"}
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.IntrBkSttlmDt",
+                            "logic": {"var": "data.SwiftMT.fields.32A.value_date"}
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.InstgAgt.FinInstnId.BICFI",
+                            "logic": {"var": "temp_data.Sender"}
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.InstdAgt.FinInstnId.BICFI",
+                            "logic": {"var": "temp_data.Receiver"}
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.Dbtr.FinInstnId.BICFI",
+                            "logic": {"var": "data.SwiftMT.fields.52A.bic"}
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.Cdtr.FinInstnId.BICFI",
+                            "logic": {"var": "data.SwiftMT.fields.58A.bic"}
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.RmtInf.Ustrd",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.SwiftMT.fields.72.sender_to_receiver_info"},
+                                    {
+                                        "reduce": [
+                                            {"var": "data.SwiftMT.fields.72.sender_to_receiver_info"},
+                                            {
+                                                "cat": [
+                                                    {"var": "accumulator"},
+                                                    " ",
+                                                    {"var": "current"}
+                                                ]
+                                            },
+                                            ""
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "publish_cov_document_xml",
+            "name": "Publish COV Document XML",
+            "description": "Publish the COV Document XML to the output field",
+            "function": {
+                "name": "publish",
+                "input": {
+                    "input_field_name": "Document",
+                    "output_field_name": "document_xml",
+                    "source_format": "MT205_COV.Document"
+                }
+            }
+        }
+    ]
+} 

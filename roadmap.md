@@ -30,6 +30,17 @@ The system now provides comprehensive support for all MT202 business scenarios w
 | **MT 202 REJT** | pacs.002.001.10 | Rejection Processing | ✅ **Complete** - Rejection workflow (4 stages) |
 | **MT 202 RETN** | pacs.004.001.09 | Return Processing | ✅ **Complete** - Return workflow (4 stages) |
 
+### MT205 Message Ecosystem (Fully Implemented ✅)
+
+The system now provides comprehensive support for all MT205 business scenarios with complete workflow pipelines:
+
+| MT Message Variant | ISO 20022 Equivalent | Processing Method | Implementation Status |
+| -------------------- | -------------------- | ------------------ | --------------------- |
+| **MT 205 (Normal)** | pacs.009.001.08 | Standard Corporate Transfer | ✅ **Complete** - Full workflow (4 stages) |
+| **MT 205 COV** | pacs.009.001.08 COVE | Corporate Cover Payment | ✅ **Complete** - Cover workflow (4 stages) |
+| **MT 205 REJT** | pacs.002.001.10 | Rejection Processing | ✅ **Complete** - Rejection workflow (4 stages) |
+| **MT 205 RETN** | pacs.004.001.09 | Return Processing | ✅ **Complete** - Return workflow (4 stages) |
+
 ### Workflow Implementation Details
 
 #### MT103 Processing Pipeline (13 workflows total)
@@ -76,6 +87,31 @@ The system now provides comprehensive support for all MT202 business scenarios w
 - **16-mt202-retn-document-mapping.json**: pacs.004 return structure (433 lines)
 - **17-mt202-retn-combine-cbpr.json**: Return XML combination
 
+#### MT205 Processing Pipeline (4 workflows total)
+- **01-parse.json**: Message parsing with method detection (shared)
+- **02-mt205-bah-mapping.json**: Business Application Header mapping for corporate transfers
+- **03-mt205-precondition.json**: Validation and precondition checks for corporate payments
+- **04-mt205-document-mapping.json**: Comprehensive document mapping for corporate transfers
+- **05-mt205-combine-cbpr.json**: XML combination and output
+
+#### MT205 Cover Processing Pipeline
+- **06-mt205cov-bah-mapping.json**: BAH mapping for pacs.009 COVE corporate cover payments
+- **07-mt205cov-precondition.json**: Corporate cover validation and message type setting
+- **08-mt205cov-document-mapping.json**: pacs.009.001.08 COVE document structure for corporate cover
+- **09-mt205cov-combine-cbpr.json**: Corporate cover XML combination and output
+
+#### MT205 Rejection Processing Pipeline
+- **10-mt205-rejt-bah-mapping.json**: BAH mapping for pacs.002 corporate rejection
+- **11-mt205-rejt-precondition.json**: Corporate rejection validation with field 72 checks
+- **12-mt205-rejt-document-mapping.json**: pacs.002 document structure for corporate rejections
+- **13-mt205-rejt-combine-cbpr.json**: Corporate rejection XML output
+
+#### MT205 Return Processing Pipeline
+- **14-mt205-retn-bah-mapping.json**: BAH mapping for pacs.004 corporate return
+- **15-mt205-retn-precondition.json**: Corporate return validation with UETR requirements
+- **16-mt205-retn-document-mapping.json**: pacs.004 return structure for corporate returns
+- **17-mt205-retn-combine-cbpr.json**: Corporate return XML combination
+
 ---
 
 ## 📊 Other Message Types (Not Implemented)
@@ -100,8 +136,8 @@ The system now provides comprehensive support for all MT202 business scenarios w
 | **MT 200 / 201 / 203** | pacs.009.001.08 | ❌ **Not Implemented** |
 | **MT 202 COV / MT 205 COV** | pacs.009.001.08 COVE | ✅ **Complete** - Cover payment processing |
 | **MT 204** | pacs.010.001.03 | ❌ **Not Implemented** |
-| **MT 205** | pacs.009.001.08 | 🔄 **Planned** - Similar to MT202 |
-| **MT 205/RETN** | pacs.004.001.09 | 🔄 **Planned** - Return processing variant |
+| **MT 205** | pacs.009.001.08 | ✅ **Complete** - Corporate financial institution transfer |
+| **MT 205/RETN** | pacs.004.001.09 | ✅ **Complete** - Corporate return processing variant |
 | **MT 210** | camt.057.001.06 | ❌ **Not Implemented** |
 | **MT 292** | camt.056.001.08 / camt.058.001.06 | ❌ **Not Implemented** |
 | **MT 296** | camt.029.001.09 | ❌ **Not Implemented** |
@@ -134,7 +170,7 @@ The system now provides comprehensive support for all MT202 business scenarios w
 | MT Message | ISO 20022 Equivalent | Current Status |
 | --------------------------- | ------------------------------------------------ | ----------------|
 | **MT 199 / 299** | admi.024.001.01 (Notification of Correspondence) | ❌ **Not Implemented** |
-| **Business Application Header** | head.001.001.02 | ✅ **Complete** (for MT103/MT202) |
+| **Business Application Header** | head.001.001.02 | ✅ **Complete** (for MT103/MT202/MT205) |
 
 ---
 
@@ -142,7 +178,8 @@ The system now provides comprehensive support for all MT202 business scenarios w
 
 ### Implemented Features ✅
 - **Complete MT103 Ecosystem**: All variants (normal, STP, rejection, return)
-- **Complete MT202 Ecosystem**: All variants (normal, rejection, return)
+- **Complete MT202 Ecosystem**: All variants (normal, cover, rejection, return)
+- **Complete MT205 Ecosystem**: All variants (normal, cover, rejection, return)
 - **CBPR+ Compliance**: Full Business Application Header implementation
 - **Advanced Workflow Engine**: Multi-stage conditional processing pipeline
 - **Method Auto-Detection**: Automatic processing path determination
@@ -162,7 +199,7 @@ The system now provides comprehensive support for all MT202 business scenarios w
 
 | **Status** | **Message Types** | **Workflows** | **Percentage** |
 |------------|-------------------|---------------|----------------|
-| ✅ **Complete** | 2 (MT103 + MT202 ecosystems including COV) | 27 workflows | 100% (Core payment ecosystems) |
+| ✅ **Complete** | 3 (MT103 + MT202 + MT205 ecosystems including COV) | 37 workflows | 100% (Core payment ecosystems) |
 | 🔄 **Parser Only** | 0 | 0 workflows | None |
 | ❌ **Not Implemented** | 30+ message types | 0 workflows | Future development |
 
@@ -180,9 +217,11 @@ The system now provides comprehensive support for all MT202 business scenarios w
 - **Enhanced Settlement Logic**: INDA settlement method for cover payments
 - **Correspondent Bank Routing**: Full support for fields 53A/54A correspondent banks
 
-### Phase 3: Additional Payment Types (Future)
-- **MT205**: Financial institution transfer variant
-- **MT205/RETN**: Return processing variant
+### Phase 3: Corporate Payment Types ✅ **COMPLETE**
+- **MT205**: Corporate financial institution transfer
+- **MT205/COV**: Corporate cover payment processing
+- **MT205/REJT**: Corporate rejection processing variant
+- **MT205/RETN**: Corporate return processing variant
 
 ### Phase 4: Exception Messages (Future)  
 - **MT192**: Request for Cancellation → camt.056.001.08
@@ -203,13 +242,14 @@ The system now provides comprehensive support for all MT202 business scenarios w
 
 ## 🎯 Current Achievement
 
-**Status**: Both MT103 and MT202 ecosystems fully implemented with enterprise-grade CBPR+ compliance
+**Status**: MT103, MT202, and MT205 ecosystems fully implemented with enterprise-grade CBPR+ compliance
 
-The Reframe system has achieved **100% completion** for both the MT103 and MT202 message ecosystems, providing comprehensive transformation capabilities for:
+The Reframe system has achieved **100% completion** for three major message ecosystems, providing comprehensive transformation capabilities for:
 
 - **MT103**: Customer credit transfers with normal, STP, rejection, and return processing
 - **MT202**: Financial institution transfers with normal, cover, rejection, and return processing
+- **MT205**: Corporate financial institution transfers with normal, cover, rejection, and return processing
 
-This represents complete, production-ready solutions for the two most critical SWIFT payment message types in interbank processing, including advanced cover payment scenarios using correspondent banking relationships.
+This represents complete, production-ready solutions for the three most critical SWIFT payment message types in interbank and corporate processing, including advanced cover payment scenarios using correspondent banking relationships.
 
 ---

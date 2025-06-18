@@ -111,6 +111,36 @@ impl AsyncFunctionHandler for ParserFunction {
                         })
                     }
                 }
+            } else if message_type == "205" {
+                let Some(mt205_message) = parsed_message.into_mt205() else {
+                    return Err(DataflowError::Validation(
+                        "MT205 message not found in SwiftMT message".to_string(),
+                    ));
+                };
+
+                let sender_bic = mt205_message.basic_header.logical_terminal.to_string();
+
+                method = if mt205_message.fields.has_reject_codes() {
+                    "reject".to_string()
+                } else if mt205_message.fields.has_return_codes() {
+                    "return".to_string()
+                } else if mt205_message.fields.is_cover_message(&sender_bic) {
+                    "cover".to_string()
+                } else {
+                    "normal".to_string()
+                };
+
+                match serde_json::to_value(&mt205_message) {
+                    Ok(json_value) => json_value,
+                    Err(e) => {
+                        println!("JSON conversion failed: {:?}", e);
+                        json!({
+                            "conversion_error": format!("{:?}", e),
+                            "message_type": message_type,
+                            "raw_payload": payload
+                        })
+                    }
+                }
             } else {
                 method = "normal".to_string();
                 json!({

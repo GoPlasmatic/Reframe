@@ -1,0 +1,171 @@
+{
+    "id": "mt205rejt-document-mapper",
+    "name": "MT205 REJT to pacs.002 Document Mapping for CBPR+",
+    "description": "Maps MT205 REJT message to ISO 20022 pacs.002.001.10 PaymentStatusReportV10 document structure for Corporate payment rejection",
+    "priority": 4,
+    "condition": {
+        "and": [
+            {"==": [{"var": "SwiftMT.message_type"}, "205"]},
+            {"==": [{"var": "SwiftMT.method"}, "reject"]},
+            {"==": [{"var": "progress.workflow_id"}, "mt205rejt-precondition"]},
+            {"==": [{"var": "progress.task_id"}, "MT205REJT_set_reject_translation"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "map_group_header",
+            "name": "Map pacs.002 Group Header",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.GrpHdr.MsgId",
+                            "logic": {"var": "data.SwiftMT.fields.20.transaction_reference"}
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.GrpHdr.CreDtTm",
+                            "logic": "9999-12-31T00:00:00+00:00"
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstgAgt.FinInstnId.BICFI",
+                            "logic": {"var": "temp_data.Sender"}
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstdAgt.FinInstnId.BICFI",
+                            "logic": {"var": "temp_data.Receiver"}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_original_group_information",
+            "name": "Map Original Group Information",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlGrpInf.OrgnlMsgId",
+                            "logic": {"var": "data.SwiftMT.fields.21.related_reference"}
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId",
+                            "logic": "MT205"
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlInstrId",
+                            "logic": {"var": "data.SwiftMT.fields.21.related_reference"}
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlEndToEndId",
+                            "logic": {"var": "data.SwiftMT.fields.21.related_reference"}
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlUETR",
+                            "logic": {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_transaction_status",
+            "name": "Map Transaction Status Information",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.TxSts",
+                            "logic": "RJCT"
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.InstgAgt.FinInstnId.BICFI",
+                            "logic": {"var": "temp_data.Sender"}
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.InstdAgt.FinInstnId.BICFI",
+                            "logic": {"var": "temp_data.Receiver"}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_status_reason_information",
+            "name": "Map Status Reason Information",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf",
+                            "logic": {}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_status_reason_details",
+            "name": "Map Status Reason Details",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.Rsn.Cd",
+                            "logic": "G000"
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.AddtlInf",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.SwiftMT.fields.72.information"},
+                                    [
+                                        {
+                                            "reduce": [
+                                                {"var": "data.SwiftMT.fields.72.information"},
+                                                {
+                                                    "if": [
+                                                        {"starts_with": [{"var": "current"}, "/TEXT/"]},
+                                                        {
+                                                            "cat": [
+                                                                {"var": "accumulator"},
+                                                                " ",
+                                                                {"substr": [{"var": "current"}, 6]}
+                                                            ]
+                                                        },
+                                                        {"var": "accumulator"}
+                                                    ]
+                                                },
+                                                ""
+                                            ]
+                                        }
+                                    ],
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "publish_rejt_document_xml",
+            "name": "Publish REJT Document XML",
+            "description": "Publish the REJT Document XML to the output field",
+            "function": {
+                "name": "publish",
+                "input": {
+                    "input_field_name": "Document",
+                    "output_field_name": "document_xml",
+                    "source_format": "MT205_REJT.Document"
+                }
+            }
+        }
+    ]
+} 

@@ -28,33 +28,95 @@
                                     { "and": [
                                         { "!": { "var": "data.SwiftMT.fields.53A" } },
                                         { "!": { "var": "data.SwiftMT.fields.53B" } },
-                                        { "!": { "var": "data.SwiftMT.fields.53C" } },
                                         { "!": { "var": "data.SwiftMT.fields.53D" } },
                                         { "!": { "var": "data.SwiftMT.fields.54A" } },
                                         { "!": { "var": "data.SwiftMT.fields.54B" } },
-                                        { "!": { "var": "data.SwiftMT.fields.54C" } },
                                         { "!": { "var": "data.SwiftMT.fields.54D" } }
                                     ]},
                                     "INDA",
                                     {
                                         "if": [
-                                            { "var": "data.SwiftMT.fields.53B.party_identifier" },
+                                            { "and": [
+                                                { "or": [
+                                                    { "var": "data.SwiftMT.fields.53A" },
+                                                    { "var": "data.SwiftMT.fields.53B" },
+                                                    { "var": "data.SwiftMT.fields.53D" }
+                                                ]},
+                                                { "!": { "or": [
+                                                    { "var": "data.SwiftMT.fields.54A" },
+                                                    { "var": "data.SwiftMT.fields.54B" },
+                                                    { "var": "data.SwiftMT.fields.54D" }
+                                                ]}}
+                                            ]},
                                             {
                                                 "if": [
-                                                    { "starts_with": [{ "var": "data.SwiftMT.fields.53B.party_identifier" }, "/C"] },
-                                                    "INGA",
-                                                    "INDA"
+                                                    { "and": [
+                                                        { "var": "data.SwiftMT.fields.53B.party_identifier" },
+                                                        { "starts_with": [{ "var": "data.SwiftMT.fields.53B.party_identifier" }, "/"] }
+                                                    ]},
+                                                    {
+                                                        "if": [
+                                                            { "starts_with": [{ "var": "data.SwiftMT.fields.53B.party_identifier" }, "/C"] },
+                                                            "INGA",
+                                                            "INDA"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "if": [
+                                                            { "and": [
+                                                                { "var": "data.SwiftMT.fields.53A.bic.raw" },
+                                                                { "or": [
+                                                                    { "==": [{ "substr": [{ "var": "data.SwiftMT.fields.53A.bic.raw" }, 0, 6] }, { "substr": [{ "var": "temp_data.Sender" }, 0, 6] }] },
+                                                                    { "==": [{ "substr": [{ "var": "data.SwiftMT.fields.53A.bic.raw" }, 0, 6] }, { "substr": [{ "var": "temp_data.Receiver" }, 0, 6] }] }
+                                                                ]}
+                                                            ]},
+                                                            "INDA",
+                                                            "COVE"
+                                                        ]
+                                                    }
                                                 ]
                                             },
                                             {
                                                 "if": [
                                                     { "and": [
-                                                        { "var": "data.SwiftMT.fields.53A" },
-                                                        { "var": "data.SwiftMT.fields.54A" },
-                                                        { "!": { "var": "data.SwiftMT.fields.56A" } },
-                                                        { "!": { "var": "data.SwiftMT.fields.57A" } }
+                                                        { "or": [
+                                                            { "var": "data.SwiftMT.fields.53A" },
+                                                            { "var": "data.SwiftMT.fields.53B" },
+                                                            { "var": "data.SwiftMT.fields.53D" }
+                                                        ]},
+                                                        { "or": [
+                                                            { "var": "data.SwiftMT.fields.54A" },
+                                                            { "var": "data.SwiftMT.fields.54B" },
+                                                            { "var": "data.SwiftMT.fields.54D" }
+                                                        ]}
                                                     ]},
-                                                    "COVE",
+                                                    {
+                                                        "if": [
+                                                            { "and": [
+                                                                { "var": "data.SwiftMT.fields.53A.bic.raw" },
+                                                                { "var": "data.SwiftMT.fields.54A.bic.raw" },
+                                                                { "==": [{ "var": "data.SwiftMT.fields.53A.bic.raw" }, { "var": "temp_data.Sender" }] },
+                                                                { "==": [{ "var": "data.SwiftMT.fields.54A.bic.raw" }, { "var": "temp_data.Receiver" }] }
+                                                            ]},
+                                                            "INDA",
+                                                            {
+                                                                "if": [
+                                                                    { "and": [
+                                                                        { "var": "data.SwiftMT.fields.53B.party_identifier" },
+                                                                        { "starts_with": [{ "var": "data.SwiftMT.fields.53B.party_identifier" }, "/"] }
+                                                                    ]},
+                                                                    {
+                                                                        "if": [
+                                                                            { "starts_with": [{ "var": "data.SwiftMT.fields.53B.party_identifier" }, "/C"] },
+                                                                            "INGA",
+                                                                            "INDA"
+                                                                        ]
+                                                                    },
+                                                                    "COVE"
+                                                                ]
+                                                            }
+                                                        ]
+                                                    },
                                                     "INDA"
                                                 ]
                                             }
@@ -67,12 +129,40 @@
                             "path": "temp_data.settlement_account",
                             "logic": {
                                 "if": [
-                                    { "var": "data.SwiftMT.fields.53B.party_identifier" },
+                                    { "and": [
+                                        { "in": [{ "var": "temp_data.settlement_method" }, ["INDA", "INGA"]] },
+                                        { "or": [
+                                            { "and": [
+                                                { "var": "data.SwiftMT.fields.53B.party_identifier" },
+                                                { "starts_with": [{ "var": "data.SwiftMT.fields.53B.party_identifier" }, "/"] }
+                                            ]},
+                                            { "and": [
+                                                { "var": "data.SwiftMT.fields.53A.party_identifier" },
+                                                { "starts_with": [{ "var": "data.SwiftMT.fields.53A.party_identifier" }, "/"] }
+                                            ]},
+                                            { "and": [
+                                                { "var": "data.SwiftMT.fields.53D.party_identifier" },
+                                                { "starts_with": [{ "var": "data.SwiftMT.fields.53D.party_identifier" }, "/"] }
+                                            ]}
+                                        ]}
+                                    ]},
                                     {
                                         "if": [
-                                            { "starts_with": [{ "var": "data.SwiftMT.fields.53B.party_identifier" }, "/"] },
+                                            { "var": "data.SwiftMT.fields.53B.party_identifier" },
                                             { "substr": [{ "var": "data.SwiftMT.fields.53B.party_identifier" }, 1] },
-                                            null
+                                            {
+                                                "if": [
+                                                    { "var": "data.SwiftMT.fields.53A.party_identifier" },
+                                                    { "substr": [{ "var": "data.SwiftMT.fields.53A.party_identifier" }, 1] },
+                                                    {
+                                                        "if": [
+                                                            { "var": "data.SwiftMT.fields.53D.party_identifier" },
+                                                            { "substr": [{ "var": "data.SwiftMT.fields.53D.party_identifier" }, 1] },
+                                                            null
+                                                        ]
+                                                    }
+                                                ]
+                                            }
                                         ]
                                     },
                                     null
@@ -241,13 +331,7 @@
                                 "if": [
                                     { "var": "temp_data.instructing_reimbursement_agent_bic" },
                                     { "var": "temp_data.instructing_reimbursement_agent_bic" },
-                                    {
-                                        "if": [
-                                            { "==": [{"var": "SwiftMT.method"}, "stp"] },
-                                            { "var": "temp_data.Sender" },
-                                            null
-                                        ]
-                                    }
+                                    null
                                 ]
                             }
                         },
@@ -255,15 +339,21 @@
                             "path": "data.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstrReimbAgt.FinInstnId.Nm",
                             "logic": {
                                 "if": [
-                                    { "var": "data.SwiftMT.fields.53D.name_and_address" },
-                                    { "var": "data.SwiftMT.fields.53D.name_and_address.0" },
+                                    { "var": "temp_data.instructing_reimbursement_agent_bic" },
                                     {
                                         "if": [
-                                            { "var": "data.SwiftMT.fields.53C.name_and_address" },
-                                            { "var": "data.SwiftMT.fields.53C.name_and_address.0" },
-                                            null
+                                            { "var": "data.SwiftMT.fields.53D.name_and_address" },
+                                            { "var": "data.SwiftMT.fields.53D.name_and_address.0" },
+                                            {
+                                                "if": [
+                                                    { "var": "data.SwiftMT.fields.53C.name_and_address" },
+                                                    { "var": "data.SwiftMT.fields.53C.name_and_address.0" },
+                                                    "NOTPROVIDED"
+                                                ]
+                                            }
                                         ]
-                                    }
+                                    },
+                                    null
                                 ]
                             }
                         },
@@ -289,13 +379,7 @@
                                 "if": [
                                     { "var": "temp_data.instructed_reimbursement_agent_bic" },
                                     { "var": "temp_data.instructed_reimbursement_agent_bic" },
-                                    {
-                                        "if": [
-                                            { "==": [{"var": "SwiftMT.method"}, "stp"] },
-                                            { "var": "temp_data.Receiver" },
-                                            null
-                                        ]
-                                    }
+                                    null
                                 ]
                             }
                         },
@@ -303,15 +387,21 @@
                             "path": "data.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdReimbAgt.FinInstnId.Nm",
                             "logic": {
                                 "if": [
-                                    { "var": "data.SwiftMT.fields.54D.name_and_address" },
-                                    { "var": "data.SwiftMT.fields.54D.name_and_address.0" },
+                                    { "var": "temp_data.instructed_reimbursement_agent_bic" },
                                     {
                                         "if": [
-                                            { "var": "data.SwiftMT.fields.54C.name_and_address" },
-                                            { "var": "data.SwiftMT.fields.54C.name_and_address.0" },
-                                            "NOTPROVIDED"
+                                            { "var": "data.SwiftMT.fields.54D.name_and_address" },
+                                            { "var": "data.SwiftMT.fields.54D.name_and_address.0" },
+                                            {
+                                                "if": [
+                                                    { "var": "data.SwiftMT.fields.54C.name_and_address" },
+                                                    { "var": "data.SwiftMT.fields.54C.name_and_address.0" },
+                                                    "NOTPROVIDED"
+                                                ]
+                                            }
                                         ]
-                                    }
+                                    },
+                                    null
                                 ]
                             }
                         },
@@ -960,13 +1050,7 @@
                             "logic": {
                                 "if": [
                                     { "var": "data.SwiftMT.fields.71F" },
-                                    {
-                                        "if": [
-                                            { "==": [{"var": "SwiftMT.method"}, "stp"] },
-                                            { "var": "temp_data.Sender" },
-                                            null
-                                        ]
-                                    },
+                                    { "var": "temp_data.Sender" },
                                     null
                                 ]
                             }
@@ -975,14 +1059,11 @@
                             "path": "data.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.ChrgsInf.0.Agt.FinInstnId.Nm",
                             "logic": {
                                 "if": [
-                                    { "var": "data.SwiftMT.fields.71F" },
-                                    {
-                                        "if": [
-                                            { "==": [{"var": "SwiftMT.method"}, "stp"] },
-                                            null,
-                                            "NOTPROVIDED"
-                                        ]
-                                    },
+                                    { "and": [
+                                        { "var": "data.SwiftMT.fields.71F" },
+                                        { "==": [{"var": "SwiftMT.method"}, "normal"] }
+                                    ]},
+                                    "NOTPROVIDED",
                                     null
                                 ]
                             }
@@ -1020,17 +1101,26 @@
                                                 "if": [
                                                     { "var": "data.SwiftMT.blocks.block2" },
                                                     { "substr": [{ "var": "data.SwiftMT.blocks.block2" }, 16, 11] },
-                                                    {
-                                                        "if": [
-                                                            { "==": [{"var": "SwiftMT.method"}, "stp"] },
-                                                            { "var": "temp_data.Receiver" },
-                                                            "NOTPROVIDED"
-                                                        ]
-                                                    }
+                                                    { "var": "temp_data.Receiver" }
                                                 ]
                                             }
                                         ]
                                     },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.ChrgsInf.1.Agt.FinInstnId.Nm",
+                            "logic": {
+                                "if": [
+                                    { "and": [
+                                        { "var": "data.SwiftMT.fields.71G" },
+                                        { "!": { "var": "data.SwiftMT.fields.57A.bic.raw" } },
+                                        { "!": { "var": "data.SwiftMT.blocks.block2" } },
+                                        { "==": [{"var": "SwiftMT.method"}, "normal"] }
+                                    ]},
+                                    "NOTPROVIDED",
                                     null
                                 ]
                             }

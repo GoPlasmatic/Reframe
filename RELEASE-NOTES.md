@@ -1,5 +1,97 @@
 # Reframe Release Notes
 
+## Version 1.5 - Major Release: Workflow System Consistency & Enhanced Compliance
+
+### 🚀 **Major System Enhancements**
+
+#### **Workflow System Overhaul** ✨ **NEW**
+- **Unified JSON Structure**: All 37 workflows updated with consistent field reference patterns
+- **Enhanced Field Mapping**: Standardized BIC fields (`.raw` suffix), transaction references (`.value`), information fields (`.lines`)
+- **Improved TR001 Logic**: Updated to use `basic_header.sender_bic.raw` for enhanced accuracy across all workflows
+- **Dynamic Priority Logic**: Intelligent priority determination based on field 23B values ("URGP" → "URGT", otherwise "NORM")
+
+#### **MT202 Compliance Enhancements** ✨ **NEW**
+- **ISO 20022 Compliance**: Added missing Group Header fields (`TtlIntrBkSttlmAmt.@Ccy`, `TtlIntrBkSttlmAmt.$value`, `IntrBkSttlmDt`)
+- **Settlement Logic**: Enhanced COVER vs SERIAL payment routing with proper publish conditions
+- **Document Format Routing**: Fixed conditions to use `temp_data.MTType` for accurate schema selection
+- **Validation Error Resolution**: Resolved "unknown variant COVE" errors through proper routing logic
+
+#### **Enhanced Web Interface & Sample Coverage** ✨ **NEW**
+- **16 Sample Messages**: Complete coverage of all test data scenarios including detailed, minimal, and serial variants
+- **Exact Test Data Match**: Web UI samples now match backend test files precisely for authentic testing
+- **Comprehensive Variants**: Updated samples for MT103, MT202, MT205 normal, cover, rejection, return scenarios
+- **Real-time Testing**: All workflow variants can be tested with production-quality sample data
+
+#### **Quality & Bug Fixes** ✨ **NEW**
+- **Array Handling Fix**: Fixed MT205RETN to use proper array structure for `RtrRsnInf.AddtlInf` instead of concatenated strings
+- **Field Reference Consistency**: Standardized field 72 to use `.lines`, field 20/21 to use `.value` across all workflows
+- **BIC Processing Enhancement**: All BIC fields now consistently use `.raw` suffix for better accuracy
+- **Error Resolution**: Comprehensive fixes for edge cases and validation errors
+
+### 🎯 Supported Message Transformations
+
+#### MT103 Customer Credit Transfers (Enhanced)
+- **MT103 Normal** → `pacs.008.001.08` (Enhanced with consistent field references)
+- **MT103 STP** → `pacs.008.001.08` (Updated with standardized BIC handling)
+- **MT103 REJT** → `pacs.002.001.10` (Enhanced with improved field 72 processing)
+- **MT103 RETN** → `pacs.004.001.09` (Updated with consistent JSON structure)
+
+#### MT202 Financial Institution Transfers (Enhanced)
+- **MT202 Normal** → `pacs.009.001.08` (Enhanced with ISO 20022 compliance improvements)
+- **MT202 COV** → `pacs.009.001.08 COVE` (Fixed routing logic for proper COVER payment handling)
+- **MT202 REJT** → `pacs.002.001.10` (Enhanced with standardized field references)
+- **MT202 RETN** → `pacs.004.001.09` (Updated with consistent field processing)
+
+#### MT205 Corporate Financial Institution Transfers (Enhanced)
+- **MT205 Normal** → `pacs.009.001.08` (Enhanced with consistent field mapping)
+- **MT205 COV** → `pacs.009.001.08 COVE` (Updated with standardized BIC processing)
+- **MT205 REJT** → `pacs.002.001.10` (Enhanced with improved field handling)
+- **MT205 RETN** → `pacs.004.001.09` (Fixed array handling for proper ISO 20022 compliance)
+
+### 🔧 Technical Improvements
+
+#### **Field Reference Standardization**
+- **BIC Fields**: All workflows now use `.raw` suffix pattern for consistent BIC processing
+- **Transaction References**: Fields 20/21 standardized to use `.value` across all message types
+- **Information Fields**: Field 72 consistently uses `.lines` for proper array handling
+- **Header Logic**: TR001 processing enhanced with `basic_header.sender_bic.raw`
+
+#### **Enhanced CBPR+ Compliance**
+- **Group Header Fields**: Added mandatory ISO 20022 fields for MT202-CORE specification compliance
+- **Settlement Method Logic**: Enhanced determination logic for INDA/INGA/COVE settlement methods
+- **Priority Processing**: Dynamic priority logic based on field 23B values with CBPR+ compliance
+- **Document Routing**: Fixed publish conditions for proper COVER vs SERIAL payment routing
+
+#### **Workflow Quality Improvements**
+- **Consistency**: Unified JSON structure across all 37 workflow files
+- **Error Handling**: Enhanced validation and error resolution for edge cases
+- **Array Processing**: Fixed array handling issues for proper ISO 20022 schema compliance
+- **Test Coverage**: 16 comprehensive sample messages covering all scenarios
+
+### 📊 Implementation Statistics
+
+- **Message Types Supported**: 3 complete ecosystems (MT103, MT202, MT205) with enhanced consistency
+- **Total Variants**: 12 message processing scenarios with improved reliability
+- **Workflow Files**: 37 specialized transformation workflows with unified structure
+- **ISO 20022 Schemas**: 4 target formats with enhanced compliance
+- **Sample Coverage**: 16 authentic test data samples matching backend validation
+- **Field Mapping**: 100% consistent JSON structure across all workflows
+
+### 🚀 **Production Ready Enhancements**
+
+- **Enterprise Grade**: Enhanced reliability and consistency across all core payment ecosystems
+- **API Reliability**: Improved error handling and validation for all message types
+- **Sample Quality**: Production-quality sample messages for comprehensive testing
+- **Real-time Processing**: Enhanced immediate transformation with detailed processing feedback
+- **Comprehensive Documentation**: Updated documentation reflecting all enhancements
+
+---
+
+**Total Enhanced Formats**: 12 message variants → 4 ISO 20022 schemas with improved compliance  
+**Workflow Coverage**: 100% enhanced consistency across MT103, MT202, and MT205 business scenarios  
+**Quality Improvements**: Major consistency and compliance enhancements  
+**Deployment**: Production-ready with Azure Container deployment and enhanced reliability
+
 ## Version 1.4 - Major Release: Complete MT205 Corporate Payment Ecosystem
 
 ### 🎯 Supported Message Transformations

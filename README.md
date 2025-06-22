@@ -8,14 +8,36 @@ Reframe is a Rust-based REST API service that converts SWIFT MT messages to ISO 
 - 🔄 **Comprehensive MT103, MT202 & MT205 Support**: Complete implementation of all MT103, MT202, and MT205 variants including cover payments, rejection and return processing
 - 🤖 **Auto-Detection**: Automatically detects SWIFT message type and processing method
 - 📋 **Advanced SWIFT MT Parsing**: Built-in SWIFT MT message parsing with method detection using swift-mt-message library
-- 🌐 **Integrated Web UI**: Modern Material Design web interface with automatic sample loading
+- 🌐 **Integrated Web UI**: Modern Material Design web interface with automatic sample loading and 16 sample messages
 - 🔧 **No CORS Issues**: Web UI and API served from the same origin
-- ⚡ **Advanced Workflow Engine**: Powered by dataflow-rs with 30+ specialized workflow stages
+- ⚡ **Advanced Workflow Engine**: Powered by dataflow-rs with 37+ specialized workflow stages
 - 📊 **CBPR+ Compliance**: Full Cross-Border Payments and Reporting Plus compliance
 - 🔧 **Extensible**: Modular design allows for additional message formats
 - 📁 **Complex Workflow Management**: External JSON workflow definitions with conditional processing
 - 🚢 **Production Ready**: Complete CI/CD pipeline with Azure deployment
 - ✅ **Schema Validated**: Full ISO 20022 schema compliance with real-time validation
+- 🏗️ **Consistent JSON Structure**: Recently updated with unified field references across all workflows
+- 🎯 **Enhanced Sample Coverage**: Comprehensive test data samples matching backend validation
+
+## Recent Major Updates (v1.5)
+
+### 🔧 **Workflow System Overhaul**
+- **Consistent JSON Structure**: All workflows updated to use unified field reference patterns
+- **Enhanced Field Mapping**: BIC fields now use `.raw` suffix, field 20/21 use `.value`, field 72 uses `.lines`
+- **Improved TR001 Logic**: Updated to use `basic_header.sender_bic.raw` for better accuracy
+- **Dynamic Priority Logic**: Added intelligent priority determination based on field 23B values
+
+### 📋 **MT202 Compliance Enhancements**
+- **ISO 20022 Compliance**: Added missing Group Header fields for MT202-CORE specification
+- **Settlement Amount Currency**: Added `TtlIntrBkSttlmAmt.@Ccy` and `TtlIntrBkSttlmAmt.$value`
+- **Settlement Date**: Added `IntrBkSttlmDt` (Interbank Settlement Date) mapping
+- **Cover vs Serial Routing**: Fixed publish conditions to properly route COVER and SERIAL payments
+
+### 🌐 **Enhanced Web Interface**
+- **16 Sample Messages**: Complete coverage of all test data scenarios
+- **Exact Test Data Match**: Web UI samples now match backend test files precisely
+- **Comprehensive Variants**: MT103, MT202, MT205 normal, cover, rejection, return, and detailed samples
+- **Real-time Testing**: All workflow variants can be tested with authentic sample data
 
 ## Supported Transformations
 
@@ -58,7 +80,7 @@ Reframe is a Rust-based REST API service that converts SWIFT MT messages to ISO 
 
 **Focus**: Complete MT103, MT202, and MT205 ecosystems with CBPR+ compliance ✅ **COMPLETE**
 
-The system has achieved comprehensive transformation capabilities covering all business scenarios for three major message types:
+The system has achieved comprehensive transformation capabilities covering all business scenarios for three major message types with recent major enhancements:
 
 - **Phase 1**: Core MT103 payment processing ✅ **COMPLETE**
 - **Phase 2**: MT103 exception handling (rejection/return) ✅ **COMPLETE**
@@ -69,13 +91,14 @@ The system has achieved comprehensive transformation capabilities covering all b
 - **Phase 7**: MT205 Cover payment processing ✅ **COMPLETE**
 - **Phase 8**: MT205 exception handling (rejection/return) ✅ **COMPLETE**
 - **Phase 9**: CBPR+ Business Application Header mapping ✅ **COMPLETE**
+- **Phase 10**: Workflow system consistency and compliance updates ✅ **COMPLETE**
 - **Future**: Expansion to other MT message types - **Planned**
 
-**🎯 Achievement**: 100% MT103, MT202, and MT205 coverage including cover payments - **Production Ready**
+**🎯 Achievement**: 100% MT103, MT202, and MT205 coverage including cover payments with enhanced compliance - **Production Ready**
 
 ## Advanced Workflow System
 
-Reframe uses a sophisticated multi-stage workflow system with 30+ specialized workflow files for comprehensive MT103, MT202, and MT205 processing:
+Reframe uses a sophisticated multi-stage workflow system with 37+ specialized workflow files for comprehensive MT103, MT202, and MT205 processing, recently enhanced with consistent JSON structure:
 
 ### Workflow Architecture
 
@@ -83,90 +106,110 @@ Reframe uses a sophisticated multi-stage workflow system with 30+ specialized wo
 - **Sequential Execution**: Workflows execute in dependency order based on previous task completion
 - **Error Handling**: Comprehensive validation and precondition checks at each stage
 - **CBPR+ Compliance**: Full implementation of Cross-Border Payments and Reporting Plus standards
+- **Consistent JSON Structure**: Unified field reference patterns across all workflows for improved maintainability
+- **Enhanced Field Mapping**: Standardized BIC field handling, transaction reference mapping, and sender-to-receiver information processing
+
+### Recent Workflow Enhancements
+
+#### Field Reference Standardization
+- **BIC Fields**: Updated to use `.raw` suffix (e.g., `52A.bic.raw`, `58A.bic.raw`)
+- **Transaction References**: Field 20/21 now use `.value` instead of separate reference fields
+- **Information Fields**: Field 72 updated to use `.lines` for consistent array handling
+- **Header Logic**: TR001 logic uses `basic_header.sender_bic.raw` for improved accuracy
+
+#### Dynamic Priority Logic
+- **Intelligent Priority**: Field 23B = "URGP" → Priority = "URGT", otherwise "NORM"
+- **Consistent Implementation**: Applied across all MT103, MT202, and MT205 workflows
+- **CBPR+ Compliance**: Enhanced priority handling for Cross-Border Payments compliance
+
+#### MT202 Compliance Improvements
+- **Group Header Fields**: Added missing `TtlIntrBkSttlmAmt.@Ccy`, `TtlIntrBkSttlmAmt.$value`, `IntrBkSttlmDt`
+- **Settlement Logic**: Enhanced settlement method determination for COVER vs SERIAL payments
+- **Publish Routing**: Fixed conditions to use `temp_data.MTType` for proper document format routing
 
 ### MT103 Processing Workflows
 
 #### Core Processing Pipeline (5 workflows)
 1. **01-parse.json** - Initial SWIFT MT message parsing with method detection
-2. **02-mt103-bah-mapping.json** - Business Application Header mapping for normal/STP
-3. **03-mt103-precondition.json** - Validation and precondition checks
-4. **04-mt103-document-mapping.json** - Document structure mapping (58KB, 1099 lines)
+2. **02-mt103-bah-mapping.json** - Business Application Header mapping for normal/STP with enhanced field references
+3. **03-mt103-precondition.json** - Validation and precondition checks with updated field 72 handling
+4. **04-mt103-document-mapping.json** - Document structure mapping (58KB, 1099 lines) with consistent JSON structure
 5. **05-mt103-combine-cbpr.json** - XML combination and final output
 
 #### Rejection Processing Pipeline (4 workflows)
-6. **06-mt103-rejt-bah-mapping.json** - BAH mapping for rejection messages
-7. **07-mt103-rejt-precondition.json** - Rejection-specific validation
-8. **08-mt103-rejt-document-mapping.json** - pacs.002 document mapping
+6. **06-mt103-rejt-bah-mapping.json** - BAH mapping for rejection messages with standardized BIC handling
+7. **07-mt103-rejt-precondition.json** - Rejection-specific validation with enhanced field references
+8. **08-mt103-rejt-document-mapping.json** - pacs.002 document mapping with updated JSON structure
 9. **09-mt103-rejt-combine-cbpr.json** - Rejection XML combination
 
 #### Return Processing Pipeline (4 workflows)
-10. **10-mt103-retn-bah-mapping.json** - BAH mapping for return messages  
-11. **11-mt103-retn-precondition.json** - Return-specific validation (includes UETR checks)
-12. **12-mt103-retn-document-mapping.json** - pacs.004 document mapping (27KB, 576 lines)
+10. **10-mt103-retn-bah-mapping.json** - BAH mapping for return messages with consistent field references
+11. **11-mt103-retn-precondition.json** - Return-specific validation (includes UETR checks) with updated structure
+12. **12-mt103-retn-document-mapping.json** - pacs.004 document mapping (27KB, 576 lines) with enhanced handling
 13. **13-mt103-retn-combine-cbpr.json** - Return XML combination with charge validation
 
 ### MT202 Processing Workflows
 
-#### Core Processing Pipeline (4 workflows)
+#### Core Processing Pipeline (5 workflows)
 1. **01-parse.json** - Shared message parsing with method detection
-2. **02-mt202-bah-mapping.json** - Business Application Header mapping for interbank transfers
-3. **03-mt202-precondition.json** - Validation and precondition checks
-4. **04-mt202-document-mapping.json** - Document structure mapping (28KB, 547 lines)
+2. **02-mt202-bah-mapping.json** - Business Application Header mapping with enhanced TR001 logic
+3. **03-mt202-precondition.json** - Validation with updated field 72 references (.lines)
+4. **04-mt202-document-mapping.json** - Document structure mapping with ISO 20022 compliance fixes
 5. **05-mt202-combine-cbpr.json** - XML combination and final output
 
 #### Cover Payment Processing Pipeline (4 workflows)
-6. **06-mt202cov-bah-mapping.json** - BAH mapping for cover payment messages
+6. **06-mt202cov-bah-mapping.json** - BAH mapping for cover payment messages with consistent BIC handling
 7. **07-mt202cov-precondition.json** - Cover-specific validation and message type setting
-8. **08-mt202cov-document-mapping.json** - pacs.009.001.08 COVE document mapping (257 lines)
+8. **08-mt202cov-document-mapping.json** - pacs.009.001.08 COVE document mapping with proper routing
 9. **09-mt202cov-combine-cbpr.json** - Cover payment XML combination
 
 #### Rejection Processing Pipeline (4 workflows)
-10. **10-mt202-rejt-bah-mapping.json** - BAH mapping for rejection messages
-11. **11-mt202-rejt-precondition.json** - Rejection-specific validation with field 72 checks
-12. **12-mt202-rejt-document-mapping.json** - pacs.002 document mapping (255 lines)
+10. **10-mt202-rejt-bah-mapping.json** - BAH mapping with standardized field references
+11. **11-mt202-rejt-precondition.json** - Rejection-specific validation with field 72 .lines handling
+12. **12-mt202-rejt-document-mapping.json** - pacs.002 document mapping with enhanced structure
 13. **13-mt202-rejt-combine-cbpr.json** - Rejection XML combination
 
 #### Return Processing Pipeline (4 workflows)
-14. **14-mt202-retn-bah-mapping.json** - BAH mapping for return messages
+14. **14-mt202-retn-bah-mapping.json** - BAH mapping with consistent JSON structure
 15. **15-mt202-retn-precondition.json** - Return-specific validation with UETR requirements
-16. **16-mt202-retn-document-mapping.json** - pacs.004 document mapping (433 lines)
+16. **16-mt202-retn-document-mapping.json** - pacs.004 document mapping with updated field handling
 17. **17-mt202-retn-combine-cbpr.json** - Return XML combination
 
 ### MT205 Processing Workflows
 
-#### Core Processing Pipeline (4 workflows)
+#### Core Processing Pipeline (5 workflows)
 1. **01-parse.json** - Shared message parsing with method detection
-2. **02-mt205-bah-mapping.json** - Business Application Header mapping for corporate transfers
-3. **03-mt205-precondition.json** - Validation and precondition checks for corporate payments
-4. **04-mt205-document-mapping.json** - Document structure mapping for corporate transfers
+2. **02-mt205-bah-mapping.json** - Business Application Header mapping with enhanced field references
+3. **03-mt205-precondition.json** - Validation with updated field 72 handling (.lines)
+4. **04-mt205-document-mapping.json** - Document structure mapping with consistent JSON structure
 5. **05-mt205-combine-cbpr.json** - XML combination and final output
 
 #### Cover Payment Processing Pipeline (4 workflows)
-6. **06-mt205cov-bah-mapping.json** - BAH mapping for corporate cover payment messages
+6. **06-mt205cov-bah-mapping.json** - BAH mapping with standardized BIC handling
 7. **07-mt205cov-precondition.json** - Corporate cover-specific validation and message type setting
 8. **08-mt205cov-document-mapping.json** - pacs.009.001.08 COVE document mapping for corporate cover
 9. **09-mt205cov-combine-cbpr.json** - Corporate cover payment XML combination
 
 #### Rejection Processing Pipeline (4 workflows)
-10. **10-mt205-rejt-bah-mapping.json** - BAH mapping for corporate rejection messages
-11. **11-mt205-rejt-precondition.json** - Corporate rejection-specific validation with field 72 checks
-12. **12-mt205-rejt-document-mapping.json** - pacs.002 document mapping for corporate rejections
+10. **10-mt205-rejt-bah-mapping.json** - BAH mapping with consistent field references
+11. **11-mt205-rejt-precondition.json** - Corporate rejection-specific validation with field 72 .lines
+12. **12-mt205-rejt-document-mapping.json** - pacs.002 document mapping with enhanced structure
 13. **13-mt205-rejt-combine-cbpr.json** - Corporate rejection XML combination
 
 #### Return Processing Pipeline (4 workflows)
-14. **14-mt205-retn-bah-mapping.json** - BAH mapping for corporate return messages
+14. **14-mt205-retn-bah-mapping.json** - BAH mapping with standardized field references
 15. **15-mt205-retn-precondition.json** - Corporate return-specific validation with UETR requirements
-16. **16-mt205-retn-document-mapping.json** - pacs.004 document mapping for corporate returns
+16. **16-mt205-retn-document-mapping.json** - pacs.004 document mapping with array handling fix
 17. **17-mt205-retn-combine-cbpr.json** - Corporate return XML combination
 
 ### Workflow Features
 
 - **Auto-Detection**: Workflows automatically determine processing path based on message content
 - **Method Classification**: Automatic detection of normal, cover, rejection, or return processing
-- **Field Validation**: Comprehensive field validation and mandatory field checks
-- **Complex Mapping**: Advanced JSONLogic-based field transformation
-- **Settlement Logic**: Sophisticated settlement method determination
-- **Charge Processing**: Advanced charge information handling
+- **Field Validation**: Comprehensive field validation and mandatory field checks with consistent structure
+- **Complex Mapping**: Advanced JSONLogic-based field transformation with standardized references
+- **Settlement Logic**: Sophisticated settlement method determination with enhanced COVER vs SERIAL routing
+- **Charge Processing**: Advanced charge information handling with proper array support
 
 ## Quick Start
 
@@ -174,14 +217,13 @@ Reframe uses a sophisticated multi-stage workflow system with 30+ specialized wo
 Access the live application at: **http://reframe-api-prod.eastus.azurecontainer.io:3000**
 
 The application provides:
-- **Web Interface**: Integrated Material UI with split-panel layout
+- **Web Interface**: Integrated Material UI with split-panel layout and 16 sample messages
 - **API Endpoint**: `/reframe` for programmatic access
 - **Health Check**: `/health` for monitoring
-- **Sample MT103 Variants**: Load sample normal, STP, rejection, and return messages
-- **Sample MT202 Variants**: Load sample normal, cover, rejection, and return messages
-- **Sample MT205 Variants**: Load sample normal, cover, rejection, and return corporate messages
+- **Comprehensive Samples**: All MT103, MT202, and MT205 variants including detailed, minimal, and serial samples
 - **XML Syntax Highlighting**: Real-time formatted output
 - **Method Detection**: Automatic processing method identification
+- **Test Data Consistency**: Web UI samples match exact backend test data
 
 ### Local Development
 
@@ -260,7 +302,7 @@ docker run -p 3000:3000 reframe
 
 1. **API Layer**: Axum-based REST server with static file serving
 2. **Web UI**: React Material-UI interface with automatic sample loading and method detection
-3. **Advanced Workflow Engine**: dataflow-rs engine orchestrating 30+ specialized transformation pipelines
+3. **Advanced Workflow Engine**: dataflow-rs engine orchestrating 37+ specialized transformation pipelines
 4. **Parser Module**: Enhanced SWIFT MT message parser with method detection (normal/cover/rejection/return)
 5. **Publisher Module**: XML serialization for multiple ISO 20022 formats (pacs.008, pacs.009, pacs.002, pacs.004)
 6. **Mapping Engine**: Complex JSONLogic-based field mapping with CBPR+ compliance

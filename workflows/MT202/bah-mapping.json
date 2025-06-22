@@ -25,12 +25,12 @@
                             "path": "temp_data.Sender",
                             "logic": {
                                 "if": [
-                                    { "var": "data.SwiftMT.basic_header.logical_terminal" },
-                                    { "var": "data.SwiftMT.basic_header.logical_terminal" },
+                                    { "var": "data.SwiftMT.basic_header.sender_bic.raw" },
+                                    { "var": "data.SwiftMT.basic_header.sender_bic.raw" },
                                     {
                                         "if": [
-                                            { "var": "data.SwiftMT.fields.52A.bic" },
-                                            { "var": "data.SwiftMT.fields.52A.bic" },
+                                            { "var": "data.SwiftMT.fields.52A.bic.raw" },
+                                            { "var": "data.SwiftMT.fields.52A.bic.raw" },
                                             {
                                                 "if": [
                                                     { "var": "data.SwiftMT.fields.52D.name_and_address" },
@@ -51,8 +51,8 @@
                                     { "var": "data.SwiftMT.application_header.destination_address" },
                                     {
                                         "if": [
-                                            { "var": "data.SwiftMT.fields.58A.bic" },
-                                            { "var": "data.SwiftMT.fields.58A.bic" },
+                                            { "var": "data.SwiftMT.fields.58A.bic.raw" },
+                                            { "var": "data.SwiftMT.fields.58A.bic.raw" },
                                             {
                                                 "if": [
                                                     { "var": "data.SwiftMT.fields.58D.name_and_address" },
@@ -88,7 +88,7 @@
                             "path": "data.AppHdr.BizMsgIdr",
                             "logic": {
                                 "cat": [
-                                    { "var": "data.SwiftMT.fields.20.transaction_reference" },
+                                    { "var": "data.SwiftMT.fields.20.value" },
                                     "-pacs.009-001"
                                 ]
                             }
@@ -133,7 +133,13 @@
                         },
                         {
                             "path": "data.AppHdr.Prty",
-                            "logic": "NORM"
+                            "logic": {
+                                "if": [
+                                    { "==": [{ "var": "data.SwiftMT.fields.23B.value" }, "URGP"] },
+                                    "URGT",
+                                    "NORM"
+                                ]
+                            }
                         }
                     ]
                 }
@@ -160,7 +166,7 @@
                         },
                         {
                             "path": "data.AppHdr.Rltd.BizMsgIdr",
-                            "logic": { "var": "data.SwiftMT.fields.20.transaction_reference" }
+                            "logic": { "var": "data.SwiftMT.fields.20.value" }
                         },
                         {
                             "path": "data.AppHdr.Rltd.CreDt",
@@ -199,48 +205,6 @@
                     "input_field_name": "AppHdr",
                     "output_field_name": "header_xml",
                     "source_format": "MT202_CORE.Header"
-                }
-            }
-        },
-        {
-            "id": "publish_cov_header_xml",
-            "name": "Publish COV Header XML",
-            "description": "Publish the COV Header XML to the output field",
-            "condition": { "==": [{"var": "SwiftMT.method"}, "cover"] },
-            "function": {
-                "name": "publish",
-                "input": {
-                    "input_field_name": "AppHdr",
-                    "output_field_name": "header_xml",
-                    "source_format": "MT202_COV.Header"
-                }
-            }
-        },
-        {
-            "id": "publish_rejt_header_xml",
-            "name": "Publish REJT Header XML",
-            "description": "Publish the REJT Header XML to the output field",
-            "condition": { "==": [{"var": "SwiftMT.method"}, "reject"] },
-            "function": {
-                "name": "publish",
-                "input": {
-                    "input_field_name": "AppHdr",
-                    "output_field_name": "header_xml",
-                    "source_format": "MT202_REJT.Header"
-                }
-            }
-        },
-        {
-            "id": "publish_retn_header_xml",
-            "name": "Publish RETN Header XML",
-            "description": "Publish the RETN Header XML to the output field",
-            "condition": { "==": [{"var": "SwiftMT.method"}, "return"] },
-            "function": {
-                "name": "publish",
-                "input": {
-                    "input_field_name": "AppHdr",
-                    "output_field_name": "header_xml",
-                    "source_format": "MT202_RETN.Header"
                 }
             }
         }

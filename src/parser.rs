@@ -52,11 +52,11 @@ impl AsyncFunctionHandler for ParserFunction {
                     ));
                 };
 
-                method = if mt103_message.fields.has_reject_codes() {
+                method = if mt103_message.has_reject_codes() {
                     "reject".to_string()
-                } else if mt103_message.fields.has_return_codes() {
+                } else if mt103_message.has_return_codes() {
                     "return".to_string()
-                } else if mt103_message.fields.is_stp_compliant_enhanced() {
+                } else if mt103_message.is_stp_message() {
                     "stp".to_string()
                 } else {
                     "normal".to_string()
@@ -80,21 +80,11 @@ impl AsyncFunctionHandler for ParserFunction {
                     ));
                 };
 
-                // Extract sender and receiver BICs from headers
-                let sender_bic = mt202_message.basic_header.logical_terminal.to_string();
-                let receiver_bic = mt202_message
-                    .application_header
-                    .destination_address
-                    .to_string();
-
-                method = if mt202_message.fields.has_reject_codes() {
+                method = if mt202_message.has_reject_codes() {
                     "reject".to_string()
-                } else if mt202_message.fields.has_return_codes() {
+                } else if mt202_message.has_return_codes() {
                     "return".to_string()
-                } else if mt202_message
-                    .fields
-                    .is_cover_message(&sender_bic, &receiver_bic)
-                {
+                } else if mt202_message.is_cover_message() {
                     "cover".to_string()
                 } else {
                     "normal".to_string()
@@ -118,13 +108,11 @@ impl AsyncFunctionHandler for ParserFunction {
                     ));
                 };
 
-                let sender_bic = mt205_message.basic_header.logical_terminal.to_string();
-
-                method = if mt205_message.fields.has_reject_codes() {
+                method = if mt205_message.has_reject_codes() {
                     "reject".to_string()
-                } else if mt205_message.fields.has_return_codes() {
+                } else if mt205_message.has_return_codes() {
                     "return".to_string()
-                } else if mt205_message.fields.is_cover_message(&sender_bic) {
+                } else if mt205_message.is_cover_message() {
                     "cover".to_string()
                 } else {
                     "normal".to_string()

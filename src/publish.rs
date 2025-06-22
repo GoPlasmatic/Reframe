@@ -9,7 +9,6 @@ use mx_message::document::*;
 use mx_message::header::*;
 use quick_xml::se::to_string as xml_to_string;
 use serde_json::Value;
-use serde_path_to_error;
 
 pub struct PublishFunction;
 

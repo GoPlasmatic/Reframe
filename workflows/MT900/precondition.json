@@ -1,0 +1,85 @@
+{
+    "id": "mt900-precondition",
+    "name": "MT900 Message Precondition",
+    "description": "Precondition checks for MT900 confirmation of debit message",
+    "priority": 3,
+    "condition": {
+        "and": [
+            {"==": [{"var": "SwiftMT.message_type"}, "900"]},
+            {"==": [{"var": "SwiftMT.method"}, "normal"]},
+            {"==": [{"var": "progress.workflow_id"}, "mt900-bah-mapper"]},
+            {"==": [{"var": "progress.task_id"}, "publish_header_xml"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "PREC001_validate_temp_variables",
+            "name": "PREC001: Validate Temp Variables from TR001",
+            "description": "Ensure Temp~Sender and Temp~Receiver are properly defined from BAH translation",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "temp_data",
+                            "logic": {
+                                "and": [
+                                    { "exists": [ "temp_data", "Sender" ] },
+                                    { "exists": [ "temp_data", "Receiver" ] },
+                                    { "!=": [ { "var": "temp_data.Sender" }, "NOTPROVIDED" ] },
+                                    { "!=": [ { "var": "temp_data.Receiver" }, "NOTPROVIDED" ] }
+                                ]
+                            },
+                            "message": "Translation stopped: TempSender or TempReceiver is not properly provided from TR001"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC002_validate_mandatory_fields",
+            "name": "PREC002: Validate Mandatory MT900 Fields",
+            "description": "Ensure mandatory fields for MT900 are present",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {
+                                "and": [
+                                    { "exists": [ "data", "SwiftMT", "fields", "20", "value" ] },
+                                    { "exists": [ "data", "SwiftMT", "fields", "32A" ] },
+                                    { "!=": [ { "var": "data.SwiftMT.fields.20.value" }, "" ] },
+                                    { "!=": [ { "var": "data.SwiftMT.fields.32A.amount" }, null ] }
+                                ]
+                            },
+                            "message": "Translation stopped: Mandatory MT900 fields (20, 32A) are missing or invalid"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC003_set_notification_type",
+            "name": "PREC003: Set Notification Type for MT900",
+            "description": "Set notification type as DBIT for MT900 debit confirmation",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.notification_type",
+                            "logic": "DBIT"
+                        },
+                        {
+                            "path": "temp_data.entry_status",
+                            "logic": "BOOK"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+} 

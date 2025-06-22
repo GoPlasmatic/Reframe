@@ -5,10 +5,81 @@ use dataflow_rs::engine::{
     error::Result,
     message::{Change, Message},
 };
+use mx_message::document::*;
+use mx_message::header::*;
 use quick_xml::se::to_string as xml_to_string;
 use serde_json::Value;
+use serde_path_to_error;
 
 pub struct PublishFunction;
+
+// Configuration enum for different message types
+#[derive(Debug, Clone)]
+enum MessageTypeConfig {
+    MT103 { document_field: &'static str },
+    MT103Rejt { document_field: &'static str },
+    MT103Retn { document_field: &'static str },
+    MT103Stp { document_field: &'static str },
+    MT202Core { document_field: &'static str },
+    MT202Cov { document_field: &'static str },
+    MT202Rejt { document_field: &'static str },
+    MT202Retn { document_field: &'static str },
+    MT205 { document_field: &'static str },
+    MT205Cov { document_field: &'static str },
+    MT205Rejt { document_field: &'static str },
+    MT205Retn { document_field: &'static str },
+    MT900 { document_field: &'static str },
+}
+
+impl MessageTypeConfig {
+    fn from_source_format(source_format: &str) -> Result<Self> {
+        match source_format {
+            "MT103.Header" | "MT103.Document" => Ok(MessageTypeConfig::MT103 {
+                document_field: "FIToFICstmrCdtTrf",
+            }),
+            "MT103_REJT.Header" | "MT103_REJT.Document" => Ok(MessageTypeConfig::MT103Rejt {
+                document_field: "FIToFIPmtStsRpt",
+            }),
+            "MT103_RETN.Header" | "MT103_RETN.Document" => Ok(MessageTypeConfig::MT103Retn {
+                document_field: "PmtRtr",
+            }),
+            "MT103_STP.Header" | "MT103_STP.Document" => Ok(MessageTypeConfig::MT103Stp {
+                document_field: "FIToFICstmrCdtTrf",
+            }),
+            "MT202_CORE.Header" | "MT202_CORE.Document" => Ok(MessageTypeConfig::MT202Core {
+                document_field: "FIToFICdtTrf",
+            }),
+            "MT202_COV.Header" | "MT202_COV.Document" => Ok(MessageTypeConfig::MT202Cov {
+                document_field: "FIToFICdtTrf",
+            }),
+            "MT202_REJT.Header" | "MT202_REJT.Document" => Ok(MessageTypeConfig::MT202Rejt {
+                document_field: "FIToFIPmtStsRpt",
+            }),
+            "MT202_RETN.Header" | "MT202_RETN.Document" => Ok(MessageTypeConfig::MT202Retn {
+                document_field: "PmtRtr",
+            }),
+            "MT205.Header" | "MT205.Document" => Ok(MessageTypeConfig::MT205 {
+                document_field: "FIToFICdtTrf",
+            }),
+            "MT205_COV.Header" | "MT205_COV.Document" => Ok(MessageTypeConfig::MT205Cov {
+                document_field: "FIToFICdtTrf",
+            }),
+            "MT205_REJT.Header" | "MT205_REJT.Document" => Ok(MessageTypeConfig::MT205Rejt {
+                document_field: "FIToFIPmtStsRpt",
+            }),
+            "MT205_RETN.Header" | "MT205_RETN.Document" => Ok(MessageTypeConfig::MT205Retn {
+                document_field: "PmtRtr",
+            }),
+            "MT900.Header" | "MT900.Document" => Ok(MessageTypeConfig::MT900 {
+                document_field: "BkToCstmrDbtCdtNtfctn",
+            }),
+            _ => Err(DataflowError::Validation(format!(
+                "Unsupported source format: {}",
+                source_format
+            ))),
+        }
+    }
+}
 
 #[async_trait]
 impl AsyncFunctionHandler for PublishFunction {
@@ -35,1230 +106,279 @@ impl AsyncFunctionHandler for PublishFunction {
             ))
         })?;
 
-        match source_format {
-            "MT103.Header" => {
-                // Handle MT103.Header
-                handle_mt103_header(data.clone(), message, output_field_name)
-            }
-            "MT103.Document" => {
-                // Handle MT103.Document
-                handle_mt103_document(data.clone(), message, output_field_name)
-            }
-            "MT103_REJT.Header" => {
-                // Handle MT103_REJT.Header
-                handle_mt103_rejt_header(data.clone(), message, output_field_name)
-            }
-            "MT103_REJT.Document" => {
-                // Handle MT103_REJT.Document
-                handle_mt103_rejt_document(data.clone(), message, output_field_name)
-            }
-            "MT103_RETN.Header" => {
-                // Handle MT103_RETN.Header
-                handle_mt103_retn_header(data.clone(), message, output_field_name)
-            }
-            "MT103_RETN.Document" => {
-                // Handle MT103_RETN.Document
-                handle_mt103_retn_document(data.clone(), message, output_field_name)
-            }
-            "MT103_STP.Header" => {
-                // Handle MT103_STP.Header
-                handle_mt103_stp_header(data.clone(), message, output_field_name)
-            }
-            "MT103_STP.Document" => {
-                // Handle MT103_STP.Document
-                handle_mt103_stp_document(data.clone(), message, output_field_name)
-            }
-            "MT202_CORE.Header" => {
-                // Handle MT202_CORE.Header
-                handle_mt202_core_header(data.clone(), message, output_field_name)
-            }
-            "MT202_CORE.Document" => {
-                // Handle MT202_CORE.Document
-                handle_mt202_core_document(data.clone(), message, output_field_name)
-            }
-            "MT202_COV.Header" => {
-                // Handle MT202_COV.Header
-                handle_mt202_cov_header(data.clone(), message, output_field_name)
-            }
-            "MT202_COV.Document" => {
-                // Handle MT202_COV.Document
-                handle_mt202_cov_document(data.clone(), message, output_field_name)
-            }
-            "MT202_REJT.Header" => {
-                // Handle MT202_REJT.Header
-                handle_mt202_rejt_header(data.clone(), message, output_field_name)
-            }
-            "MT202_REJT.Document" => {
-                // Handle MT202_REJT.Document
-                handle_mt202_rejt_document(data.clone(), message, output_field_name)
-            }
-            "MT202_RETN.Header" => {
-                // Handle MT202_RETN.Header
-                handle_mt202_retn_header(data.clone(), message, output_field_name)
-            }
-            "MT202_RETN.Document" => {
-                // Handle MT202_RETN.Document
-                handle_mt202_retn_document(data.clone(), message, output_field_name)
-            }
-            "MT205.Header" => {
-                // Handle MT205.Header
-                handle_mt205_header(data.clone(), message, output_field_name)
-            }
-            "MT205.Document" => {
-                // Handle MT205.Document
-                handle_mt205_document(data.clone(), message, output_field_name)
-            }
-            "MT205_COV.Header" => {
-                // Handle MT205_COV.Header
-                handle_mt205_cov_header(data.clone(), message, output_field_name)
-            }
-            "MT205_COV.Document" => {
-                // Handle MT205_COV.Document
-                handle_mt205_cov_document(data.clone(), message, output_field_name)
-            }
-            "MT205_REJT.Header" => {
-                // Handle MT205_REJT.Header
-                handle_mt205_rejt_header(data.clone(), message, output_field_name)
-            }
-            "MT205_REJT.Document" => {
-                // Handle MT205_REJT.Document
-                handle_mt205_rejt_document(data.clone(), message, output_field_name)
-            }
-            "MT205_RETN.Header" => {
-                // Handle MT205_RETN.Header
-                handle_mt205_retn_header(data.clone(), message, output_field_name)
-            }
-            "MT205_RETN.Document" => {
-                // Handle MT205_RETN.Document
-                handle_mt205_retn_document(data.clone(), message, output_field_name)
-            }
-            _ => Err(DataflowError::Validation(format!(
-                "Unsupported output format: {}",
+        let config = MessageTypeConfig::from_source_format(source_format)?;
+
+        if source_format.ends_with(".Header") {
+            handle_header(data.clone(), message, output_field_name, &config)
+        } else if source_format.ends_with(".Document") {
+            handle_document(data.clone(), message, output_field_name, &config)
+        } else {
+            Err(DataflowError::Validation(format!(
+                "Invalid source format: {}",
                 source_format
-            ))),
-        }
-    }
-}
-
-// Handle MT103 Header - generates AppHdr XML
-fn handle_mt103_header(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::header::bah_pacs_008_001_08::BusinessApplicationHeaderV02;
-
-    // Try to use the AppHdr from mx-message if the data structure is compatible
-    match serde_json::from_value::<BusinessApplicationHeaderV02>(data.clone()) {
-        Ok(header_data) => {
-            // Use mx-message serialization
-            match xml_to_string(&header_data) {
-                Ok(xml_string) => {
-                    let result_value = Value::String(xml_string);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("Header XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "Header XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => {
-            println!("AppHdr deserialization failed: {}", e);
-            Err(DataflowError::Validation(format!(
-                "AppHdr deserialization failed: {}",
-                e
             )))
         }
     }
 }
 
-// Handle MT103 Document - generates Document XML in array format
-fn handle_mt103_document(
+// Generic header handler
+fn handle_header(
     data: Value,
     message: &mut Message,
     output_field_name: &str,
+    config: &MessageTypeConfig,
 ) -> Result<(usize, Vec<Change>)> {
-    use mx_message::{
-        app_document::Document, document::pacs_008_001_08::FIToFICustomerCreditTransferV08,
+    let xml_string = match config {
+        MessageTypeConfig::MT103 { .. } => {
+            serialize_header::<bah_pacs_008_001_08::BusinessApplicationHeaderV02>(data)?
+        }
+        MessageTypeConfig::MT103Rejt { .. } => {
+            serialize_header::<bah_pacs_002_001_10::BusinessApplicationHeaderV02>(data)?
+        }
+        MessageTypeConfig::MT103Retn { .. } => {
+            serialize_header::<bah_pacs_004_001_09::BusinessApplicationHeaderV02>(data)?
+        }
+        MessageTypeConfig::MT103Stp { .. } => {
+            serialize_header::<bah_pacs_008_001_08_stp::BusinessApplicationHeaderV02>(data)?
+        }
+        MessageTypeConfig::MT202Core { .. } | MessageTypeConfig::MT202Cov { .. } => {
+            serialize_header::<bah_pacs_009_001_08::BusinessApplicationHeaderV02>(data)?
+        }
+        MessageTypeConfig::MT202Rejt { .. } => {
+            serialize_header::<bah_pacs_002_001_10::BusinessApplicationHeaderV02>(data)?
+        }
+        MessageTypeConfig::MT202Retn { .. } => {
+            serialize_header::<bah_pacs_004_001_09::BusinessApplicationHeaderV02>(data)?
+        }
+        MessageTypeConfig::MT205 { .. } | MessageTypeConfig::MT205Cov { .. } => {
+            serialize_header::<bah_pacs_009_001_08::BusinessApplicationHeaderV02>(data)?
+        }
+        MessageTypeConfig::MT205Rejt { .. } => {
+            serialize_header::<bah_pacs_002_001_10::BusinessApplicationHeaderV02>(data)?
+        }
+        MessageTypeConfig::MT205Retn { .. } => {
+            serialize_header::<bah_pacs_004_001_09::BusinessApplicationHeaderV02>(data)?
+        }
+        MessageTypeConfig::MT900 { .. } => {
+            serialize_header::<bah_camt_054_001::BusinessApplicationHeaderV02>(data)?
+        }
     };
 
-    // Extract FIToFICstmrCdtTrf from the data
-    let fi_to_fi = data.get("FIToFICstmrCdtTrf").ok_or_else(|| {
-        DataflowError::Validation("FIToFICstmrCdtTrf not found in document".to_string())
-    })?;
+    let result_value = Value::String(xml_string);
+    message.data[output_field_name] = result_value.clone();
 
-    // Serialize using mx-message structures
-    match serde_json::from_value::<FIToFICustomerCreditTransferV08>(fi_to_fi.clone()) {
-        Ok(pacs_data) => {
-            let document = Document::FIToFICustomerCreditTransferV08(Box::new(pacs_data));
-            match xml_to_string(&document) {
-                Ok(xml_string) => {
-                    // Store as array with single document
-                    let result_array = vec![Value::String(xml_string)];
-                    let result_value = Value::Array(result_array);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("Document XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "Document XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => Err(DataflowError::Validation(format!(
-            "FIToFICustomerCreditTransferV08 deserialization failed: {}",
-            e
-        ))),
-    }
+    Ok((
+        200,
+        vec![Change {
+            path: format!("data.{}", output_field_name),
+            old_value: Value::Null,
+            new_value: result_value,
+        }],
+    ))
 }
 
-fn handle_mt103_rejt_header(
+// Generic document handler
+fn handle_document(
     data: Value,
     message: &mut Message,
     output_field_name: &str,
+    config: &MessageTypeConfig,
 ) -> Result<(usize, Vec<Change>)> {
-    use mx_message::header::bah_pacs_002_001_10::BusinessApplicationHeaderV02;
-
-    // Try to use the AppHdr from mx-message if the data structure is compatible
-    match serde_json::from_value::<BusinessApplicationHeaderV02>(data.clone()) {
-        Ok(header_data) => {
-            // Use mx-message serialization
-            match xml_to_string(&header_data) {
-                Ok(xml_string) => {
-                    let result_value = Value::String(xml_string);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("Header XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "Header XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => Err(DataflowError::Validation(format!(
-            "AppHdr deserialization failed: {}",
-            e
-        ))),
-    }
-}
-
-fn handle_mt103_rejt_document(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::{
-        app_document::Document, document::pacs_002_001_10::FIToFIPaymentStatusReportV10,
+    let xml_string = match config {
+        MessageTypeConfig::MT103 { document_field } => serialize_document(
+            data,
+            document_field,
+            |pacs_data: pacs_008_001_08::FIToFICustomerCreditTransferV08| {
+                mx_message::app_document::Document::FIToFICustomerCreditTransferV08(Box::new(
+                    pacs_data,
+                ))
+            },
+        )?,
+        MessageTypeConfig::MT103Rejt { document_field } => serialize_document(
+            data,
+            document_field,
+            |pacs_data: pacs_002_001_10::FIToFIPaymentStatusReportV10| {
+                mx_message::app_document::Document::FIToFIPaymentStatusReportV10(Box::new(
+                    pacs_data,
+                ))
+            },
+        )?,
+        MessageTypeConfig::MT103Retn { document_field } => serialize_document(
+            data,
+            document_field,
+            |pacs_data: pacs_004_001_09::PaymentReturnV09| {
+                mx_message::app_document::Document::PaymentReturnV09(Box::new(pacs_data))
+            },
+        )?,
+        MessageTypeConfig::MT103Stp { document_field } => serialize_document(
+            data,
+            document_field,
+            |pacs_data: pacs_008_001_08_stp::FIToFICustomerCreditTransferV08| {
+                mx_message::app_document::Document::FIToFICustomerCreditTransferV08STP(Box::new(
+                    pacs_data,
+                ))
+            },
+        )?,
+        MessageTypeConfig::MT202Core { document_field }
+        | MessageTypeConfig::MT202Cov { document_field }
+        | MessageTypeConfig::MT205 { document_field }
+        | MessageTypeConfig::MT205Cov { document_field } => serialize_document(
+            data,
+            document_field,
+            |pacs_data: pacs_009_001_08::FinancialInstitutionCreditTransferV08| {
+                mx_message::app_document::Document::FinancialInstitutionCreditTransferV08(Box::new(
+                    pacs_data,
+                ))
+            },
+        )?,
+        MessageTypeConfig::MT202Rejt { document_field }
+        | MessageTypeConfig::MT205Rejt { document_field } => serialize_document(
+            data,
+            document_field,
+            |pacs_data: pacs_002_001_10::FIToFIPaymentStatusReportV10| {
+                mx_message::app_document::Document::FIToFIPaymentStatusReportV10(Box::new(
+                    pacs_data,
+                ))
+            },
+        )?,
+        MessageTypeConfig::MT202Retn { document_field }
+        | MessageTypeConfig::MT205Retn { document_field } => serialize_document(
+            data,
+            document_field,
+            |pacs_data: pacs_004_001_09::PaymentReturnV09| {
+                mx_message::app_document::Document::PaymentReturnV09(Box::new(pacs_data))
+            },
+        )?,
+        MessageTypeConfig::MT900 { document_field } => serialize_document(
+            data,
+            document_field,
+            |camt_data: camt_054_001_08::BankToCustomerDebitCreditNotificationV08| {
+                mx_message::app_document::Document::BankToCustomerDebitCreditNotificationV08(
+                    Box::new(camt_data),
+                )
+            },
+        )?,
     };
 
-    // Extract FIToFIPaymentStatusReport from the data
-    let fi_to_fi = data.get("FIToFIPmtStsRpt").ok_or_else(|| {
-        DataflowError::Validation("FIToFIPmtStsRpt not found in document".to_string())
-    })?;
+    // Store as array with single document
+    let result_array = vec![Value::String(xml_string)];
+    let result_value = Value::Array(result_array);
+    message.data[output_field_name] = result_value.clone();
 
-    // Serialize using mx-message structures
-    match serde_json::from_value::<FIToFIPaymentStatusReportV10>(fi_to_fi.clone()) {
-        Ok(pacs_data) => {
-            let document = Document::FIToFIPaymentStatusReportV10(Box::new(pacs_data));
-            match xml_to_string(&document) {
-                Ok(xml_string) => {
-                    // Store as array with single document
-                    let result_array = vec![Value::String(xml_string)];
-                    let result_value = Value::Array(result_array);
-                    message.data[output_field_name] = result_value.clone();
+    Ok((
+        200,
+        vec![Change {
+            path: format!("data.{}", output_field_name),
+            old_value: Value::Null,
+            new_value: result_value,
+        }],
+    ))
+}
 
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("Document XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "Document XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
+// Generic header serialization helper
+fn serialize_header<T>(data: Value) -> Result<String>
+where
+    T: serde::de::DeserializeOwned + serde::Serialize,
+{
+    // Use serde_path_to_error for detailed path information
+    let json_str = data.to_string();
+    let mut deserializer = serde_json::Deserializer::from_str(&json_str);
+    match serde_path_to_error::deserialize::<_, T>(&mut deserializer) {
+        Ok(header_data) => xml_to_string(&header_data).map_err(|e| {
+            let error_msg = format!(
+                "Header XML serialization failed at path: {}, error: {}",
+                get_xml_error_path(&e),
+                e
+            );
+            println!("{}", error_msg);
+            DataflowError::Validation(error_msg)
+        }),
+        Err(e) => {
+            let error_msg = format!(
+                "AppHdr JSON deserialization failed at path '{}': {}",
+                e.path(),
+                e.inner()
+            );
+            println!("{}", error_msg);
+            Err(DataflowError::Validation(error_msg))
         }
-        Err(e) => Err(DataflowError::Validation(format!(
-            "FIToFIPaymentStatusReportV10 deserialization failed: {}",
-            e
-        ))),
     }
 }
 
-fn handle_mt103_retn_header(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::header::bah_pacs_004_001_09::BusinessApplicationHeaderV02;
+// Generic document serialization helper
+fn serialize_document<T, F>(data: Value, field_name: &str, doc_wrapper: F) -> Result<String>
+where
+    T: serde::de::DeserializeOwned,
+    F: FnOnce(T) -> mx_message::app_document::Document,
+    mx_message::app_document::Document: serde::Serialize,
+{
+    let field_data = data.get(field_name).ok_or_else(|| {
+        DataflowError::Validation(format!(
+            "{} not found in document at path: data.{}",
+            field_name, field_name
+        ))
+    })?;
 
-    // Try to use the AppHdr from mx-message if the data structure is compatible
-    match serde_json::from_value::<BusinessApplicationHeaderV02>(data.clone()) {
-        Ok(header_data) => {
-            // Use mx-message serialization
-            match xml_to_string(&header_data) {
-                Ok(xml_string) => {
-                    let result_value = Value::String(xml_string);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("Header XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "Header XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
+    // Use serde_path_to_error for detailed path information
+    let json_str = field_data.to_string();
+    let mut deserializer = serde_json::Deserializer::from_str(&json_str);
+    match serde_path_to_error::deserialize::<_, T>(&mut deserializer) {
+        Ok(parsed_data) => {
+            let document = doc_wrapper(parsed_data);
+            xml_to_string(&document).map_err(|e| {
+                let error_msg = format!(
+                    "Document XML serialization failed at path: {}.{}, error: {}",
+                    field_name,
+                    get_xml_error_path(&e),
+                    e
+                );
+                println!("{}", error_msg);
+                DataflowError::Validation(error_msg)
+            })
         }
         Err(e) => {
-            println!("AppHdr deserialization failed: {}", e);
-            Err(DataflowError::Validation(format!(
-                "AppHdr deserialization failed: {}",
-                e
-            )))
+            let error_msg = format!(
+                "{} JSON deserialization failed at path: {}.{}: {}",
+                std::any::type_name::<T>(),
+                field_name,
+                e.path(),
+                e.inner()
+            );
+            println!("{}", error_msg);
+            Err(DataflowError::Validation(error_msg))
         }
     }
 }
 
-fn handle_mt103_retn_document(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::{app_document::Document, document::pacs_004_001_09::PaymentReturnV09};
+// Helper function to extract path information from XML serialization errors
+fn get_xml_error_path(error: &quick_xml::DeError) -> String {
+    // Extract meaningful path information from the error message
+    let error_msg = error.to_string();
 
-    // Extract PaymentReturn from the data
-    let pmt_rtr = data
-        .get("PmtRtr")
-        .ok_or_else(|| DataflowError::Validation("PmtRtr not found in document".to_string()))?;
-
-    // Serialize using mx-message structures
-    match serde_json::from_value::<PaymentReturnV09>(pmt_rtr.clone()) {
-        Ok(pacs_data) => {
-            let document = Document::PaymentReturnV09(Box::new(pacs_data));
-            match xml_to_string(&document) {
-                Ok(xml_string) => {
-                    // Store as array with single document
-                    let result_array = vec![Value::String(xml_string)];
-                    let result_value = Value::Array(result_array);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("Document XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "Document XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => Err(DataflowError::Validation(format!(
-            "PaymentReturnV09 deserialization failed: {}",
-            e
-        ))),
-    }
-}
-
-fn handle_mt103_stp_header(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::header::bah_pacs_008_001_08_stp::BusinessApplicationHeaderV02;
-
-    // Try to use the AppHdr from mx-message if the data structure is compatible
-    match serde_json::from_value::<BusinessApplicationHeaderV02>(data.clone()) {
-        Ok(header_data) => {
-            // Use mx-message serialization
-            match xml_to_string(&header_data) {
-                Ok(xml_string) => {
-                    let result_value = Value::String(xml_string);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("STP Header XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "STP Header XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => {
-            println!("STP AppHdr deserialization failed: {}", e);
-            Err(DataflowError::Validation(format!(
-                "STP AppHdr deserialization failed: {}",
-                e
-            )))
+    // Try to extract field name from error message patterns
+    if let Some(start) = error_msg.find("field `") {
+        if let Some(end) = error_msg[start + 7..].find('`') {
+            return error_msg[start + 7..start + 7 + end].to_string();
         }
     }
-}
 
-fn handle_mt103_stp_document(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::{
-        app_document::Document, document::pacs_008_001_08_stp::FIToFICustomerCreditTransferV08,
-    };
-
-    // Extract FIToFICstmrCdtTrf from the data (STP uses same structure as regular MT103)
-    let fi_to_fi = data.get("FIToFICstmrCdtTrf").ok_or_else(|| {
-        DataflowError::Validation("FIToFICstmrCdtTrf not found in STP document".to_string())
-    })?;
-
-    // Serialize using mx-message structures
-    match serde_json::from_value::<FIToFICustomerCreditTransferV08>(fi_to_fi.clone()) {
-        Ok(pacs_data) => {
-            let document = Document::FIToFICustomerCreditTransferV08STP(Box::new(pacs_data));
-            match xml_to_string(&document) {
-                Ok(xml_string) => {
-                    // Store as array with single document
-                    let result_array = vec![Value::String(xml_string)];
-                    let result_value = Value::Array(result_array);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("STP Document XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "STP Document XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => Err(DataflowError::Validation(format!(
-            "STP FIToFICustomerCreditTransferV08 deserialization failed: {}",
-            e
-        ))),
-    }
-}
-
-// Handle MT202 Core Header - generates AppHdr XML for MT202
-fn handle_mt202_core_header(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::header::bah_pacs_009_001_08::BusinessApplicationHeaderV02;
-
-    // Try to use the AppHdr from mx-message if the data structure is compatible
-    match serde_json::from_value::<BusinessApplicationHeaderV02>(data.clone()) {
-        Ok(header_data) => {
-            // Use mx-message serialization
-            match xml_to_string(&header_data) {
-                Ok(xml_string) => {
-                    let result_value = Value::String(xml_string);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("MT202 Core Header XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "MT202 Core Header XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => {
-            println!("MT202 Core AppHdr deserialization failed: {}", e);
-            Err(DataflowError::Validation(format!(
-                "MT202 Core AppHdr deserialization failed: {}",
-                e
-            )))
+    // Try to extract struct name for context
+    if let Some(start) = error_msg.find("struct `") {
+        if let Some(end) = error_msg[start + 8..].find('`') {
+            return format!("in_struct_{}", &error_msg[start + 8..start + 8 + end]);
         }
     }
-}
 
-// Handle MT202 Core Document - generates Document XML for MT202 Core
-fn handle_mt202_core_document(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::{
-        app_document::Document, document::pacs_009_001_08::FinancialInstitutionCreditTransferV08,
-    };
-
-    // Extract FIToFICdtTrf from the data (MT202 uses pacs.009 instead of pacs.008)
-    let fi_to_fi = data.get("FIToFICdtTrf").ok_or_else(|| {
-        DataflowError::Validation("FIToFICdtTrf not found in MT202 document".to_string())
-    })?;
-
-    // Serialize using mx-message structures
-    match serde_json::from_value::<FinancialInstitutionCreditTransferV08>(fi_to_fi.clone()) {
-        Ok(pacs_data) => {
-            let document = Document::FinancialInstitutionCreditTransferV08(Box::new(pacs_data));
-            match xml_to_string(&document) {
-                Ok(xml_string) => {
-                    // Store as array with single document
-                    let result_array = vec![Value::String(xml_string)];
-                    let result_value = Value::Array(result_array);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("MT202 Core Document XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "MT202 Core Document XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => Err(DataflowError::Validation(format!(
-            "MT202 Core FinancialInstitutionCreditTransferV08 deserialization failed: {}",
-            e
-        ))),
-    }
-}
-
-// Handle MT202 COV Header - generates AppHdr XML for MT202 Cover
-fn handle_mt202_cov_header(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::header::bah_pacs_009_001_08::BusinessApplicationHeaderV02;
-
-    // Try to use the AppHdr from mx-message if the data structure is compatible
-    match serde_json::from_value::<BusinessApplicationHeaderV02>(data.clone()) {
-        Ok(header_data) => {
-            // Use mx-message serialization
-            match xml_to_string(&header_data) {
-                Ok(xml_string) => {
-                    let result_value = Value::String(xml_string);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("MT202 COV Header XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "MT202 COV Header XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => {
-            println!("MT202 COV AppHdr deserialization failed: {}", e);
-            Err(DataflowError::Validation(format!(
-                "MT202 COV AppHdr deserialization failed: {}",
-                e
-            )))
+    // Try to extract any identifiers in backticks
+    if let Some(start) = error_msg.find('`') {
+        if let Some(end) = error_msg[start + 1..].find('`') {
+            return error_msg[start + 1..start + 1 + end].to_string();
         }
     }
-}
 
-// Handle MT202 COV Document - generates Document XML for MT202 Cover
-fn handle_mt202_cov_document(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::{
-        app_document::Document, document::pacs_009_001_08::FinancialInstitutionCreditTransferV08,
-    };
-
-    // Extract FIToFICdtTrf from the data (MT202 COV uses pacs.009 COVE)
-    let fi_to_fi = data.get("FIToFICdtTrf").ok_or_else(|| {
-        DataflowError::Validation("FIToFICdtTrf not found in MT202 COV document".to_string())
-    })?;
-
-    // Serialize using mx-message structures
-    match serde_json::from_value::<FinancialInstitutionCreditTransferV08>(fi_to_fi.clone()) {
-        Ok(pacs_data) => {
-            let document = Document::FinancialInstitutionCreditTransferV08(Box::new(pacs_data));
-            match xml_to_string(&document) {
-                Ok(xml_string) => {
-                    // Store as array with single document
-                    let result_array = vec![Value::String(xml_string)];
-                    let result_value = Value::Array(result_array);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("MT202 COV Document XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "MT202 COV Document XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => Err(DataflowError::Validation(format!(
-            "MT202 COV FinancialInstitutionCreditTransferV08 deserialization failed: {}",
-            e
-        ))),
-    }
-}
-
-fn handle_mt202_rejt_header(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::header::bah_pacs_002_001_10::BusinessApplicationHeaderV02;
-
-    // Try to use the AppHdr from mx-message if the data structure is compatible
-    match serde_json::from_value::<BusinessApplicationHeaderV02>(data.clone()) {
-        Ok(header_data) => {
-            // Use mx-message serialization
-            match xml_to_string(&header_data) {
-                Ok(xml_string) => {
-                    let result_value = Value::String(xml_string);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("Header XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "Header XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => Err(DataflowError::Validation(format!(
-            "AppHdr deserialization failed: {}",
-            e
-        ))),
-    }
-}
-
-fn handle_mt202_rejt_document(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::{
-        app_document::Document, document::pacs_002_001_10::FIToFIPaymentStatusReportV10,
-    };
-
-    // Extract FIToFIPaymentStatusReport from the data
-    let fi_to_fi = data.get("FIToFIPmtStsRpt").ok_or_else(|| {
-        DataflowError::Validation("FIToFIPmtStsRpt not found in document".to_string())
-    })?;
-
-    // Serialize using mx-message structures
-    match serde_json::from_value::<FIToFIPaymentStatusReportV10>(fi_to_fi.clone()) {
-        Ok(pacs_data) => {
-            let document = Document::FIToFIPaymentStatusReportV10(Box::new(pacs_data));
-            match xml_to_string(&document) {
-                Ok(xml_string) => {
-                    // Store as array with single document
-                    let result_array = vec![Value::String(xml_string)];
-                    let result_value = Value::Array(result_array);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("Document XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "Document XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => Err(DataflowError::Validation(format!(
-            "FIToFIPaymentStatusReportV10 deserialization failed: {}",
-            e
-        ))),
-    }
-}
-
-fn handle_mt202_retn_header(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::header::bah_pacs_004_001_09::BusinessApplicationHeaderV02;
-
-    // Try to use the AppHdr from mx-message if the data structure is compatible
-    match serde_json::from_value::<BusinessApplicationHeaderV02>(data.clone()) {
-        Ok(header_data) => {
-            // Use mx-message serialization
-            match xml_to_string(&header_data) {
-                Ok(xml_string) => {
-                    let result_value = Value::String(xml_string);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("Header XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "Header XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => {
-            println!("AppHdr deserialization failed: {}", e);
-            Err(DataflowError::Validation(format!(
-                "AppHdr deserialization failed: {}",
-                e
-            )))
-        }
-    }
-}
-
-fn handle_mt202_retn_document(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::{app_document::Document, document::pacs_004_001_09::PaymentReturnV09};
-
-    // Extract PaymentReturn from the data
-    let pmt_rtr = data
-        .get("PmtRtr")
-        .ok_or_else(|| DataflowError::Validation("PmtRtr not found in document".to_string()))?;
-
-    // Serialize using mx-message structures
-    match serde_json::from_value::<PaymentReturnV09>(pmt_rtr.clone()) {
-        Ok(pacs_data) => {
-            let document = Document::PaymentReturnV09(Box::new(pacs_data));
-            match xml_to_string(&document) {
-                Ok(xml_string) => {
-                    // Store as array with single document
-                    let result_array = vec![Value::String(xml_string)];
-                    let result_value = Value::Array(result_array);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("Document XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "Document XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => Err(DataflowError::Validation(format!(
-            "PaymentReturnV09 deserialization failed: {}",
-            e
-        ))),
-    }
-}
-
-// Handle MT205 Header - generates AppHdr XML for MT205 Corporate payments
-fn handle_mt205_header(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::header::bah_pacs_009_001_08::BusinessApplicationHeaderV02;
-
-    // Try to use the AppHdr from mx-message if the data structure is compatible
-    match serde_json::from_value::<BusinessApplicationHeaderV02>(data.clone()) {
-        Ok(header_data) => {
-            // Use mx-message serialization
-            match xml_to_string(&header_data) {
-                Ok(xml_string) => {
-                    let result_value = Value::String(xml_string);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("MT205 Header XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "MT205 Header XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => {
-            println!("MT205 AppHdr deserialization failed: {}", e);
-            Err(DataflowError::Validation(format!(
-                "MT205 AppHdr deserialization failed: {}",
-                e
-            )))
-        }
-    }
-}
-
-// Handle MT205 Document - generates Document XML for MT205 Corporate payments
-fn handle_mt205_document(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::{
-        app_document::Document, document::pacs_009_001_08::FinancialInstitutionCreditTransferV08,
-    };
-
-    // Extract FIToFICdtTrf from the data (MT205 uses pacs.009 like MT202)
-    let fi_to_fi = data.get("FIToFICdtTrf").ok_or_else(|| {
-        DataflowError::Validation("FIToFICdtTrf not found in MT205 document".to_string())
-    })?;
-
-    // Serialize using mx-message structures
-    match serde_json::from_value::<FinancialInstitutionCreditTransferV08>(fi_to_fi.clone()) {
-        Ok(pacs_data) => {
-            let document = Document::FinancialInstitutionCreditTransferV08(Box::new(pacs_data));
-            match xml_to_string(&document) {
-                Ok(xml_string) => {
-                    // Store as array with single document
-                    let result_array = vec![Value::String(xml_string)];
-                    let result_value = Value::Array(result_array);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("MT205 Document XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "MT205 Document XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => Err(DataflowError::Validation(format!(
-            "MT205 FinancialInstitutionCreditTransferV08 deserialization failed: {}",
-            e
-        ))),
-    }
-}
-
-// Handle MT205 COV Header - generates AppHdr XML for MT205 Cover payments
-fn handle_mt205_cov_header(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::header::bah_pacs_009_001_08::BusinessApplicationHeaderV02;
-
-    // Try to use the AppHdr from mx-message if the data structure is compatible
-    match serde_json::from_value::<BusinessApplicationHeaderV02>(data.clone()) {
-        Ok(header_data) => {
-            // Use mx-message serialization
-            match xml_to_string(&header_data) {
-                Ok(xml_string) => {
-                    let result_value = Value::String(xml_string);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("MT205 COV Header XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "MT205 COV Header XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => {
-            println!("MT205 COV AppHdr deserialization failed: {}", e);
-            Err(DataflowError::Validation(format!(
-                "MT205 COV AppHdr deserialization failed: {}",
-                e
-            )))
-        }
-    }
-}
-
-// Handle MT205 COV Document - generates Document XML for MT205 Cover payments
-fn handle_mt205_cov_document(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::{
-        app_document::Document, document::pacs_009_001_08::FinancialInstitutionCreditTransferV08,
-    };
-
-    // Extract FIToFICdtTrf from the data (MT205 COV uses pacs.009 COVE)
-    let fi_to_fi = data.get("FIToFICdtTrf").ok_or_else(|| {
-        DataflowError::Validation("FIToFICdtTrf not found in MT205 COV document".to_string())
-    })?;
-
-    // Serialize using mx-message structures
-    match serde_json::from_value::<FinancialInstitutionCreditTransferV08>(fi_to_fi.clone()) {
-        Ok(pacs_data) => {
-            let document = Document::FinancialInstitutionCreditTransferV08(Box::new(pacs_data));
-            match xml_to_string(&document) {
-                Ok(xml_string) => {
-                    // Store as array with single document
-                    let result_array = vec![Value::String(xml_string)];
-                    let result_value = Value::Array(result_array);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("MT205 COV Document XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "MT205 COV Document XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => Err(DataflowError::Validation(format!(
-            "MT205 COV FinancialInstitutionCreditTransferV08 deserialization failed: {}",
-            e
-        ))),
-    }
-}
-
-fn handle_mt205_rejt_header(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::header::bah_pacs_002_001_10::BusinessApplicationHeaderV02;
-
-    // Try to use the AppHdr from mx-message if the data structure is compatible
-    match serde_json::from_value::<BusinessApplicationHeaderV02>(data.clone()) {
-        Ok(header_data) => {
-            // Use mx-message serialization
-            match xml_to_string(&header_data) {
-                Ok(xml_string) => {
-                    let result_value = Value::String(xml_string);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("MT205 REJT Header XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "MT205 REJT Header XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => Err(DataflowError::Validation(format!(
-            "MT205 REJT AppHdr deserialization failed: {}",
-            e
-        ))),
-    }
-}
-
-fn handle_mt205_rejt_document(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::{
-        app_document::Document, document::pacs_002_001_10::FIToFIPaymentStatusReportV10,
-    };
-
-    // Extract FIToFIPaymentStatusReport from the data
-    let fi_to_fi = data.get("FIToFIPmtStsRpt").ok_or_else(|| {
-        DataflowError::Validation("FIToFIPmtStsRpt not found in MT205 REJT document".to_string())
-    })?;
-
-    // Serialize using mx-message structures
-    match serde_json::from_value::<FIToFIPaymentStatusReportV10>(fi_to_fi.clone()) {
-        Ok(pacs_data) => {
-            let document = Document::FIToFIPaymentStatusReportV10(Box::new(pacs_data));
-            match xml_to_string(&document) {
-                Ok(xml_string) => {
-                    // Store as array with single document
-                    let result_array = vec![Value::String(xml_string)];
-                    let result_value = Value::Array(result_array);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("MT205 REJT Document XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "MT205 REJT Document XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => Err(DataflowError::Validation(format!(
-            "MT205 REJT FIToFIPaymentStatusReportV10 deserialization failed: {}",
-            e
-        ))),
-    }
-}
-
-fn handle_mt205_retn_header(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::header::bah_pacs_004_001_09::BusinessApplicationHeaderV02;
-
-    // Try to use the AppHdr from mx-message if the data structure is compatible
-    match serde_json::from_value::<BusinessApplicationHeaderV02>(data.clone()) {
-        Ok(header_data) => {
-            // Use mx-message serialization
-            match xml_to_string(&header_data) {
-                Ok(xml_string) => {
-                    let result_value = Value::String(xml_string);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("MT205 RETN Header XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "MT205 RETN Header XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => {
-            println!("MT205 RETN AppHdr deserialization failed: {}", e);
-            Err(DataflowError::Validation(format!(
-                "MT205 RETN AppHdr deserialization failed: {}",
-                e
-            )))
-        }
-    }
-}
-
-fn handle_mt205_retn_document(
-    data: Value,
-    message: &mut Message,
-    output_field_name: &str,
-) -> Result<(usize, Vec<Change>)> {
-    use mx_message::{app_document::Document, document::pacs_004_001_09::PaymentReturnV09};
-
-    // Extract PaymentReturn from the data
-    let pmt_rtr = data.get("PmtRtr").ok_or_else(|| {
-        DataflowError::Validation("PmtRtr not found in MT205 RETN document".to_string())
-    })?;
-
-    // Serialize using mx-message structures
-    match serde_json::from_value::<PaymentReturnV09>(pmt_rtr.clone()) {
-        Ok(pacs_data) => {
-            let document = Document::PaymentReturnV09(Box::new(pacs_data));
-            match xml_to_string(&document) {
-                Ok(xml_string) => {
-                    // Store as array with single document
-                    let result_array = vec![Value::String(xml_string)];
-                    let result_value = Value::Array(result_array);
-                    message.data[output_field_name] = result_value.clone();
-
-                    Ok((
-                        200,
-                        vec![Change {
-                            path: format!("data.{}", output_field_name),
-                            old_value: Value::Null,
-                            new_value: result_value,
-                        }],
-                    ))
-                }
-                Err(e) => {
-                    println!("MT205 RETN Document XML serialization failed: {}", e);
-                    Err(DataflowError::Validation(format!(
-                        "MT205 RETN Document XML serialization failed: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        Err(e) => Err(DataflowError::Validation(format!(
-            "MT205 RETN PaymentReturnV09 deserialization failed: {}",
-            e
-        ))),
-    }
+    // Fallback to generic path info
+    format!(
+        "unknown_path ({})",
+        error_msg.chars().take(50).collect::<String>()
+    )
 }

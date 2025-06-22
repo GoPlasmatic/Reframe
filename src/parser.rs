@@ -129,6 +129,26 @@ impl AsyncFunctionHandler for ParserFunction {
                         })
                     }
                 }
+            } else if message_type == "900" {
+                let Some(mt900_message) = parsed_message.into_mt900() else {
+                    return Err(DataflowError::Validation(
+                        "MT900 message not found in SwiftMT message".to_string(),
+                    ));
+                };
+
+                method = "normal".to_string();
+
+                match serde_json::to_value(&mt900_message) {
+                    Ok(json_value) => json_value,
+                    Err(e) => {
+                        println!("JSON conversion failed: {:?}", e);
+                        json!({
+                            "conversion_error": format!("{:?}", e),
+                            "message_type": message_type,
+                            "raw_payload": payload
+                        })
+                    }
+                }
             } else {
                 method = "normal".to_string();
                 json!({

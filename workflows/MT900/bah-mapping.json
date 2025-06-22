@@ -1,11 +1,11 @@
 {
-    "id": "mt202-bah-mapper",
-    "name": "MT202 Business Application Header Mapping for CBPR+",
-    "description": "Maps MT202 message to ISO 20022 Business Application Header (AppHdr) using head.001.001.02 schema",
+    "id": "mt900-bah-mapper",
+    "name": "MT900 Business Application Header Mapping for CBPR+",
+    "description": "Maps MT900 message to ISO 20022 Business Application Header (AppHdr) using head.001.001.02 schema for camt.054 notification",
     "priority": 2,
     "condition": {
         "and": [
-            {"==": [{"var": "SwiftMT.message_type"}, "202"]},
+            {"==": [{"var": "SwiftMT.message_type"}, "900"]},
             {"==": [{"var": "SwiftMT.method"}, "normal"]},
             {"==": [{"var": "progress.workflow_id"}, "parser"]},
             {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
@@ -27,19 +27,7 @@
                                 "if": [
                                     { "var": "data.SwiftMT.basic_header.sender_bic.raw" },
                                     { "var": "data.SwiftMT.basic_header.sender_bic.raw" },
-                                    {
-                                        "if": [
-                                            { "var": "data.SwiftMT.fields.52A.bic.raw" },
-                                            { "var": "data.SwiftMT.fields.52A.bic.raw" },
-                                            {
-                                                "if": [
-                                                    { "var": "data.SwiftMT.fields.52D.name_and_address" },
-                                                    null,
-                                                    "NOTPROVIDED"
-                                                ]
-                                            }
-                                        ]
-                                    }
+                                    "NOTPROVIDED"
                                 ]
                             }
                         },
@@ -49,19 +37,7 @@
                                 "if": [
                                     { "var": "data.SwiftMT.application_header.receiver_bic.raw" },
                                     { "var": "data.SwiftMT.application_header.receiver_bic.raw" },
-                                    {
-                                        "if": [
-                                            { "var": "data.SwiftMT.fields.58A.bic.raw" },
-                                            { "var": "data.SwiftMT.fields.58A.bic.raw" },
-                                            {
-                                                "if": [
-                                                    { "var": "data.SwiftMT.fields.58D.name_and_address" },
-                                                    null,
-                                                    "NOTPROVIDED"
-                                                ]
-                                            }
-                                        ]
-                                    }
+                                    "NOTPROVIDED"
                                 ]
                             }
                         }
@@ -89,13 +65,13 @@
                             "logic": {
                                 "cat": [
                                     { "var": "data.SwiftMT.fields.20.value" },
-                                    "-pacs.009-001"
+                                    "-camt.054-001"
                                 ]
                             }
                         },
                         {
                             "path": "data.AppHdr.MsgDefIdr",
-                            "logic": "pacs.009.001.08"
+                            "logic": "camt.054.001.08"
                         },
                         {
                             "path": "data.AppHdr.BizSvc",
@@ -133,13 +109,7 @@
                         },
                         {
                             "path": "data.AppHdr.Prty",
-                            "logic": {
-                                "if": [
-                                    { "==": [{ "var": "data.SwiftMT.fields.23B.value" }, "URGP"] },
-                                    "URGT",
-                                    "NORM"
-                                ]
-                            }
+                            "logic": "NORM"
                         }
                     ]
                 }
@@ -162,7 +132,7 @@
                         },
                         {
                             "path": "data.AppHdr.Rltd.MsgDefIdr",
-                            "logic": "pacs.009.001.08"
+                            "logic": "camt.054.001.08"
                         },
                         {
                             "path": "data.AppHdr.Rltd.BizMsgIdr",
@@ -196,15 +166,14 @@
         },
         {
             "id": "publish_header_xml",
-            "name": "Publish Core Header XML",
-            "description": "Publish the Core Header XML to the output field",
-            "condition": { "==": [{"var": "SwiftMT.method"}, "normal"] },
+            "name": "Publish Header XML",
+            "description": "Publish the Header XML to the output field",
             "function": {
                 "name": "publish",
                 "input": {
                     "input_field_name": "AppHdr",
                     "output_field_name": "header_xml",
-                    "source_format": "MT202_CORE.Header"
+                    "source_format": "MT900.Header"
                 }
             }
         }

@@ -149,6 +149,106 @@ impl AsyncFunctionHandler for ParserFunction {
                         })
                     }
                 }
+            } else if message_type == "910" {
+                let Some(mt910_message) = parsed_message.into_mt910() else {
+                    return Err(DataflowError::Validation(
+                        "MT910 message not found in SwiftMT message".to_string(),
+                    ));
+                };
+
+                method = "normal".to_string();
+
+                match serde_json::to_value(&mt910_message) {
+                    Ok(json_value) => json_value,
+                    Err(e) => {
+                        println!("JSON conversion failed: {:?}", e);
+                        json!({
+                            "conversion_error": format!("{:?}", e),
+                            "message_type": message_type,
+                            "raw_payload": payload
+                        })
+                    }
+                }
+            } else if message_type == "192" {
+                let Some(mt192_message) = parsed_message.into_mt192() else {
+                    return Err(DataflowError::Validation(
+                        "MT192 message not found in SwiftMT message".to_string(),
+                    ));
+                };
+
+                method = "normal".to_string();
+
+                match serde_json::to_value(&mt192_message) {
+                    Ok(json_value) => json_value,
+                    Err(e) => {
+                        println!("JSON conversion failed: {:?}", e);
+                        json!({
+                            "conversion_error": format!("{:?}", e),
+                            "message_type": message_type,
+                            "raw_payload": payload
+                        })
+                    }
+                }
+            } else if message_type == "292" {
+                let Some(mt292_message) = parsed_message.into_mt292() else {
+                    return Err(DataflowError::Validation(
+                        "MT292 message not found in SwiftMT message".to_string(),
+                    ));
+                };
+
+                method = "normal".to_string();
+
+                match serde_json::to_value(&mt292_message) {
+                    Ok(json_value) => json_value,
+                    Err(e) => {
+                        println!("JSON conversion failed: {:?}", e);
+                        json!({
+                            "conversion_error": format!("{:?}", e),
+                            "message_type": message_type,
+                            "raw_payload": payload
+                        })
+                    }
+                }
+            } else if message_type == "196" {
+                let Some(mt196_message) = parsed_message.into_mt196() else {
+                    return Err(DataflowError::Validation(
+                        "MT196 message not found in SwiftMT message".to_string(),
+                    ));
+                };
+
+                method = "normal".to_string();
+
+                match serde_json::to_value(&mt196_message) {
+                    Ok(json_value) => json_value,
+                    Err(e) => {
+                        println!("JSON conversion failed: {:?}", e);
+                        json!({
+                            "conversion_error": format!("{:?}", e),
+                            "message_type": message_type,
+                            "raw_payload": payload
+                        })
+                    }
+                }
+            } else if message_type == "296" {
+                let Some(mt296_message) = parsed_message.into_mt296() else {
+                    return Err(DataflowError::Validation(
+                        "MT296 message not found in SwiftMT message".to_string(),
+                    ));
+                };
+
+                method = "normal".to_string();
+
+                match serde_json::to_value(&mt296_message) {
+                    Ok(json_value) => json_value,
+                    Err(e) => {
+                        println!("JSON conversion failed: {:?}", e);
+                        json!({
+                            "conversion_error": format!("{:?}", e),
+                            "message_type": message_type,
+                            "raw_payload": payload
+                        })
+                    }
+                }
             } else {
                 method = "normal".to_string();
                 json!({

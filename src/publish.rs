@@ -28,6 +28,11 @@ enum MessageTypeConfig {
     MT205Rejt { document_field: &'static str },
     MT205Retn { document_field: &'static str },
     MT900 { document_field: &'static str },
+    MT910 { document_field: &'static str },
+    MT192 { document_field: &'static str },
+    MT292 { document_field: &'static str },
+    MT196 { document_field: &'static str },
+    MT296 { document_field: &'static str },
 }
 
 impl MessageTypeConfig {
@@ -71,6 +76,21 @@ impl MessageTypeConfig {
             }),
             "MT900.Header" | "MT900.Document" => Ok(MessageTypeConfig::MT900 {
                 document_field: "BkToCstmrDbtCdtNtfctn",
+            }),
+            "MT910.Header" | "MT910.Document" => Ok(MessageTypeConfig::MT910 {
+                document_field: "BkToCstmrDbtCdtNtfctn",
+            }),
+            "MT192.Header" | "MT192.Document" => Ok(MessageTypeConfig::MT192 {
+                document_field: "FIToFIPmtCxlReq",
+            }),
+            "MT292.Header" | "MT292.Document" => Ok(MessageTypeConfig::MT292 {
+                document_field: "FIToFIPmtCxlReq",
+            }),
+            "MT196.Header" | "MT196.Document" => Ok(MessageTypeConfig::MT196 {
+                document_field: "FIToFIPmtCxlReq",
+            }),
+            "MT296.Header" | "MT296.Document" => Ok(MessageTypeConfig::MT296 {
+                document_field: "FIToFIPmtCxlReq",
             }),
             _ => Err(DataflowError::Validation(format!(
                 "Unsupported source format: {}",
@@ -161,6 +181,15 @@ fn handle_header(
         MessageTypeConfig::MT900 { .. } => {
             serialize_header::<bah_camt_054_001::BusinessApplicationHeaderV02>(data)?
         }
+        MessageTypeConfig::MT910 { .. } => {
+            serialize_header::<bah_camt_054_001::BusinessApplicationHeaderV02>(data)?
+        }
+        MessageTypeConfig::MT192 { .. }
+        | MessageTypeConfig::MT292 { .. }
+        | MessageTypeConfig::MT196 { .. }
+        | MessageTypeConfig::MT296 { .. } => {
+            serialize_header::<bah_camt_056_001_08::BusinessApplicationHeaderV02>(data)?
+        }
     };
 
     let result_value = Value::String(xml_string);
@@ -248,13 +277,26 @@ fn handle_document(
                 mx_message::app_document::Document::PaymentReturnV09(Box::new(pacs_data))
             },
         )?,
-        MessageTypeConfig::MT900 { document_field } => serialize_document(
+        MessageTypeConfig::MT900 { document_field }
+        | MessageTypeConfig::MT910 { document_field } => serialize_document(
             data,
             document_field,
             |camt_data: camt_054_001_08::BankToCustomerDebitCreditNotificationV08| {
                 mx_message::app_document::Document::BankToCustomerDebitCreditNotificationV08(
                     Box::new(camt_data),
                 )
+            },
+        )?,
+        MessageTypeConfig::MT192 { document_field }
+        | MessageTypeConfig::MT292 { document_field }
+        | MessageTypeConfig::MT196 { document_field }
+        | MessageTypeConfig::MT296 { document_field } => serialize_document(
+            data,
+            document_field,
+            |camt_data: camt_056_001_08::FIToFIPaymentCancellationRequestV08| {
+                mx_message::app_document::Document::FIToFIPaymentCancellationRequestV08(Box::new(
+                    camt_data,
+                ))
             },
         )?,
     };

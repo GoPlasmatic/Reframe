@@ -1,0 +1,104 @@
+{
+    "id": "mt292-precondition",
+    "name": "MT292 Message Precondition",
+    "description": "Precondition checks for MT292 request for cancellation message",
+    "priority": 3,
+    "condition": {
+        "and": [
+            {"==": [{"var": "SwiftMT.message_type"}, "292"]},
+            {"==": [{"var": "SwiftMT.method"}, "normal"]},
+            {"==": [{"var": "progress.workflow_id"}, "mt292-bah-mapper"]},
+            {"==": [{"var": "progress.task_id"}, "publish_header_xml"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "PREC001_validate_temp_variables",
+            "name": "PREC001: Validate Temp Variables from TR001",
+            "description": "Ensure Temp~Sender and Temp~Receiver are properly defined from BAH translation",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "temp_data",
+                            "logic": {
+                                "and": [
+                                    { "exists": [ "temp_data", "Sender" ] },
+                                    { "exists": [ "temp_data", "Receiver" ] },
+                                    { "!=": [ { "var": "temp_data.Sender" }, "NOTPROVIDED" ] },
+                                    { "!=": [ { "var": "temp_data.Receiver" }, "NOTPROVIDED" ] }
+                                ]
+                            },
+                            "message": "Translation stopped: TempSender or TempReceiver is not properly provided from TR001"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC002_validate_mandatory_fields",
+            "name": "PREC002: Validate Mandatory MT292 Fields",
+            "description": "Ensure mandatory fields for MT292 are present",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {
+                                "and": [
+                                    { "exists": [ "data", "SwiftMT", "fields", "20", "value" ] },
+                                    { "exists": [ "data", "SwiftMT", "fields", "21", "value" ] },
+                                    { "!=": [ { "var": "data.SwiftMT.fields.20.value" }, "" ] },
+                                    { "!=": [ { "var": "data.SwiftMT.fields.21.value" }, "" ] }
+                                ]
+                            },
+                            "message": "Translation stopped: Mandatory MT292 fields (20, 21) are missing or invalid"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC003_validate_uetr_present",
+            "name": "PREC003: Validate UETR Present",
+            "description": "Ensure UETR is present for MT292 cancellation requests",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {
+                                "exists": ["data", "SwiftMT", "user_header", "unique_end_to_end_reference"]
+                            },
+                            "message": "Translation stopped: UETR is required for MT292 cancellation request messages"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC004_set_cancellation_type",
+            "name": "PREC004: Set Cancellation Request Type",
+            "description": "Set cancellation request type for MT292",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.cancellation_type",
+                            "logic": "FULL"
+                        },
+                        {
+                            "path": "temp_data.request_status",
+                            "logic": "CANC"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+} 

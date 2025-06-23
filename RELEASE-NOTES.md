@@ -1,5 +1,107 @@
 # Reframe Release Notes
 
+## Version 1.5.4 - Major Release: Complete Cancellation & Investigation Workflow Ecosystem ✨ **NEW**
+
+### 🚀 **Major System Enhancements**
+
+#### **Cancellation & Investigation Workflows** ✨ **NEW**
+- **MT192 Cancellation Requests**: Request for Cancellation (Customer Credit Transfer) → `camt.056.001.08`
+- **MT292 Cancellation Requests**: Request for Cancellation (Financial Institution Transfer) → `camt.056.001.08`
+- **MT196 Cancellation Answers**: Answer to Request for Cancellation (Customer Transfer) → `camt.056.001.08`
+- **MT296 Cancellation Answers**: Answer to Request for Cancellation (Financial Institution Transfer) → `camt.056.001.08`
+
+#### **Advanced Cancellation Processing** ✨ **NEW**
+- **UETR Integration**: Full Unique End-to-End Transaction Reference support for cancellation requests
+- **Field 76 Support**: Original transaction details mapping for MT196/MT296 answer messages
+- **Cancellation Reason Processing**: Field 79 narrative mapping for comprehensive cancellation reason documentation
+- **Business Application Header**: Complete TR001 specification compliance for cancellation workflows
+
+#### **Enhanced Parser Support** ✨ **NEW**
+- **Extended Message Type Coverage**: Parser now supports MT192, MT292, MT196, and MT296 message types
+- **Automatic Classification**: Intelligent detection and routing for all cancellation and investigation scenarios
+- **Field Validation**: Enhanced validation for mandatory cancellation fields (20, 21, UETR)
+- **Error Handling**: Comprehensive error resolution for BIC formatting and block structure validation
+
+#### **Production-Ready Test Data** ✨ **NEW**
+- **MT192 Test Samples**: Customer credit transfer cancellation scenarios
+- **MT292 Test Samples**: Financial institution transfer cancellation scenarios  
+- **MT196 Test Samples**: Customer transfer cancellation answer scenarios
+- **MT296 Test Samples**: Financial institution transfer cancellation answer scenarios
+- **Comprehensive Coverage**: All test data includes proper UETR formatting and mandatory field validation
+
+### 🎯 Supported Message Transformations (Updated)
+
+#### Customer Credit Transfer Cancellations ✨ **NEW**
+- **MT192** → `camt.056.001.08` (Request for Cancellation - Customer Credit Transfer)
+- **MT196** → `camt.056.001.08` (Answer to Request for Cancellation - Customer Transfer)
+
+#### Financial Institution Transfer Cancellations ✨ **NEW**
+- **MT292** → `camt.056.001.08` (Request for Cancellation - Financial Institution Transfer)
+- **MT296** → `camt.056.001.08` (Answer to Request for Cancellation - Financial Institution Transfer)
+
+#### MT103 Customer Credit Transfers (Existing)
+- **MT103 Normal** → `pacs.008.001.08` (Customer Credit Transfer)
+- **MT103 STP** → `pacs.008.001.08` (Straight Through Processing)
+- **MT103 REJT** → `pacs.002.001.10` (Payment Status Report - Rejection)
+- **MT103 RETN** → `pacs.004.001.09` (Payment Return)
+
+#### MT202 Financial Institution Transfers (Existing)
+- **MT202 Normal** → `pacs.009.001.08` (Financial Institution Credit Transfer)
+- **MT202 COV** → `pacs.009.001.08 COVE` (Cover Payment using Correspondent Banks)
+- **MT202 REJT** → `pacs.002.001.10` (Payment Status Report - Rejection)
+- **MT202 RETN** → `pacs.004.001.09` (Payment Return)
+
+#### MT205 Corporate Financial Institution Transfers (Existing)
+- **MT205 Normal** → `pacs.009.001.08` (Corporate Financial Institution Transfer)
+- **MT205 COV** → `pacs.009.001.08 COVE` (Corporate Cover Payment using Correspondent Banks)
+- **MT205 REJT** → `pacs.002.001.10` (Payment Status Report - Corporate Rejection)
+- **MT205 RETN** → `pacs.004.001.09` (Corporate Payment Return)
+
+### 🔧 Technical Improvements
+
+#### **ISO 20022 Cancellation Compliance**
+- **camt.056.001.08 Schema**: Complete FIToFIPaymentCancellationRequestV08 implementation
+- **Assignment Section**: Proper message identification and creation date/time handling
+- **Group Header**: Enhanced group-level cancellation information with original group references
+- **Transaction Information**: Comprehensive original transaction reference mapping with UETR support
+- **Cancellation Reason**: Field 79 narrative processing for detailed cancellation explanations
+
+#### **Enhanced Workflow Architecture**
+- **16 New Workflow Files**: Complete workflow coverage for all 4 cancellation message types
+- **Consistent JSON Structure**: Unified approach matching existing payment workflow patterns
+- **Priority-Based Processing**: Proper workflow execution order for cancellation scenarios
+- **CBPR+ Compliance**: Full Cross-Border Payments and Reporting Plus compliance for cancellations
+
+#### **Parser & Validation Enhancements**
+- **Message Type Detection**: Automatic identification of MT192, MT292, MT196, MT296 messages
+- **Field Structure Validation**: Enhanced validation for cancellation-specific field requirements
+- **UETR Processing**: Mandatory UETR validation for all cancellation request workflows
+- **BIC Code Compliance**: Proper 8/11 character BIC validation and formatting
+
+### 📊 Implementation Statistics (Updated)
+
+- **Message Types Supported**: 7 complete message families (MT103, MT202, MT205, MT192, MT292, MT196, MT296)
+- **Total Variants**: 16 message processing scenarios (12 payment + 4 cancellation)
+- **Workflow Files**: 53 specialized transformation workflows (37 payment + 16 cancellation)
+- **ISO 20022 Schemas**: 5 target formats (pacs.008, pacs.009, pacs.002, pacs.004, camt.056)
+- **Sample Coverage**: 20+ authentic test data samples covering all scenarios
+- **Cancellation Coverage**: 100% coverage for customer and financial institution cancellation scenarios
+
+### 🚀 **Production Ready Enhancements**
+
+- **Complete Cancellation Lifecycle**: End-to-end support for payment cancellation requests and answers
+- **Investigation Workflow Support**: Foundation for comprehensive payment investigation capabilities
+- **Enhanced Error Resolution**: Improved handling of cancellation-specific validation requirements
+- **Real-time Processing**: Immediate transformation with detailed processing feedback for all message types
+- **Comprehensive Test Coverage**: Production-quality sample messages for all cancellation scenarios
+
+---
+
+**Total Enhanced Formats**: 16 message variants → 5 ISO 20022 schemas with complete cancellation support  
+**Workflow Coverage**: 100% coverage across payment and cancellation ecosystems  
+**Cancellation Support**: Complete MT192, MT292, MT196, MT296 implementation with camt.056.001.08 compliance  
+**Production Deployment**: Azure Container deployment with enhanced reliability and comprehensive message coverage
+
 ## Version 1.5 - Major Release: Workflow System Consistency & Enhanced Compliance
 
 ### 🚀 **Major System Enhancements**

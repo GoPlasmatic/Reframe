@@ -17,7 +17,7 @@ In an era of evolving payment standards, Reframe offers a strategic advantage by
 *   🤝 **Full Transparency, Zero Black Boxes**: As an open-source solution, Reframe provides complete visibility into its conversion logic. The transformation rules are defined in simple JSON, allowing for easy auditing, customization, and trust.
 *   ⚙️ **Reduce Operational Risk**: Our robust, schema-validated engine minimizes the risk of manual errors and ensures the integrity of your payment messages.
 *   🚀 **Boost Efficiency**: Built in Rust, Reframe is designed for high-throughput, low-latency processing, handling your message volumes with ease.
-*   🌐 **Comprehensive Message Coverage**: Full support for the entire lifecycle of **MT103, MT202, and MT205** messages, including normal payments, cover payments, rejections, and returns.
+*   🌐 **Comprehensive Message Coverage**: Full support for the entire lifecycle of **MT103, MT202, and MT205** messages, including normal payments, cover payments, rejections, returns, and **complete cancellation & investigation workflows**.
 
 ---
 
@@ -52,6 +52,16 @@ Reframe offers complete, production-ready support for the following message type
 | **MT103** | `pacs.008`, `pacs.002`, `pacs.004` | Normal, STP, Rejection, Return |
 | **MT202** | `pacs.009`, `pacs.002`, `pacs.004` | Normal, Cover, Rejection, Return |
 | **MT205** | `pacs.009`, `pacs.002`, `pacs.004` | Normal, Cover, Rejection, Return |
+| **MT192** | `camt.056` | Request for Cancellation (Customer Credit Transfer) |
+| **MT292** | `camt.056` | Request for Cancellation (Financial Institution Transfer) |
+| **MT196** | `camt.056` | Answer to Request for Cancellation (Customer Transfer) |
+| **MT296** | `camt.056` | Answer to Request for Cancellation (Financial Institution Transfer) |
+
+### **Complete Payment & Cancellation Ecosystem**
+- **16 Message Scenarios**: Comprehensive coverage across payment processing and cancellation workflows
+- **5 ISO 20022 Schemas**: `pacs.008`, `pacs.009`, `pacs.002`, `pacs.004`, `camt.056`
+- **End-to-End Lifecycle**: From payment initiation through cancellation and investigation
+- **UETR Support**: Full Unique End-to-End Transaction Reference integration for cancellation workflows
 
 ---
 
@@ -104,6 +114,20 @@ HAUPTSTRASSE 1
 :71A:OUR
 -}
 ```
+
+**Example: MT192 Cancellation Request to camt.056**
+```
+# Request Body
+{1:F01BANKGB2LXXX0000000000}{2:O1921234240101BANKUS33XXXX12345678952401011234N}{3:{121:12345678-1234-4567-8901-123456789012}}{4:
+:20:CANC123456789
+:21:FT21001234567890
+:11S:1922024101
+:79:DUPLICATE PAYMENT DETECTED
+CUSTOMER REQUEST FOR CANCELLATION
+PLEASE PROCESS IMMEDIATELY
+-}
+```
+
 ---
 
 ## Open Source and Contributing

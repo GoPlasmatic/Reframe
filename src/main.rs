@@ -1,307 +1,376 @@
 use axum::{
-    Router,
+    Json, Router,
     extract::State,
-    http::{StatusCode, header},
-    response::Response,
+    http::StatusCode,
     routing::{get, post},
 };
+use dataflow_rs::engine::message::Message;
 use dataflow_rs::{Engine, Workflow};
-use dataflow_rs::{RetryConfig, engine::message::Message};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::Mutex;
 use tower_http::services::ServeDir;
-use tracing::{info, debug, warn, error, instrument};
-use tracing_log::LogTracer;
-use tracing_subscriber::{fmt, EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
-use tracing_appender::rolling;
+use tracing::{debug, error, info, instrument, warn};
+use tracing_subscriber::EnvFilter;
 
-mod parser;
-use parser::ParserFunction;
+// Separate parser modules for different directions
+mod parse_mt;
+use parse_mt::ParseMT;
 
-mod publish;
-use publish::PublishFunction;
+mod parse_mx;
+use parse_mx::ParseMX;
 
-// Application state
+// Separate publish modules for different directions
+mod publish_mx;
+use publish_mx::PublishMX;
+
+mod publish_mt;
+use publish_mt::PublishMT;
+
+// Request/Response structures for new API
+#[derive(Debug, Deserialize)]
+struct TransformationRequest {
+    message: String,
+    #[serde(default)]
+    options: TransformationOptions,
+}
+
+#[derive(Debug, Deserialize, Serialize, Default)]
+struct TransformationOptions {
+    #[serde(default = "default_true")]
+    validation: bool,
+    #[serde(default)]
+    include_debug: bool,
+    #[serde(default)]
+    format_output: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Debug, Serialize)]
+struct TransformationResponse {
+    success: bool,
+    transformed_message: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    debug_info: Option<DebugInfo>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    errors: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    warnings: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct DebugInfo {
+    engine_state: String,
+    workflow_execution: Vec<String>,
+    intermediate_data: Value,
+}
+
+// Application State with dual engines
 #[derive(Clone)]
 struct AppState {
-    engine: Arc<Mutex<Engine>>,
+    forward_engine: Arc<Mutex<Engine>>,
+    reverse_engine: Arc<Mutex<Engine>>,
+}
+
+// Health check response
+#[derive(Serialize)]
+struct HealthResponse {
+    status: String,
+    timestamp: String,
+    engines: EngineStatus,
+}
+
+#[derive(Serialize)]
+struct EngineStatus {
+    forward: String,
+    reverse: String,
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    // Initialize tracing
-    let _guard = init_tracing();
-    
-    info!("🚀 Starting Reframe SWIFT message processing server");
+async fn main() {
+    // Initialize logging
+    initialize_logging();
 
-    // Initialize the dataflow engine
-    let mut engine = Engine::new().with_retry_config(RetryConfig {
-        max_retries: 0,
-        retry_delay_ms: 1,
-        use_backoff: false,
-    });
+    info!("🚀 Starting Reframe Bidirectional Transformation Service");
 
-    // Register custom parse function
-    engine.register_task_function("parse".to_string(), Box::new(ParserFunction));
-    engine.register_task_function("publish".to_string(), Box::new(PublishFunction));
-    info!("✅ Registered custom task functions: parse, publish");
+    // Initialize dual engines
+    let app_state = initialize_engines().await;
 
-    // Load workflows from directory
-    setup_workflows(&mut engine).await?;
-
-    // Create application state
-    let state = AppState {
-        engine: Arc::new(Mutex::new(engine)),
-    };
-
-    // Build the router with static file serving
+    // Build router with new endpoints
     let app = Router::new()
-        .route("/reframe", post(process_data))
         .route("/health", get(health_check))
+        .route("/transform/mt-to-mx", post(transform_mt_to_mx))
+        .route("/transform/mx-to-mt", post(transform_mx_to_mt))
         .nest_service("/", ServeDir::new("static"))
-        .with_state(state);
+        .with_state(app_state);
 
-    info!("🚀 Server starting on http://0.0.0.0:3000");
-    info!("📱 Web UI available at: http://0.0.0.0:3000/");
-    info!("🔄 API endpoint: http://0.0.0.0:3000/reframe");
-    info!("💚 Health check: http://0.0.0.0:3000/health");
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    info!("🌐 Server running on http://0.0.0.0:3000");
+    info!("📡 Forward endpoint: POST /transform/mt-to-mx");
+    info!("📡 Reverse endpoint: POST /transform/mx-to-mt");
+    info!("🏥 Health check: GET /health");
 
-    // Start the server
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
-    axum::serve(listener, app).await?;
-
-    Ok(())
+    axum::serve(listener, app).await.unwrap();
 }
 
-fn init_tracing() -> impl Drop {
-    // Set up file appender with daily rotation
-    let file_appender = rolling::daily("logs", "reframe.log");
-    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
-
-    // Configure filter from environment or default
-    let filter = EnvFilter::try_from_env("RUST_LOG")
-        .unwrap_or_else(|_| EnvFilter::new("info,reframe=debug,dataflow_rs=debug"));
-
-    // Create subscriber with both console and file output
-    tracing_subscriber::registry()
-        .with(
-            fmt::layer()
-                .with_target(true)
-                .with_thread_ids(true)
-                .with_file(true)
-                .with_line_number(true)
-        )
-        .with(
-            fmt::layer()
-                .with_writer(non_blocking)
-                .with_target(true)
-                .with_thread_ids(true)
-                .with_file(true)
-                .with_line_number(true)
-                .with_ansi(false) // No ANSI colors in log files
-        )
-        .with(filter)
-        .init();
-
-    // Initialize log tracer for compatibility with legacy log crates (after subscriber)
-    let _ = LogTracer::init();
-
-    guard
-}
-
-#[instrument(skip(engine))]
-async fn setup_workflows(engine: &mut Engine) -> anyhow::Result<()> {
-    let workflows_dir = Path::new("workflows");
-
-    // Check if workflows directory exists
-    if !workflows_dir.exists() {
-        warn!("⚠️  Workflows directory not found at 'workflows/'. Creating directory...");
-        fs::create_dir_all(workflows_dir)?;
-        info!("📁 Workflows directory created. Please add workflow JSON files to this directory.");
-        return Ok(());
-    }
-
-    // Check if index.json exists
-    let index_path = workflows_dir.join("index.json");
-    if !index_path.exists() {
-        warn!("⚠️  index.json not found in workflows directory.");
-        info!("💡 Please create an index.json file to define workflow loading order.");
-        return Ok(());
-    }
-
-    // Load and parse index.json
-    debug!(?index_path, "Loading workflow index");
-    let index_content = fs::read_to_string(&index_path)
-        .map_err(|e| anyhow::anyhow!("Failed to read index.json: {}", e))?;
-
-    let index_data: Value = serde_json::from_str(&index_content)
-        .map_err(|e| anyhow::anyhow!("Failed to parse index.json: {}", e))?;
-
-    // Get workflows array from index
-    let workflows_array = index_data
-        .get("workflows")
-        .and_then(|w| w.as_array())
-        .ok_or_else(|| anyhow::anyhow!("index.json must contain a 'workflows' array"))?;
-
-    let mut workflow_count = 0;
-    debug!(workflow_count = workflows_array.len(), "Found workflows in index");
-
-    // Load workflows in the order specified by index.json
-    for workflow_entry in workflows_array {
-        let workflow_path = workflow_entry
-            .get("path")
-            .and_then(|p| p.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Each workflow entry must have a 'path' field"))?;
-
-        let full_path = workflows_dir.join(workflow_path);
-
-        match load_workflow_from_file(&full_path) {
-            Ok(workflow) => {
-                engine.add_workflow(&workflow);
-                workflow_count += 1;
-                info!(
-                    workflow_name = %workflow.name,
-                    workflow_id = %workflow.id,
-                    path = %workflow_path,
-                    "✅ Loaded workflow"
-                );
-            }
-            Err(e) => {
-                error!(
-                    path = %workflow_path,
-                    error = %e,
-                    "❌ Failed to load workflow"
-                );
-            }
+fn initialize_logging() {
+    // Simple tracing initialization to avoid conflicts
+    if std::env::var("RUST_LOG").is_err() {
+        unsafe {
+            std::env::set_var("RUST_LOG", "reframe=debug,info");
         }
     }
 
-    if workflow_count == 0 {
-        warn!("⚠️  No workflows were successfully loaded.");
-        info!("💡 Check that all workflow files referenced in index.json exist and are valid.");
-    } else {
-        info!(
-            workflow_count = workflow_count,
-            "🎯 Successfully loaded workflows from index.json"
+    tracing_subscriber::fmt()
+        .with_target(false)
+        .with_thread_ids(true)
+        .with_file(true)
+        .with_line_number(true)
+        .with_env_filter(EnvFilter::from_default_env())
+        .try_init()
+        .ok(); // Ignore errors if already initialized
+}
+
+async fn initialize_engines() -> AppState {
+    info!("🔧 Initializing Forward and Reverse Engines");
+
+    let forward_engine = initialize_forward_engine()
+        .await
+        .expect("Failed to initialize forward engine");
+
+    let reverse_engine = initialize_reverse_engine()
+        .await
+        .expect("Failed to initialize reverse engine");
+
+    info!("✅ Both engines initialized successfully");
+
+    AppState {
+        forward_engine: Arc::new(Mutex::new(forward_engine)),
+        reverse_engine: Arc::new(Mutex::new(reverse_engine)),
+    }
+}
+
+async fn initialize_forward_engine() -> Result<Engine, Box<dyn std::error::Error>> {
+    info!("🔄 Setting up Forward Engine (MT → MX)");
+
+    let mut engine = Engine::new();
+
+    // Register MT-specific functions for forward transformation
+    engine.register_task_function("ParseMT".to_string(), Box::new(ParseMT));
+    engine.register_task_function("PublishMX".to_string(), Box::new(PublishMX));
+
+    // Load forward workflows
+    load_workflows_for_engine(&mut engine, "workflows/forward").await?;
+
+    info!("✅ Forward Engine (MT → MX) ready");
+    Ok(engine)
+}
+
+async fn initialize_reverse_engine() -> Result<Engine, Box<dyn std::error::Error>> {
+    info!("🔄 Setting up Reverse Engine (MX → MT)");
+
+    let mut engine = Engine::new();
+
+    // Register MX-specific functions for reverse transformation
+    engine.register_task_function("ParseMX".to_string(), Box::new(ParseMX));
+    engine.register_task_function("PublishMT".to_string(), Box::new(PublishMT));
+
+    // Load reverse workflows
+    load_workflows_for_engine(&mut engine, "workflows/reverse").await?;
+
+    info!("✅ Reverse Engine (MX → MT) ready");
+    Ok(engine)
+}
+
+async fn load_workflows_for_engine(
+    engine: &mut Engine,
+    workflow_dir: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    info!("📁 Loading workflows from {}", workflow_dir);
+
+    let index_path = format!("{workflow_dir}/index.json");
+    if !Path::new(&index_path).exists() {
+        warn!(
+            "No index.json found in {}, skipping workflow loading",
+            workflow_dir
         );
+        return Ok(());
     }
 
-    Ok(())
-}
+    let index_content = fs::read_to_string(&index_path)?;
+    let index: Value = serde_json::from_str(&index_content)?;
 
-#[instrument]
-fn load_workflow_from_file(path: &Path) -> anyhow::Result<Workflow> {
-    debug!(?path, "Loading workflow file");
-    
-    // Read the file content
-    let content = fs::read_to_string(path)
-        .map_err(|e| anyhow::anyhow!("Failed to read file {}: {}", path.display(), e))?;
+    if let Some(workflows) = index.get("workflows").and_then(|w| w.as_array()) {
+        for workflow_entry in workflows {
+            if let Some(path) = workflow_entry.get("path").and_then(|p| p.as_str()) {
+                let full_path = format!("{workflow_dir}/{path}");
+                if Path::new(&full_path).exists() {
+                    let workflow_content = fs::read_to_string(&full_path)?;
+                    let workflow: Workflow = serde_json::from_str(&workflow_content)?;
 
-    // Parse the JSON
-    let workflow = Workflow::from_json(&content).map_err(|e| {
-        anyhow::anyhow!(
-            "Failed to parse workflow JSON from {}: {}",
-            path.display(),
-            e
-        )
-    })?;
+                    engine.add_workflow(&workflow);
 
-    debug!(workflow_id = %workflow.id, workflow_name = %workflow.name, "Workflow loaded successfully");
-    Ok(workflow)
-}
-
-#[instrument(skip(state, payload), fields(payload_length = payload.len()))]
-async fn process_data(
-    State(state): State<AppState>,
-    payload: String,
-) -> Result<Response<String>, StatusCode> {
-    debug!("Processing SWIFT message data");
-    
-    let engine = state.engine.lock().await;
-
-    // Create a message with the payload
-    let mut message = Message::new(&Value::String(payload));
-
-    // Process the message through workflows
-    match engine.process_message(&mut message).await {
-        Ok(_) => {
-            debug!("Message processed successfully");
-            
-            // Check if we have multiple results (for 1-to-many transformations like MT102)
-            if let Some(results_array) = message.data.get("result") {
-                if let Some(results) = results_array.as_array() {
-                    if !results.is_empty() {
-                        let xml_results: Vec<String> = results
-                            .iter()
-                            .map(|result| result.as_str().unwrap_or("").to_string())
-                            .collect();
-
-                        info!(
-                            result_count = xml_results.len(),
-                            "Successfully processed message with multiple results"
-                        );
-
-                        let response_json = serde_json::json!({
-                            "status": "success",
-                            "results": xml_results,
-                            "debug_message": message
-                        });
-
-                        return Response::builder()
-                            .header(header::CONTENT_TYPE, "application/json")
-                            .body(
-                                serde_json::to_string(&response_json)
-                                    .unwrap_or_else(|_| "{}".to_string()),
-                            )
-                            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR);
-                    }
+                    info!("📄 Loaded workflow: {}", path);
+                } else {
+                    warn!("Workflow file not found: {}", full_path);
                 }
             }
+        }
+    }
 
-            warn!("Message processing completed but no results found");
-            let response_json = serde_json::json!({
-                "status": "error",
-                "results": [],
-                "errors": message.errors,
-                "debug_message": message
-            });
+    Ok(())
+}
 
-            Response::builder()
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(serde_json::to_string(&response_json).unwrap_or_else(|_| "{}".to_string()))
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+// New endpoint handlers
+#[instrument(skip(state, request), fields(message_length = request.message.len()))]
+async fn transform_mt_to_mx(
+    State(state): State<AppState>,
+    Json(request): Json<TransformationRequest>,
+) -> Result<Json<TransformationResponse>, StatusCode> {
+    let start_time = Instant::now();
+
+    info!("🔄 Processing MT to MX transformation request");
+    debug!("Request options: {:?}", request.options);
+
+    // Use forward engine for MT to MX transformation
+    let engine = state.forward_engine.lock().await;
+
+    let payload_value = Value::String(request.message.clone());
+    let mut message = Message::new(&payload_value);
+    message.metadata = serde_json::json!({
+        "transformation_direction": "mt-to-mx"
+    });
+
+    let processing_time = start_time.elapsed().as_millis() as u64;
+
+    match engine.process_message(&mut message).await {
+        Ok(_) => {
+            info!(
+                "✅ MT to MX transformation completed in {}ms",
+                processing_time
+            );
+
+            Ok(Json(TransformationResponse {
+                success: true,
+                transformed_message: Some(
+                    message.data.get("result").unwrap_or(&Value::Null).clone(),
+                ),
+                debug_info: if request.options.include_debug {
+                    let message_json = serde_json::to_value(message).unwrap();
+                    Some(DebugInfo {
+                        engine_state: "forward".to_string(),
+                        workflow_execution: vec!["Completed".to_string()],
+                        intermediate_data: message_json,
+                    })
+                } else {
+                    None
+                },
+                errors: Vec::new(),
+                warnings: Vec::new(),
+            }))
         }
         Err(e) => {
-            error!(error = %e, "Message processing failed");
-            
-            let response_json = serde_json::json!({
-                "status": "error",
-                "results": [],
-                "errors": message.errors,
-                "debug_message": message
-            });
+            error!("❌ MT to MX transformation failed: {}", e);
 
-            Response::builder()
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(serde_json::to_string(&response_json).unwrap_or_else(|_| "{}".to_string()))
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+            Ok(Json(TransformationResponse {
+                success: false,
+                transformed_message: None,
+                debug_info: None,
+                errors: vec![e.to_string()],
+                warnings: Vec::new(),
+            }))
+        }
+    }
+}
+
+#[instrument(skip(state, request), fields(message_length = request.message.len()))]
+async fn transform_mx_to_mt(
+    State(state): State<AppState>,
+    Json(request): Json<TransformationRequest>,
+) -> Result<Json<TransformationResponse>, StatusCode> {
+    let start_time = Instant::now();
+
+    info!("🔄 Processing MX to MT transformation request");
+    debug!("Request options: {:?}", request.options);
+
+    // Use reverse engine for MX to MT transformation
+    let engine = state.reverse_engine.lock().await;
+
+    let payload_value = Value::String(request.message.clone());
+    let mut message = Message::new(&payload_value);
+    message.metadata = serde_json::json!({
+        "transformation_direction": "mx-to-mt"
+    });
+
+    let processing_time = start_time.elapsed().as_millis() as u64;
+
+    match engine.process_message(&mut message).await {
+        Ok(_) => {
+            info!(
+                "✅ MX to MT transformation completed in {}ms",
+                processing_time
+            );
+
+            Ok(Json(TransformationResponse {
+                success: true,
+                transformed_message: Some(
+                    message.data.get("result").unwrap_or(&Value::Null).clone(),
+                ),
+                debug_info: if request.options.include_debug {
+                    let message_json = serde_json::to_value(message).unwrap();
+                    Some(DebugInfo {
+                        engine_state: "reverse".to_string(),
+                        workflow_execution: vec!["Completed".to_string()],
+                        intermediate_data: message_json,
+                    })
+                } else {
+                    None
+                },
+                errors: Vec::new(),
+                warnings: Vec::new(),
+            }))
+        }
+        Err(e) => {
+            error!("❌ MX to MT transformation failed: {}", e);
+
+            Ok(Json(TransformationResponse {
+                success: false,
+                transformed_message: None,
+                debug_info: None,
+                errors: vec![e.to_string()],
+                warnings: Vec::new(),
+            }))
         }
     }
 }
 
 // Health check endpoint
-#[instrument]
-async fn health_check() -> Result<Response<String>, StatusCode> {
-    debug!("Health check requested");
-    
-    let response = Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/json")
-        .body(r#"{"status":"healthy","service":"reframe-api","version":"1.5.5"}"#.to_string())
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+async fn health_check(State(state): State<AppState>) -> Json<HealthResponse> {
+    let forward_status = if state.forward_engine.try_lock().is_ok() {
+        "healthy"
+    } else {
+        "busy"
+    };
 
-    Ok(response)
+    let reverse_status = if state.reverse_engine.try_lock().is_ok() {
+        "healthy"
+    } else {
+        "busy"
+    };
+
+    Json(HealthResponse {
+        status: "running".to_string(),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        engines: EngineStatus {
+            forward: forward_status.to_string(),
+            reverse: reverse_status.to_string(),
+        },
+    })
 }

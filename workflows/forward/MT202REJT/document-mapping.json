@@ -1,0 +1,255 @@
+{
+    "id": "mt202-rejt-document-mapper",
+    "name": "MT202 REJT to pacs.002 Document Mapping for CBPR+",
+    "description": "Maps MT202 REJT message to ISO 20022 pacs.002.001.10 PaymentStatusReportV10 document structure according to CBPR+ translation specification",
+    "priority": 4,
+    "condition": {
+        "and": [
+            {"==": [{"var": "SwiftMT.message_type"}, "202"]},
+            {"==": [{"var": "SwiftMT.method"}, "reject"]},
+            {"==": [{"var": "progress.workflow_id"}, "mt202-rejt-precondition"]},
+            {"in": [{"var": "progress.task_id"}, ["PREC001_validate_temp_variables", "validate_field72_rejt", "validate_uetr_present"]]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "TR007_extract_mref",
+            "name": "TR007: Extract MREF from Field 72",
+            "description": "Extract instruction ID from field 72 /MREF/ line as per TR007 rule",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.instruction_id",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.SwiftMT.fields.72.lines"},
+                                    {
+                                        "reduce": [
+                                            {"var": "data.SwiftMT.fields.72.lines"},
+                                            {
+                                                "if": [
+                                                    {"starts_with": [{"var": "current"}, "/MREF/"]},
+                                                    {"substr": [{"var": "current"}, 6]},
+                                                    {"var": "accumulator"}
+                                                ]
+                                            },
+                                            "NOTPROVIDED"
+                                        ]
+                                    },
+                                    "NOTPROVIDED"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.reason_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.SwiftMT.fields.72.lines"},
+                                    {
+                                        "reduce": [
+                                            {"var": "data.SwiftMT.fields.72.lines"},
+                                            {
+                                                "if": [
+                                                    {"and": [
+                                                        {"!": {"starts_with": [{"var": "current"}, "/REJT/"]}},
+                                                        {"!": {"starts_with": [{"var": "current"}, "/MREF/"]}},
+                                                        {"!": {"starts_with": [{"var": "current"}, "/TEXT/"]}},
+                                                        {"!=": [{"var": "current"}, ""]}
+                                                    ]},
+                                                    {"var": "current"},
+                                                    {"var": "accumulator"}
+                                                ]
+                                            },
+                                            ""
+                                        ]
+                                    },
+                                    ""
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.additional_info",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.SwiftMT.fields.72.lines"},
+                                    {
+                                        "reduce": [
+                                            {"var": "data.SwiftMT.fields.72.lines"},
+                                            {
+                                                "if": [
+                                                    {"starts_with": [{"var": "current"}, "/TEXT/"]},
+                                                    {
+                                                        "cat": [
+                                                            {"var": "accumulator"},
+                                                            " ",
+                                                            {"substr": [{"var": "current"}, 6]}
+                                                        ]
+                                                    },
+                                                    {"var": "accumulator"}
+                                                ]
+                                            },
+                                            ""
+                                        ]
+                                    },
+                                    ""
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_group_header",
+            "name": "Map pacs.002 Group Header",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.GrpHdr.MsgId",
+                            "logic": {"var": "data.SwiftMT.fields.20.value"}
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.GrpHdr.CreDtTm",
+                            "logic": "9999-12-31T00:00:00+00:00"
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstgAgt.FinInstnId.BICFI",
+                            "logic": {"var": "temp_data.Sender"}
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstdAgt.FinInstnId.BICFI",
+                            "logic": {"var": "temp_data.Receiver"}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_original_group_information",
+            "name": "Map Original Group Information",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlGrpInf.OrgnlMsgId",
+                            "logic": {"var": "temp_data.instruction_id"}
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId",
+                            "logic": {
+                                "if": [
+                                    {"==": [{"var": "data.SwiftMT.message_type"}, "202"]},
+                                    "MT202",
+                                    "MT205"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlInstrId",
+                            "logic": {"var": "temp_data.instruction_id"}
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlEndToEndId",
+                            "logic": {"var": "data.SwiftMT.fields.21.value"}
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlUETR",
+                            "logic": {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}
+                        }
+                    ]
+                }
+            }
+                },
+        {
+            "id": "map_transaction_status",
+            "name": "Map Transaction Status Information",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.TxSts",
+                            "logic": "RJCT"
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.InstgAgt.FinInstnId.BICFI",
+                            "logic": {"var": "temp_data.Sender"}
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.InstdAgt.FinInstnId.BICFI",
+                            "logic": {"var": "temp_data.Receiver"}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_status_reason_information",
+            "name": "Map Status Reason Information",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf",
+                            "logic": {}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_status_reason_details",
+            "name": "Map Status Reason Details",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.Rsn.Cd",
+                            "logic": {
+                                "if": [
+                                    {"!=": [{"var": "temp_data.reason_code"}, ""]},
+                                    {"var": "temp_data.reason_code"},
+                                    "NARR"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.AddtlInf",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!=": [{"var": "temp_data.additional_info"}, ""]},
+                                        {"!=": [{"var": "temp_data.additional_info"}, null]}
+                                    ]},
+                                    [{"var": "temp_data.additional_info"}],
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "publish_document_xml",
+            "name": "Publish REJT Document XML",
+            "description": "Publish the REJT Document XML to the output field",
+            "function": {
+                "name": "PublishMX",
+                "input": {
+                    "input_field_name": "Document",
+                    "output_field_name": "document_xml",
+                    "source_format": "MT202_REJT.Document"
+                }
+            }
+        }
+    ]
+} 

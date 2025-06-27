@@ -1,0 +1,206 @@
+{
+    "id": "mt205-bah-mapper",
+    "name": "MT205 Business Application Header Mapping for CBPR+",
+    "description": "Maps MT205 message to ISO 20022 Business Application Header (AppHdr) using head.001.001.02 schema for Corporate Serial payments",
+    "priority": 2,
+    "condition": {
+        "and": [
+            {"==": [{"var": "SwiftMT.message_type"}, "205"]},
+            {"==": [{"var": "SwiftMT.method"}, "normal"]},
+            {"==": [{"var": "progress.workflow_id"}, "parser"]},
+            {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "TR001_define_temp_variables",
+            "name": "TR001: Define Temp~Sender and Temp~Receiver Variables",
+            "description": "Extract BIC codes from BAH or fallback to MT blocks as per TR001 specification for MT205",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.Sender",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.basic_header.sender_bic.raw" },
+                                    { "var": "data.SwiftMT.basic_header.sender_bic.raw" },
+                                    {
+                                        "if": [
+                                            { "var": "data.SwiftMT.fields.52A.bic.raw" },
+                                            { "var": "data.SwiftMT.fields.52A.bic.raw" },
+                                            {
+                                                "if": [
+                                                    { "var": "data.SwiftMT.fields.52D.name_and_address" },
+                                                    null,
+                                                    "NOTPROVIDED"
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.Receiver",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.application_header.receiver_bic.raw" },
+                                    { "var": "data.SwiftMT.application_header.receiver_bic.raw" },
+                                    {
+                                        "if": [
+                                            { "var": "data.SwiftMT.fields.58A.bic.raw" },
+                                            { "var": "data.SwiftMT.fields.58A.bic.raw" },
+                                            {
+                                                "if": [
+                                                    { "var": "data.SwiftMT.fields.58D.name_and_address" },
+                                                    null,
+                                                    "NOTPROVIDED"
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_cbpr_plus_business_application_header",
+            "name": "Map CBPR+ Business Application Header (AppHdr)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.AppHdr.Fr.FIId.FinInstnId.BICFI",
+                            "logic": { "var": "temp_data.Sender" }
+                        },
+                        {
+                            "path": "data.AppHdr.To.FIId.FinInstnId.BICFI",
+                            "logic": { "var": "temp_data.Receiver" }
+                        },
+                        {
+                            "path": "data.AppHdr.BizMsgIdr",
+                            "logic": {
+                                "cat": [
+                                    { "var": "data.SwiftMT.fields.20.value" },
+                                    "-pacs.009-205"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.AppHdr.MsgDefIdr",
+                            "logic": "pacs.009.001.08"
+                        },
+                        {
+                            "path": "data.AppHdr.BizSvc",
+                            "logic": "swift.cbprplus.02"
+                        },
+                        {
+                            "path": "data.AppHdr.CreDt",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.fields.32A.value_date" },
+                                    {
+                                        "cat": [
+                                            { "var": "data.SwiftMT.fields.32A.value_date" },
+                                            "T",
+                                            {
+                                                "format_date": [
+                                                    { "now": [] },
+                                                    "HH:mm:ss"
+                                                ]
+                                            },
+                                            "+00:00"
+                                        ]
+                                    },
+                                    "9999-12-31T00:00:00+00:00"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.AppHdr.CpyDplct",
+                            "logic": "CODU"
+                        },
+                        {
+                            "path": "data.AppHdr.PssblDplct",
+                            "logic": false
+                        },
+                        {
+                            "path": "data.AppHdr.Prty",
+                            "logic": "NORM"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_cbpr_plus_message_metadata",
+            "name": "Map CBPR+ Message Metadata",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.AppHdr.Rltd.Fr.FIId.FinInstnId.BICFI",
+                            "logic": { "var": "temp_data.Sender" }
+                        },
+                        {
+                            "path": "data.AppHdr.Rltd.To.FIId.FinInstnId.BICFI",
+                            "logic": { "var": "temp_data.Receiver" }
+                        },
+                        {
+                            "path": "data.AppHdr.Rltd.MsgDefIdr",
+                            "logic": "pacs.009.001.08"
+                        },
+                        {
+                            "path": "data.AppHdr.Rltd.BizMsgIdr",
+                            "logic": { "var": "data.SwiftMT.fields.20.value" }
+                        },
+                        {
+                            "path": "data.AppHdr.Rltd.CreDt",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.fields.32A.value_date" },
+                                    {
+                                        "cat": [
+                                            { "var": "data.SwiftMT.fields.32A.value_date" },
+                                            "T",
+                                            {
+                                                "format_date": [
+                                                    { "now": [] },
+                                                    "HH:mm:ss"
+                                                ]
+                                            },
+                                            "+00:00"
+                                        ]
+                                    },
+                                    "9999-12-31T00:00:00+00:00"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "publish_header_xml",
+            "name": "Publish Core Header XML",
+            "description": "Publish the Core Header XML to the output field",
+            "condition": { "==": [{"var": "SwiftMT.method"}, "normal"] },
+            "function": {
+                "name": "PublishMX",
+                "input": {
+                    "input_field_name": "AppHdr",
+                    "output_field_name": "header_xml",
+                    "source_format": "MT205.Header"
+                }
+            }
+        }
+    ]
+} 

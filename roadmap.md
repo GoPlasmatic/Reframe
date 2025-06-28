@@ -26,17 +26,15 @@ Our roadmap is focused on completing the bidirectional transformation ecosystem 
 
 ### **Phase 1: Complete Bidirectional Transformation Coverage** ✨ **HIGH PRIORITY**
 
-The immediate focus is to achieve full bidirectional support for all currently supported message types, enabling complete round-trip transformation capabilities.
+The immediate focus is on completing reverse transformation support for the remaining message types:
 
-#### **Reverse Transformation Expansion**
+#### **Remaining Reverse Transformations**
 *   **Target Transformations**: 
-    - pacs.009 → MT202/MT205 (Financial Institution Credit Transfers)
     - pacs.002 → MT103REJT/MT202REJT/MT205REJT (Payment Status Reports → Rejection Messages)
-    - pacs.004 → MT103RETN/MT202RETN/MT205RETN (Payment Returns → Return Messages)
     - camt.056 → MT192/MT292/MT196/MT296 (Cancellation Requests → Cancellation Messages)
     - camt.054 → MT900/MT910 (Bank Notifications → Confirmation Messages)
-*   **Business Value**: Enable complete round-trip processing for all payment scenarios, supporting legacy system integration and migration scenarios.
-*   **Enhanced Error Handling**: Comprehensive validation for reverse transformations with detailed error mapping.
+*   **Business Value**: Complete round-trip processing for all payment scenarios
+*   **Enhanced Error Handling**: Comprehensive validation for remaining reverse transformations
 
 #### **Bidirectional Web Interface**
 *   **Enhanced UI**: Updated web interface with direction selection and format auto-detection
@@ -80,18 +78,18 @@ This phase will introduce support for a wide array of cash management messages w
 
 ---
 
-## **Recent Achievements: Version 1.6.0 Milestone** ✨ **NEW**
+## **Recent Achievements: Version 2.0.2 Milestone** ✨ **NEW**
 
-The recent addition of bidirectional transformation capabilities represents a significant advancement:
+The expansion of bidirectional transformation capabilities represents a significant advancement:
 
-*   **Reverse Transformation Engine**: Complete infrastructure for ISO 20022 → SWIFT MT conversion
-*   **pacs.008 → MT103 Support**: First production-ready reverse transformation
-*   **Intelligent Direction Detection**: Automatic detection of transformation direction based on content type
-*   **Enhanced Workflow Architecture**: Separate forward and reverse workflow engines
-*   **Comprehensive Error Handling**: Detailed error reporting for both transformation directions
-*   **Updated Web Interface**: Enhanced UI supporting bidirectional transformation testing
+*   **Enhanced Reverse Transformation**: Added support for pacs.009 and pacs.004 reverse transformations
+*   **Complete Financial Institution Support**: Full MT202/MT205 reverse transformation capabilities
+*   **Return Message Processing**: Comprehensive support for payment return message reverse transformation
+*   **Advanced Validation**: Enhanced validation framework for reverse transformations
+*   **Optimized Processing**: Improved efficiency for both transformation directions
+*   **Extended Test Coverage**: Comprehensive test cases for all transformation scenarios
 
-This milestone positions Reframe as the first open-source solution offering complete bidirectional SWIFT ↔ ISO 20022 transformation capabilities.
+This milestone further establishes Reframe as a comprehensive solution for bidirectional SWIFT ↔ ISO 20022 transformation.
 
 ---
 

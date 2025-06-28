@@ -31,6 +31,8 @@ use publish_mx::PublishMX;
 mod publish_mt;
 use publish_mt::PublishMT;
 
+mod helper;
+
 // Request/Response structures for new API
 #[derive(Debug, Deserialize)]
 struct TransformationRequest {

@@ -1,3 +1,4 @@
+use crate::helper::Helper;
 use async_trait::async_trait;
 use dataflow_rs::engine::error::DataflowError;
 use dataflow_rs::engine::{
@@ -5,7 +6,6 @@ use dataflow_rs::engine::{
     error::Result,
     message::{Change, Message},
 };
-
 use mx_message::document::*;
 use mx_message::header::*;
 use quick_xml::de::from_str;
@@ -32,7 +32,7 @@ impl AsyncFunctionHandler for ParseMX {
 
         let payload = if input_field_name == "payload" {
             let raw_payload = message.payload.to_string();
-            Self::manual_unescape(&raw_payload)
+            Helper::manual_unescape(&raw_payload)
         } else {
             message
                 .data
@@ -42,7 +42,7 @@ impl AsyncFunctionHandler for ParseMX {
                 .to_string()
         };
 
-        let payload = Self::manual_unescape(&payload);
+        let payload = Helper::manual_unescape(&payload);
 
         let document_xmlns = Self::extract_document_xmlns(&payload);
         let app_hdr_content = Self::extract_app_hdr_content(&payload);
@@ -113,14 +113,12 @@ impl ParseMX {
             }
         } else if let Some(app_hdr_content) = app_hdr_content {
             match Self::parse_header("", &app_hdr_content) {
-                Ok(header) => {
-                    match header.get("MsgDefIdr") {
-                        Some(value) => Self::manual_unescape(value.to_string().as_str()),
-                        None => {
-                            return Err(DataflowError::Validation(
-                                "MsgDefIdr not found in header".to_string(),
-                            ));
-                        }
+                Ok(header) => match header.get("MsgDefIdr") {
+                    Some(value) => Helper::manual_unescape(value.to_string().as_str()),
+                    None => {
+                        return Err(DataflowError::Validation(
+                            "MsgDefIdr not found in header".to_string(),
+                        ));
                     }
                 },
                 Err(e) => {
@@ -135,32 +133,6 @@ impl ParseMX {
             ));
         };
         Ok(message_type)
-    }
-
-    /// Manual string unescaping for common escape sequences
-    fn manual_unescape(input: &str) -> String {
-        let mut result = input.trim();
-
-        // Remove surrounding double quotes if present
-        if result.starts_with('"') && result.ends_with('"') && result.len() > 1 {
-            result = &result[1..result.len() - 1];
-        }
-
-        // Now unescape the inner content
-        result
-            .replace("\\r\\n", "\n")
-            .replace("\\r", "\r")
-            .replace("\\n", "\n")
-            .replace("\\t", "\t")
-            .replace("\\\"", "\"")
-            .replace("\\'", "'")
-            .replace("\\\\", "\\")
-            .replace("\\u0020", " ")
-            .replace("\\u0022", "\"")
-            .replace("\\u003C", "<")
-            .replace("\\u003E", ">")
-            .replace("\\u003D", "=")
-            .replace("\\u002F", "/")
     }
 
     /// Extract xmlns attribute from Document element
@@ -232,6 +204,42 @@ impl ParseMX {
                     ))),
                 }
             }
+            "pacs.004.001.09" => {
+                let header = match from_str::<bah_pacs_004_001_09::BusinessApplicationHeaderV02>(
+                    app_hdr_content,
+                ) {
+                    Ok(header) => header,
+                    Err(e) => {
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse header: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(header) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(DataflowError::Validation(format!(
+                        "Failed to convert header to value: {e}"
+                    ))),
+                }
+            }
+            "pacs.009.001.08" => {
+                let header = match from_str::<bah_pacs_009_001_08::BusinessApplicationHeaderV02>(
+                    app_hdr_content,
+                ) {
+                    Ok(header) => header,
+                    Err(e) => {
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse header: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(header) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(DataflowError::Validation(format!(
+                        "Failed to convert header to value: {e}"
+                    ))),
+                }
+            }
             _ => {
                 let header = match from_str::<bah_pacs_008_001_08::BusinessApplicationHeaderV02>(
                     app_hdr_content,
@@ -249,7 +257,7 @@ impl ParseMX {
                         "Failed to convert header to value: {e}"
                     ))),
                 }
-            },
+            }
         }
     }
 
@@ -260,10 +268,7 @@ impl ParseMX {
                 let document = match from_str::<pacs_008_001_08::FIToFICustomerCreditTransferV08>(
                     document_content,
                 ) {
-                    Ok(document) => {
-                        info!("Parsed document: {:?}", document);
-                        document
-                    }
+                    Ok(document) => document,
                     Err(e) => {
                         error!("Failed to parse document: {:?}", e);
                         return Err(DataflowError::Validation(format!(
@@ -271,12 +276,46 @@ impl ParseMX {
                         )));
                     }
                 };
-                info!("Document parsed successfully");
                 match serde_json::to_value(document) {
-                    Ok(value) => {
-                        info!("Document converted to value: {:?}", value);
-                        Ok(value)
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(DataflowError::Validation(format!(
+                        "Failed to convert document to value: {e}"
+                    ))),
+                }
+            }
+            "pacs.004.001.09" => {
+                let document = match from_str::<pacs_004_001_09::PaymentReturnV09>(document_content)
+                {
+                    Ok(document) => document,
+                    Err(e) => {
+                        error!("Failed to parse document: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse document: {e}"
+                        )));
                     }
+                };
+                match serde_json::to_value(document) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(DataflowError::Validation(format!(
+                        "Failed to convert document to value: {e}"
+                    ))),
+                }
+            }
+            "pacs.009.001.08" => {
+                let document = match from_str::<
+                    pacs_009_001_08::FinancialInstitutionCreditTransferV08,
+                >(document_content)
+                {
+                    Ok(document) => document,
+                    Err(e) => {
+                        error!("Failed to parse document: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse document: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(document) {
+                    Ok(value) => Ok(value),
                     Err(e) => Err(DataflowError::Validation(format!(
                         "Failed to convert document to value: {e}"
                     ))),

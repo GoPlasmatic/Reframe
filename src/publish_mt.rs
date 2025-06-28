@@ -1,3 +1,4 @@
+use crate::helper::Helper;
 use async_trait::async_trait;
 use dataflow_rs::engine::error::DataflowError;
 use dataflow_rs::engine::{
@@ -7,7 +8,7 @@ use dataflow_rs::engine::{
 };
 use serde_json::Value;
 use swift_mt_message::SwiftMessage;
-use swift_mt_message::messages::MT103;
+use swift_mt_message::messages::{MT103, MT202, MT205};
 use tracing::{debug, error, instrument};
 
 pub struct PublishMT;
@@ -46,10 +47,7 @@ impl AsyncFunctionHandler for PublishMT {
             ))
         })?;
 
-        debug!(
-            data_type = ?input_data,
-            "Processing MX to MT conversion data"
-        );
+        debug!(data_type = ?input_data, "Processing MX to MT conversion data");
 
         let json_str = input_data.to_string();
         let mt_message = if source_format == "pacs.008.001.08" {
@@ -58,14 +56,70 @@ impl AsyncFunctionHandler for PublishMT {
                 DataflowError::Validation(format!("Failed to parse JSON string: {e}"))
             })?;
             data.to_mt_message()
+        } else if source_format == "pacs.004.001.09" {
+            let target_message_type = message
+                .temp_data
+                .get("target_message_type")
+                .unwrap_or(&Value::Null)
+                .to_string();
+            let target_message_type = Helper::manual_unescape(&target_message_type);
+            if target_message_type == "103" {
+                let data: SwiftMessage<MT103> = serde_json::from_str(&json_str).map_err(|e| {
+                    error!(error = ?e, "Failed to parse JSON string");
+                    DataflowError::Validation(format!("Failed to parse JSON string: {e}"))
+                })?;
+                data.to_mt_message()
+            } else if target_message_type == "202" {
+                let data: SwiftMessage<MT202> = serde_json::from_str(&json_str).map_err(|e| {
+                    error!(error = ?e, "Failed to parse JSON string");
+                    DataflowError::Validation(format!("Failed to parse JSON string: {e}"))
+                })?;
+                data.to_mt_message()
+            } else if target_message_type == "205" {
+                let data: SwiftMessage<MT205> = serde_json::from_str(&json_str).map_err(|e| {
+                    error!(error = ?e, "Failed to parse JSON string");
+                    DataflowError::Validation(format!("Failed to parse JSON string: {e}"))
+                })?;
+                data.to_mt_message()
+            } else {
+                error!(target_message_type = %target_message_type, "Invalid target message type");
+                return Err(DataflowError::Validation(format!(
+                    "Invalid target message type: {target_message_type}"
+                )));
+            }
+        } else if source_format == "pacs.009.001.08" {
+            let target_message_type = message
+                .temp_data
+                .get("target_message_type")
+                .unwrap_or(&Value::Null)
+                .to_string();
+            let target_message_type = Helper::manual_unescape(&target_message_type);
+            if target_message_type == "202" {
+                let data: SwiftMessage<MT202> = serde_json::from_str(&json_str).map_err(|e| {
+                    error!(error = ?e, "Failed to parse JSON string");
+                    DataflowError::Validation(format!("Failed to parse JSON string: {e}"))
+                })?;
+                data.to_mt_message()
+            } else if target_message_type == "205" {
+                let data: SwiftMessage<MT205> = serde_json::from_str(&json_str).map_err(|e| {
+                    error!(error = ?e, "Failed to parse JSON string");
+                    DataflowError::Validation(format!("Failed to parse JSON string: {e}"))
+                })?;
+                data.to_mt_message()
+            } else {
+                error!(target_message_type = %target_message_type, "Invalid target message type");
+                return Err(DataflowError::Validation(format!(
+                    "Invalid target message type: {target_message_type}"
+                )));
+            }
         } else {
-            "".to_string()
+            error!(source_format = %source_format, "Invalid source format");
+            return Err(DataflowError::Validation(format!(
+                "Invalid source format: {source_format}"
+            )));
         };
 
-        debug!(
-            mt_message = %mt_message,
-            "MT message published successfully"
-        );
+        debug!(mt_message = %mt_message, "MT message published successfully");
 
         let result_value = Value::String(mt_message.clone());
         message.data[output_field_name] = result_value.clone();

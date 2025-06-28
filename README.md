@@ -65,10 +65,12 @@ Reframe offers complete, production-ready bidirectional support for the followin
 
 ### Reverse Transformations (ISO 20022 → SWIFT MT) ✨ **NEW**
 
-| ISO 20022 Format | SWIFT Message | Scenarios Supported |
-|------------------|---------------|---------------------|
-| **pacs.008** | `MT103` | Customer Credit Transfer |
-| *(More reverse transformations coming soon)* |
+| ISO 20022 Schema | Description | Target MT | Processing Methods |
+|------------------|-------------|-----------|-------------------|
+| pacs.008 | Customer Credit Transfer | MT103 | Normal |
+| pacs.009 | Financial Institution Credit Transfer | MT202, MT205 | Normal, Cover |
+| pacs.004 | Payment Return | MT103RETN, MT202RETN, MT205RETN | Return |
+| *(Additional reverse transformations in development)* |
 
 ### **Complete Payment & Cancellation Ecosystem**
 - **18+ Message Scenarios**: Comprehensive coverage across payment processing, cancellation workflows, and cash management
@@ -361,6 +363,8 @@ Navigate to `http://localhost:3000/` for the web UI with bidirectional transform
 | ISO 20022 Schema | Description | Target MT | Processing Methods |
 |------------------|-------------|-----------|-------------------|
 | pacs.008 | Customer Credit Transfer | MT103 | Normal |
+| pacs.009 | Financial Institution Credit Transfer | MT202, MT205 | Normal, Cover |
+| pacs.004 | Payment Return | MT103RETN, MT202RETN, MT205RETN | Return |
 | *(Additional reverse transformations in development)* |
 
 ## Workflow Configuration
@@ -515,7 +519,7 @@ The `/health` endpoint provides service status:
 {
   "status": "healthy",
   "service": "reframe-api", 
-  "version": "1.6.0",
+  "version": "2.0.2",
   "features": ["bidirectional_transformation", "forward_mt_to_mx", "reverse_mx_to_mt"]
 }
 ```

@@ -1,5 +1,36 @@
 # Reframe Release Notes
 
+## Version 2.0.2 - Enhanced Bidirectional Transformation Support
+
+### 🚀 **Major Enhancements**
+
+#### **Expanded Reverse Transformation Support** ✨ **NEW**
+- **pacs.004 → MT103/MT202/MT205 RETN**: Full support for payment return message reverse transformation
+- **pacs.009 → MT202/MT205**: Complete financial institution transfer reverse transformation
+- **Enhanced Field Mapping**: Comprehensive field mapping for all reverse transformations
+- **Validation Framework**: Advanced validation for reverse transformation scenarios
+
+#### **Workflow Architecture Improvements**
+- **Unified JSON Structure**: Consistent workflow patterns across both transformation directions
+- **Enhanced Error Handling**: Improved error resolution for reverse transformations
+- **Optimized Processing**: Streamlined message handling for both directions
+- **Extended Test Coverage**: Comprehensive test cases for all transformation scenarios
+
+### 📊 Implementation Statistics (Updated)
+
+- **Reverse Transformations**: 3 complete message families (pacs.008, pacs.004, pacs.009)
+- **Forward Transformations**: 9 message families with all variants
+- **Total Workflows**: 60+ specialized transformation workflows
+- **Test Coverage**: 25+ authentic test data samples covering all scenarios
+- **Validation Rules**: Enhanced validation for both transformation directions
+
+### 🔧 Technical Improvements
+
+- **Parser Enhancements**: Improved ISO 20022 message parsing capabilities
+- **Field Mapping Logic**: Advanced field mapping for complex scenarios
+- **Error Resolution**: Enhanced error handling for edge cases
+- **Performance Optimization**: Improved processing efficiency for both directions
+
 ## Version 2.0.0 - Major Release: Bidirectional Transformation Ecosystem ✨ **NEW**
 
 ### 🚀 **Revolutionary Bidirectional Capabilities**

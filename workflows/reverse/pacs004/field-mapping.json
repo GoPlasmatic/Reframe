@@ -1,0 +1,1039 @@
+{
+    "id": "pacs004-to-mt-retn-mapper",
+    "name": "pacs.004 to MT103/MT202/MT205 RETN Field Mapping",
+    "description": "Maps ISO 20022 pacs.004 PaymentReturnV09 fields to SWIFT MT103/MT202/MT205 RETN message structure according to CBPR+ reverse transformation specification",
+    "priority": 2,
+    "condition": {
+        "and": [
+            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+            {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+            {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "TR001_extract_temp_variables",
+            "name": "TR001: Extract Sender and Receiver BICs",
+            "description": "Extract BIC codes from header for use in translation rules",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.Sender",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.Receiver",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "determine_target_message_type",
+            "name": "Determine Target Message Type",
+            "description": "Determine whether to generate MT103, MT202, or MT205 RETN based on return chain structure",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.target_message_type",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty"},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty"}
+                                    ]},
+                                    "103",
+                                    {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.CtgyPurp.Cd"},
+                                            {
+                                                "if": [
+                                                    {"==": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.CtgyPurp.Cd"}, "INTC"]},
+                                                    "205",
+                                                    "202"
+                                                ]
+                                            },
+                                            "202"
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_swift_headers",
+            "name": "Map SWIFT Message Headers",
+            "description": "Map basic header and application header from MX header",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.basic_header.sender_bic.raw",
+                            "logic": {
+                                "if": [
+                                    {"var": "temp_data.Sender"},
+                                    {"substr": [{"var": "temp_data.Sender"}, 0, 8]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.sender_bic.bank_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "temp_data.Sender"},
+                                    {"substr": [{"var": "temp_data.Sender"}, 0, 4]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.sender_bic.country_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "temp_data.Sender"},
+                                    {"substr": [{"var": "temp_data.Sender"}, 4, 2]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.sender_bic.location_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "temp_data.Sender"},
+                                    {"substr": [{"var": "temp_data.Sender"}, 6, 2]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.logical_terminal",
+                            "logic": {
+                                "if": [
+                                    {"var": "temp_data.Sender"},
+                                    {"cat": [{"var": "temp_data.Sender"}, "AXXX"]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.application_id",
+                            "logic": "F"
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.service_id",
+                            "logic": "01"
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.session_number",
+                            "logic": "0000"
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.sequence_number",
+                            "logic": "000000"
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.receiver_bic.raw",
+                            "logic": {
+                                "if": [
+                                    {"var": "temp_data.Receiver"},
+                                    {"substr": [{"var": "temp_data.Receiver"}, 0, 8]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.receiver_bic.bank_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "temp_data.Receiver"},
+                                    {"substr": [{"var": "temp_data.Receiver"}, 0, 4]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.receiver_bic.country_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "temp_data.Receiver"},
+                                    {"substr": [{"var": "temp_data.Receiver"}, 4, 2]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.receiver_bic.location_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "temp_data.Receiver"},
+                                    {"substr": [{"var": "temp_data.Receiver"}, 6, 2]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.destination_address",
+                            "logic": {
+                                "if": [
+                                    {"var": "temp_data.Receiver"},
+                                    {"cat": [{"var": "temp_data.Receiver"}, "XXXX"]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.direction",
+                            "logic": "I"
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.message_type",
+                            "logic": {
+                                "cat": [{"var": "temp_data.target_message_type"}, "RETN"]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.priority",
+                            "logic": "N"
+                        },
+                        {
+                            "path": "data.SwiftMT.message_type",
+                            "logic": {
+                                "cat": [{"var": "temp_data.target_message_type"}, "RETN"]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.method",
+                            "logic": "return"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_user_header",
+            "name": "Map User Header",
+            "description": "Map user header fields including UETR",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.user_header.unique_end_to_end_reference",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.OrgnlUETR"},
+                                    {"var": "data.ISO20022_MX.document.TxInf.OrgnlUETR"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.user_header.service_type_identifier",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"},
+                                    {
+                                        "if": [
+                                            {"starts_with": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"}, "G00"]},
+                                            {"substr": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"}, 1, 3]},
+                                            null
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_basic_fields",
+            "name": "Map Basic MT Fields",
+            "description": "Map core MT fields from pacs.004 elements",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#20.value",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"},
+                                    {
+                                        "if": [
+                                            {">": [{"length": {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}}, 16]},
+                                            {"cat": [{"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}, 0, 15]}, "+"]},
+                                            {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}
+                                        ]
+                                    },
+                                    "NOTPROVIDED"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#21.value",
+                            "logic": {
+                                "if": [
+                                    {"==": [{"var": "temp_data.target_message_type"}, "103"]},
+                                    null,
+                                    {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"},
+                                            {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"},
+                                            "NOTPROVIDED"
+                                        ]
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.32A.value_date",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.IntrBkSttlmDt"},
+                                    {
+                                        "format_date": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.IntrBkSttlmDt"},
+                                            "yyyy-MM-dd"
+                                        ]
+                                    },
+                                    {"format_date": [{"now": []}, "yyyy-MM-dd"]}
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.32A.currency",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.@Ccy"},
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.@Ccy"},
+                                    "USD"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.32A.amount",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.$value"},
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.$value"},
+                                    0.0
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.23B.value",
+                            "logic": {
+                                "if": [
+                                    {"==": [{"var": "temp_data.target_message_type"}, "103"]},
+                                    "RETN",
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_settlement_account",
+            "name": "Map Settlement Account (Field 53B)",
+            "description": "Map SettlementAccount to Field 53B",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.53B.party_identifier",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"},
+                                    {"cat": ["/", {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}]},
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_ordering_customer_mt103",
+            "name": "Map Ordering Customer (Field 50) for MT103",
+            "description": "Map Return Chain Debtor Party to Field 50 for MT103 RETN",
+            "function": {
+                "name": "map",
+                "input": {
+                    "condition": {
+                        "==": [{"var": "temp_data.target_message_type"}, "103"]
+                    },
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#50.K.lines",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"},
+                                    [
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"}
+                                    ],
+                                    ["NOTPROVIDED"]
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.50A.bic.raw",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.AnyBIC"},
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.AnyBIC"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.50A.bic.bank_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.AnyBIC"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.AnyBIC"}, 0, 4]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.50A.bic.country_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.AnyBIC"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.AnyBIC"}, 4, 2]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.50A.bic.location_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.AnyBIC"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.AnyBIC"}, 6, 2]},
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_ordering_institution_mt202_205",
+            "name": "Map Ordering Institution (Field 50) for MT202/205",
+            "description": "Map Return Chain Debtor Agent to Field 50 for MT202/205 RETN",
+            "function": {
+                "name": "map",
+                "input": {
+                    "condition": {
+                        "!=": [{"var": "temp_data.target_message_type"}, "103"]
+                    },
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.50A.bic.raw",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.50A.bic.bank_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"}, 0, 4]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.50A.bic.country_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"}, 4, 2]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.50A.bic.location_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"}, 6, 2]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.50D.name_and_address",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"}]},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.Nm"}
+                                    ]},
+                                    [
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.Nm"}
+                                    ],
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_ordering_institution",
+            "name": "Map Ordering Institution (Field 52)",
+            "description": "Map Return Chain Debtor Agent to Field 52",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.52A.bic.raw",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.52A.bic.bank_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"}, 0, 4]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.52A.bic.country_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"}, 4, 2]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.52A.bic.location_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"}, 6, 2]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.52D.name_and_address",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"}]},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.Nm"}
+                                    ]},
+                                    [
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.Nm"}
+                                    ],
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_intermediary_institution",
+            "name": "Map Intermediary Institution (Field 56)",
+            "description": "Map IntermediaryAgent1 to Field 56",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.56A.bic.raw",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.BICFI"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.56A.bic.bank_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.BICFI"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.BICFI"}, 0, 4]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.56A.bic.country_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.BICFI"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.BICFI"}, 4, 2]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.56A.bic.location_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.BICFI"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.BICFI"}, 6, 2]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.56D.name_and_address",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.BICFI"}]},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.Nm"}
+                                    ]},
+                                    [
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.Nm"}
+                                    ],
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_account_with_institution",
+            "name": "Map Account With Institution (Field 57)",
+            "description": "Map CreditorAgent to Field 57",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.57A.bic.raw",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.57A.bic.bank_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"}, 0, 4]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.57A.bic.country_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"}, 4, 2]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.57A.bic.location_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"}, 6, 2]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.57D.name_and_address",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"}]},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.Nm"}
+                                    ]},
+                                    [
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.Nm"}
+                                    ],
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_beneficiary_institution_mt202_205",
+            "name": "Map Beneficiary Institution (Field 58) for MT202/205",
+            "description": "Map Return Chain Creditor Agent to Field 58 for MT202/205 RETN",
+            "function": {
+                "name": "map",
+                "input": {
+                    "condition": {
+                        "!=": [{"var": "temp_data.target_message_type"}, "103"]
+                    },
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.58A.bic.raw",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.58A.bic.bank_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"}, 0, 4]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.58A.bic.country_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"}, 4, 2]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.58A.bic.location_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"}, 6, 2]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.58D.name_and_address",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"}]},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.Nm"}
+                                    ]},
+                                    [
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.Nm"}
+                                    ],
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_beneficiary_customer_mt103",
+            "name": "Map Beneficiary Customer (Field 59) for MT103",
+            "description": "Map Return Chain Creditor Party to Field 59 for MT103 RETN",
+            "function": {
+                "name": "map",
+                "input": {
+                    "condition": {
+                        "==": [{"var": "temp_data.target_message_type"}, "103"]
+                    },
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#59.NoOption.lines",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"},
+                                    [
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"}
+                                    ],
+                                    ["NOTPROVIDED"]
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.59A.bic.raw",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Id.OrgId.AnyBIC"},
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Id.OrgId.AnyBIC"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.59A.bic.bank_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Id.OrgId.AnyBIC"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Id.OrgId.AnyBIC"}, 0, 4]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.59A.bic.country_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Id.OrgId.AnyBIC"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Id.OrgId.AnyBIC"}, 4, 2]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.59A.bic.location_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Id.OrgId.AnyBIC"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Id.OrgId.AnyBIC"}, 6, 2]},
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_return_reason_information",
+            "name": "Map Return Reason Information (Field 72)",
+            "description": "Map return reason and additional information to Field 72",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#72.lines",
+                            "logic": {
+                                "merge": [
+                                    {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.OrgnlInstrId"},
+                                            [
+                                                {
+                                                    "cat": [
+                                                        "/MREF/",
+                                                        {"var": "data.ISO20022_MX.document.TxInf.OrgnlInstrId"}
+                                                    ]
+                                                }
+                                            ],
+                                            []
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"},
+                                            [
+                                                {
+                                                    "cat": [
+                                                        "/TREF/",
+                                                        {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"}
+                                                    ]
+                                                }
+                                            ],
+                                            []
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.Rsn.Cd"},
+                                            [
+                                                {
+                                                    "cat": [
+                                                        "/RTRN/",
+                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.Rsn.Cd"}
+                                                    ]
+                                                }
+                                            ],
+                                            []
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.AddtlInf"},
+                                            {
+                                                "merge": [
+                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.AddtlInf"},
+                                                    null
+                                                ]
+                                            },
+                                            []
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_charge_bearer_mt103",
+            "name": "Map Charge Bearer (Field 71A) for MT103",
+            "description": "Map ChargeBearer to Field 71A for MT103 RETN",
+            "function": {
+                "name": "map",
+                "input": {
+                    "condition": {
+                        "==": [{"var": "temp_data.target_message_type"}, "103"]
+                    },
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.71A.value",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.ChrgBr"},
+                                    {
+                                        "if": [
+                                            {"==": [{"var": "data.ISO20022_MX.document.TxInf.ChrgBr"}, "CRED"]},
+                                            "BEN",
+                                            {
+                                                "if": [
+                                                    {"==": [{"var": "data.ISO20022_MX.document.TxInf.ChrgBr"}, "DEBT"]},
+                                                    "OUR",
+                                                    "SHA"
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "SHA"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "generate_field_order",
+            "name": "Generate Field Order",
+            "description": "Generate the field order array based on target message type and present fields",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.field_order",
+                            "logic": {
+                                "if": [
+                                    {"==": [{"var": "temp_data.target_message_type"}, "103"]},
+                                    [
+                                        "20",
+                                        "23B",
+                                        "32A",
+                                        "50K",
+                                        "50A",
+                                        "52A",
+                                        "52D",
+                                        "53B",
+                                        "56A",
+                                        "56D", 
+                                        "57A",
+                                        "57D",
+                                        "59",
+                                        "59A",
+                                        "70",
+                                        "71A",
+                                        "72"
+                                    ],
+                                    [
+                                        "20",
+                                        "21",
+                                        "32A",
+                                        "52A",
+                                        "52D",
+                                        "53B",
+                                        "56A",
+                                        "56D",
+                                        "57A",
+                                        "57D",
+                                        "58A",
+                                        "58D",
+                                        "72"
+                                    ]
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "publish_mt_return_message",
+            "name": "Publish MT Return Message",
+            "description": "Generate final MT103/MT202/MT205 RETN message from mapped fields",
+            "function": {
+                "name": "PublishMT",
+                "input": {
+                    "input_field_name": "SwiftMT",
+                    "output_field_name": "result",
+                    "source_format": "pacs.004.001.09"
+                }
+            }
+        }
+    ]
+} 

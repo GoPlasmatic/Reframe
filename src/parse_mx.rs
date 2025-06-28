@@ -45,16 +45,10 @@ impl AsyncFunctionHandler for ParseMX {
         let payload = Self::manual_unescape(&payload);
 
         let document_xmlns = Self::extract_document_xmlns(&payload);
-        info!("Document xmlns: {:?}", document_xmlns);
         let app_hdr_content = Self::extract_app_hdr_content(&payload);
-        info!("App hdr content: {:?}", app_hdr_content);
         let document_content = Self::extract_document_content(&payload);
-        info!("Document content: {:?}", document_content);
 
-        let message_type = match document_xmlns.clone() {
-            Some(xmlns) => xmlns.split(":").last().unwrap().to_string(),
-            None => "Unknown".to_string(),
-        };
+        let message_type = Self::extract_message_type(document_xmlns, app_hdr_content.clone())?;
         info!("Message type: {:?}", message_type);
 
         let header = Self::parse_header(&message_type, &app_hdr_content.unwrap_or("".to_string()))
@@ -67,7 +61,6 @@ impl AsyncFunctionHandler for ParseMX {
             "header": header,
             "document": document,
         });
-        info!("Parsed result: {:?}", parsed_result);
 
         // Store the parsed result in message data
         if let Some(data_obj) = message.data.as_object_mut() {
@@ -105,6 +98,45 @@ impl AsyncFunctionHandler for ParseMX {
 }
 
 impl ParseMX {
+    fn extract_message_type(
+        document_xmlns: Option<String>,
+        app_hdr_content: Option<String>,
+    ) -> Result<String> {
+        let message_type = if let Some(xmlns) = document_xmlns {
+            match xmlns.split(":").last() {
+                Some(message_type) => message_type.to_string(),
+                None => {
+                    return Err(DataflowError::Validation(
+                        "Message type not found".to_string(),
+                    ));
+                }
+            }
+        } else if let Some(app_hdr_content) = app_hdr_content {
+            match Self::parse_header("", &app_hdr_content) {
+                Ok(header) => {
+                    match header.get("MsgDefIdr") {
+                        Some(value) => Self::manual_unescape(value.to_string().as_str()),
+                        None => {
+                            return Err(DataflowError::Validation(
+                                "MsgDefIdr not found in header".to_string(),
+                            ));
+                        }
+                    }
+                },
+                Err(e) => {
+                    return Err(DataflowError::Validation(format!(
+                        "Failed to parse header: {e}"
+                    )));
+                }
+            }
+        } else {
+            return Err(DataflowError::Validation(
+                "Message type not found".to_string(),
+            ));
+        };
+        Ok(message_type)
+    }
+
     /// Manual string unescaping for common escape sequences
     fn manual_unescape(input: &str) -> String {
         let mut result = input.trim();
@@ -200,9 +232,24 @@ impl ParseMX {
                     ))),
                 }
             }
-            _ => Err(DataflowError::Validation(format!(
-                "Unknown message type: {message_type}"
-            ))),
+            _ => {
+                let header = match from_str::<bah_pacs_008_001_08::BusinessApplicationHeaderV02>(
+                    app_hdr_content,
+                ) {
+                    Ok(header) => header,
+                    Err(e) => {
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse header: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(header) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(DataflowError::Validation(format!(
+                        "Failed to convert header to value: {e}"
+                    ))),
+                }
+            },
         }
     }
 

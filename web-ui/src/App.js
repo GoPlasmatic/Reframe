@@ -455,6 +455,463 @@ SINGAPORE 048624
 
 // Reverse transformation configurations (MX to MT)
 const REVERSE_TRANSFORMATIONS = {
+  'pacs.004': {
+    name: 'ISO 20022 pacs.004 → MT103/MT202/MT205',
+    description: 'Payment Return/Refund',
+    targetFormat: 'SWIFT MT103/MT202/MT205',
+    sample: `<?xml version="1.0" encoding="UTF-8"?>
+<Envelope xmlns="urn:swift:xsd:$ahV10">
+  <AppHdr>
+    <Fr>
+      <FIId>
+        <FinInstnId>
+          <BICFI>BANKDEFFXXX</BICFI>
+        </FinInstnId>
+      </FIId>
+    </Fr>
+    <To>
+      <FIId>
+        <FinInstnId>
+          <BICFI>BANKUS33XXX</BICFI>
+        </FinInstnId>
+      </FIId>
+    </To>
+    <BizMsgIdr>RETURN20250627-001</BizMsgIdr>
+    <MsgDefIdr>pacs.004.001.09</MsgDefIdr>
+    <CreDt>2025-06-27T16:45:00Z</CreDt>
+    <BizSvc>swift.cbprplus.02</BizSvc>
+    <CpyDplct>CODU</CpyDplct>
+    <PssblDplct>false</PssblDplct>
+  </AppHdr>
+  <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.004.001.09">
+    <PmtRtr>
+      <GrpHdr>
+        <MsgId>RETURN20250627-001</MsgId>
+        <CreDtTm>2025-06-27T16:45:00Z</CreDtTm>
+        <NbOfTxs>1</NbOfTxs>
+        <TtlRtrdIntrBkSttlmAmt Ccy="EUR">75000.00</TtlRtrdIntrBkSttlmAmt>
+        <SttlmInf>
+          <SttlmMtd>INDA</SttlmMtd>
+          <SttlmAcct>
+            <Id>
+              <Othr>
+                <Id>SETTLEMENT-RTN-123</Id>
+              </Othr>
+            </Id>
+          </SttlmAcct>
+        </SttlmInf>
+        <InstgAgt>
+          <FinInstnId>
+            <BICFI>BANKDEFFXXX</BICFI>
+            <Nm>Deutsche Bank AG</Nm>
+            <PstlAdr>
+              <StrtNm>Taunusanlage 12</StrtNm>
+              <TwnNm>Frankfurt am Main</TwnNm>
+              <Ctry>DE</Ctry>
+              <PstCd>60325</PstCd>
+            </PstlAdr>
+          </FinInstnId>
+        </InstgAgt>
+        <InstdAgt>
+          <FinInstnId>
+            <BICFI>BANKUS33XXX</BICFI>
+            <Nm>US Bank National Association</Nm>
+            <PstlAdr>
+              <StrtNm>425 Walnut Street</StrtNm>
+              <TwnNm>Cincinnati</TwnNm>
+              <Ctry>US</Ctry>
+              <PstCd>45202</PstCd>
+            </PstlAdr>
+          </FinInstnId>
+        </InstdAgt>
+      </GrpHdr>
+      <TxInf>
+        <RtrId>RTN-TX-20250627-001</RtrId>
+        <OrgnlGrpInf>
+          <OrgnlMsgId>CREDIT-TX-20250626-789</OrgnlMsgId>
+          <OrgnlMsgNmId>pacs.008.001.08</OrgnlMsgNmId>
+          <OrgnlCreDtTm>2025-06-26T14:30:00Z</OrgnlCreDtTm>
+          <OrgnlNbOfTxs>1</OrgnlNbOfTxs>
+        </OrgnlGrpInf>
+        <OrgnlInstrId>INSTR-ID-20250626-456</OrgnlInstrId>
+        <OrgnlEndToEndId>E2E-PAYMENT-REF-20250626-123</OrgnlEndToEndId>
+        <OrgnlTxId>TX-ID-20250626-789</OrgnlTxId>
+        <OrgnlUETR>550e8400-e29b-41d4-a716-446655440001</OrgnlUETR>
+        <OrgnlClrSysRef>RTGS-REF-DE-20250626-888</OrgnlClrSysRef>
+        <OrgnlIntrBkSttlmAmt Ccy="EUR">75000.00</OrgnlIntrBkSttlmAmt>
+        <OrgnlIntrBkSttlmDt>2025-06-26</OrgnlIntrBkSttlmDt>
+        <RtrdIntrBkSttlmAmt Ccy="EUR">75000.00</RtrdIntrBkSttlmAmt>
+        <IntrBkSttlmDt>2025-06-27</IntrBkSttlmDt>
+        <SttlmPrty>NORM</SttlmPrty>
+        <SttlmTmIndctn>
+          <DbtDtTm>2025-06-27T09:00:00Z</DbtDtTm>
+          <CdtDtTm>2025-06-27T17:00:00Z</CdtDtTm>
+        </SttlmTmIndctn>
+        <RtrdInstdAmt Ccy="USD">82500.00</RtrdInstdAmt>
+        <XchgRate>1.1</XchgRate>
+        <ChrgBr>SHAR</ChrgBr>
+        <ChrgsInf>
+          <Amt Ccy="EUR">50.00</Amt>
+          <Agt>
+            <FinInstnId>
+              <BICFI>BANKDEFFXXX</BICFI>
+            </FinInstnId>
+          </Agt>
+          <Tp>
+            <Cd>DEBT</Cd>
+          </Tp>
+        </ChrgsInf>
+        <ClrSysRef>RETURN-REF-DE-20250627-999</ClrSysRef>
+        <InstgAgt>
+          <FinInstnId>
+            <BICFI>BANKDEFFXXX</BICFI>
+            <ClrSysMmbId>
+              <ClrSysId>
+                <Cd>DEBLZ</Cd>
+              </ClrSysId>
+              <MmbId>50010517</MmbId>
+            </ClrSysMmbId>
+            <Nm>Deutsche Bank AG</Nm>
+            <PstlAdr>
+              <StrtNm>Taunusanlage 12</StrtNm>
+              <TwnNm>Frankfurt am Main</TwnNm>
+              <Ctry>DE</Ctry>
+              <PstCd>60325</PstCd>
+            </PstlAdr>
+          </FinInstnId>
+        </InstgAgt>
+        <InstdAgt>
+          <FinInstnId>
+            <BICFI>BANKUS33XXX</BICFI>
+            <ClrSysMmbId>
+              <ClrSysId>
+                <Cd>USABA</Cd>
+              </ClrSysId>
+              <MmbId>021000021</MmbId>
+            </ClrSysMmbId>
+            <Nm>US Bank National Association</Nm>
+            <PstlAdr>
+              <StrtNm>425 Walnut Street</StrtNm>
+              <TwnNm>Cincinnati</TwnNm>
+              <Ctry>US</Ctry>
+              <PstCd>45202</PstCd>
+            </PstlAdr>
+          </FinInstnId>
+        </InstdAgt>
+        <RtrChain>
+          <UltmtDbtr>
+            <Nm>Ultimate Payer Corporation</Nm>
+            <PstlAdr>
+              <StrtNm>100 Corporate Plaza</StrtNm>
+              <TwnNm>New York</TwnNm>
+              <Ctry>US</Ctry>
+              <PstCd>10001</PstCd>
+            </PstlAdr>
+            <Id>
+              <OrgId>
+                <LEI>549300ULTPAYER123456</LEI>
+              </OrgId>
+            </Id>
+          </UltmtDbtr>
+          <Dbtr>
+            <Pty>
+              <Nm>Corporate Services Inc</Nm>
+              <PstlAdr>
+                <StrtNm>456 Business Avenue</StrtNm>
+                <TwnNm>New York</TwnNm>
+                <Ctry>US</Ctry>
+                <PstCd>10002</PstCd>
+              </PstlAdr>
+              <Id>
+                <OrgId>
+                  <Othr>
+                    <Id>CORP-SERVICES-001</Id>
+                    <SchmeNm>
+                      <Cd>CUST</Cd>
+                    </SchmeNm>
+                  </Othr>
+                </OrgId>
+              </Id>
+              <CtryOfRes>US</CtryOfRes>
+            </Pty>
+            <Agt>
+              <FinInstnId>
+                <BICFI>BANKUS33XXX</BICFI>
+                <ClrSysMmbId>
+                  <ClrSysId>
+                    <Cd>USABA</Cd>
+                  </ClrSysId>
+                  <MmbId>021000021</MmbId>
+                </ClrSysMmbId>
+                <Nm>US Bank National Association</Nm>
+                <PstlAdr>
+                  <StrtNm>425 Walnut Street</StrtNm>
+                  <TwnNm>Cincinnati</TwnNm>
+                  <Ctry>US</Ctry>
+                  <PstCd>45202</PstCd>
+                </PstlAdr>
+              </FinInstnId>
+            </Agt>
+          </Dbtr>
+          <DbtrAgt>
+            <FinInstnId>
+              <BICFI>BANKUS33XXX</BICFI>
+              <ClrSysMmbId>
+                <ClrSysId>
+                  <Cd>USABA</Cd>
+                </ClrSysId>
+                <MmbId>021000021</MmbId>
+              </ClrSysMmbId>
+              <Nm>US Bank National Association</Nm>
+              <PstlAdr>
+                <StrtNm>425 Walnut Street</StrtNm>
+                <TwnNm>Cincinnati</TwnNm>
+                <Ctry>US</Ctry>
+                <PstCd>45202</PstCd>
+              </PstlAdr>
+            </FinInstnId>
+          </DbtrAgt>
+          <IntrmyAgt1>
+            <FinInstnId>
+              <BICFI>INTRMGB2LXXX</BICFI>
+              <ClrSysMmbId>
+                <ClrSysId>
+                  <Cd>GBDSC</Cd>
+                </ClrSysId>
+                <MmbId>123456</MmbId>
+              </ClrSysMmbId>
+              <Nm>Intermediary Bank London</Nm>
+              <PstlAdr>
+                <StrtNm>789 Clearing Street</StrtNm>
+                <TwnNm>London</TwnNm>
+                <Ctry>GB</Ctry>
+                <PstCd>EC1A 1BB</PstCd>
+              </PstlAdr>
+            </FinInstnId>
+          </IntrmyAgt1>
+          <CdtrAgt>
+            <FinInstnId>
+              <BICFI>BANKDEFFXXX</BICFI>
+              <ClrSysMmbId>
+                <ClrSysId>
+                  <Cd>DEBLZ</Cd>
+                </ClrSysId>
+                <MmbId>50010517</MmbId>
+              </ClrSysMmbId>
+              <Nm>Deutsche Bank AG</Nm>
+              <PstlAdr>
+                <StrtNm>Taunusanlage 12</StrtNm>
+                <TwnNm>Frankfurt am Main</TwnNm>
+                <Ctry>DE</Ctry>
+                <PstCd>60325</PstCd>
+              </PstlAdr>
+            </FinInstnId>
+          </CdtrAgt>
+          <Cdtr>
+            <Pty>
+              <Nm>European Technology GmbH</Nm>
+              <PstlAdr>
+                <StrtNm>321 Technology Park</StrtNm>
+                <TwnNm>Frankfurt</TwnNm>
+                <Ctry>DE</Ctry>
+                <PstCd>60311</PstCd>
+              </PstlAdr>
+              <Id>
+                <OrgId>
+                  <LEI>549300EUROTECH654321</LEI>
+                </OrgId>
+              </Id>
+              <CtryOfRes>DE</CtryOfRes>
+            </Pty>
+            <Agt>
+              <FinInstnId>
+                <BICFI>BANKDEFFXXX</BICFI>
+                <ClrSysMmbId>
+                  <ClrSysId>
+                    <Cd>DEBLZ</Cd>
+                  </ClrSysId>
+                  <MmbId>50010517</MmbId>
+                </ClrSysMmbId>
+                <Nm>Deutsche Bank AG</Nm>
+                <PstlAdr>
+                  <StrtNm>Taunusanlage 12</StrtNm>
+                  <TwnNm>Frankfurt am Main</TwnNm>
+                  <Ctry>DE</Ctry>
+                  <PstCd>60325</PstCd>
+                </PstlAdr>
+              </FinInstnId>
+            </Agt>
+          </Cdtr>
+          <UltmtCdtr>
+            <Nm>Ultimate Beneficiary Holdings AG</Nm>
+            <PstlAdr>
+              <StrtNm>654 Holdings Street</StrtNm>
+              <TwnNm>Munich</TwnNm>
+              <Ctry>DE</Ctry>
+              <PstCd>80331</PstCd>
+            </PstlAdr>
+            <Id>
+              <OrgId>
+                <LEI>549300ULTBENEF987654</LEI>
+              </OrgId>
+            </Id>
+          </UltmtCdtr>
+        </RtrChain>
+        <RtrRsnInf>
+          <Orgtr>
+            <Nm>Return Processing System</Nm>
+            <Id>
+              <OrgId>
+                <Othr>
+                  <Id>RTN-SYS-001</Id>
+                  <SchmeNm>
+                    <Cd>CUST</Cd>
+                  </SchmeNm>
+                </Othr>
+              </OrgId>
+            </Id>
+          </Orgtr>
+          <Rsn>
+            <Cd>AM05</Cd>
+          </Rsn>
+          <AddtlInf>Duplication - payment already processed with same end-to-end reference</AddtlInf>
+          <AddtlInf>Customer requested return due to duplicate processing</AddtlInf>
+        </RtrRsnInf>
+        <OrgnlTxRef>
+          <IntrBkSttlmAmt Ccy="EUR">75000.00</IntrBkSttlmAmt>
+          <IntrBkSttlmDt>2025-06-26</IntrBkSttlmDt>
+          <InstdAmt Ccy="USD">82500.00</InstdAmt>
+          <XchgRate>1.1</XchgRate>
+          <ChrgBr>SHAR</ChrgBr>
+          <PmtTpInf>
+            <InstrPrty>NORM</InstrPrty>
+            <ClrChanl>RTGS</ClrChanl>
+            <SvcLvl>
+              <Cd>G001</Cd>
+            </SvcLvl>
+            <LclInstrm>
+              <Cd>WIRE</Cd>
+            </LclInstrm>
+            <CtgyPurp>
+              <Cd>INTC</Cd>
+            </CtgyPurp>
+          </PmtTpInf>
+          <PmtMtd>TRA</PmtMtd>
+          <RmtInf>
+            <Ustrd>Return of Payment for Invoice INV-2025-67890 - Duplicate processing detected</Ustrd>
+          </RmtInf>
+          <UltmtDbtr>
+            <Nm>Ultimate Payer Corporation</Nm>
+            <PstlAdr>
+              <StrtNm>100 Corporate Plaza</StrtNm>
+              <TwnNm>New York</TwnNm>
+              <Ctry>US</Ctry>
+              <PstCd>10001</PstCd>
+            </PstlAdr>
+            <Id>
+              <OrgId>
+                <LEI>549300ULTPAYER123456</LEI>
+              </OrgId>
+            </Id>
+          </UltmtDbtr>
+          <Dbtr>
+            <Nm>Corporate Services Inc</Nm>
+            <PstlAdr>
+              <StrtNm>456 Business Avenue</StrtNm>
+              <TwnNm>New York</TwnNm>
+              <Ctry>US</Ctry>
+              <PstCd>10002</PstCd>
+            </PstlAdr>
+            <Id>
+              <OrgId>
+                <Othr>
+                  <Id>CORP-SERVICES-001</Id>
+                  <SchmeNm>
+                    <Cd>CUST</Cd>
+                  </SchmeNm>
+                </Othr>
+              </OrgId>
+            </Id>
+            <CtryOfRes>US</CtryOfRes>
+          </Dbtr>
+          <DbtrAcct>
+            <Id>
+              <Othr>
+                <Id>US-CORP-ACC-123456789</Id>
+                <SchmeNm>
+                  <Cd>BBAN</Cd>
+                </SchmeNm>
+              </Othr>
+            </Id>
+            <Tp>
+              <Cd>CACC</Cd>
+            </Tp>
+            <Ccy>USD</Ccy>
+            <Nm>Corporate Services Operating Account</Nm>
+          </DbtrAcct>
+          <DbtrAgt>
+            <FinInstnId>
+              <BICFI>BANKUS33XXX</BICFI>
+            </FinInstnId>
+          </DbtrAgt>
+          <CdtrAgt>
+            <FinInstnId>
+              <BICFI>BANKDEFFXXX</BICFI>
+            </FinInstnId>
+          </CdtrAgt>
+          <Cdtr>
+            <Nm>European Technology GmbH</Nm>
+            <PstlAdr>
+              <StrtNm>321 Technology Park</StrtNm>
+              <TwnNm>Frankfurt</TwnNm>
+              <Ctry>DE</Ctry>
+              <PstCd>60311</PstCd>
+            </PstlAdr>
+            <Id>
+              <OrgId>
+                <LEI>549300EUROTECH654321</LEI>
+              </OrgId>
+            </Id>
+            <CtryOfRes>DE</CtryOfRes>
+          </Cdtr>
+          <CdtrAcct>
+            <Id>
+              <Othr>
+                <Id>DE89370400440532013001</Id>
+                <SchmeNm>
+                  <Cd>IBAN</Cd>
+                </SchmeNm>
+              </Othr>
+            </Id>
+            <Tp>
+              <Cd>CACC</Cd>
+            </Tp>
+            <Ccy>EUR</Ccy>
+            <Nm>European Technology Operating Account</Nm>
+          </CdtrAcct>
+          <UltmtCdtr>
+            <Nm>Ultimate Beneficiary Holdings AG</Nm>
+            <PstlAdr>
+              <StrtNm>654 Holdings Street</StrtNm>
+              <TwnNm>Munich</TwnNm>
+              <Ctry>DE</Ctry>
+              <PstCd>80331</PstCd>
+            </PstlAdr>
+            <Id>
+              <OrgId>
+                <LEI>549300ULTBENEF987654</LEI>
+              </OrgId>
+            </Id>
+          </UltmtCdtr>
+          <Purp>
+            <Cd>CBFF</Cd>
+          </Purp>
+        </OrgnlTxRef>
+      </TxInf>
+    </PmtRtr>
+  </Document>
+</Envelope>`
+  },
   'pacs.008': {
     name: 'ISO 20022 pacs.008 → MT103',
     description: 'Customer Credit Transfer',
@@ -980,6 +1437,119 @@ Reference: CONTRACT-2025-789</Ustrd>
     </FIToFICstmrCdtTrf>
   </Document>
 </Envelope>`
+  },
+  'pacs.009': {
+    name: 'ISO 20022 pacs.009 → MT202/MT205',
+    description: 'Financial Institution Credit Transfer',
+    targetFormat: 'SWIFT MT202/MT205',
+    sample: `<?xml version="1.0" encoding="UTF-8"?>
+<AppHdr xmlns="urn:iso:std:iso:20022:tech:xsd:head.001.001.01">
+    <Fr>
+        <FIId>
+            <FinInstnId>
+                <BICFI>BANKBEBBXXX</BICFI>
+            </FinInstnId>
+        </FIId>
+    </Fr>
+    <To>
+        <FIId>
+            <FinInstnId>
+                <BICFI>BOFAUS3NXXX</BICFI>
+            </FinInstnId>
+        </FIId>
+    </To>
+    <BizMsgIdr>CORE20240101001-pacs.009-rev</BizMsgIdr>
+    <MsgDefIdr>pacs.009.001.08</MsgDefIdr>
+    <BizSvc>swift.cbprplus.02</BizSvc>
+    <CreDt>2024-01-01T10:30:00.000Z</CreDt>
+</AppHdr>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.009.001.08">
+    <FIToFICdtTrf>
+        <GrpHdr>
+            <MsgId>PACS009CORE20240101001</MsgId>
+            <CreDtTm>2024-01-01T10:30:00.000Z</CreDtTm>
+            <NbOfTxs>1</NbOfTxs>
+            <SttlmInf>
+                <SttlmMtd>INGA</SttlmMtd>
+                <InstrRmbrsmtAgt>
+                    <FinInstnId>
+                        <BICFI>DEUTDEFFXXX</BICFI>
+                    </FinInstnId>
+                </InstrRmbrsmtAgt>
+                <InstdRmbrsmtAgt>
+                    <FinInstnId>
+                        <BICFI>BANKGB2LXXX</BICFI>
+                    </FinInstnId>
+                </InstdRmbrsmtAgt>
+            </SttlmInf>
+        </GrpHdr>
+        <CdtTrfTxInf>
+            <PmtId>
+                <InstrId>CORE20240101001</InstrId>
+                <EndToEndId>E2E20240101001</EndToEndId>
+                <UETR>550e8400-e29b-41d4-a716-446655440000</UETR>
+            </PmtId>
+            <PmtTpInf>
+                <SvcLvl>
+                    <Cd>G004</Cd>
+                </SvcLvl>
+                <LclInstrm>
+                    <Cd>SDVA</Cd>
+                </LclInstrm>
+                <CtgyPurp>
+                    <Cd>INTC</Cd>
+                </CtgyPurp>
+            </PmtTpInf>
+            <IntrBkSttlmAmt Ccy="USD">1250000.00</IntrBkSttlmAmt>
+            <IntrBkSttlmDt>2024-01-01</IntrBkSttlmDt>
+            <SttlmTmIndctn>
+                <DbtDtTm>2024-01-01T14:30:00+00:00</DbtDtTm>
+            </SttlmTmIndctn>
+            <InstgAgt>
+                <FinInstnId>
+                    <BICFI>BANKBEBBXXX</BICFI>
+                </FinInstnId>
+            </InstgAgt>
+            <InstdAgt>
+                <FinInstnId>
+                    <BICFI>BOFAUS3NXXX</BICFI>
+                </FinInstnId>
+            </InstdAgt>
+            <IntrmyAgt1>
+                <FinInstnId>
+                    <BICFI>CHASUS33XXX</BICFI>
+                </FinInstnId>
+            </IntrmyAgt1>
+            <Dbtr>
+                <FinInstnId>
+                    <BICFI>BANKBEBBXXX</BICFI>
+                </FinInstnId>
+            </Dbtr>
+            <CdtrAgt>
+                <FinInstnId>
+                    <BICFI>BANKUS33XXX</BICFI>
+                </FinInstnId>
+            </CdtrAgt>
+            <Cdtr>
+                <FinInstnId>
+                    <BICFI>BOFAUS3NXXX</BICFI>
+                </FinInstnId>
+            </Cdtr>
+            <InstrForCdtrAgt>
+                <InstrInf>/FIN53/DEUTDEFFXXX</InstrInf>
+            </InstrForCdtrAgt>
+            <InstrForNxtAgt>
+                <InstrInf>/REC/URGENT PROCESSING REQUIRED</InstrInf>
+            </InstrForNxtAgt>
+            <Purp>
+                <Cd>TRAD</Cd>
+            </Purp>
+            <RmtInf>
+                <Ustrd>/BNF/TRADE SETTLEMENT PAYMENT</Ustrd>
+            </RmtInf>
+        </CdtTrfTxInf>
+    </FIToFICdtTrf>
+</Document>`
   }
 };
 

@@ -63,21 +63,25 @@ Reframe offers complete, production-ready bidirectional support for the followin
 | **MT900** | `camt.054` | Confirmation of Debit |
 | **MT910** | `camt.054` | Confirmation of Credit |
 
-### Reverse Transformations (ISO 20022 → SWIFT MT) ✨ **NEW**
+### Reverse Transformations (ISO 20022 → SWIFT MT) ✨ **ENHANCED v2.0.4**
 
 | ISO 20022 Schema | Description | Target MT | Processing Methods |
 |------------------|-------------|-----------|-------------------|
 | pacs.008 | Customer Credit Transfer | MT103 | Normal |
 | pacs.009 | Financial Institution Credit Transfer | MT202, MT205 | Normal, Cover |
 | pacs.004 | Payment Return | MT103RETN, MT202RETN, MT205RETN | Return |
-| *(Additional reverse transformations in development)* |
+| **pacs.002** ✨ **NEW** | Payment Status Report | **MT199, MT299** | **Rejection Status** |
+| **camt.107** ✨ **NEW** | Cheque Presentment Notification | **MT110** | **Cheque Processing** |
+| **camt.108** ✨ **NEW** | Cheque Cancellation/Stop Request | **MT111** | **Cheque Cancellation** |
+| **camt.109** ✨ **NEW** | Cheque Cancellation/Stop Report | **MT112** | **Cheque Status** |
 
-### **Complete Payment & Cancellation Ecosystem**
-- **18+ Message Scenarios**: Comprehensive coverage across payment processing, cancellation workflows, and cash management
-- **6 ISO 20022 Schemas**: `pacs.008`, `pacs.009`, `pacs.002`, `pacs.004`, `camt.056`, `camt.054`
-- **End-to-End Lifecycle**: From payment initiation through cancellation, investigation, and cash reporting
+### **Complete Payment & Cheque Processing Ecosystem** ✨ **ENHANCED v2.0.4**
+- **25+ Message Scenarios**: Comprehensive coverage across payment processing, cancellation workflows, cheque processing, and cash management
+- **10 ISO 20022 Schemas**: `pacs.008`, `pacs.009`, `pacs.002`, `pacs.004`, `camt.054`, `camt.056`, `camt.107`, `camt.108`, `camt.109`
+- **End-to-End Lifecycle**: From payment initiation through cancellation, investigation, cheque processing, and reverse transformation
 - **UETR Support**: Full Unique End-to-End Transaction Reference integration for cancellation workflows
-- **Bidirectional Processing**: Forward and reverse transformation capabilities for maximum flexibility
+- **Enhanced Bidirectional Processing**: Complete forward and reverse transformation capabilities including cheque processing
+- **Cheque Processing**: Full lifecycle support for cheque presentment, cancellation, and status reporting
 
 ---
 
@@ -358,14 +362,17 @@ Navigate to `http://localhost:3000/` for the web UI with bidirectional transform
 | MT196 | Client Notification (Customer) | Normal | camt.056 |
 | MT296 | Client Notification (FI) | Normal | camt.056 |
 
-### Reverse Transformations (ISO 20022 → MT) ✨ **NEW**
+### Reverse Transformations (ISO 20022 → MT) ✨ **ENHANCED v2.0.4**
 
 | ISO 20022 Schema | Description | Target MT | Processing Methods |
 |------------------|-------------|-----------|-------------------|
 | pacs.008 | Customer Credit Transfer | MT103 | Normal |
 | pacs.009 | Financial Institution Credit Transfer | MT202, MT205 | Normal, Cover |
 | pacs.004 | Payment Return | MT103RETN, MT202RETN, MT205RETN | Return |
-| *(Additional reverse transformations in development)* |
+| **pacs.002** ✨ **NEW** | Payment Status Report | **MT199, MT299** | **Rejection Status** |
+| **camt.107** ✨ **NEW** | Cheque Presentment Notification | **MT110** | **Cheque Processing** |
+| **camt.108** ✨ **NEW** | Cheque Cancellation/Stop Request | **MT111** | **Cheque Cancellation** |
+| **camt.109** ✨ **NEW** | Cheque Cancellation/Stop Report | **MT112** | **Cheque Status** |
 
 ## Workflow Configuration
 
@@ -519,8 +526,8 @@ The `/health` endpoint provides service status:
 {
   "status": "healthy",
   "service": "reframe-api", 
-  "version": "2.0.2",
-  "features": ["bidirectional_transformation", "forward_mt_to_mx", "reverse_mx_to_mt"]
+  "version": "2.0.4",
+  "features": ["bidirectional_transformation", "forward_mt_to_mx", "reverse_mx_to_mt", "cheque_processing", "payment_status_reporting"]
 }
 ```
 

@@ -2,21 +2,23 @@
 
 This document outlines the strategic direction and future development priorities for the Reframe project. Our goal is to evolve Reframe into a comprehensive, open-source solution for bidirectional SWIFT message transformation.
 
-## ✅ **Current Status: Complete Payment & Cancellation Ecosystem with Bidirectional Support**
+## ✅ **Current Status: Complete Payment, Cancellation & Cheque Processing Ecosystem with Enhanced Bidirectional Support** ✨ **v2.0.4 MILESTONE**
 
-Reframe has achieved major milestones: providing robust, production-ready transformation for the **complete payment and cancellation lifecycle** including MT103, MT202, MT205 payments and MT192, MT292, MT196, MT296 cancellation workflows, **plus initial bidirectional transformation capabilities**. This comprehensive coverage establishes Reframe as a complete solution for modern payment processing scenarios with both forward and reverse transformation support.
+Reframe has achieved major milestones: providing robust, production-ready transformation for the **complete payment, cancellation, and cheque processing lifecycle** including MT103, MT202, MT205 payments, MT192, MT292, MT196, MT296 cancellation workflows, **plus comprehensive bidirectional transformation capabilities including cheque processing**. This establishes Reframe as a complete solution for modern banking operations with extensive forward and reverse transformation support.
 
 *   **Full Payment Coverage**: Complete support for MT103, MT202, and MT205 with all variants (normal, cover, rejection, return)
 *   **Complete Cancellation & Investigation Support**: MT192, MT292, MT196, MT296 workflows with camt.056.001.08 compliance
 *   **Cash Management Support**: MT900/MT910 confirmation messages with camt.054.001.08 compliance
-*   **Bidirectional Transformation**: Initial support for ISO 20022 → SWIFT MT conversion (starting with pacs.008 → MT103)
-*   **End-to-End Lifecycle**: From payment initiation through processing, exceptions, cancellations, and reverse conversion
-*   **CBPR+ Compliance**: For payments, exceptions, cancellation scenarios, and reverse transformations
+*   **Enhanced Bidirectional Transformation**: Comprehensive ISO 20022 → SWIFT MT conversion covering 7 message families
+*   **Cheque Processing Ecosystem** ✨ **NEW v2.0.4**: Complete cheque lifecycle support with camt.107/108/109 → MT110/111/112 transformations
+*   **Payment Status Reporting** ✨ **NEW v2.0.4**: Enhanced rejection handling with pacs.002 → MT199/MT299 transformations
+*   **End-to-End Lifecycle**: From payment initiation through processing, exceptions, cancellations, cheque processing, and comprehensive reverse conversion
+*   **CBPR+ Compliance**: For payments, exceptions, cancellation scenarios, cheque processing, and reverse transformations
 *   **Transparent Workflows**: With consistent, auditable JSON-based logic across all message types and directions
 *   **High-Performance Engine**: Built in Rust for speed and reliability in both transformation directions
 *   **UETR Integration**: Full support for Unique End-to-End Transaction References in cancellation workflows
 
-With this comprehensive payment and cancellation ecosystem complete and bidirectional transformation capabilities initiated, we are now focused on expanding the reverse transformation coverage and additional corporate treasury use cases.
+With this comprehensive payment, cancellation, and cheque processing ecosystem complete and enhanced bidirectional transformation capabilities, we are now focused on expanding into additional corporate treasury and trade finance use cases.
 
 ---
 
@@ -24,17 +26,19 @@ With this comprehensive payment and cancellation ecosystem complete and bidirect
 
 Our roadmap is focused on completing the bidirectional transformation ecosystem and expanding into additional corporate treasury and cash management capabilities. We plan to tackle this in the following strategic phases.
 
-### **Phase 1: Complete Bidirectional Transformation Coverage** ✨ **HIGH PRIORITY**
+### **Phase 1: Complete Bidirectional Transformation Coverage** ✅ **COMPLETED v2.0.4**
 
-The immediate focus is on completing reverse transformation support for the remaining message types:
+**Successfully completed reverse transformation support with major enhancements:**
 
-#### **Remaining Reverse Transformations**
-*   **Target Transformations**: 
-    - pacs.002 → MT103REJT/MT202REJT/MT205REJT (Payment Status Reports → Rejection Messages)
-    - camt.056 → MT192/MT292/MT196/MT296 (Cancellation Requests → Cancellation Messages)
-    - camt.054 → MT900/MT910 (Bank Notifications → Confirmation Messages)
-*   **Business Value**: Complete round-trip processing for all payment scenarios
-*   **Enhanced Error Handling**: Comprehensive validation for remaining reverse transformations
+#### **Completed Reverse Transformations** ✅ **DONE**
+*   **Payment Status Reports**: ✅ pacs.002 → MT199/MT299 (Enhanced rejection and status reporting)
+*   **Cheque Processing Lifecycle**: ✅ camt.107/108/109 → MT110/111/112 (Complete cheque presentment, cancellation, and reporting)
+*   **Business Value**: Complete round-trip processing for payments, cheques, and status reporting
+*   **Enhanced Error Handling**: Comprehensive validation for all reverse transformations
+
+#### **Remaining Priority Transformations** ✨ **NEXT PHASE**
+*   **Cancellation Round-trip**: camt.056 → MT192/MT292/MT196/MT296 (Cancellation Requests → Cancellation Messages)
+*   **Cash Management Round-trip**: camt.054 → MT900/MT910 (Bank Notifications → Confirmation Messages)
 
 #### **Bidirectional Web Interface**
 *   **Enhanced UI**: Updated web interface with direction selection and format auto-detection
@@ -78,18 +82,28 @@ This phase will introduce support for a wide array of cash management messages w
 
 ---
 
-## **Recent Achievements: Version 2.0.2 Milestone** ✨ **NEW**
+## **Recent Achievements: Version 2.0.4 Milestone** ✨ **MAJOR ADVANCEMENT**
 
-The expansion of bidirectional transformation capabilities represents a significant advancement:
+The expansion of cheque processing and payment status reporting represents a significant leap forward:
+
+*   **Cheque Processing Ecosystem**: Complete camt.107/108/109 → MT110/111/112 transformation support
+*   **Enhanced Payment Status Reporting**: pacs.002 → MT199/MT299 for comprehensive rejection and status handling
+*   **Expanded Message Coverage**: From 3 to 7 reverse transformation message families
+*   **Production-Ready Cheque Support**: Full lifecycle cheque presentment, cancellation, and status reporting
+*   **Advanced Field Mapping**: 1,600+ lines of new workflow mappings for complex banking operations
+*   **Comprehensive Test Coverage**: Complete sample data and validation for all new message types
+*   **Enhanced Architecture**: Improved parser and publisher modules for extended message support
+
+This milestone establishes Reframe as a comprehensive solution for banking operations beyond core payments, including cheque processing and enhanced status reporting.
+
+## **Previous Achievement: Version 2.0.2 Milestone**
+
+The initial expansion of bidirectional transformation capabilities:
 
 *   **Enhanced Reverse Transformation**: Added support for pacs.009 and pacs.004 reverse transformations
 *   **Complete Financial Institution Support**: Full MT202/MT205 reverse transformation capabilities
 *   **Return Message Processing**: Comprehensive support for payment return message reverse transformation
 *   **Advanced Validation**: Enhanced validation framework for reverse transformations
-*   **Optimized Processing**: Improved efficiency for both transformation directions
-*   **Extended Test Coverage**: Comprehensive test cases for all transformation scenarios
-
-This milestone further establishes Reframe as a comprehensive solution for bidirectional SWIFT ↔ ISO 20022 transformation.
 
 ---
 

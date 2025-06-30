@@ -1,5 +1,113 @@
 # Reframe Release Notes
 
+## Version 2.0.4 - Major Release: Cheque Processing & Enhanced Payment Status Ecosystem ✨ **NEW**
+
+### 🚀 **Revolutionary Banking Operations Support**
+
+#### **Complete Cheque Processing Lifecycle** ✨ **NEW**
+- **camt.107 → MT110**: Cheque Presentment Notification transformation with comprehensive field mapping (332 workflow lines)
+- **camt.108 → MT111**: Cheque Cancellation/Stop Request transformation with enhanced validation (390 workflow lines)
+- **camt.109 → MT112**: Cheque Cancellation/Stop Report transformation with full status tracking (383 workflow lines)
+- **Production-Ready Implementation**: Complete test data coverage with authentic cheque processing samples
+
+#### **Enhanced Payment Status Reporting** ✨ **NEW**
+- **pacs.002 → MT199**: Payment Status Report reverse transformation for general rejection notifications (511 workflow lines)
+- **pacs.002 → MT299**: Payment Status Report reverse transformation for institutional rejection notifications
+- **Advanced Error Handling**: Comprehensive rejection reason processing and status code mapping
+- **Business Value**: Complete round-trip status reporting for payment exceptions and rejections
+
+#### **Expanded Reverse Transformation Coverage** ✨ **NEW**
+- **Message Family Coverage**: Expanded from 3 to 7 complete reverse transformation message families
+- **Enhanced Architecture**: Advanced parsing and publishing modules for complex banking operations
+- **Field Mapping Excellence**: 1,600+ lines of new workflow mappings for comprehensive data transformation
+- **Validation Framework**: Enhanced validation rules for cheque processing and payment status scenarios
+
+### 🎯 Enhanced Transformation Support (Updated)
+
+#### **Reverse Transformations (ISO 20022 → SWIFT MT)** - Now Supporting 7 Message Families
+- **pacs.008** → `MT103` (Customer Credit Transfer)
+- **pacs.009** → `MT202`, `MT205` (Financial Institution Credit Transfer)
+- **pacs.004** → `MT103RETN`, `MT202RETN`, `MT205RETN` (Payment Return)
+- **pacs.002** → `MT199`, `MT299` ✨ **NEW** (Payment Status Report - Rejection Notifications)
+- **camt.107** → `MT110` ✨ **NEW** (Cheque Presentment Notification)
+- **camt.108** → `MT111` ✨ **NEW** (Cheque Cancellation/Stop Request)
+- **camt.109** → `MT112` ✨ **NEW** (Cheque Cancellation/Stop Report)
+
+#### **Forward Transformations (SWIFT MT → ISO 20022)** - Complete Ecosystem (Unchanged)
+- **MT103** → `pacs.008`, `pacs.002`, `pacs.004` (Customer Credit Transfers with all variants)
+- **MT202** → `pacs.009`, `pacs.002`, `pacs.004` (Financial Institution Transfers with all variants)
+- **MT205** → `pacs.009`, `pacs.002`, `pacs.004` (Corporate Financial Institution Transfers with all variants)
+- **MT192/292/196/296** → `camt.056` (Complete cancellation and investigation workflows)
+- **MT900/910** → `camt.054` (Cash management confirmation messages)
+
+### 🔧 Technical Enhancements
+
+#### **Enhanced Parser & Publisher Infrastructure**
+- **MX Message Parser**: Extended support for camt.107, camt.108, camt.109, and enhanced pacs.002 processing
+- **MT Message Publisher**: New generation capabilities for MT110, MT111, MT112, MT199, MT299 message types
+- **Field Mapping Engine**: Advanced bidirectional mapping for complex cheque processing and status reporting scenarios
+- **Validation Framework**: Enhanced validation rules for banking operations beyond core payments
+
+#### **Workflow Architecture Improvements**
+- **5 New Workflow Configurations**: Complete transformation logic for all new message types
+  - `workflows/reverse/camt107/field-mapping.json` (332 lines)
+  - `workflows/reverse/camt108/field-mapping.json` (390 lines)
+  - `workflows/reverse/camt109/field-mapping.json` (383 lines)
+  - `workflows/reverse/pacs002/field-mapping.json` (511 lines)
+- **Enhanced Index Management**: Updated workflow loading for new message type support
+- **Consistent JSON Structure**: Unified transformation patterns across all new message types
+
+#### **Advanced Error Handling & Validation**
+- **Cheque Processing Validation**: Comprehensive validation for cheque presentment, cancellation, and status scenarios
+- **Payment Status Validation**: Enhanced validation for rejection and status reporting workflows
+- **Business Rule Enforcement**: CBPR+ compliance validation for extended banking operations
+- **Enhanced Error Context**: Detailed error paths for debugging complex transformation scenarios
+
+### 📊 Implementation Statistics (Updated for v2.0.4)
+
+- **Reverse Transformation Coverage**: 7 complete message families (increased from 3)
+- **Forward Transformation Coverage**: 9 complete message families (unchanged)
+- **Total Workflow Files**: 55+ specialized transformation workflows (50+ previously)
+- **New MT Message Types**: MT110, MT111, MT112, MT199, MT299
+- **ISO 20022 Schema Support**: 10 total schemas with enhanced coverage
+- **Sample Coverage**: 30+ authentic test data samples covering all scenarios
+- **Production Deployment**: Enhanced reliability with extended banking operations support
+
+### 🚀 **Production Ready Enhancements**
+
+- **Enterprise-Grade Cheque Processing**: Complete cheque lifecycle support from presentment through cancellation
+- **Enhanced Status Reporting**: Comprehensive rejection and status notification capabilities
+- **Legacy System Integration**: Extended support for banking systems requiring cheque processing capabilities
+- **Real-time Processing**: Immediate transformation for all banking operations with comprehensive feedback
+- **API Flexibility**: Single endpoint supporting expanded message type coverage
+- **Enhanced Monitoring**: Comprehensive observability for extended transformation scenarios
+
+### 🌐 **Web Interface Enhancements**
+
+- **Extended Sample Library**: 5 new sample messages for testing cheque processing and payment status transformations
+- **Enhanced Testing Capability**: Complete examples for all new reverse transformation scenarios
+- **Real-time Validation**: Live validation for extended ISO 20022 and MT message formats
+- **Improved User Experience**: Better examples and testing capabilities for complex banking operations
+
+### 📈 **Business Impact & Value**
+
+#### **Cheque Processing Capability**
+- **Complete Lifecycle Support**: From cheque presentment through cancellation and status reporting
+- **Legacy Integration**: Enhanced support for banking systems with cheque processing requirements
+- **Regulatory Compliance**: Full support for cheque-related banking regulations and standards
+
+#### **Enhanced Payment Operations**
+- **Comprehensive Status Reporting**: Complete rejection and status notification ecosystem
+- **Exception Management**: Advanced handling of payment exceptions and status communications
+- **Operational Efficiency**: Streamlined processing for complex banking scenarios
+
+---
+
+**Total Enhanced Formats**: 25+ message variants → 10 ISO 20022 schemas with cheque processing support  
+**Transformation Coverage**: Complete banking operations ecosystem including cheque processing  
+**Cheque Processing**: Production-ready MT110/111/112 implementation with full lifecycle support  
+**Production Deployment**: Azure Container deployment with enhanced reliability and comprehensive banking coverage
+
 ## Version 2.0.2 - Enhanced Bidirectional Transformation Support
 
 ### 🚀 **Major Enhancements**

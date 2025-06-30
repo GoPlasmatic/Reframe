@@ -192,6 +192,7 @@ impl ParseMX {
                 ) {
                     Ok(header) => header,
                     Err(e) => {
+                        error!("Failed to parse header: {:?}", e);
                         return Err(DataflowError::Validation(format!(
                             "Failed to parse header: {e}"
                         )));
@@ -199,9 +200,12 @@ impl ParseMX {
                 };
                 match serde_json::to_value(header) {
                     Ok(value) => Ok(value),
-                    Err(e) => Err(DataflowError::Validation(format!(
-                        "Failed to convert header to value: {e}"
-                    ))),
+                    Err(e) => {
+                        error!("Failed to convert header: {:?}", e);
+                        Err(DataflowError::Validation(format!(
+                            "Failed to convert header to value: {e}"
+                        )))
+                    }
                 }
             }
             "pacs.004.001.09" => {
@@ -210,6 +214,7 @@ impl ParseMX {
                 ) {
                     Ok(header) => header,
                     Err(e) => {
+                        error!("Failed to parse header: {:?}", e);
                         return Err(DataflowError::Validation(format!(
                             "Failed to parse header: {e}"
                         )));
@@ -217,9 +222,12 @@ impl ParseMX {
                 };
                 match serde_json::to_value(header) {
                     Ok(value) => Ok(value),
-                    Err(e) => Err(DataflowError::Validation(format!(
-                        "Failed to convert header to value: {e}"
-                    ))),
+                    Err(e) => {
+                        error!("Failed to convert header: {:?}", e);
+                        Err(DataflowError::Validation(format!(
+                            "Failed to convert header to value: {e}"
+                        )))
+                    }
                 }
             }
             "pacs.009.001.08" => {
@@ -228,6 +236,7 @@ impl ParseMX {
                 ) {
                     Ok(header) => header,
                     Err(e) => {
+                        error!("Failed to parse header: {:?}", e);
                         return Err(DataflowError::Validation(format!(
                             "Failed to parse header: {e}"
                         )));
@@ -235,9 +244,12 @@ impl ParseMX {
                 };
                 match serde_json::to_value(header) {
                     Ok(value) => Ok(value),
-                    Err(e) => Err(DataflowError::Validation(format!(
-                        "Failed to convert header to value: {e}"
-                    ))),
+                    Err(e) => {
+                        error!("Failed to convert header: {:?}", e);
+                        Err(DataflowError::Validation(format!(
+                            "Failed to convert header to value: {e}"
+                        )))
+                    }
                 }
             }
             "pacs.002.001.10" => {
@@ -246,6 +258,7 @@ impl ParseMX {
                 ) {
                     Ok(header) => header,
                     Err(e) => {
+                        error!("Failed to parse header: {:?}", e);
                         return Err(DataflowError::Validation(format!(
                             "Failed to parse pacs.002 header: {e}"
                         )));
@@ -253,9 +266,78 @@ impl ParseMX {
                 };
                 match serde_json::to_value(header) {
                     Ok(value) => Ok(value),
-                    Err(e) => Err(DataflowError::Validation(format!(
-                        "Failed to convert pacs.002 header to value: {e}"
-                    ))),
+                    Err(e) => {
+                        error!("Failed to convert header: {:?}", e);
+                        Err(DataflowError::Validation(format!(
+                            "Failed to convert header to value: {e}"
+                        )))
+                    }
+                }
+            }
+            "camt.107.001.01" => {
+                let header = match from_str::<bah_camt_107_001_01::BusinessApplicationHeaderV02>(
+                    app_hdr_content,
+                ) {
+                    Ok(header) => header,
+                    Err(e) => {
+                        error!("Failed to parse header: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse camt.107 header: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(header) {
+                    Ok(value) => Ok(value),
+                    Err(e) => {
+                        error!("Failed to convert header: {:?}", e);
+                        Err(DataflowError::Validation(format!(
+                            "Failed to convert header to value: {e}"
+                        )))
+                    }
+                }
+            }
+            "camt.108.001.01" => {
+                let header = match from_str::<bah_camt_108_001_01::BusinessApplicationHeaderV02>(
+                    app_hdr_content,
+                ) {
+                    Ok(header) => header,
+                    Err(e) => {
+                        error!("Failed to parse header: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse camt.108 header: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(header) {
+                    Ok(value) => Ok(value),
+                    Err(e) => {
+                        error!("Failed to convert header: {:?}", e);
+                        Err(DataflowError::Validation(format!(
+                            "Failed to convert header to value: {e}"
+                        )))
+                    }
+                }
+            }
+            "camt.109.001.01" => {
+                let header = match from_str::<bah_camt_109_001_01::BusinessApplicationHeaderV02>(
+                    app_hdr_content,
+                ) {
+                    Ok(header) => header,
+                    Err(e) => {
+                        error!("Failed to parse header: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse camt.109 header: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(header) {
+                    Ok(value) => Ok(value),
+                    Err(e) => {
+                        error!("Failed to convert header: {:?}", e);
+                        Err(DataflowError::Validation(format!(
+                            "Failed to convert header to value: {e}"
+                        )))
+                    }
                 }
             }
             _ => {
@@ -271,9 +353,12 @@ impl ParseMX {
                 };
                 match serde_json::to_value(header) {
                     Ok(value) => Ok(value),
-                    Err(e) => Err(DataflowError::Validation(format!(
-                        "Failed to convert header to value: {e}"
-                    ))),
+                    Err(e) => {
+                        error!("Failed to convert header: {:?}", e);
+                        Err(DataflowError::Validation(format!(
+                            "Failed to convert header to value: {e}"
+                        )))
+                    }
                 }
             }
         }
@@ -355,6 +440,63 @@ impl ParseMX {
                     Ok(value) => Ok(value),
                     Err(e) => Err(DataflowError::Validation(format!(
                         "Failed to convert pacs.002 document to value: {e}"
+                    ))),
+                }
+            }
+            "camt.107.001.01" => {
+                let document = match from_str::<camt_107_001_01::ChequePresentmentNotificationV01>(
+                    document_content,
+                ) {
+                    Ok(document) => document,
+                    Err(e) => {
+                        error!("Failed to parse camt.107 document: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse camt.107 document: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(document) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(DataflowError::Validation(format!(
+                        "Failed to convert camt.107 document to value: {e}"
+                    ))),
+                }
+            }
+            "camt.108.001.01" => {
+                let document = match from_str::<camt_108_001_01::ChequeCancellationOrStopRequestV01>(
+                    document_content,
+                ) {
+                    Ok(document) => document,
+                    Err(e) => {
+                        error!("Failed to parse camt.108 document: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse camt.108 document: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(document) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(DataflowError::Validation(format!(
+                        "Failed to convert camt.108 document to value: {e}"
+                    ))),
+                }
+            }
+            "camt.109.001.01" => {
+                let document = match from_str::<camt_109_001_01::ChequeCancellationOrStopReportV01>(
+                    document_content,
+                ) {
+                    Ok(document) => document,
+                    Err(e) => {
+                        error!("Failed to parse camt.109 document: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse camt.109 document: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(document) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(DataflowError::Validation(format!(
+                        "Failed to convert camt.109 document to value: {e}"
                     ))),
                 }
             }

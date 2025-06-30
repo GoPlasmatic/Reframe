@@ -1854,6 +1854,266 @@ Reference: CONTRACT-2025-789</Ustrd>
         </CdtTrfTxInf>
     </FIToFICdtTrf>
 </Document>`
+  },
+  'camt.107': {
+    name: 'ISO 20022 camt.107 → MT110',
+    description: 'Cheque Presentment Notification',
+    targetFormat: 'SWIFT MT110',
+    sample: `<?xml version="1.0" encoding="UTF-8"?>
+<Envelope xmlns="urn:swift:xsd:$ahV10">
+  <AppHdr>
+    <Fr>
+      <FIId>
+        <FinInstnId>
+          <BICFI>BANKUS33XXX</BICFI>
+        </FinInstnId>
+      </FIId>
+    </Fr>
+    <To>
+      <FIId>
+        <FinInstnId>
+          <BICFI>DEUTDEFFXXX</BICFI>
+        </FinInstnId>
+      </FIId>
+    </To>
+    <BizMsgIdr>20250630-CHQ-001</BizMsgIdr>
+    <MsgDefIdr>camt.107.001.01</MsgDefIdr>
+    <CreDt>2025-06-30T14:30:00Z</CreDt>
+    <BizSvc>CBPR</BizSvc>
+  </AppHdr>
+  <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.107.001.01">
+    <ChqPresntmntNtfctn>
+      <GrpHdr>
+        <MsgId>CHQ20250630001</MsgId>
+        <CreDtTm>2025-06-30T14:30:00Z</CreDtTm>
+        <NbOfChqs>1</NbOfChqs>
+      </GrpHdr>
+      <Chq>
+        <InstrId>INSTR20250630001</InstrId>
+        <ChqNb>CHQ001234567</ChqNb>
+        <IsseDt>2025-06-27</IsseDt>
+        <Amt Ccy="USD">15000.00</Amt>
+        <ValDt>
+          <Dt>2025-06-30</Dt>
+        </ValDt>
+        <Pyer>
+          <Nm>ACME CORPORATION</Nm>
+          <PstlAdr>
+            <AdrLine>123 MAIN STREET</AdrLine>
+            <AdrLine>SUITE 400</AdrLine>
+            <TwnNm>NEW YORK</TwnNm>
+            <Ctry>US</Ctry>
+          </PstlAdr>
+          <Id>
+            <OrgId>
+              <Othr>
+                <Id>TAX123456789</Id>
+                <SchmeNm>
+                  <Cd>TXID</Cd>
+                </SchmeNm>
+              </Othr>
+            </OrgId>
+          </Id>
+        </Pyer>
+        <PyerAcct>
+          <Id>
+            <Othr>
+              <Id>1234567890</Id>
+            </Othr>
+          </Id>
+        </PyerAcct>
+        <DrwrAgt>
+          <FinInstnId>
+            <BICFI>BANKUS33XXX</BICFI>
+            <Nm>BANK OF AMERICA</Nm>
+            <PstlAdr>
+              <StrtNm>100 FEDERAL STREET</StrtNm>
+              <TwnNm>BOSTON</TwnNm>
+              <Ctry>US</Ctry>
+            </PstlAdr>
+          </FinInstnId>
+        </DrwrAgt>
+        <DrwrAgtAcct>
+          <Id>
+            <Othr>
+              <Id>US12345678901234567890</Id>
+            </Othr>
+          </Id>
+        </DrwrAgtAcct>
+        <Pyee>
+          <Nm>MUELLER GMBH</Nm>
+          <PstlAdr>
+            <AdrLine>HAUPTSTRASSE 1</AdrLine>
+            <AdrLine>BUILDING A</AdrLine>
+            <TwnNm>BERLIN</TwnNm>
+            <Ctry>DE</Ctry>
+          </PstlAdr>
+        </Pyee>
+      </Chq>
+    </ChqPresntmntNtfctn>
+  </Document>
+</Envelope>`
+  },
+  'camt.108': {
+    name: 'ISO 20022 camt.108 → MT111',
+    description: 'Cheque Cancellation or Stop Request',
+    targetFormat: 'SWIFT MT111',
+    sample: `<?xml version="1.0" encoding="UTF-8"?>
+<Envelope xmlns="urn:swift:xsd:$ahV10">
+  <AppHdr>
+    <Fr>
+      <FIId>
+        <FinInstnId>
+          <BICFI>BANKUS33XXX</BICFI>
+        </FinInstnId>
+      </FIId>
+    </Fr>
+    <To>
+      <FIId>
+        <FinInstnId>
+          <BICFI>DEUTDEFFXXX</BICFI>
+        </FinInstnId>
+      </FIId>
+    </To>
+    <BizMsgIdr>20250630-CHQ-STOP-001</BizMsgIdr>
+    <MsgDefIdr>camt.108.001.01</MsgDefIdr>
+    <CreDt>2025-06-30T15:00:00Z</CreDt>
+    <BizSvc>CBPR</BizSvc>
+  </AppHdr>
+  <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.108.001.01">
+    <ChqCxlOrStopReq>
+      <GrpHdr>
+        <MsgId>STOP20250630001</MsgId>
+        <CreDtTm>2025-06-30T15:00:00Z</CreDtTm>
+        <NbOfChqs>1</NbOfChqs>
+      </GrpHdr>
+      <Chq>
+        <InstrId>STOPINSTR20250630001</InstrId>
+        <OrgnlInstrId>INSTR20250630001</OrgnlInstrId>
+        <ChqNb>CHQ001234567</ChqNb>
+        <IsseDt>2025-06-27</IsseDt>
+        <Amt Ccy="USD">15000.00</Amt>
+        <EffctvDt>
+          <Dt>2025-07-01</Dt>
+        </EffctvDt>
+        <DrwrAgt>
+          <FinInstnId>
+            <BICFI>BANKUS33XXX</BICFI>
+            <Nm>BANK OF AMERICA</Nm>
+            <PstlAdr>
+              <StrtNm>100 FEDERAL STREET</StrtNm>
+              <TwnNm>BOSTON</TwnNm>
+              <Ctry>US</Ctry>
+            </PstlAdr>
+          </FinInstnId>
+        </DrwrAgt>
+        <DrwrAgtAcct>
+          <Id>
+            <Othr>
+              <Id>US12345678901234567890</Id>
+            </Othr>
+          </Id>
+        </DrwrAgtAcct>
+        <Pyee>
+          <Nm>MUELLER GMBH</Nm>
+          <PstlAdr>
+            <AdrLine>HAUPTSTRASSE 1</AdrLine>
+            <AdrLine>BUILDING A</AdrLine>
+            <TwnNm>BERLIN</TwnNm>
+            <Ctry>DE</Ctry>
+          </PstlAdr>
+        </Pyee>
+        <ChqCxlOrStopRsn>
+          <Rsn>
+            <Cd>LOST</Cd>
+          </Rsn>
+          <AddtlInf>Cheque reported lost by payee</AddtlInf>
+        </ChqCxlOrStopRsn>
+      </Chq>
+    </ChqCxlOrStopReq>
+  </Document>
+</Envelope>`
+  },
+  'camt.109': {
+    name: 'ISO 20022 camt.109 → MT112',
+    description: 'Cheque Cancellation or Stop Report',
+    targetFormat: 'SWIFT MT112',
+    sample: `<?xml version="1.0" encoding="UTF-8"?>
+<Envelope xmlns="urn:swift:xsd:$ahV10">
+  <AppHdr>
+    <Fr>
+      <FIId>
+        <FinInstnId>
+          <BICFI>DEUTDEFFXXX</BICFI>
+        </FinInstnId>
+      </FIId>
+    </Fr>
+    <To>
+      <FIId>
+        <FinInstnId>
+          <BICFI>BANKUS33XXX</BICFI>
+        </FinInstnId>
+      </FIId>
+    </To>
+    <BizMsgIdr>20250630-CHQ-STATUS-001</BizMsgIdr>
+    <MsgDefIdr>camt.109.001.01</MsgDefIdr>
+    <CreDt>2025-06-30T16:00:00Z</CreDt>
+    <BizSvc>swift.cbprplus.03</BizSvc>
+  </AppHdr>
+  <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.109.001.01">
+    <ChqCxlOrStopRpt>
+      <GrpHdr>
+        <MsgId>RPT20250630001</MsgId>
+        <CreDtTm>2025-06-30T16:00:00Z</CreDtTm>
+        <NbOfChqs>1</NbOfChqs>
+      </GrpHdr>
+      <Chq>
+        <InstrId>RPTINSTR20250630001</InstrId>
+        <OrgnlInstrId>STOPINSTR20250630001</OrgnlInstrId>
+        <ChqNb>CHQ001234567</ChqNb>
+        <IsseDt>2025-06-27</IsseDt>
+        <Amt Ccy="USD">15000.00</Amt>
+        <EffctvDt>
+          <Dt>2025-07-01</Dt>
+        </EffctvDt>
+        <DrwrAgt>
+          <FinInstnId>
+            <BICFI>BANKUS33XXX</BICFI>
+            <Nm>BANK OF AMERICA</Nm>
+            <PstlAdr>
+              <StrtNm>100 FEDERAL STREET</StrtNm>
+              <TwnNm>BOSTON</TwnNm>
+              <Ctry>US</Ctry>
+            </PstlAdr>
+          </FinInstnId>
+        </DrwrAgt>
+        <DrwrAgtAcct>
+          <Id>
+            <Othr>
+              <Id>US12345678901234567890</Id>
+            </Othr>
+          </Id>
+        </DrwrAgtAcct>
+        <Pyee>
+          <Nm>MUELLER GMBH</Nm>
+          <PstlAdr>
+            <AdrLine>HAUPTSTRASSE 1</AdrLine>
+            <AdrLine>BUILDING A</AdrLine>
+            <TwnNm>BERLIN</TwnNm>
+            <Ctry>DE</Ctry>
+          </PstlAdr>
+        </Pyee>
+        <ChqCxlOrStopSts>
+          <Sts>
+            <Cd>ACCR</Cd>
+          </Sts>
+          <OrgnlReqId>STOPINSTR20250630001</OrgnlReqId>
+          <AddtlInf>Stop payment request successfully processed and accepted</AddtlInf>
+        </ChqCxlOrStopSts>
+      </Chq>
+    </ChqCxlOrStopRpt>
+  </Document>
+</Envelope>`
   }
 };
 

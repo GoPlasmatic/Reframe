@@ -1,0 +1,511 @@
+{
+    "id": "pacs002-to-mt-rejt-mapper",
+    "name": "pacs.002 to MT199/MT299 REJT Field Mapping",
+    "description": "Maps ISO 20022 pacs.002 FIToFIPaymentStatusReport fields to SWIFT MT199/MT299 rejection message structure according to CBPR+ reverse transformation specification",
+    "priority": 2,
+    "condition": {
+        "and": [
+            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.002.001.10"]},
+            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+            {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+            {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "TR001_extract_temp_variables",
+            "name": "TR001: Extract Sender and Receiver BICs",
+            "description": "Extract BIC codes from header for use in translation rules",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.Sender",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.Receiver",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "determine_target_message_type",
+            "name": "Determine Target Message Type",
+            "description": "Determine whether to generate MT199 or MT299 based on original message type and status information",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.target_message_type",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"},
+                                    {
+                                        "if": [
+                                            {"starts_with": [{"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"}, "2"]},
+                                            "299",
+                                            "199"
+                                        ]
+                                    },
+                                    "199"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.rejection_method",
+                            "logic": "rejt"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_swift_headers",
+            "name": "Map SWIFT Message Headers",
+            "description": "Map basic header and application header from MX header",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.basic_header.sender_bic.raw",
+                            "logic": {
+                                "if": [
+                                    {"var": "temp_data.Sender"},
+                                    {"substr": [{"var": "temp_data.Sender"}, 0, 8]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.logical_terminal",
+                            "logic": {
+                                "if": [
+                                    {"var": "temp_data.Sender"},
+                                    {"cat": [{"var": "temp_data.Sender"}, "AXXX"]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.application_id",
+                            "logic": "F"
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.service_id",
+                            "logic": "01"
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.session_number",
+                            "logic": "0000"
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.sequence_number",
+                            "logic": "000000"
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.receiver_bic.raw",
+                            "logic": {
+                                "if": [
+                                    {"var": "temp_data.Receiver"},
+                                    {"substr": [{"var": "temp_data.Receiver"}, 0, 8]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.destination_address",
+                            "logic": {
+                                "if": [
+                                    {"var": "temp_data.Receiver"},
+                                    {"cat": [{"var": "temp_data.Receiver"}, "XXXX"]},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.direction",
+                            "logic": "I"
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.message_type",
+                            "logic": {"var": "temp_data.target_message_type"}
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.priority",
+                            "logic": "N"
+                        },
+                        {
+                            "path": "data.SwiftMT.message_type",
+                            "logic": {"var": "temp_data.target_message_type"}
+                        },
+                        {
+                            "path": "data.SwiftMT.method",
+                            "logic": {"var": "temp_data.rejection_method"}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_user_header",
+            "name": "Map User Header",
+            "description": "Map user header fields including UETR from original transaction",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.user_header.unique_end_to_end_reference",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"},
+                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"},
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_basic_fields",
+            "name": "Map Basic MT199/MT299 Fields",
+            "description": "Map core MT199/MT299 fields from pacs.002 elements",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#20.value",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"},
+                                    {
+                                        "if": [
+                                            {">": [{"length": {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}}, 16]},
+                                            {"cat": [{"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}, 0, 15]}, "+"]},
+                                            {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#21.value",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"},
+                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"},
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_rejection_reason_information",
+            "name": "Map Rejection Reason Information (Field 79)",
+            "description": "Map rejection reason and status information to Field 79 in structured format",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#79.lines",
+                            "logic": {
+                                "merge": [
+                                    ["/REJT/"],
+                                    {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"},
+                                            [
+                                                {
+                                                    "cat": [
+                                                        "/INST/",
+                                                        {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}
+                                                    ]
+                                                }
+                                            ],
+                                            []
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgId"},
+                                            [
+                                                {
+                                                    "cat": [
+                                                        "/MREF/",
+                                                        {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgId"}
+                                                    ]
+                                                }
+                                            ],
+                                            []
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlEndToEndId"},
+                                            [
+                                                {
+                                                    "cat": [
+                                                        "/TREF/",
+                                                        {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlEndToEndId"}
+                                                    ]
+                                                }
+                                            ],
+                                            []
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInfAndSts.TxSts"},
+                                            [
+                                                {
+                                                    "cat": [
+                                                        "/STAT/",
+                                                        {"var": "data.ISO20022_MX.document.TxInfAndSts.TxSts"}
+                                                    ]
+                                                }
+                                            ],
+                                            []
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"},
+                                            [
+                                                {
+                                                    "cat": [
+                                                        "/UETR/",
+                                                        {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"}
+                                                    ]
+                                                }
+                                            ],
+                                            []
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.Rsn.Cd"},
+                                            [
+                                                {
+                                                    "cat": [
+                                                        "/RJCT/",
+                                                        {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.Rsn.Cd"}
+                                                    ]
+                                                }
+                                            ],
+                                            []
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.AddtlInf"},
+                                            {
+                                                "map": [
+                                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.AddtlInf"},
+                                                    {"cat": ["/TEXT/", {"var": ""}]}
+                                                ]
+                                            },
+                                            []
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlTxRef.IntrBkSttlmAmt"},
+                                            [
+                                                {
+                                                    "cat": [
+                                                        "/SETT/",
+                                                        {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlTxRef.IntrBkSttlmAmt.@Ccy"},
+                                                        {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlTxRef.IntrBkSttlmAmt.$value"}
+                                                    ]
+                                                }
+                                            ],
+                                            []
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlTxRef.IntrBkSttlmDt"},
+                                            [
+                                                {
+                                                    "cat": [
+                                                        "/VALU/",
+                                                        {"format_date": [{"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlTxRef.IntrBkSttlmDt"}, "yyMMdd"]}
+                                                    ]
+                                                }
+                                            ],
+                                            []
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_instructing_institution",
+            "name": "Map Instructing Institution (Field 51A)",
+            "description": "Map instructing agent information from original transaction reference",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.51A.bic.raw",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlTxRef.InstgAgt.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlTxRef.InstgAgt.FinInstnId.BICFI"},
+                                    {"var": "temp_data.Sender"}
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_instructed_institution",
+            "name": "Map Instructed Institution (Field 52A)",
+            "description": "Map instructed agent information from original transaction reference",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.52A.bic.raw",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlTxRef.InstdAgt.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlTxRef.InstdAgt.FinInstnId.BICFI"},
+                                    {"var": "temp_data.Receiver"}
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_account_identification",
+            "name": "Map Account Identification (Field 25)",
+            "description": "Map settlement account information if available",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#25.value",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"},
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"},
+                                    {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"},
+                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"},
+                                            null
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "generate_field_order",
+            "name": "Generate Field Order",
+            "description": "Generate the field order array based on target message type and present fields",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.field_order",
+                            "logic": [
+                                "20",
+                                "21",
+                                "25",
+                                "51A",
+                                "52A",
+                                "79"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "publish_mt_rejection_message",
+            "name": "Publish MT Rejection Message",
+            "description": "Generate final MT199/MT299 rejection message from mapped fields",
+            "function": {
+                "name": "PublishMT",
+                "input": {
+                    "input_field_name": "SwiftMT",
+                    "output_field_name": "result",
+                    "source_format": "pacs.002.001.10"
+                }
+            }
+        },
+        {
+            "id": "validate_rejection_format",
+            "name": "Validate Rejection Message Format",
+            "description": "Ensure the generated rejection message follows MT199/MT299 format requirements",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.SwiftMT.fields.79.lines.0",
+                            "logic": {
+                                "starts_with": [{"var": "data.SwiftMT.fields.79.lines.0"}, "/REJT/"]
+                            },
+                            "message": "Field 79 must start with /REJT/ for rejection messages"
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.20.value",
+                            "logic": {
+                                "and": [
+                                    {"var": "data.SwiftMT.fields.20.value"},
+                                    {"<=": [{"length": {"var": "data.SwiftMT.fields.20.value"}}, 16]}
+                                ]
+                            },
+                            "message": "Field 20 is required and must not exceed 16 characters"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

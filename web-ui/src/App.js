@@ -455,6 +455,310 @@ SINGAPORE 048624
 
 // Reverse transformation configurations (MX to MT)
 const REVERSE_TRANSFORMATIONS = {
+  'pacs.002': {
+    name: 'ISO 20022 pacs.002 → MT199/MT299',
+    description: 'Payment Status Report (Rejection)',
+    targetFormat: 'SWIFT MT199/MT299',
+    sample: `<?xml version="1.0" encoding="UTF-8"?>
+<Envelope xmlns="urn:swift:xsd:$ahV10">
+  <AppHdr>
+    <Fr>
+      <FIId>
+        <FinInstnId>
+          <BICFI>DEUTDEFFXXX</BICFI>
+        </FinInstnId>
+      </FIId>
+    </Fr>
+    <To>
+      <FIId>
+        <FinInstnId>
+          <BICFI>BANKUS33XXX</BICFI>
+        </FinInstnId>
+      </FIId>
+    </To>
+    <BizMsgIdr>20250630-REJT-001</BizMsgIdr>
+    <MsgDefIdr>pacs.002.001.10</MsgDefIdr>
+    <CreDt>2025-06-30T14:30:00Z</CreDt>
+    <BizSvc>CBPR</BizSvc>
+  </AppHdr>
+  <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.002.001.10">
+    <FIToFIPmtStsRpt>
+      <GrpHdr>
+        <MsgId>REJT20250630001</MsgId>
+        <CreDtTm>2025-06-30T14:30:00Z</CreDtTm>
+        <InstgAgt>
+          <FinInstnId>
+            <BICFI>DEUTDEFFXXX</BICFI>
+          </FinInstnId>
+        </InstgAgt>
+        <InstdAgt>
+          <FinInstnId>
+            <BICFI>BANKUS33XXX</BICFI>
+          </FinInstnId>
+        </InstdAgt>
+        <SttlmInf>
+          <SttlmMtd>INDA</SttlmMtd>
+          <SttlmAcct>
+            <Id>
+              <Othr>
+                <Id>DE89370400440532013000</Id>
+              </Othr>
+            </Id>
+          </SttlmAcct>
+        </SttlmInf>
+      </GrpHdr>
+      <TxInfAndSts>
+        <StsId>STATUS001</StsId>
+        <OrgnlGrpInf>
+          <OrgnlMsgId>20250627-12345</OrgnlMsgId>
+          <OrgnlMsgNmId>pacs.008.001.08</OrgnlMsgNmId>
+          <OrgnlCreDtTm>2025-06-27T12:00:00Z</OrgnlCreDtTm>
+        </OrgnlGrpInf>
+        <OrgnlInstrId>FT21001234567890</OrgnlInstrId>
+        <OrgnlEndToEndId>E2E-REF-2025-001</OrgnlEndToEndId>
+        <OrgnlTxId>TXN-2025-001234</OrgnlTxId>
+        <OrgnlUETR>12345678-1234-4567-8901-123456789012</OrgnlUETR>
+        <TxSts>RJCT</TxSts>
+        <StsRsnInf>
+          <Rsn>
+            <Cd>AC01</Cd>
+          </Rsn>
+          <AddtlInf>ACCOUNT IDENTIFIER INCORRECT</AddtlInf>
+          <AddtlInf>BENEFICIARY ACCOUNT NUMBER INVALID</AddtlInf>
+        </StsRsnInf>
+        <OrgnlTxRef>
+          <IntrBkSttlmAmt Ccy="USD">1000000.00</IntrBkSttlmAmt>
+          <IntrBkSttlmDt>2025-06-27</IntrBkSttlmDt>
+          <InstgAgt>
+            <FinInstnId>
+              <BICFI>BANKUS33XXX</BICFI>
+            </FinInstnId>
+          </InstgAgt>
+          <InstdAgt>
+            <FinInstnId>
+              <BICFI>DEUTDEFFXXX</BICFI>
+            </FinInstnId>
+          </InstdAgt>
+          <DbtrAgt>
+            <FinInstnId>
+              <BICFI>BANKUS33XXX</BICFI>
+            </FinInstnId>
+          </DbtrAgt>
+          <CdtrAgt>
+            <FinInstnId>
+              <BICFI>DEUTDEFFXXX</BICFI>
+            </FinInstnId>
+          </CdtrAgt>
+          <Dbtr>
+            <Nm>ACME CORPORATION</Nm>
+            <PstlAdr>
+              <StrtNm>123 MAIN STREET</StrtNm>
+              <TwnNm>NEW YORK</TwnNm>
+              <Ctry>US</Ctry>
+            </PstlAdr>
+          </Dbtr>
+          <DbtrAcct>
+            <Id>
+              <Othr>
+                <Id>1234567890</Id>
+              </Othr>
+            </Id>
+          </DbtrAcct>
+          <Cdtr>
+            <Nm>MUELLER GMBH</Nm>
+            <PstlAdr>
+              <StrtNm>HAUPTSTRASSE 1</StrtNm>
+              <TwnNm>BERLIN</TwnNm>
+              <Ctry>DE</Ctry>
+            </PstlAdr>
+          </Cdtr>
+          <CdtrAcct>
+            <Id>
+              <IBAN>DE89370400440532013000</IBAN>
+            </Id>
+          </CdtrAcct>
+          <RmtInf>
+            <Ustrd>PAYMENT FOR INVOICE 12345</Ustrd>
+          </RmtInf>
+          <PmtTpInf>
+            <SvcLvl>
+              <Cd>NURG</Cd>
+            </SvcLvl>
+            <LclInstrm>
+              <Cd>SWIFT</Cd>
+            </LclInstrm>
+            <CtgyPurp>
+              <Cd>SUPP</Cd>
+            </CtgyPurp>
+          </PmtTpInf>
+        </OrgnlTxRef>
+        <AccptncDtTm>2025-06-30T14:25:00Z</AccptncDtTm>
+        <InstgAgt>
+          <FinInstnId>
+            <BICFI>DEUTDEFFXXX</BICFI>
+          </FinInstnId>
+        </InstgAgt>
+        <InstdAgt>
+          <FinInstnId>
+            <BICFI>BANKUS33XXX</BICFI>
+          </FinInstnId>
+        </InstdAgt>
+      </TxInfAndSts>
+    </FIToFIPmtStsRpt>
+  </Document>
+</Envelope>`
+  },
+  'pacs.002-mt299': {
+    name: 'ISO 20022 pacs.002 → MT299',
+    description: 'Financial Institution Payment Status Report',
+    targetFormat: 'SWIFT MT299',
+    sample: `<?xml version="1.0" encoding="UTF-8"?>
+<Envelope xmlns="urn:swift:xsd:$ahV10">
+  <AppHdr>
+    <Fr>
+      <FIId>
+        <FinInstnId>
+          <BICFI>CHASUS33XXX</BICFI>
+        </FinInstnId>
+      </FIId>
+    </Fr>
+    <To>
+      <FIId>
+        <FinInstnId>
+          <BICFI>DEUTDEFFXXX</BICFI>
+        </FinInstnId>
+      </FIId>
+    </To>
+    <BizMsgIdr>20250630-REJT-202</BizMsgIdr>
+    <MsgDefIdr>pacs.002.001.10</MsgDefIdr>
+    <CreDt>2025-06-30T15:45:00Z</CreDt>
+    <BizSvc>CBPR</BizSvc>
+  </AppHdr>
+  <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.002.001.10">
+    <FIToFIPmtStsRpt>
+      <GrpHdr>
+        <MsgId>REJT20250630202</MsgId>
+        <CreDtTm>2025-06-30T15:45:00Z</CreDtTm>
+        <InstgAgt>
+          <FinInstnId>
+            <BICFI>CHASUS33XXX</BICFI>
+          </FinInstnId>
+        </InstgAgt>
+        <InstdAgt>
+          <FinInstnId>
+            <BICFI>DEUTDEFFXXX</BICFI>
+          </FinInstnId>
+        </InstdAgt>
+        <SttlmInf>
+          <SttlmMtd>INDA</SttlmMtd>
+          <SttlmAcct>
+            <Id>
+              <IBAN>US12345678901234567890</IBAN>
+            </Id>
+          </SttlmAcct>
+        </SttlmInf>
+      </GrpHdr>
+      <TxInfAndSts>
+        <StsId>STATUS202</StsId>
+        <OrgnlGrpInf>
+          <OrgnlMsgId>20250630-MT202-001</OrgnlMsgId>
+          <OrgnlMsgNmId>pacs.009.001.08</OrgnlMsgNmId>
+          <OrgnlCreDtTm>2025-06-30T10:00:00Z</OrgnlCreDtTm>
+        </OrgnlGrpInf>
+        <OrgnlInstrId>202-FI-2025-001</OrgnlInstrId>
+        <OrgnlEndToEndId>E2E-FI-2025-001</OrgnlEndToEndId>
+        <OrgnlTxId>TXN-FI-2025-001</OrgnlTxId>
+        <OrgnlUETR>87654321-4321-7654-2109-987654321098</OrgnlUETR>
+        <TxSts>RJCT</TxSts>
+        <StsRsnInf>
+          <Rsn>
+            <Cd>AM04</Cd>
+          </Rsn>
+          <AddtlInf>INSUFFICIENT FUNDS</AddtlInf>
+          <AddtlInf>SETTLEMENT ACCOUNT BALANCE INSUFFICIENT</AddtlInf>
+        </StsRsnInf>
+        <OrgnlTxRef>
+          <IntrBkSttlmAmt Ccy="EUR">2500000.00</IntrBkSttlmAmt>
+          <IntrBkSttlmDt>2025-06-30</IntrBkSttlmDt>
+          <InstgAgt>
+            <FinInstnId>
+              <BICFI>DEUTDEFFXXX</BICFI>
+            </FinInstnId>
+          </InstgAgt>
+          <InstdAgt>
+            <FinInstnId>
+              <BICFI>CHASUS33XXX</BICFI>
+            </FinInstnId>
+          </InstdAgt>
+          <Dbtr>
+            <FinInstnId>
+              <BICFI>DEUTDEFFXXX</BICFI>
+              <Nm>DEUTSCHE BANK AG</Nm>
+              <PstlAdr>
+                <StrtNm>TAUNUSANLAGE 12</StrtNm>
+                <TwnNm>FRANKFURT AM MAIN</TwnNm>
+                <Ctry>DE</Ctry>
+              </PstlAdr>
+            </FinInstnId>
+          </Dbtr>
+          <DbtrAcct>
+            <Id>
+              <Othr>
+                <Id>DE89370400440532013000</Id>
+              </Othr>
+            </Id>
+          </DbtrAcct>
+          <Cdtr>
+            <FinInstnId>
+              <BICFI>CHASUS33XXX</BICFI>
+              <Nm>JPMORGAN CHASE BANK</Nm>
+              <PstlAdr>
+                <StrtNm>270 PARK AVENUE</StrtNm>
+                <TwnNm>NEW YORK</TwnNm>
+                <Ctry>US</Ctry>
+              </PstlAdr>
+            </FinInstnId>
+          </Cdtr>
+          <CdtrAcct>
+            <Id>
+              <Othr>
+                <Id>US12345678901234567890</Id>
+              </Othr>
+            </Id>
+          </CdtrAcct>
+          <PmtTpInf>
+            <SvcLvl>
+              <Cd>NURG</Cd>
+            </SvcLvl>
+            <LclInstrm>
+              <Cd>WIRE</Cd>
+            </LclInstrm>
+            <CtgyPurp>
+              <Cd>INTC</Cd>
+            </CtgyPurp>
+          </PmtTpInf>
+          <RmtInf>
+            <Ustrd>/INS/DEUTDEFFXXX</Ustrd>
+            <Ustrd>/INT/CHASUS33XXX</Ustrd>
+            <Ustrd>/SVCLVL/NURG</Ustrd>
+          </RmtInf>
+        </OrgnlTxRef>
+        <AccptncDtTm>2025-06-30T15:40:00Z</AccptncDtTm>
+        <InstgAgt>
+          <FinInstnId>
+            <BICFI>CHASUS33XXX</BICFI>
+          </FinInstnId>
+        </InstgAgt>
+        <InstdAgt>
+          <FinInstnId>
+            <BICFI>DEUTDEFFXXX</BICFI>
+          </FinInstnId>
+        </InstdAgt>
+      </TxInfAndSts>
+    </FIToFIPmtStsRpt>
+  </Document>
+</Envelope>`
+  },
   'pacs.004': {
     name: 'ISO 20022 pacs.004 → MT103/MT202/MT205',
     description: 'Payment Return/Refund',

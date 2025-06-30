@@ -240,6 +240,24 @@ impl ParseMX {
                     ))),
                 }
             }
+            "pacs.002.001.10" => {
+                let header = match from_str::<bah_pacs_002_001_10::BusinessApplicationHeaderV02>(
+                    app_hdr_content,
+                ) {
+                    Ok(header) => header,
+                    Err(e) => {
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse pacs.002 header: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(header) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(DataflowError::Validation(format!(
+                        "Failed to convert pacs.002 header to value: {e}"
+                    ))),
+                }
+            }
             _ => {
                 let header = match from_str::<bah_pacs_008_001_08::BusinessApplicationHeaderV02>(
                     app_hdr_content,
@@ -318,6 +336,25 @@ impl ParseMX {
                     Ok(value) => Ok(value),
                     Err(e) => Err(DataflowError::Validation(format!(
                         "Failed to convert document to value: {e}"
+                    ))),
+                }
+            }
+            "pacs.002.001.10" => {
+                let document = match from_str::<pacs_002_001_10::FIToFIPaymentStatusReportV10>(
+                    document_content,
+                ) {
+                    Ok(document) => document,
+                    Err(e) => {
+                        error!("Failed to parse pacs.002 document: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse pacs.002 document: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(document) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(DataflowError::Validation(format!(
+                        "Failed to convert pacs.002 document to value: {e}"
                     ))),
                 }
             }

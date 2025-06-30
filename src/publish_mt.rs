@@ -8,7 +8,7 @@ use dataflow_rs::engine::{
 };
 use serde_json::Value;
 use swift_mt_message::SwiftMessage;
-use swift_mt_message::messages::{MT103, MT202, MT205};
+use swift_mt_message::messages::{MT103, MT199, MT202, MT205};
 use tracing::{debug, error, instrument};
 
 pub struct PublishMT;
@@ -112,6 +112,22 @@ impl AsyncFunctionHandler for PublishMT {
                     "Invalid target message type: {target_message_type}"
                 )));
             }
+        } else if source_format == "pacs.002.001.10" {
+            let target_message_type = message
+                .temp_data
+                .get("target_message_type")
+                .unwrap_or(&Value::Null)
+                .to_string();
+            let target_message_type = Helper::manual_unescape(&target_message_type);
+            
+            debug!(target_message_type = %target_message_type, "Processing pacs.002 to MT199/MT299 transformation");
+            
+            // Both MT199 and MT299 use the same structure, so we can use MT199 for both
+            let data: SwiftMessage<MT199> = serde_json::from_str(&json_str).map_err(|e| {
+                error!(error = ?e, target_message_type = %target_message_type, "Failed to parse JSON string for pacs.002");
+                DataflowError::Validation(format!("Failed to parse JSON string for pacs.002 (target: {}): {e}", target_message_type))
+            })?;
+            data.to_mt_message()
         } else {
             error!(source_format = %source_format, "Invalid source format");
             return Err(DataflowError::Validation(format!(

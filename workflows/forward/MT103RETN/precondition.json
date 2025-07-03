@@ -25,8 +25,8 @@
                             "path": "temp_data",
                             "logic": {
                                 "and": [
-                                    { "exists": [ "temp_data", "Sender" ] },
-                                    { "exists": [ "temp_data", "Receiver" ] },
+                                    { "var": "temp_data.Sender" },
+                                    { "var": "temp_data.Receiver" },
                                     { "!=": [ { "var": "temp_data.Sender" }, "NOTPROVIDED" ] },
                                     { "!=": [ { "var": "temp_data.Receiver" }, "NOTPROVIDED" ] }
                                 ]
@@ -55,6 +55,29 @@
                                 ]
                             },
                             "message": "Translation stopped: UETR is mandatory for MT103 RETN messages (T20087)"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC003_field_72_retn_validation",
+            "name": "PREC003: Validate Field 72 /RETN/ Format",
+            "description": "Validate that Field 72, Line[1] starts with '/RETN/' for return processing",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {
+                                "and": [
+                                    { "exists": [ "data", "SwiftMT", "fields", "72", "lines" ] },
+                                    { ">": [{ "length": [{ "var": "data.SwiftMT.fields.72.lines" }] }, 0] },
+                                    { "starts_with": [{"var": "data.SwiftMT.fields.72.lines.0"}, "/RETN/"] }
+                                ]
+                            },
+                            "message": "Translation stopped: Field 72 must start with /RETN/ for return processing"
                         }
                     ]
                 }

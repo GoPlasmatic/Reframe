@@ -14,31 +14,30 @@
     },
     "tasks": [
         {
-            "id": "TR001_extract_temp_variables",
-            "name": "TR001: Extract Sender and Receiver BICs",
-            "description": "Extract BIC codes from header for use in translation rules",
+            "id": "prepare_cheque_presentment_context",
+            "name": "Prepare Cheque Presentment Context",
+            "description": "Extracts sender and receiver BIC codes from camt.107 message header for use in MT110 advice of cheque presentment transformation",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.Sender",
+                            "path": "temp_data",
                             "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "temp_data.Receiver",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
-                                    null
-                                ]
+                                "Sender": {
+                                    "if": [
+                                        {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                        {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                        ""
+                                    ]
+                                },
+                                "Receiver": {
+                                    "if": [
+                                        {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                        {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                        ""
+                                    ]
+                                }
                             }
                         }
                     ]
@@ -46,247 +45,71 @@
             }
         },
         {
-            "id": "map_mt110_header_fields",
-            "name": "Map MT110 Header Fields",
-            "description": "Maps Group Header MessageIdentification to Field 20 according to CBPR+ specification",
+            "id": "construct_mt110_headers",
+            "name": "Construct MT110 Headers",
+            "description": "Builds SWIFT MT110 message headers including basic header (block 1), application header (block 2), and maps sender's reference (20) from group header message identification",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#20.value",
+                            "path": "data.SwiftMT",
                             "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"},
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"},
-                                    "NOTPROVIDED"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.basic_header.sender_bic.raw",
-                            "logic": {
-                                "if": [
-                                    {"var": "temp_data.Sender"},
-                                    {"substr": [{"var": "temp_data.Sender"}, 0, 8]},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.basic_header.logical_terminal",
-                            "logic": {
-                                "if": [
-                                    {"var": "temp_data.Sender"},
-                                    {"cat": [{"var": "temp_data.Sender"}, "AXXX"]},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.basic_header.application_id",
-                            "logic": "F"
-                        },
-                        {
-                            "path": "data.SwiftMT.basic_header.service_id",
-                            "logic": "01"
-                        },
-                        {
-                            "path": "data.SwiftMT.basic_header.session_number",
-                            "logic": "0000"
-                        },
-                        {
-                            "path": "data.SwiftMT.basic_header.sequence_number",
-                            "logic": "000000"
-                        },
-                        {
-                            "path": "data.SwiftMT.application_header.receiver_bic.raw",
-                            "logic": {
-                                "if": [
-                                    {"var": "temp_data.Receiver"},
-                                    {"substr": [{"var": "temp_data.Receiver"}, 0, 8]},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.application_header.destination_address",
-                            "logic": {
-                                "if": [
-                                    {"var": "temp_data.Receiver"},
-                                    {"cat": [{"var": "temp_data.Receiver"}, "XXXX"]},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.application_header.direction",
-                            "logic": "I"
-                        },
-                        {
-                            "path": "data.SwiftMT.application_header.message_type",
-                            "logic": "110"
-                        },
-                        {
-                            "path": "data.SwiftMT.application_header.priority",
-                            "logic": "N"
-                        },
-                        {
-                            "path": "data.SwiftMT.message_type",
-                            "logic": "110"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_correspondent_fields",
-            "name": "Map Correspondent Bank Fields",
-            "description": "Maps DrawerAgent and DrawerAgentAccount to Fields 53a according to TR003",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.SwiftMT.fields.53A.bic.raw",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.BICFI"},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.53B.party_identifier",
-                            "logic": {
-                                "if": [
-                                    {"and": [
-                                        {"!": {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.BICFI"}},
-                                        {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.Othr.Id"}
-                                    ]},
-                                    {"cat": ["/", {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.Othr.Id"}]},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.53D.name_and_address",
-                            "logic": {
-                                "if": [
-                                    {"and": [
-                                        {"!": {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.BICFI"}},
-                                        {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.Nm"}
-                                    ]},
-                                    [
-                                        {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.Nm"},
-                                        {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.PstlAdr.StrtNm"},
-                                        {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.PstlAdr.TwnNm"},
-                                        {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.PstlAdr.Ctry"}
-                                    ],
-                                    null
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_cheque_details",
-            "name": "Map Cheque Details",
-            "description": "Maps individual cheque details to MT110 cheque sequence according to TR001, TR002, TR004",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.SwiftMT.fields.CHEQUES.0.#21.value",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.Chq.ChqNb"},
-                                    {"var": "data.ISO20022_MX.document.Chq.ChqNb"},
-                                    "NOTPROVIDED"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.CHEQUES.0.#30.value",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.Chq.IsseDt"},
-                                    {"substr": [
-                                        {"replace": [{"var": "data.ISO20022_MX.document.Chq.IsseDt"}, "-", ""]},
-                                        2,
-                                        6
-                                    ]},
-                                    "NOTPROVIDED"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.CHEQUES.0.32A.value_date",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.Chq.ValDt.Dt"},
-                                    {"substr": [
-                                        {"replace": [{"var": "data.ISO20022_MX.document.Chq.ValDt.Dt"}, "-", ""]},
-                                        2,
-                                        6
-                                    ]},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.CHEQUES.0.32A.currency",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.Chq.Amt.@Ccy"},
-                                    {"var": "data.ISO20022_MX.document.Chq.Amt.@Ccy"},
-                                    "USD"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.CHEQUES.0.32A.amount",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.Chq.Amt.$value"},
-                                    {"var": "data.ISO20022_MX.document.Chq.Amt.$value"},
-                                    0.0
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.CHEQUES.0.50K.lines",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.Chq.Pyer.Nm"},
-                                    [
-                                        {
+                                "basic_header": {
+                                    "sender_bic": {
+                                        "raw": {
                                             "if": [
-                                                {"var": "data.ISO20022_MX.document.Chq.PyerAcct.Id.Othr.Id"},
-                                                {"cat": ["/", {"var": "data.ISO20022_MX.document.Chq.PyerAcct.Id.Othr.Id"}]},
+                                                {"var": "temp_data.Sender"},
+                                                {"substr": [{"var": "temp_data.Sender"}, 0, 8]},
                                                 ""
                                             ]
-                                        },
-                                        {"var": "data.ISO20022_MX.document.Chq.Pyer.Nm"}
-                                    ],
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.CHEQUES.0.59A.NoOption.lines",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.Chq.Pyee.Nm"},
-                                    [
-                                        {"var": "data.ISO20022_MX.document.Chq.Pyee.Nm"}
-                                    ],
-                                    null
-                                ]
+                                        }
+                                    },
+                                    "logical_terminal": {
+                                        "if": [
+                                            {"var": "temp_data.Sender"},
+                                            {"cat": [{"var": "temp_data.Sender"}, "AXXX"]},
+                                            ""
+                                        ]
+                                    },
+                                    "application_id": "F",
+                                    "service_id": "01",
+                                    "session_number": "0000",
+                                    "sequence_number": "000000"
+                                },
+                                "application_header": {
+                                    "receiver_bic": {
+                                        "raw": {
+                                            "if": [
+                                                {"var": "temp_data.Receiver"},
+                                                {"substr": [{"var": "temp_data.Receiver"}, 0, 8]},
+                                                null
+                                            ]
+                                        }
+                                    },
+                                    "destination_address": {
+                                        "if": [
+                                            {"var": "temp_data.Receiver"},
+                                            {"cat": [{"var": "temp_data.Receiver"}, "XXXX"]},
+                                            null
+                                        ]
+                                    },
+                                    "direction": "I",
+                                    "message_type": "110",
+                                    "priority": "N"
+                                },
+                                "message_type": "110",
+                                "fields": {
+                                    "20": {
+                                        "value": {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"},
+                                                {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"},
+                                                "NOTPROVIDED"
+                                            ]
+                                        }
+                                    }
+                                }
                             }
                         }
                     ]
@@ -294,31 +117,174 @@
             }
         },
         {
-            "id": "generate_field_order",
-            "name": "Generate Field Order",
-            "description": "Generate the field order array based on present fields for MT110",
+            "id": "map_drawer_agent_and_cheque_details",
+            "name": "Map Drawer Agent and Cheque Details",
+            "description": "Maps drawer agent information to fields 53A/53B/53D and consolidated cheque details including cheque number (21), date (30), amount (32A), payer (50K), and payee (59)",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.field_order",
-                            "logic": [
-                                "20",
-                                "53A",
-                                "54A",
-                                "CHEQUES",
-                                "72"
-                            ]
+                            "path": "data.SwiftMT.fields",
+                            "logic": {
+                                "53A": {
+                                    "bic": {
+                                        "raw": {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.BICFI"},
+                                                {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.BICFI"},
+                                                ""
+                                            ]
+                                        }
+                                    }
+                                },
+                                "53B": {
+                                    "party_identifier": {
+                                        "if": [
+                                            {"and": [
+                                                {"!": {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.BICFI"}},
+                                                {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.Othr.Id"}
+                                            ]},
+                                            {"cat": ["/", {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.Othr.Id"}]},
+                                            ""
+                                        ]
+                                    }
+                                },
+                                "53D": {
+                                    "name_and_address": {
+                                        "if": [
+                                            {"and": [
+                                                {"!": {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.BICFI"}},
+                                                {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.Nm"}
+                                            ]},
+                                            [
+                                                {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.Nm"},
+                                                {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.PstlAdr.StrtNm"},
+                                                {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.PstlAdr.TwnNm"},
+                                                {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.PstlAdr.Ctry"}
+                                            ],
+                                            ""
+                                        ]
+                                    }
+                                },
+                                "CHEQUES": [
+                                    {
+                                        "21": {
+                                            "value": {
+                                                "if": [
+                                                    {"var": "data.ISO20022_MX.document.Chq.ChqNb"},
+                                                    {"var": "data.ISO20022_MX.document.Chq.ChqNb"},
+                                                    "NOTPROVIDED"
+                                                ]
+                                            }
+                                        },
+                                        "30": {
+                                            "value": {
+                                                "if": [
+                                                    {"var": "data.ISO20022_MX.document.Chq.IsseDt"},
+                                                    {"substr": [
+                                                        {"replace": [{"var": "data.ISO20022_MX.document.Chq.IsseDt"}, "-", ""]},
+                                                        2,
+                                                        6
+                                                    ]},
+                                                    "NOTPROVIDED"
+                                                ]
+                                            }
+                                        },
+                                        "32A": {
+                                            "value_date": {
+                                                "if": [
+                                                    {"var": "data.ISO20022_MX.document.Chq.ValDt.Dt"},
+                                                    {"substr": [
+                                                        {"replace": [{"var": "data.ISO20022_MX.document.Chq.ValDt.Dt"}, "-", ""]},
+                                                        2,
+                                                        6
+                                                    ]},
+                                                    ""
+                                                ]
+                                            },
+                                            "currency": {
+                                                "if": [
+                                                    {"var": "data.ISO20022_MX.document.Chq.Amt.@Ccy"},
+                                                    {"var": "data.ISO20022_MX.document.Chq.Amt.@Ccy"},
+                                                    "USD"
+                                                ]
+                                            },
+                                            "amount": {
+                                                "if": [
+                                                    {"var": "data.ISO20022_MX.document.Chq.Amt.$value"},
+                                                    {"var": "data.ISO20022_MX.document.Chq.Amt.$value"},
+                                                    0.0
+                                                ]
+                                            }
+                                        },
+                                        "50K": {
+                                            "lines": {
+                                                "if": [
+                                                    {"var": "data.ISO20022_MX.document.Chq.Pyer.Nm"},
+                                                    [
+                                                        {
+                                                            "if": [
+                                                                {"var": "data.ISO20022_MX.document.Chq.PyerAcct.Id.Othr.Id"},
+                                                                {"cat": ["/", {"var": "data.ISO20022_MX.document.Chq.PyerAcct.Id.Othr.Id"}]},
+                                                                ""
+                                                            ]
+                                                        },
+                                                        {"var": "data.ISO20022_MX.document.Chq.Pyer.Nm"}
+                                                    ],
+                                                    []
+                                                ]
+                                            }
+                                        },
+                                        "59A": {
+                                            "NoOption": {
+                                                "lines": {
+                                                    "if": [
+                                                        {"var": "data.ISO20022_MX.document.Chq.Pyee.Nm"},
+                                                        [
+                                                            {"var": "data.ISO20022_MX.document.Chq.Pyee.Nm"}
+                                                        ],
+                                                        []
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
                         }
                     ]
                 }
             }
         },
         {
-            "id": "publish_mt110",
-            "name": "Publish MT110 Message",
-            "description": "Converts the mapped data structure to MT110 format",
+            "id": "finalize_cheque_presentment_message",
+            "name": "Finalize Cheque Presentment Message",
+            "description": "Establishes field ordering sequence for MT110 advice of cheque message and prepares message for generation",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT",
+                            "logic": {
+                                "field_order": [
+                                    "20",
+                                    "53A",
+                                    "54A",
+                                    "CHEQUES",
+                                    "72"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "generate_mt110_message",
+            "name": "Generate MT110 Message",
+            "description": "Finalizes the transformation by generating the complete SWIFT MT110 advice of cheque message with all headers, fields, and sequences in the correct format",
             "function": {
                 "name": "PublishMT",
                 "input": {

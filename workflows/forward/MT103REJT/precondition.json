@@ -14,20 +14,24 @@
     },
     "tasks": [
         {
-            "id": "PREC001_rejection_header_setup",
-            "name": "PREC001: MT Header Translation Setup for Rejection",
-            "description": "Define Translation BAH/../From and BAH/../To to InstructingAgent and InstructedAgent for rejection message",
+            "id": "PREC001_validate_bah_context",
+            "name": "PREC001: Validate BAH Context for Rejection",
+            "description": "Validates that sender and receiver BIC codes are properly extracted from business application header per TR001",
             "function": {
-                "name": "map",
+                "name": "validate",
                 "input": {
-                    "mappings": [
+                    "rules": [
                         {
-                            "path": "temp_data.Sender",
-                            "logic": { "var": "data.SwiftMT.fields.52A.bic.raw" }
-                        },
-                        {
-                            "path": "temp_data.Receiver",
-                            "logic": { "var": "data.SwiftMT.fields.57A.bic.raw" }
+                            "path": "temp_data",
+                            "logic": {
+                                "and": [
+                                    { "var": "temp_data.Sender" },
+                                    { "var": "temp_data.Receiver" },
+                                    { "!=": [ { "var": "temp_data.Sender" }, "NOTPROVIDED" ] },
+                                    { "!=": [ { "var": "temp_data.Receiver" }, "NOTPROVIDED" ] }
+                                ]
+                            },
+                            "message": "Translation stopped: TempSender or TempReceiver is not properly provided from TR001"
                         }
                     ]
                 }
@@ -60,6 +64,38 @@
                                 ]
                             },
                             "message": "Translation stopped: TempSender or TempReceiver is not provided"
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.72",
+                            "logic": {
+                                "and": [
+                                    { "var": "data.SwiftMT.fields.72.lines" },
+                                    { ">": [{ "length": [{ "var": "data.SwiftMT.fields.72.lines" }] }, 2] },
+                                    {
+                                        "some": [
+                                            { "var": "data.SwiftMT.fields.72.lines" },
+                                            { "starts_with": [{ "var": "" }, "/MREF/"] }
+                                        ]
+                                    }
+                                ]
+                            },
+                            "message": "Translation stopped: Field 72 must contain mandatory /MREF/ line for rejection processing"
+                        },
+                        {
+                            "path": "data.SwiftMT.user_header.unique_end_to_end_reference",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
+                                    {
+                                        "match": [
+                                            { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
+                                            "^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+                                        ]
+                                    },
+                                    true
+                                ]
+                            },
+                            "message": "Warning: UETR does not match expected pattern [a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}"
                         }
                     ]
                 }
@@ -96,23 +132,22 @@
                             }
                         },
                         {
-                            "path": "data.OriginalMessageIdentification",
+                            "path": "data",
                             "logic": {
-                                "if": [
-                                    { "!=": [{ "var": "temp_data.InstructionID" }, ""] },
-                                    { "var": "temp_data.InstructionID" },
-                                    "NOTPROVIDED"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.OriginalInstructionIdentification",
-                            "logic": {
-                                "if": [
-                                    { "!=": [{ "var": "temp_data.InstructionID" }, ""] },
-                                    { "var": "temp_data.InstructionID" },
-                                    "NOTPROVIDED"
-                                ]
+                                "OriginalMessageIdentification": {
+                                    "if": [
+                                        { "!=": [{ "var": "temp_data.InstructionID" }, ""] },
+                                        { "var": "temp_data.InstructionID" },
+                                        "NOTPROVIDED"
+                                    ]
+                                },
+                                "OriginalInstructionIdentification": {
+                                    "if": [
+                                        { "!=": [{ "var": "temp_data.InstructionID" }, ""] },
+                                        { "var": "temp_data.InstructionID" },
+                                        "NOTPROVIDED"
+                                    ]
+                                }
                             }
                         }
                     ]

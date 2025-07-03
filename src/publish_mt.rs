@@ -8,7 +8,7 @@ use dataflow_rs::engine::{
 };
 use serde_json::Value;
 use swift_mt_message::SwiftMessage;
-use swift_mt_message::messages::{MT103, MT110, MT111, MT112, MT199, MT202, MT205};
+use swift_mt_message::messages::{MT103, MT110, MT111, MT112, MT199, MT202, MT205, MT940, MT942};
 use tracing::{debug, error, instrument};
 
 pub struct PublishMT;
@@ -150,6 +150,22 @@ impl AsyncFunctionHandler for PublishMT {
             let data: SwiftMessage<MT112> = serde_json::from_str(&json_str).map_err(|e| {
                 error!(error = ?e, "Failed to parse JSON string for camt.109");
                 DataflowError::Validation(format!("Failed to parse JSON string for camt.109: {e}"))
+            })?;
+            data.to_mt_message()
+        } else if source_format == "camt.052.001.08" {
+            debug!("Processing camt.052 to MT942 transformation");
+
+            let data: SwiftMessage<MT942> = serde_json::from_str(&json_str).map_err(|e| {
+                error!(error = ?e, "Failed to parse JSON string for camt.052");
+                DataflowError::Validation(format!("Failed to parse JSON string for camt.052: {e}"))
+            })?;
+            data.to_mt_message()
+        } else if source_format == "camt.053.001.08" {
+            debug!("Processing camt.053 to MT940 transformation");
+
+            let data: SwiftMessage<MT940> = serde_json::from_str(&json_str).map_err(|e| {
+                error!(error = ?e, "Failed to parse JSON string for camt.053");
+                DataflowError::Validation(format!("Failed to parse JSON string for camt.053: {e}"))
             })?;
             data.to_mt_message()
         } else {

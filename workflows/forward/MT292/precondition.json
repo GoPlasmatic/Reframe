@@ -14,8 +14,54 @@
     },
     "tasks": [
         {
-            "id": "PREC001_validate_temp_variables",
-            "name": "PREC001: Validate Temp Variables from TR001",
+            "id": "PREC001_validate_uetr_presence",
+            "name": "PREC001: Validate UETR Presence",
+            "description": "Ensure UETR is present in Block3 or field 79 as per specification",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {
+                                "or": [
+                                    { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
+                                    {
+                                        "and": [
+                                            { "exists": ["data", "SwiftMT", "fields", "79", "narrative"] },
+                                            { "matches": [{ "var": "data.SwiftMT.fields.79.narrative" }, "/UETR/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}"] }
+                                        ]
+                                    }
+                                ]
+                            },
+                            "message": "T20087: Translation stopped - UETR is required but not found in Block3 or field 79"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC002_validate_field_32a",
+            "name": "PREC002: Validate Field 32A Presence",
+            "description": "Ensure field 32A is present as required by specification",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {
+                                "exists": ["data", "SwiftMT", "fields", "32A"]
+                            },
+                            "message": "T20088: Translation stopped - Field 32A is mandatory for MT292 cancellation request"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC003_validate_temp_variables",
+            "name": "PREC003: Validate Temp Variables from TR002",
             "description": "Ensure Temp~Sender and Temp~Receiver are properly defined from BAH translation",
             "function": {
                 "name": "validate",
@@ -25,22 +71,22 @@
                             "path": "temp_data",
                             "logic": {
                                 "and": [
-                                    { "exists": [ "temp_data", "Sender" ] },
-                                    { "exists": [ "temp_data", "Receiver" ] },
+                                    { "var": "temp_data.Sender" },
+                                    { "var": "temp_data.Receiver" },
                                     { "!=": [ { "var": "temp_data.Sender" }, "NOTPROVIDED" ] },
                                     { "!=": [ { "var": "temp_data.Receiver" }, "NOTPROVIDED" ] }
                                 ]
                             },
-                            "message": "Translation stopped: TempSender or TempReceiver is not properly provided from TR001"
+                            "message": "Translation stopped: TempSender or TempReceiver is not properly provided from TR002"
                         }
                     ]
                 }
             }
         },
         {
-            "id": "PREC002_validate_mandatory_fields",
-            "name": "PREC002: Validate Mandatory MT292 Fields",
-            "description": "Ensure mandatory fields for MT292 are present",
+            "id": "PREC004_validate_message_type",
+            "name": "PREC004: Validate Message Type for camt.056 Translation",
+            "description": "Validate that field 11S contains valid message type for camt.056 translation",
             "function": {
                 "name": "validate",
                 "input": {
@@ -48,53 +94,103 @@
                         {
                             "path": "data",
                             "logic": {
-                                "and": [
-                                    { "exists": [ "data", "SwiftMT", "fields", "20", "value" ] },
-                                    { "exists": [ "data", "SwiftMT", "fields", "21", "value" ] },
-                                    { "!=": [ { "var": "data.SwiftMT.fields.20.value" }, "" ] },
-                                    { "!=": [ { "var": "data.SwiftMT.fields.21.value" }, "" ] }
+                                "if": [
+                                    { "var": "data.SwiftMT.fields.11S.message_type" },
+                                    {
+                                        "matches": [
+                                            { "var": "data.SwiftMT.fields.11S.message_type" },
+                                            "^(10[0-9]|20[0-9])$"
+                                        ]
+                                    },
+                                    true
                                 ]
                             },
-                            "message": "Translation stopped: Mandatory MT292 fields (20, 21) are missing or invalid"
+                            "message": "T20278: Translation stopped - Invalid message type in field 11S for camt.056 translation"
                         }
                     ]
                 }
             }
         },
         {
-            "id": "PREC003_validate_uetr_present",
-            "name": "PREC003: Validate UETR Present",
-            "description": "Ensure UETR is present for MT292 cancellation requests",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": {
-                                "exists": ["data", "SwiftMT", "user_header", "unique_end_to_end_reference"]
-                            },
-                            "message": "Translation stopped: UETR is required for MT292 cancellation request messages"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC004_set_cancellation_type",
-            "name": "PREC004: Set Cancellation Request Type",
-            "description": "Set cancellation request type for MT292",
+            "id": "TR003_map_message_type",
+            "name": "TR003: Map MT Message Type to MX Equivalent",
+            "description": "Map field 11S message type to corresponding MX message type using TR003 logic",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.cancellation_type",
-                            "logic": "FULL"
+                            "path": "temp_data.original_message_type",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.fields.11S.message_type" },
+                                    {
+                                        "if": [
+                                            { "==": [{ "var": "data.SwiftMT.fields.11S.message_type" }, "103"] },
+                                            "pacs.008",
+                                            {
+                                                "if": [
+                                                    { "==": [{ "var": "data.SwiftMT.fields.11S.message_type" }, "104"] },
+                                                    "pacs.003",
+                                                    {
+                                                        "if": [
+                                                            { "in": [{ "var": "data.SwiftMT.fields.11S.message_type" }, ["202", "205"]] },
+                                                            "pacs.009",
+                                                            {
+                                                                "if": [
+                                                                    { "==": [{ "var": "data.SwiftMT.fields.11S.message_type" }, "204"] },
+                                                                    "pacs.010",
+                                                                    {
+                                                                        "if": [
+                                                                            { "matches": [{ "var": "data.SwiftMT.fields.11S.message_type" }, "^10[0-9]$"] },
+                                                                            { "cat": ["MT", { "var": "data.SwiftMT.fields.11S.message_type" }] },
+                                                                            {
+                                                                                "if": [
+                                                                                    { "matches": [{ "var": "data.SwiftMT.fields.11S.message_type" }, "^20[0-9]$"] },
+                                                                                    { "cat": ["MT", { "var": "data.SwiftMT.fields.11S.message_type" }] },
+                                                                                    { "cat": ["MT", { "var": "data.SwiftMT.fields.11S.message_type" }] }
+                                                                                ]
+                                                                            }
+                                                                        ]
+                                                                    }
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "pacs.008.001.08"
+                                ]
+                            }
                         },
                         {
-                            "path": "temp_data.request_status",
-                            "logic": "CANC"
+                            "path": "temp_data.extracted_uetr",
+            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
+                                    { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
+                                    {
+                                        "if": [
+                                            {
+                                                "and": [
+                                                    { "var": "data.SwiftMT.fields.79.narrative" },
+                                                    { "matches": [{ "var": "data.SwiftMT.fields.79.narrative" }, "/UETR/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}"] }
+                                                ]
+                                            },
+                                            {
+                                                "substr": [
+                                                    { "var": "data.SwiftMT.fields.79.narrative" },
+                                                    { "+": [{ "indexof": [{ "var": "data.SwiftMT.fields.79.narrative" }, "/UETR/"] }, 6] },
+                                                    36
+                                                ]
+                                            },
+                                            ""
+                                        ]
+                                    }
+                                ]
+                            }
                         }
                     ]
                 }

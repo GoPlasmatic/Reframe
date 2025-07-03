@@ -64,7 +64,7 @@
         {
             "id": "PREC003_set_notification_type",
             "name": "PREC003: Set Notification Type for MT910",
-            "description": "Set notification type as CRDT for MT910 credit confirmation",
+            "description": "Set notification type as CRDT for MT910 credit confirmation and extract currency from field 32A",
             "function": {
                 "name": "map",
                 "input": {
@@ -76,6 +76,26 @@
                         {
                             "path": "temp_data.entry_status",
                             "logic": "BOOK"
+                        },
+                        {
+                            "path": "temp_data.account_currency",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.fields.32A.currency" },
+                                    { "var": "data.SwiftMT.fields.32A.currency" },
+                                    "USD"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.warning_issued",
+                            "logic": {
+                                "if": [
+                                    { "!": { "var": "data.SwiftMT.fields.32A.currency" } },
+                                    "T20200",
+                                    null
+                                ]
+                            }
                         }
                     ]
                 }

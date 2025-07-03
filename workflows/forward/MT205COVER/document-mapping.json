@@ -1,7 +1,7 @@
 {
     "id": "mt205cov-document-mapper",
-    "name": "MT205 COV to pacs.009 Document Mapping for CBPR+",
-    "description": "Maps MT205 COV message to ISO 20022 pacs.009.001.08 FinancialInstitutionCreditTransferV08 document structure for Corporate Cover payments",
+    "name": "MT205 COV to pacs.009 ADV Document Mapping for CBPR+",
+    "description": "Maps MT205 COV message to ISO 20022 pacs.009.001.08 FinancialInstitutionCreditTransferV08 ADV document structure according to CBPR+ MT202-COVE translation specification for Cover payments",
     "priority": 4,
     "condition": {
         "and": [
@@ -14,35 +14,66 @@
     },
     "tasks": [
         {
-            "id": "METAFCT002_settlement_method_determination",
-            "name": "METAFCT002: Settlement Method and Agents Determination for COV",
-            "description": "Implements the 4-table decision logic for fields 53a, 54a to determine settlement method and reimbursement agents for cover payments",
+            "id": "METAFCT003_settlement_method_determination",
+            "name": "METAFCT003: Settlement Method and Agents Determination for MT205 COV",
+            "description": "Implements METAFCT003 logic for MT205 COV - handles serial and cover scenarios, with only 53a present (no field 54a in MT205)",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.settlement_method",
-                            "logic": "INDA"
-                        },
-                        {
-                            "path": "temp_data.instructing_reimbursement_agent_bic",
+                            "path": "temp_data",
                             "logic": {
-                                "if": [
-                                    {"var": "data.SwiftMT.fields.53A.bic.raw"},
-                                    {"var": "data.SwiftMT.fields.53A.bic.raw"},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "temp_data.instructed_reimbursement_agent_bic",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.SwiftMT.fields.54A.bic.raw"},
-                                    {"var": "data.SwiftMT.fields.54A.bic.raw"},
-                                    null
-                                ]
+                                "settlement_method": {
+                                    "if": [
+                                        {"and": [
+                                            {"!": {"var": "data.SwiftMT.fields.53A"}},
+                                            {"!": {"var": "data.SwiftMT.fields.53B"}},
+                                            {"!": {"var": "data.SwiftMT.fields.53D"}}
+                                        ]},
+                                        "INDA",
+                                        {
+                                            "if": [
+                                                {"and": [
+                                                    {"var": "data.SwiftMT.fields.53B.party_identifier"},
+                                                    {"starts_with": [{"var": "data.SwiftMT.fields.53B.party_identifier"}, "/C"]}
+                                                ]},
+                                                "INGA",
+                                                "INDA"
+                                            ]
+                                        }
+                                    ]
+                                },
+                                "settlement_account": {
+                                    "if": [
+                                        {"var": "data.SwiftMT.fields.53B.party_identifier"},
+                                        {
+                                            "if": [
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.53B.party_identifier"}, "/"]},
+                                                {"substr": [{"var": "data.SwiftMT.fields.53B.party_identifier"}, 1]},
+                                                ""
+                                            ]
+                                        },
+                                        ""
+                                    ]
+                                },
+                                "instruction_for_next_agent_fin53": {
+                                    "if": [
+                                        {"var": "data.SwiftMT.fields.53A.bic.raw"},
+                                        {
+                                            "if": [
+                                                {"and": [
+                                                    {"var": "data.SwiftMT.fields.53A.party_identifier"},
+                                                    {"!=": [{"substr": [{"var": "data.SwiftMT.fields.53A.bic.raw"}, 0, 6]}, {"substr": [{"var": "temp_data.Sender"}, 0, 6]}]},
+                                                    {"!=": [{"substr": [{"var": "data.SwiftMT.fields.53A.bic.raw"}, 0, 6]}, {"substr": [{"var": "temp_data.Receiver"}, 0, 6]}]}
+                                                ]},
+                                                "",
+                                                {"cat": ["/FIN53/", {"var": "data.SwiftMT.fields.53A.bic.raw"}]}
+                                            ]
+                                        },
+                                        ""
+                                    ]
+                                }
                             }
                         }
                     ]
@@ -50,124 +81,602 @@
             }
         },
         {
-            "id": "map_group_header",
-            "name": "Map pacs.009 Group Header for COV",
+            "id": "construct_group_header",
+            "name": "Construct Group Header",
+            "description": "Builds pacs.009 ADV group header with message identification, creation timestamp, settlement information from MT205 COV fields using structural output",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.Document.FIToFICdtTrf.GrpHdr.MsgId",
-                            "logic": {"var": "data.SwiftMT.fields.20.value"}
-                        },
-                        {
-                            "path": "data.Document.FIToFICdtTrf.GrpHdr.CreDtTm",
+                            "path": "data.Document.FIToFICdtTrf.GrpHdr",
                             "logic": {
-                                "cat": [
-                                    {"var": "data.SwiftMT.fields.32A.value_date"},
-                                    "T",
-                                    {
-                                        "format_date": [
-                                            {"now": []},
-                                            "HH:mm:ss"
+                                "MsgId": {
+                                    "if": [
+                                        {"var": "data.SwiftMT.fields.20.value"},
+                                        {"var": "data.SwiftMT.fields.20.value"},
+                                        "NOTPROVIDED"
+                                    ]
+                                },
+                                "CreDtTm": {
+                                    "if": [
+                                        {"var": "data.SwiftMT.fields.32A.value_date"},
+                                        {
+                                            "cat": [
+                                                {"var": "data.SwiftMT.fields.32A.value_date"},
+                                                "T",
+                                                {
+                                                    "format_date": [
+                                                        {"now": []},
+                                                        "HH:mm:ss"
+                                                    ]
+                                                },
+                                                "+00:00"
+                                            ]
+                                        },
+                                        "9999-12-31T00:00:00+00:00"
+                                    ]
+                                },
+                                "NbOfTxs": "1",
+                                "TtlIntrBkSttlmAmt": {
+                                    "@Ccy": {
+                                        "if": [
+                                            {"var": "data.SwiftMT.fields.32A.currency"},
+                                            {"var": "data.SwiftMT.fields.32A.currency"},
+                                            "USD"
                                         ]
                                     },
-                                    "+00:00"
-                                ]
+                                    "$value": {
+                                        "if": [
+                                            {"var": "data.SwiftMT.fields.32A.amount"},
+                                            {"var": "data.SwiftMT.fields.32A.amount"},
+                                            0.0
+                                        ]
+                                    }
+                                },
+                                "IntrBkSttlmDt": {
+                                    "if": [
+                                        {"var": "data.SwiftMT.fields.32A.value_date"},
+                                        {"var": "data.SwiftMT.fields.32A.value_date"},
+                                        "9999-12-31"
+                                    ]
+                                },
+                                "SttlmInf": {
+                                    "SttlmMtd": {
+                                        "if": [
+                                            {"var": "temp_data.settlement_method"},
+                                            {"var": "temp_data.settlement_method"},
+                                            "INDA"
+                                        ]
+                                    },
+                                    "SttlmAcct": {
+                                        "if": [
+                                            {"and": [
+                                                {"var": "temp_data.settlement_account"},
+                                                {"!=": [{"var": "temp_data.settlement_account"}, ""]}
+                                            ]},
+                                            {
+                                                "Id": {
+                                                    "Othr": {
+                                                        "Id": {"var": "temp_data.settlement_account"}
+                                                    }
+                                                }
+                                            },
+                                            null
+                                        ]
+                                    }
+                                }
                             }
-                        },
-                        {
-                            "path": "data.Document.FIToFICdtTrf.GrpHdr.NbOfTxs",
-                            "logic": "1"
-                        },
-                        {
-                            "path": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmMtd",
-                            "logic": {"var": "temp_data.settlement_method"}
-                        },
-                        {
-                            "path": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf.InstrReimbAgt.FinInstnId.BICFI",
-                            "logic": {"var": "temp_data.instructing_reimbursement_agent_bic"}
-                        },
-                        {
-                            "path": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf.InstdReimbAgt.FinInstnId.BICFI",
-                            "logic": {"var": "temp_data.instructed_reimbursement_agent_bic"}
                         }
                     ]
                 }
             }
         },
         {
-            "id": "map_credit_transfer_transaction",
-            "name": "Map Credit Transfer Transaction Information for COV",
+            "id": "map_credit_transfer_transaction_information",
+            "name": "Map Credit Transfer Transaction Information",
+            "description": "Maps consolidated credit transfer transaction information including payment identification, settlement amounts, dates, agents, parties, payment type, settlement timing, instructions, remittance information, and UnderlyingCustomerCreditTransfer from MT205 COV fields to pacs.009 ADV CdtTrfTxInf structure using structural output",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtId.InstrId",
-                            "logic": {"var": "data.SwiftMT.fields.20.value"}
-                        },
-                        {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtId.EndToEndId",
-                            "logic": {"var": "data.SwiftMT.fields.21.value"}
-                        },
-                        {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtId.UETR",
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf",
                             "logic": {
-                                "if": [
-                                    {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
-                                    {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy",
-                            "logic": {"var": "data.SwiftMT.fields.32A.currency"}
-                        },
-                        {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.IntrBkSttlmAmt.$value",
-                            "logic": {"var": "data.SwiftMT.fields.32A.amount"}
-                        },
-                        {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.IntrBkSttlmDt",
-                            "logic": {"var": "data.SwiftMT.fields.32A.value_date"}
-                        },
-                        {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.InstgAgt.FinInstnId.BICFI",
-                            "logic": {"var": "temp_data.Sender"}
-                        },
-                        {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.InstdAgt.FinInstnId.BICFI",
-                            "logic": {"var": "temp_data.Receiver"}
-                        },
-                        {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.Dbtr.FinInstnId.BICFI",
-                            "logic": {"var": "data.SwiftMT.fields.52A.bic.raw"}
-                        },
-                        {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.Cdtr.FinInstnId.BICFI",
-                            "logic": {"var": "data.SwiftMT.fields.58A.bic.raw"}
-                        },
-                        {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.RmtInf.Ustrd",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.SwiftMT.fields.72.lines"},
-                                    {
-                                        "reduce": [
+                                "PmtId": {
+                                    "InstrId": {
+                                        "if": [
+                                            {"var": "data.SwiftMT.fields.20.value"},
+                                            {"var": "data.SwiftMT.fields.20.value"},
+                                            ""
+                                        ]
+                                    },
+                                    "EndToEndId": {
+                                        "if": [
+                                            {"var": "data.SwiftMT.fields.21.value"},
+                                            {"var": "data.SwiftMT.fields.21.value"},
+                                            ""
+                                        ]
+                                    },
+                                    "UETR": {
+                                        "if": [
+                                            {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                            {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                            ""
+                                        ]
+                                    }
+                                },
+                                "IntrBkSttlmDt": {
+                                    "if": [
+                                        {"var": "data.SwiftMT.fields.32A.value_date"},
+                                        {"var": "data.SwiftMT.fields.32A.value_date"},
+                                        "9999-12-31"
+                                    ]
+                                },
+                                "InstgAgt": {
+                                    "FinInstnId": {
+                                        "BICFI": {"var": "temp_data.Sender"}
+                                    }
+                                },
+                                "InstdAgt": {
+                                    "FinInstnId": {
+                                        "BICFI": {"var": "temp_data.Receiver"}
+                                    }
+                                },
+                                "Dbtr": {
+                                    "FinInstnId": {
+                                        "BICFI": {
+                                            "if": [
+                                                {"var": "data.SwiftMT.fields.52A.bic.raw"},
+                                                {"var": "data.SwiftMT.fields.52A.bic.raw"},
+                                                {"var": "temp_data.Sender"}
+                                            ]
+                                        }
+                                    }
+                                },
+                                "DbtrAcct": {
+                                    "Id": {
+                                        "Othr": {
+                                            "Id": {
+                                                "if": [
+                                                    {"and": [
+                                                        {"var": "data.SwiftMT.fields.52A.party_identifier"},
+                                                        {"!": {"starts_with": [{"var": "data.SwiftMT.fields.52A.party_identifier"}, "//"]}}
+                                                    ]},
+                                                    {"var": "data.SwiftMT.fields.52A.party_identifier"},
+                                                    {
+                                                        "if": [
+                                                            {"and": [
+                                                                {"var": "data.SwiftMT.fields.52A.party_identifier"},
+                                                                {"starts_with": [{"var": "data.SwiftMT.fields.52A.party_identifier"}, "//CH"]}
+                                                            ]},
+                                                            {"substr": [{"var": "data.SwiftMT.fields.52A.party_identifier"}, 4]},
+                                                            ""
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                },
+                                "IntrmyAgt1": {
+                                    "FinInstnId": {
+                                        "BICFI": {
+                                            "if": [
+                                                {"var": "data.SwiftMT.fields.56A.bic.raw"},
+                                                {"var": "data.SwiftMT.fields.56A.bic.raw"},
+                                                null
+                                            ]
+                                        }
+                                    }
+                                },
+                                "CdtrAgt": {
+                                    "FinInstnId": {
+                                        "BICFI": {
+                                            "if": [
+                                                {"var": "data.SwiftMT.fields.57A.bic.raw"},
+                                                {"var": "data.SwiftMT.fields.57A.bic.raw"},
+                                                {"var": "temp_data.Receiver"}
+                                            ]
+                                        }
+                                    }
+                                },
+                                "Cdtr": {
+                                    "FinInstnId": {
+                                        "BICFI": {
+                                            "if": [
+                                                {"var": "data.SwiftMT.fields.58A.bic.raw"},
+                                                {"var": "data.SwiftMT.fields.58A.bic.raw"},
+                                                {"var": "temp_data.Receiver"}
+                                            ]
+                                        }
+                                    }
+                                },
+                                "PmtTpInf": {
+                                    "SvcLvl": {
+                                        "if": [
+                                            {"and": [
+                                                {"var": "data.SwiftMT.user_header.service_type_identifier"},
+                                                {"matches": [{"var": "data.SwiftMT.user_header.service_type_identifier"}, "^00[1-9]$"]}
+                                            ]},
+                                            [{
+                                                "Cd": {"cat": ["G", {"var": "data.SwiftMT.user_header.service_type_identifier"}]}
+                                            }],
+                                            {
+                                                "if": [
+                                                    {"var": "data.SwiftMT.fields.72.lines"},
+                                                    {
+                                                        "map": [
+                                                            {
+                                                                "filter": [
+                                                                    {"var": "data.SwiftMT.fields.72.lines"},
+                                                                    {"starts_with": [{"var": ""}, "/SVCLVL/"]}
+                                                                ]
+                                                            },
+                                                            {
+                                                                "Cd": {"substr": [{"var": ""}, 8, 4]}
+                                                            }
+                                                        ]
+                                                    },
+                                                    null
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "LclInstrm": {
+                                        "if": [
                                             {"var": "data.SwiftMT.fields.72.lines"},
                                             {
-                                                "cat": [
-                                                    {"var": "accumulator"},
-                                                    " ",
-                                                    {"var": "current"}
+                                                "map": [
+                                                    {
+                                                        "filter": [
+                                                            {"var": "data.SwiftMT.fields.72.lines"},
+                                                            {"starts_with": [{"var": ""}, "/LOCINS/"]}
+                                                        ]
+                                                    },
+                                                    {
+                                                        "Cd": {"substr": [{"var": ""}, 8, 4]}
+                                                    }
+                                                ]
+                                            },
+                                            null
+                                        ]
+                                    },
+                                    "CtgyPurp": {
+                                        "if": [
+                                            {"var": "data.SwiftMT.fields.72.lines"},
+                                            {
+                                                "map": [
+                                                    {
+                                                        "filter": [
+                                                            {"var": "data.SwiftMT.fields.72.lines"},
+                                                            {"starts_with": [{"var": ""}, "/CATPURP/"]}
+                                                        ]
+                                                    },
+                                                    {
+                                                        "Cd": {"substr": [{"var": ""}, 9, 4]}
+                                                    }
+                                                ]
+                                            },
+                                            null
+                                        ]
+                                    },
+                                    "ClrChanl": {
+                                        "if": [
+                                            {"or": [
+                                                {"and": [
+                                                    {"var": "data.SwiftMT.fields.56A.party_identifier"},
+                                                    {"in": [{"substr": [{"var": "data.SwiftMT.fields.56A.party_identifier"}, 0, 4]}, ["//RT", "//FW"]]}
+                                                ]},
+                                                {"and": [
+                                                    {"var": "data.SwiftMT.fields.57A.party_identifier"},
+                                                    {"in": [{"substr": [{"var": "data.SwiftMT.fields.57A.party_identifier"}, 0, 4]}, ["//RT", "//FW"]]}
+                                                ]},
+                                                {"and": [
+                                                    {"var": "data.SwiftMT.fields.58A.party_identifier"},
+                                                    {"in": [{"substr": [{"var": "data.SwiftMT.fields.58A.party_identifier"}, 0, 4]}, ["//RT", "//FW"]]}
+                                                ]}
+                                            ]},
+                                            "RTGS",
+                                            null
+                                        ]
+                                    }
+                                },
+                                "SttlmTmIndctn": {
+                                    "DbtDtTm": {
+                                        "if": [
+                                            {"var": "data.SwiftMT.fields.13C.time_indication"},
+                                            {
+                                                "if": [
+                                                    {"starts_with": [{"var": "data.SwiftMT.fields.13C.time_indication"}, "/SNDTIME/"]},
+                                                    {
+                                                        "cat": [
+                                                            "0001-01-01T",
+                                                            {"substr": [{"var": "data.SwiftMT.fields.13C.time_indication"}, 9, 4]},
+                                                            ":",
+                                                            {"substr": [{"var": "data.SwiftMT.fields.13C.time_indication"}, 13, 2]},
+                                                            ":00",
+                                                            {"substr": [{"var": "data.SwiftMT.fields.13C.time_indication"}, 15]}
+                                                        ]
+                                                    },
+                                                    ""
                                                 ]
                                             },
                                             ""
                                         ]
                                     },
-                                    null
+                                    "CdtDtTm": {
+                                        "if": [
+                                            {"var": "data.SwiftMT.fields.13C.time_indication"},
+                                            {
+                                                "if": [
+                                                    {"starts_with": [{"var": "data.SwiftMT.fields.13C.time_indication"}, "/RNCTIME/"]},
+                                                    {
+                                                        "cat": [
+                                                            "0001-01-01T",
+                                                            {"substr": [{"var": "data.SwiftMT.fields.13C.time_indication"}, 10, 4]},
+                                                            ":",
+                                                            {"substr": [{"var": "data.SwiftMT.fields.13C.time_indication"}, 14, 2]},
+                                                            ":00",
+                                                            {"substr": [{"var": "data.SwiftMT.fields.13C.time_indication"}, 16]}
+                                                        ]
+                                                    },
+                                                    ""
+                                                ]
+                                            },
+                                            ""
+                                        ]
+                                    }
+                                },
+                                "InstrForNxtAgt": {
+                                    "if": [
+                                        {"or": [
+                                            {"var": "data.SwiftMT.fields.72.lines"},
+                                            {"var": "temp_data.instruction_for_next_agent_fin53"}
+                                        ]},
+                                        {
+                                            "map": [
+                                                {
+                                                    "filter": [
+                                                        {
+                                                            "cat": [
+                                                                [{"var": "temp_data.instruction_for_next_agent_fin53"}],
+                                                                {
+                                                                    "filter": [
+                                                                        {"var": "data.SwiftMT.fields.72.lines"},
+                                                                        {
+                                                                            "and": [
+                                                                                {"!=": [{"var": ""}, ""]},
+                                                                                {"!": {"or": [
+                                                                                    {"starts_with": [{"var": ""}, "/ACC/"]},
+                                                                                    {"starts_with": [{"var": ""}, "/BNF/"]},
+                                                                                    {"starts_with": [{"var": ""}, "/INS/"]},
+                                                                                    {"starts_with": [{"var": ""}, "/TSU/"]},
+                                                                                    {"starts_with": [{"var": ""}, "/UDLC/"]},
+                                                                                    {"starts_with": [{"var": ""}, "/PHONBEN/"]},
+                                                                                    {"starts_with": [{"var": ""}, "/TELEBEN/"]},
+                                                                                    {"starts_with": [{"var": ""}, "/SVCLVL/"]},
+                                                                                    {"starts_with": [{"var": ""}, "/LOCINS/"]},
+                                                                                    {"starts_with": [{"var": ""}, "/CATPURP/"]},
+                                                                                    {"starts_with": [{"var": ""}, "/PURP/"]}
+                                                                                ]}}
+                                                                            ]
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        },
+                                                        {"!=": [{"var": ""}, ""]}
+                                                    ]
+                                                },
+                                                {
+                                                    "InstrInf": {
+                                                        "if": [
+                                                            {">": [{"length": [{"var": ""}]}, 35]},
+                                                            {"substr": [{"var": ""}, 0, 35]},
+                                                            {"var": ""}
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        },
+                                        []
+                                    ]
+                                },
+                                "InstrForCdtrAgt": {
+                                    "if": [
+                                        {"var": "data.SwiftMT.fields.72.lines"},
+                                        {
+                                            "map": [
+                                                {
+                                                    "filter": [
+                                                        {"var": "data.SwiftMT.fields.72.lines"},
+                                                        {
+                                                            "or": [
+                                                                {"starts_with": [{"var": ""}, "/ACC/"]},
+                                                                {"starts_with": [{"var": ""}, "/UDLC/"]},
+                                                                {"starts_with": [{"var": ""}, "/PHONBEN/"]},
+                                                                {"starts_with": [{"var": ""}, "/TELEBEN/"]}
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "InstrInf": {
+                                                        "if": [
+                                                            {"starts_with": [{"var": ""}, "/ACC/"]},
+                                                            {"substr": [{"var": ""}, 5, 35]},
+                                                            {
+                                                                "if": [
+                                                                    {"starts_with": [{"var": ""}, "/UDLC/"]},
+                                                                    {"substr": [{"var": ""}, 6, 35]},
+                                                                    {
+                                                                        "if": [
+                                                                            {"starts_with": [{"var": ""}, "/PHONBEN/"]},
+                                                                            {"substr": [{"var": ""}, 9, 35]},
+                                                                            {
+                                                                                "if": [
+                                                                                    {"starts_with": [{"var": ""}, "/TELEBEN/"]},
+                                                                                    {"substr": [{"var": ""}, 9, 35]},
+                                                                                    {"var": ""}
+                                                                                ]
+                                                                            }
+                                                                        ]
+                                                                    }
+                                                                ]
+                                                            }
+                                                        ]
+                                                    },
+                                                    "Cd": {
+                                                        "if": [
+                                                            {"starts_with": [{"var": ""}, "/PHONBEN/"]},
+                                                            "PHOB",
+                                                            {
+                                                                "if": [
+                                                                    {"starts_with": [{"var": ""}, "/TELEBEN/"]},
+                                                                    "TELB",
+                                                                    null
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        },
+                                        []
+                                    ]
+                                },
+                                "PrvsInstgAgt1": {
+                                    "FinInstnId": {
+                                        "BICFI": {
+                                            "if": [
+                                                {"var": "data.SwiftMT.fields.72.lines"},
+                                                {
+                                                    "reduce": [
+                                                        {"var": "data.SwiftMT.fields.72.lines"},
+                                                        {
+                                                            "if": [
+                                                                {"starts_with": [{"var": "current"}, "/INS/"]},
+                                                                {
+                                                                    "if": [
+                                                                        {"matches": [{"substr": [{"var": "current"}, 5, 11]}, "^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$"]},
+                                                                        {"substr": [{"var": "current"}, 5, 11]},
+                                                                        {"var": "accumulator"}
+                                                                    ]
+                                                                },
+                                                                {"var": "accumulator"}
+                                                            ]
+                                                        },
+                                                        null
+                                                    ]
+                                                },
+                                                null
+                                            ]
+                                        },
+                                        "Nm": {
+                                            "if": [
+                                                {"var": "data.SwiftMT.fields.72.lines"},
+                                                {
+                                                    "reduce": [
+                                                        {"var": "data.SwiftMT.fields.72.lines"},
+                                                        {
+                                                            "if": [
+                                                                {"and": [
+                                                                    {"starts_with": [{"var": "current"}, "/INS/"]},
+                                                                    {"!": {"matches": [{"substr": [{"var": "current"}, 5, 11]}, "^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$"]}}
+                                                                ]},
+                                                                {"substr": [{"var": "current"}, 5, 35]},
+                                                                {"var": "accumulator"}
+                                                            ]
+                                                        },
+                                                        null
+                                                    ]
+                                                },
+                                                null
+                                            ]
+                                        }
+                                    }
+                                },
+                                "RmtInf": {
+                                    "Ustrd": {
+                                        "if": [
+                                            {"var": "data.SwiftMT.fields.72.lines"},
+                                            {
+                                                "map": [
+                                                    {
+                                                        "filter": [
+                                                            {"var": "data.SwiftMT.fields.72.lines"},
+                                                            {
+                                                                "or": [
+                                                                    {"starts_with": [{"var": ""}, "/BNF/"]},
+                                                                    {"starts_with": [{"var": ""}, "/TSU/"]}
+                                                                ]
+                                                            }
+                                                        ]
+                                                    },
+                                                    {
+                                                        "if": [
+                                                            {"starts_with": [{"var": ""}, "/BNF/"]},
+                                                            {"substr": [{"var": ""}, 5, 35]},
+                                                            {
+                                                                "if": [
+                                                                    {"starts_with": [{"var": ""}, "/TSU/"]},
+                                                                    {"substr": [{"var": ""}, 5, 35]},
+                                                                    {"var": ""}
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            },
+                                            null
+                                        ]
+                                    }
+                                },
+                                "Purp": {
+                                    "if": [
+                                        {"var": "data.SwiftMT.fields.72.lines"},
+                                        {
+                                            "reduce": [
+                                                {"var": "data.SwiftMT.fields.72.lines"},
+                                                {
+                                                    "if": [
+                                                        {"starts_with": [{"var": "current"}, "/PURP/"]},
+                                                        {
+                                                            "Cd": {"substr": [{"var": "current"}, 6, 4]}
+                                                        },
+                                                        {"var": "accumulator"}
+                                                    ]
+                                                },
+                                                null
+                                            ]
+                                        },
+                                        null
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.IntrBkSttlmAmt",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.SwiftMT.fields.32A"},
+                                    {
+                                        "@Ccy": {
+                                            "if": [
+                                                {"var": "data.SwiftMT.fields.32A.currency"},
+                                                {"var": "data.SwiftMT.fields.32A.currency"},
+                                                ""
+                                            ]
+                                        },
+                                        "$value": {
+                                            "if": [
+                                                {"var": "data.SwiftMT.fields.32A.amount"},
+                                                {"var": "data.SwiftMT.fields.32A.amount"},
+                                                0.0
+                                            ]
+                                        }
+                                    }
                                 ]
                             }
                         }

@@ -1,7 +1,7 @@
 {
     "id": "pacs008-to-mt103-mapper",
     "name": "pacs.008 to MT103 Field Mapping",
-    "description": "Maps ISO 20022 pacs.008 FIToFICstmrCdtTrf fields to SWIFT MT103 message structure according to CBPR+ reverse transformation specification",
+    "description": "Maps ISO 20022 pacs.008 FIToFICstmrCdtTrf fields to SWIFT MT103 message structure for customer credit transfers according to CBPR+ reverse transformation specification",
     "priority": 2,
     "condition": {
         "and": [
@@ -38,9 +38,9 @@
             }
         },
         {
-            "id": "TR001_extract_temp_variables",
-            "name": "TR001: Extract Sender and Receiver BICs",
-            "description": "Extract BIC codes from header for use in translation rules",
+            "id": "prepare_bic_context",
+            "name": "Prepare BIC Context",
+            "description": "Extracts sender and receiver BIC codes from pacs.008 message header for use in subsequent field mapping and validation rules",
             "function": {
                 "name": "map",
                 "input": {
@@ -70,121 +70,60 @@
             }
         },
         {
-            "id": "map_swift_headers",
-            "name": "Map SWIFT Message Headers",
-            "description": "Map basic header and application header from MX header",
+            "id": "construct_mt103_headers",
+            "name": "Construct MT103 Headers",
+            "description": "Builds SWIFT MT103 message headers including basic header (block 1) with sender BIC, application header (block 2) with receiver BIC and message type 103, and sets priority and direction",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.basic_header.sender_bic.raw",
+                            "path": "data.SwiftMT",
                             "logic": {
-                                "if": [
-                                    {"var": "temp_data.Sender"},
-                                    {"substr": [{"var": "temp_data.Sender"}, 0, 8]},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.basic_header.logical_terminal",
-                            "logic": {
-                                "if": [
-                                    {"var": "temp_data.Sender"},
-                                    {"cat": [{"var": "temp_data.Sender"}, "AXXX"]},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.basic_header.application_id",
-                            "logic": "F"
-                        },
-                        {
-                            "path": "data.SwiftMT.basic_header.service_id",
-                            "logic": "01"
-                        },
-                        {
-                            "path": "data.SwiftMT.basic_header.session_number",
-                            "logic": "0000"
-                        },
-                        {
-                            "path": "data.SwiftMT.basic_header.sequence_number",
-                            "logic": "000000"
-                        },
-                        {
-                            "path": "data.SwiftMT.application_header.receiver_bic.raw",
-                            "logic": {
-                                "if": [
-                                    {"var": "temp_data.Receiver"},
-                                    {"substr": [{"var": "temp_data.Receiver"}, 0, 8]},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.application_header.destination_address",
-                            "logic": {
-                                "if": [
-                                    {"var": "temp_data.Receiver"},
-                                    {"cat": [{"var": "temp_data.Receiver"}, "XXXX"]},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.application_header.direction",
-                            "logic": "I"
-                        },
-                        {
-                            "path": "data.SwiftMT.application_header.message_type",
-                            "logic": "103"
-                        },
-                        {
-                            "path": "data.SwiftMT.application_header.priority",
-                            "logic": "N"
-                        },
-                        {
-                            "path": "data.SwiftMT.message_type",
-                            "logic": "103"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_user_header",
-            "name": "Map User Header",
-            "description": "Map user header fields including UETR",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.SwiftMT.user_header.unique_end_to_end_reference",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.UETR"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.UETR"},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.user_header.banking_priority",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"},
-                                    {
+                                "basic_header": {
+                                    "sender_bic": {
+                                        "raw": {
+                                            "if": [
+                                                {"var": "temp_data.Sender"},
+                                                {"substr": [{"var": "temp_data.Sender"}, 0, 8]},
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "logical_terminal": {
                                         "if": [
-                                            {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"}, "SDVA"]},
-                                            "SEPA",
-                                            null
+                                            {"var": "temp_data.Sender"},
+                                            {"cat": [{"var": "temp_data.Sender"}, "AXXX"]},
+                                            ""
                                         ]
                                     },
-                                    null
-                                ]
+                                    "application_id": "F",
+                                    "service_id": "01",
+                                    "session_number": "0000",
+                                    "sequence_number": "000000"
+                                },
+                                "application_header": {
+                                    "receiver_bic": {
+                                        "raw": {
+                                            "if": [
+                                                {"var": "temp_data.Receiver"},
+                                                {"substr": [{"var": "temp_data.Receiver"}, 0, 8]},
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "destination_address": {
+                                        "if": [
+                                            {"var": "temp_data.Receiver"},
+                                            {"cat": [{"var": "temp_data.Receiver"}, "XXXX"]},
+                                            ""
+                                        ]
+                                    },
+                                    "direction": "I",
+                                    "message_type": "103",
+                                    "priority": "N"
+                                },
+                                "message_type": "103"
                             }
                         }
                     ]
@@ -192,60 +131,87 @@
             }
         },
         {
-            "id": "map_basic_fields",
-            "name": "Map Basic MT103 Fields",
-            "description": "Map core MT103 fields from pacs.008 elements",
+            "id": "construct_user_header",
+            "name": "Construct User Header",
+            "description": "Maps user header (block 3) fields including unique end-to-end reference (UETR) from payment identification and banking priority code from service level",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#20.value",
+                            "path": "data.SwiftMT.user_header",
                             "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId"},
-                                    null
-                                ]
+                                "unique_end_to_end_reference": {
+                                    "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.UETR"},
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.UETR"},
+                                        ""
+                                    ]
+                                },
+                                "banking_priority": {
+                                    "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"},
+                                        {
+                                            "if": [
+                                                {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"}, "SDVA"]},
+                                                "SEPA",
+                                                ""
+                                            ]
+                                        },
+                                        ""
+                                    ]
+                                }
                             }
-                        },
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_core_transaction_fields",
+            "name": "Map Core Transaction Fields",
+            "description": "Maps essential MT103 transaction fields: sender's reference (20), bank operation code (23B), value date/currency/amount (32A) from interbank settlement details",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.23B.value",
-                            "logic": "CRED"
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.32A.value_date",
+                            "path": "data.SwiftMT.fields",
                             "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"},
-                                    {
-                                        "format_date": [
-                                            {"parse_date": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}, "yyyy-MM-dd"]},
-                                            "yyyy-MM-dd"
+                                "20": {
+                                    "value": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId"}
+                                },
+                                "23B": {
+                                    "value": "CRED"
+                                },
+                                "32A": {
+                                    "value_date": {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"},
+                                            {
+                                                "format_date": [
+                                                    {"parse_date": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}, "yyyy-MM-dd"]},
+                                                    "yyyy-MM-dd"
+                                                ]
+                                            },
+                                            {"format_date": [{"now": []}, "yyyy-MM-dd"]}
                                         ]
                                     },
-                                    {"format_date": [{"now": []}, "yyyy-MM-dd"]}
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.32A.currency",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
-                                    "USD"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.32A.amount",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"},
-                                    0.0
-                                ]
+                                    "currency": {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
+                                            "USD"
+                                        ]
+                                    },
+                                    "amount": {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"},
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"},
+                                            0.0
+                                        ]
+                                    }
+                                }
                             }
                         }
                     ]
@@ -328,329 +294,282 @@
             }
         },
         {
-            "id": "map_ordering_customer",
-            "name": "Map Ordering Customer (Field 50)",
-            "description": "Map Debtor information to Field 50 according to TR026",
+            "id": "map_customer_details",
+            "name": "Map Customer Details",
+            "description": "Maps ordering customer (50K) and beneficiary customer (59) information including account numbers, names, and addresses from pacs.008 debtor and creditor party details",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#50.K.lines",
+                            "path": "data.SwiftMT.fields",
                             "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.Nm"},
-                                    {
-                                        "merge": [
+                                "50": {
+                                    "K": {
+                                        "lines": {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.Nm"},
+                                                {
+                                                    "merge": [
+                                                        {
+                                                            "if": [
+                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAcct.Id.Othr.Id"},
+                                                                [{"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAcct.Id.Othr.Id"}]}],
+                                                                []
+                                                            ]
+                                                        },
+                                                        [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.Nm"}],
+                                                        {
+                                                            "if": [
+                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.AdrLine"},
+                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.AdrLine"},
+                                                                {
+                                                                    "if": [
+                                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.StrtNm"},
+                                                                        [
+                                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.StrtNm"},
+                                                                            {
+                                                                                "cat": [
+                                                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.TwnNm"},
+                                                                                    {
+                                                                                        "if": [
+                                                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.Ctry"},
+                                                                                            {"cat": [", ", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.Ctry"}]},
+                                                                                            ""
+                                                                                        ]
+                                                                                    }
+                                                                                ]
+                                                                            }
+                                                                        ],
+                                                                        []
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                []
+                                            ]
+                                        }
+                                    }
+                                },
+                                "59": {
+                                    "NoOption": {
+                                        "lines": {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.Nm"},
+                                                {
+                                                    "merge": [
+                                                        {
+                                                            "if": [
+                                                                { "and": [
+                                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAcct.Id.Othr.Id"},
+                                                                    {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAcct.Id.Othr.Id"}, "NOTPROVIDED"]}
+                                                                ]},
+                                                                [{"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAcct.Id.Othr.Id"}]}],
+                                                                []
+                                                            ]
+                                                        },
+                                                        [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.Nm"}],
+                                                        {
+                                                            "if": [
+                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.AdrLine"},
+                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.AdrLine"},
+                                                                {
+                                                                    "if": [
+                                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.StrtNm"},
+                                                                        [
+                                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.StrtNm"},
+                                                                            {
+                                                                                "cat": [
+                                                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.TwnNm"},
+                                                                                    {
+                                                                                        "if": [
+                                                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.Ctry"},
+                                                                                            {"cat": [", ", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.Ctry"}]},
+                                                                                            ""
+                                                                                        ]
+                                                                                    }
+                                                                                ]
+                                                                            }
+                                                                        ],
+                                                                        []
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                []
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_payment_chain_institutions",
+            "name": "Map Payment Chain Institutions",
+            "description": "Maps financial institution chain including ordering institution (52A), intermediary (56A), and account with institution (57A/B/C/D) for MT103 payment routing",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields",
+                            "logic": {
+                                "52A": {
+                                    "bic": {
+                                        "raw": {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"},
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"},
+                                                {"var": "temp_data.Sender"}
+                                            ]
+                                        }
+                                    },
+                                    "account": {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgtAcct.Id.Othr.Id"},
+                                            {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgtAcct.Id.Othr.Id"}]},
+                                            ""
+                                        ]
+                                    }
+                                },
+                                "56A": {
+                                    "bic": {
+                                        "raw": {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"},
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"},
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "account": {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1Acct.Id.Othr.Id"},
+                                            {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1Acct.Id.Othr.Id"}]},
+                                            ""
+                                        ]
+                                    }
+                                },
+                                "57A": {
+                                    "bic": {
+                                        "raw": {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "account": {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
                                             {
                                                 "if": [
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAcct.Id.Othr.Id"},
-                                                    [{"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAcct.Id.Othr.Id"}]}],
-                                                    []
+                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgtAcct.Id.Othr.Id"},
+                                                    {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgtAcct.Id.Othr.Id"}]},
+                                                    {
+                                                        "if": [
+                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                            {
+                                                                "if": [
+                                                                    {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
+                                                                    {"cat": ["//RT", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}]},
+                                                                    {"cat": ["//", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}]}
+                                                                ]
+                                                            },
+                                                            ""
+                                                        ]
+                                                    }
                                                 ]
                                             },
-                                            [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.Nm"}],
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.AdrLine"},
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.AdrLine"},
-                                                    {
-                                                        "if": [
-                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.StrtNm"},
-                                                            [
-                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.StrtNm"},
-                                                                {
-                                                                    "cat": [
-                                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.TwnNm"},
-                                                                        {
-                                                                            "if": [
-                                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.Ctry"},
-                                                                                {"cat": [", ", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.Ctry"}]},
-                                                                                ""
-                                                                            ]
-                                                                        }
-                                                                    ]
-                                                                }
-                                                            ],
-                                                            []
-                                                        ]
-                                                    }
-                                                ]
-                                            }
+                                            ""
                                         ]
-                                    },
-                                    null
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_ordering_institution",
-            "name": "Map Ordering Institution (Field 52)",
-            "description": "Map DebtorAgent to Field 52 according to TR021",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.SwiftMT.fields.52A.bic.raw",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"},
-                                    {"var": "temp_data.Sender"}
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.52A.account",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgtAcct.Id.Othr.Id"},
-                                    {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgtAcct.Id.Othr.Id"}]},
-                                    null
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_intermediary_institution",
-            "name": "Map Intermediary Institution (Field 56)",
-            "description": "Map IntermediaryAgent1 to Field 56 according to TR019",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.SwiftMT.fields.56A.bic.raw",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.56A.account",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1Acct.Id.Othr.Id"},
-                                    {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1Acct.Id.Othr.Id"}]},
-                                    null
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_account_with_institution",
-            "name": "Map Account With Institution (Field 57)",
-            "description": "Map CreditorAgent to Field 57 according to TR023 with full agent generic support",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.SwiftMT.fields.57A.bic.raw",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.57A.account",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
-                                    {
+                                    }
+                                },
+                                "57B": {
+                                    "party_identifier": {
                                         "if": [
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgtAcct.Id.Othr.Id"},
-                                            {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgtAcct.Id.Othr.Id"}]},
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                    {
-                                                        "if": [
-                                                            {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
-                                                            {"cat": ["//RT", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}]},
-                                                            {"cat": ["//", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}]}
-                                                        ]
-                                                    },
-                                                    null
-                                                ]
-                                            }
+                                            {"and": [
+                                                {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}]},
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                {"in": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, ["USABA", "CACPA", "GBDSC", "AUBSB"]]}
+                                            ]},
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                            ""
                                         ]
-                                    },
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.57B.location",
-                            "logic": {
-                                "if": [
-                                    {"and": [
-                                        {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}]},
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                        {"in": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, ["USABA", "CACPA", "GBDSC", "AUBSB"]]}
-                                    ]},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.57C.party_identifier",
-                            "logic": {
-                                "if": [
-                                    {"and": [
-                                        {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}]},
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                        {"!": [{"in": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, ["USABA", "CACPA", "GBDSC", "AUBSB"]]}]}
-                                    ]},
-                                    {
+                                    }
+                                },
+                                "57C": {
+                                    "account_number": {
                                         "if": [
-                                            {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
-                                            {"cat": ["//RT", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}]},
-                                            {"cat": ["//", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}]}
-                                        ]
-                                    },
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.57D.party_identifier",
-                            "logic": {
-                                "if": [
-                                    {"and": [
-                                        {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}]},
-                                        {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}]},
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgtAcct.Id.Othr.Id"}
-                                    ]},
-                                    {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgtAcct.Id.Othr.Id"}]},
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.57D.name_and_address",
-                            "logic": {
-                                "if": [
-                                    {"and": [
-                                        {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}]},
-                                        {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}]},
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.Nm"}
-                                    ]},
-                                    {
-                                        "merge": [
-                                            [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.Nm"}],
+                                            {"and": [
+                                                {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}]},
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                {"!": [{"in": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, ["USABA", "CACPA", "GBDSC", "AUBSB"]]}]}
+                                            ]},
                                             {
                                                 "if": [
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.AdrLine"},
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.AdrLine"},
-                                                    {
-                                                        "if": [
-                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.StrtNm"},
-                                                            [
-                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.StrtNm"},
-                                                                {
-                                                                    "cat": [
-                                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.TwnNm"},
-                                                                        {
-                                                                            "if": [
-                                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.Ctry"},
-                                                                                {"cat": [", ", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.Ctry"}]},
-                                                                                ""
-                                                                            ]
-                                                                        }
-                                                                    ]
-                                                                }
-                                                            ],
-                                                            null
-                                                        ]
-                                                    }
-                                                ]
-                                            }
-                                        ]
-                                    },
-                                    null
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_beneficiary_customer",
-            "name": "Map Beneficiary Customer (Field 59)",
-            "description": "Map Creditor information to Field 59 according to TR025",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.SwiftMT.fields.#59.NoOption.lines",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.Nm"},
-                                    {
-                                        "merge": [
-                                            {
-                                                "if": [
-                                                    { "and": [
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAcct.Id.Othr.Id"},
-                                                        {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAcct.Id.Othr.Id"}, "NOTPROVIDED"]}
-                                                    ]},
-                                                    [{"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAcct.Id.Othr.Id"}]}],
-                                                    null
+                                                    {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
+                                                    {"cat": ["//RT", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}]},
+                                                    {"cat": ["//", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}]}
                                                 ]
                                             },
-                                            [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.Nm"}],
+                                            ""
+                                        ]
+                                    }
+                                },
+                                "57D": {
+                                    "name_and_address": {
+                                        "if": [
+                                            {"and": [
+                                                {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}]},
+                                                {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}]},
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.Nm"}
+                                            ]},
                                             {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.AdrLine"},
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.AdrLine"},
+                                                "merge": [
+                                                    [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.Nm"}],
                                                     {
                                                         "if": [
-                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.StrtNm"},
-                                                            [
-                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.StrtNm"},
-                                                                {
-                                                                    "cat": [
-                                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.TwnNm"},
+                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.AdrLine"},
+                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.AdrLine"},
+                                                            {
+                                                                "if": [
+                                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.StrtNm"},
+                                                                    [
+                                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.StrtNm"},
                                                                         {
-                                                                            "if": [
-                                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.Ctry"},
-                                                                                {"cat": [", ", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.Ctry"}]},
-                                                                                ""
+                                                                            "cat": [
+                                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.TwnNm"},
+                                                                                {
+                                                                                    "if": [
+                                                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.Ctry"},
+                                                                                        {"cat": [", ", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.Ctry"}]},
+                                                                                        ""
+                                                                                    ]
+                                                                                }
                                                                             ]
                                                                         }
-                                                                    ]
-                                                                }
-                                                            ],
-                                                            []
+                                                                    ],
+                                                                    []
+                                                                ]
+                                                            }
                                                         ]
                                                     }
                                                 ]
-                                            }
+                                            },
+                                            []
                                         ]
-                                    },
-                                    null
-                                ]
+                                    }
+                                }
                             }
                         }
                     ]
@@ -660,7 +579,7 @@
         {
             "id": "map_remittance_information",
             "name": "Map Remittance Information (Field 70)",
-            "description": "Map RemittanceInformation to Field 70",
+            "description": "Maps unstructured remittance information to field 70 with optional ROC (Reason for Payment) prefix from end-to-end identification",
             "function": {
                 "name": "map",
                 "input": {
@@ -699,9 +618,9 @@
             }
         },
         {
-            "id": "map_optional_fields",
-            "name": "Map Optional Fields",
-            "description": "Map additional optional fields like exchange rate, charges, etc.",
+            "id": "map_charges_and_regulatory",
+            "name": "Map Charges and Regulatory Fields",
+            "description": "Maps optional fields including exchange rate (36), sender's charges (71F), receiver's charges (71G), and regulatory reporting information (77B)",
             "function": {
                 "name": "map",
                 "input": {
@@ -791,9 +710,9 @@
             }
         },
         {
-            "id": "map_service_level_category_purpose",
-            "name": "Map Service Level and Category Purpose",
-            "description": "Map payment type information fields",
+            "id": "map_payment_type_details",
+            "name": "Map Payment Type Details",
+            "description": "Maps payment type information including instruction codes (23E) from service level and category purpose, and sender-to-receiver information (72) from instruction details",
             "function": {
                 "name": "map",
                 "input": {
@@ -827,9 +746,9 @@
             }
         },
         {
-            "id": "generate_field_order",
-            "name": "Generate Field Order",
-            "description": "Generate the field order array based on present fields",
+            "id": "define_field_sequence",
+            "name": "Define Field Sequence",
+            "description": "Establishes the standard MT103 field ordering sequence for proper SWIFT message structure and validation",
             "function": {
                 "name": "map",
                 "input": {
@@ -865,9 +784,9 @@
             }
         },
         {
-            "id": "publish_mt103_message",
-            "name": "Publish MT103 Message",
-            "description": "Generate final MT103 message from mapped fields",
+            "id": "generate_mt103_message",
+            "name": "Generate MT103 Message",
+            "description": "Finalizes the transformation by generating the complete SWIFT MT103 message with all headers, fields, and sequences in the correct format",
             "function": {
                 "name": "PublishMT",
                 "input": {

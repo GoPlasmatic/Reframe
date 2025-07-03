@@ -98,7 +98,7 @@ impl AsyncFunctionHandler for ParseMX {
 }
 
 impl ParseMX {
-    fn extract_message_type(
+    pub fn extract_message_type(
         document_xmlns: Option<String>,
         app_hdr_content: Option<String>,
     ) -> Result<String> {
@@ -136,7 +136,7 @@ impl ParseMX {
     }
 
     /// Extract xmlns attribute from Document element
-    fn extract_document_xmlns(xml: &str) -> Option<String> {
+    pub fn extract_document_xmlns(xml: &str) -> Option<String> {
         // Find the Document element start tag
         if let Some(start) = xml.find("<Document") {
             // Find the end of the opening tag
@@ -157,7 +157,7 @@ impl ParseMX {
     }
 
     /// Extract AppHdr content including the wrapper element
-    fn extract_app_hdr_content(xml: &str) -> Option<String> {
+    pub fn extract_app_hdr_content(xml: &str) -> Option<String> {
         if let Some(start) = xml.find("<AppHdr") {
             if let Some(end) = xml.find("</AppHdr>") {
                 let end_pos = end + "</AppHdr>".len();
@@ -168,7 +168,7 @@ impl ParseMX {
     }
 
     /// Extract Document inner content (without the Document wrapper)
-    fn extract_document_content(xml: &str) -> Option<String> {
+    pub fn extract_document_content(xml: &str) -> Option<String> {
         // Find Document opening tag
         if let Some(start) = xml.find("<Document") {
             // Find end of opening tag
@@ -184,7 +184,7 @@ impl ParseMX {
         None
     }
 
-    fn parse_header(message_type: &str, app_hdr_content: &str) -> Result<Value> {
+    pub fn parse_header(message_type: &str, app_hdr_content: &str) -> Result<Value> {
         match message_type {
             "pacs.008.001.08" => {
                 let header = match from_str::<bah_pacs_008_001_08::BusinessApplicationHeaderV02>(
@@ -340,6 +340,50 @@ impl ParseMX {
                     }
                 }
             }
+            "camt.052.001.08" => {
+                let header = match from_str::<bah_camt_052_001_08::BusinessApplicationHeaderV02>(
+                    app_hdr_content,
+                ) {
+                    Ok(header) => header,
+                    Err(e) => {
+                        error!("Failed to parse header: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse camt.052 header: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(header) {
+                    Ok(value) => Ok(value),
+                    Err(e) => {
+                        error!("Failed to convert header: {:?}", e);
+                        Err(DataflowError::Validation(format!(
+                            "Failed to convert header to value: {e}"
+                        )))
+                    }
+                }
+            }
+            "camt.053.001.08" => {
+                let header = match from_str::<bah_camt_053_001_08::BusinessApplicationHeaderV02>(
+                    app_hdr_content,
+                ) {
+                    Ok(header) => header,
+                    Err(e) => {
+                        error!("Failed to parse header: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse camt.053 header: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(header) {
+                    Ok(value) => Ok(value),
+                    Err(e) => {
+                        error!("Failed to convert header: {:?}", e);
+                        Err(DataflowError::Validation(format!(
+                            "Failed to convert header to value: {e}"
+                        )))
+                    }
+                }
+            }
             _ => {
                 let header = match from_str::<bah_pacs_008_001_08::BusinessApplicationHeaderV02>(
                     app_hdr_content,
@@ -364,7 +408,7 @@ impl ParseMX {
         }
     }
 
-    fn parse_document(message_type: &str, document_content: &str) -> Result<Value> {
+    pub fn parse_document(message_type: &str, document_content: &str) -> Result<Value> {
         info!("Parsing document for message type: {:?}", message_type);
         match message_type {
             "pacs.008.001.08" => {
@@ -500,9 +544,227 @@ impl ParseMX {
                     ))),
                 }
             }
+            "camt.052.001.08" => {
+                let document = match from_str::<camt_052_001_08::BankToCustomerAccountReportV08>(
+                    document_content,
+                ) {
+                    Ok(document) => document,
+                    Err(e) => {
+                        error!("Failed to parse camt.052 document: {:?}", e);
+                        error!(
+                            "Document content sample (first 1000 chars): {}",
+                            &document_content[..document_content.len().min(1000)]
+                        );
+
+                        // Try to provide more specific error location information
+                        let error_msg = Self::analyze_xml_parsing_error(
+                            "camt.052",
+                            &e.to_string(),
+                            document_content,
+                        );
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse camt.052 document: {error_msg}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(document) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(DataflowError::Validation(format!(
+                        "Failed to convert camt.052 document to value: {e}"
+                    ))),
+                }
+            }
+            "camt.053.001.08" => {
+                let document =
+                    match from_str::<camt_053_001_08::BankToCustomerStatementV08>(document_content)
+                    {
+                        Ok(document) => document,
+                        Err(e) => {
+                            error!("Failed to parse camt.053 document: {:?}", e);
+                            error!(
+                                "Document content sample (first 1000 chars): {}",
+                                &document_content[..document_content.len().min(1000)]
+                            );
+
+                            // Try to provide more specific error location information
+                            let error_msg = Self::analyze_xml_parsing_error(
+                                "camt.053",
+                                &e.to_string(),
+                                document_content,
+                            );
+                            return Err(DataflowError::Validation(format!(
+                                "Failed to parse camt.053 document: {error_msg}"
+                            )));
+                        }
+                    };
+                match serde_json::to_value(document) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(DataflowError::Validation(format!(
+                        "Failed to convert camt.053 document to value: {e}"
+                    ))),
+                }
+            }
             _ => Err(DataflowError::Validation(
                 "Unknown message type".to_string(),
             )),
         }
+    }
+
+    /// Analyze XML parsing error and provide detailed location information
+    fn analyze_xml_parsing_error(message_type: &str, error_msg: &str, xml_content: &str) -> String {
+        let mut analysis = format!("Error in {message_type}: {error_msg}");
+
+        // Check for missing field errors
+        if error_msg.contains("missing field") {
+            if let Some(field_start) = error_msg.find("missing field `") {
+                if let Some(field_end) = error_msg[field_start + 15..].find("`") {
+                    let missing_field = &error_msg[field_start + 15..field_start + 15 + field_end];
+                    analysis.push_str(&format!(
+                        "\n\nMissing field analysis for '{missing_field}':"
+                    ));
+
+                    // Search for structural context where this field should be
+                    analysis.push_str(&Self::find_missing_field_context(
+                        missing_field,
+                        xml_content,
+                    ));
+                }
+            }
+        }
+
+        // Check for XML structure issues
+        if error_msg.contains("invalid type") || error_msg.contains("expected") {
+            analysis.push_str("\n\nXML Structure Analysis:");
+            analysis.push_str(&Self::analyze_xml_structure(xml_content));
+        }
+
+        analysis
+    }
+
+    /// Find context around where a missing field should be located
+    fn find_missing_field_context(missing_field: &str, xml_content: &str) -> String {
+        let mut context = String::new();
+
+        match missing_field {
+            "Amt" => {
+                context.push_str("\n- Searching for elements that should contain 'Amt' fields...");
+
+                // Check for elements that typically require Amt fields
+                let amt_elements = [
+                    "<Bal>",
+                    "<Ntry>",
+                    "<TtlNetNtry>",
+                    "<AmtDtls>",
+                    "<TxDtls>",
+                    "<InstdAmt>",
+                    "<TxAmt>",
+                    "<IntrBkSttlmAmt>",
+                    "<ChrgBr>",
+                    "<ExchgRate>",
+                ];
+                for element in amt_elements {
+                    let element_name = element.trim_start_matches('<').trim_end_matches('>');
+                    let mut element_count = 0;
+                    let mut start_pos = 0;
+
+                    while let Some(pos) = xml_content[start_pos..].find(element) {
+                        element_count += 1;
+                        let absolute_pos = start_pos + pos;
+
+                        // Find the end of this element
+                        let end_tag = format!("</{element_name}>");
+
+                        if let Some(end_pos) = xml_content[absolute_pos..].find(&end_tag) {
+                            let element_content =
+                                &xml_content[absolute_pos..absolute_pos + end_pos + end_tag.len()];
+                            let has_amt = element_content.contains("<Amt");
+
+                            context.push_str(&format!(
+                                "\n  {element_name} #{element_count}: Has Amt field: {has_amt}"
+                            ));
+
+                            // If no Amt field found, show the element content
+                            if !has_amt {
+                                let preview = if element_content.len() > 200 {
+                                    format!("{}...", &element_content[..200])
+                                } else {
+                                    element_content.to_string()
+                                };
+                                context.push_str(&format!("\n    Content: {preview}"));
+                            }
+
+                            start_pos = absolute_pos + end_pos + end_tag.len();
+                        } else {
+                            start_pos = absolute_pos + element.len();
+                        }
+                    }
+
+                    if element_count > 0 {
+                        context.push_str(&format!(
+                            "\n- Found {element_count} {element_name} elements"
+                        ));
+                    }
+                }
+            }
+            _ => {
+                context.push_str(&format!(
+                    "\n- Searching for '{missing_field}' field in XML..."
+                ));
+                if xml_content.contains(&format!("<{missing_field}>")) {
+                    context.push_str(" [FOUND as element]");
+                } else if xml_content.contains(&format!("{missing_field}=")) {
+                    context.push_str(" [FOUND as attribute]");
+                } else {
+                    context.push_str(" [NOT FOUND]");
+                }
+            }
+        }
+
+        context
+    }
+
+    /// Analyze overall XML structure for common issues
+    fn analyze_xml_structure(xml_content: &str) -> String {
+        let mut analysis = String::new();
+
+        // Count major elements
+        let elements_to_count = [
+            ("GrpHdr", "<GrpHdr>"),
+            ("Rpt", "<Rpt>"),
+            ("Bal", "<Bal>"),
+            ("Ntry", "<Ntry>"),
+            ("TxsSummry", "<TxsSummry>"),
+            ("TtlNtries", "<TtlNtries>"),
+            ("TtlCdtNtries", "<TtlCdtNtries>"),
+            ("TtlDbtNtries", "<TtlDbtNtries>"),
+        ];
+
+        for (name, tag) in elements_to_count {
+            let count = xml_content.matches(tag).count();
+            analysis.push_str(&format!("\n- {name} elements: {count}"));
+        }
+
+        // Check for common XML issues
+        let unclosed_tags = xml_content.matches('<').count()
+            - xml_content.matches("</").count()
+            - xml_content.matches("/>").count();
+        if unclosed_tags != 1 {
+            // Should be 1 for the root element
+            analysis.push_str(&format!(
+                "\n- WARNING: Potential unclosed tags detected (difference: {unclosed_tags})"
+            ));
+        }
+
+        // Check for required attributes
+        let amt_with_ccy = xml_content.matches("<Amt Ccy=").count();
+        let amt_without_ccy = xml_content.matches("<Amt>").count();
+        analysis.push_str(&format!(
+            "\n- Amt elements with Ccy attribute: {amt_with_ccy}"
+        ));
+        analysis.push_str(&format!(
+            "\n- Amt elements without Ccy attribute: {amt_without_ccy}"
+        ));
+
+        analysis
     }
 }

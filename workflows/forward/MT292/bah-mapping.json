@@ -14,9 +14,9 @@
     },
     "tasks": [
         {
-            "id": "TR001_define_temp_variables",
-            "name": "TR001: Define Temp~Sender and Temp~Receiver Variables",
-            "description": "Extract BIC codes from BAH or fallback to MT blocks as per TR001 specification",
+            "id": "TR002_define_temp_variables",
+            "name": "TR002: Define Temp~Sender and Temp~Receiver Variables",
+            "description": "Extract BIC codes from BAH header or fallback to MT blocks as per TR002 specification",
             "function": {
                 "name": "map",
                 "input": {
@@ -25,9 +25,15 @@
                             "path": "temp_data.Sender",
                             "logic": {
                                 "if": [
-                                    { "var": "data.SwiftMT.basic_header.sender_bic.raw" },
-                                    { "var": "data.SwiftMT.basic_header.sender_bic.raw" },
-                                    "NOTPROVIDED"
+                                    { "var": "data.AppHdr.Fr.FIId.FinInstnId.BICFI" },
+                                    { "var": "data.AppHdr.Fr.FIId.FinInstnId.BICFI" },
+                                    {
+                                        "if": [
+                                            { "var": "data.SwiftMT.basic_header.sender_bic.raw" },
+                                            { "var": "data.SwiftMT.basic_header.sender_bic.raw" },
+                                            "NOTPROVIDED"
+                                        ]
+                                    }
                                 ]
                             }
                         },
@@ -35,9 +41,15 @@
                             "path": "temp_data.Receiver",
                             "logic": {
                                 "if": [
-                                    { "var": "data.SwiftMT.application_header.receiver_bic.raw" },
-                                    { "var": "data.SwiftMT.application_header.receiver_bic.raw" },
-                                    "NOTPROVIDED"
+                                    { "var": "data.AppHdr.To.FIId.FinInstnId.BICFI" },
+                                    { "var": "data.AppHdr.To.FIId.FinInstnId.BICFI" },
+                                    {
+                                        "if": [
+                                            { "var": "data.SwiftMT.application_header.receiver_bic.raw" },
+                                            { "var": "data.SwiftMT.application_header.receiver_bic.raw" },
+                                            "NOTPROVIDED"
+                                        ]
+                                    }
                                 ]
                             }
                         }
@@ -84,12 +96,26 @@
                                     { "var": "data.SwiftMT.fields.13C.time_indication" },
                                     {
                                         "cat": [
-                                            { "substr": [{ "var": "data.SwiftMT.fields.13C.time_indication" }, 0, 6] },
+                                            {
+                                                "if": [
+                                                    { "var": "data.SwiftMT.fields.32A.value_date" },
+                                                    { "var": "data.SwiftMT.fields.32A.value_date" },
+                                                    { "substr": [{ "var": "data.SwiftMT.fields.13C.time_indication" }, 0, 6] }
+                                                ]
+                                            },
                                             "T",
                                             {
-                                                "format_date": [
-                                                    { "now": [] },
-                                                    "HH:mm:ss"
+                                                "if": [
+                                                    { "var": "data.SwiftMT.fields.13C.time_indication" },
+                                                    {
+                                                        "cat": [
+                                                            { "substr": [{ "var": "data.SwiftMT.fields.13C.time_indication" }, 6, 2] },
+                                                            ":",
+                                                            { "substr": [{ "var": "data.SwiftMT.fields.13C.time_indication" }, 8, 2] },
+                                                            ":00"
+                                                        ]
+                                                    },
+                                                    "00:00:00"
                                                 ]
                                             },
                                             "+00:00"
@@ -145,12 +171,26 @@
                                     { "var": "data.SwiftMT.fields.13C.time_indication" },
                                     {
                                         "cat": [
-                                            { "substr": [{ "var": "data.SwiftMT.fields.13C.time_indication" }, 0, 6] },
+                                            {
+                                                "if": [
+                                                    { "var": "data.SwiftMT.fields.32A.value_date" },
+                                                    { "var": "data.SwiftMT.fields.32A.value_date" },
+                                                    { "substr": [{ "var": "data.SwiftMT.fields.13C.time_indication" }, 0, 6] }
+                                                ]
+                                            },
                                             "T",
                                             {
-                                                "format_date": [
-                                                    { "now": [] },
-                                                    "HH:mm:ss"
+                                                "if": [
+                                                    { "var": "data.SwiftMT.fields.13C.time_indication" },
+                                                    {
+                                                        "cat": [
+                                                            { "substr": [{ "var": "data.SwiftMT.fields.13C.time_indication" }, 6, 2] },
+                                                            ":",
+                                                            { "substr": [{ "var": "data.SwiftMT.fields.13C.time_indication" }, 8, 2] },
+                                                            ":00"
+                                                        ]
+                                                    },
+                                                    "00:00:00"
                                                 ]
                                             },
                                             "+00:00"

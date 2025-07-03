@@ -1,6 +1,104 @@
 # Reframe Release Notes
 
-## Version 2.0.4 - Major Release: Cheque Processing & Enhanced Payment Status Ecosystem ✨ **NEW**
+## Version 2.0.5 - Major Release: Cash Management & Account Reporting Ecosystem ✨ **NEW**
+
+### 🚀 **Complete Cash Management Solution**
+
+#### **Bank-to-Customer Reporting Capabilities** ✨ **NEW**
+- **camt.052 → MT942**: Bank to Customer Account Report transformation for interim transaction reporting (comprehensive field mapping)
+- **camt.053 → MT940**: Bank to Customer Statement transformation for daily customer statements (complete implementation)
+- **Production-Ready Implementation**: Enhanced parser and publisher modules with comprehensive test data coverage
+- **Advanced Field Mapping**: Full support for account balance reporting, transaction summaries, and entry details
+
+#### **Enhanced Infrastructure Capabilities** ✨ **NEW**
+- **Extended Message Support**: Parser enhancements for camt.052.001.08 and camt.053.001.08 schemas
+- **Publisher Enhancements**: New MT940 and MT942 generation capabilities with complete field mapping
+- **Dependency Updates**: Updated to dataflow-rs 0.1.27, datalogic-rs 3.0.29, swift-mt-message 2.2.15
+- **Web UI Integration**: Added sample messages for testing cash management transformations
+
+#### **Expanded Reverse Transformation Coverage** ✨ **NEW**
+- **Message Family Coverage**: Expanded from 7 to 9 complete reverse transformation message families
+- **Cash Management Focus**: Complete coverage for bank-to-customer reporting and statement processing
+- **Business Value**: Enhanced capabilities for financial institutions requiring comprehensive cash management
+- **Advanced Error Handling**: Enhanced XML parsing with detailed error analysis for complex message structures
+
+### 🎯 Enhanced Transformation Support (Updated)
+
+#### **Reverse Transformations (ISO 20022 → SWIFT MT)** - Now Supporting 9 Message Families
+- **pacs.008** → `MT103` (Customer Credit Transfer)
+- **pacs.009** → `MT202`, `MT205` (Financial Institution Credit Transfer)
+- **pacs.004** → `MT103RETN`, `MT202RETN`, `MT205RETN` (Payment Return)
+- **pacs.002** → `MT199`, `MT299` (Payment Status Report - Rejection Notifications)
+- **camt.107** → `MT110` (Cheque Presentment Notification)
+- **camt.108** → `MT111` (Cheque Cancellation/Stop Request)
+- **camt.109** → `MT112` (Cheque Cancellation/Stop Report)
+- **camt.052** → `MT942` ✨ **NEW** (Bank to Customer Account Report - Interim Transaction Report)
+- **camt.053** → `MT940` ✨ **NEW** (Bank to Customer Statement - Daily Customer Statement)
+
+#### **Forward Transformations (SWIFT MT → ISO 20022)** - Complete Ecosystem (Unchanged)
+- **MT103** → `pacs.008`, `pacs.002`, `pacs.004` (Customer Credit Transfers with all variants)
+- **MT202** → `pacs.009`, `pacs.002`, `pacs.004` (Financial Institution Transfers with all variants)
+- **MT205** → `pacs.009`, `pacs.002`, `pacs.004` (Corporate Financial Institution Transfers with all variants)
+- **MT192/292/196/296** → `camt.056` (Complete cancellation and investigation workflows)
+- **MT900/910** → `camt.054` (Cash management confirmation messages)
+
+### 🔧 Technical Enhancements
+
+#### **Enhanced Parser & Publisher Infrastructure**
+- **MX Message Parser**: Extended support for camt.052 and camt.053 with comprehensive error analysis
+- **MT Message Publisher**: New generation capabilities for MT940 and MT942 message types
+- **Advanced Error Handling**: Enhanced XML parsing with detailed missing field analysis and structure validation
+- **Field Mapping Engine**: Advanced bidirectional mapping for cash management and account reporting scenarios
+
+#### **Dependency & Performance Improvements**
+- **Updated Dependencies**: dataflow-rs 0.1.27, datalogic-rs 3.0.29, swift-mt-message 2.2.15
+- **Enhanced Error Analysis**: Comprehensive XML parsing error analysis with context-aware debugging
+- **Improved Performance**: Optimized processing for complex cash management message structures
+- **Extended Validation**: Enhanced validation framework for cash management scenarios
+
+#### **Web Interface Enhancements**
+- **Cash Management Samples**: New camt.052 and camt.053 sample messages for comprehensive testing
+- **Enhanced Testing Capability**: Complete examples for cash management transformation scenarios
+- **Improved User Experience**: Better examples and testing capabilities for banking operations
+
+### 📊 Implementation Statistics (Updated for v2.0.5)
+
+- **Reverse Transformation Coverage**: 9 complete message families (increased from 7)
+- **Forward Transformation Coverage**: 9 complete message families (unchanged)
+- **Total Workflow Files**: 60+ specialized transformation workflows
+- **New MT Message Types**: MT940, MT942 (cash management)
+- **ISO 20022 Schema Support**: 12 total schemas with comprehensive coverage
+- **Sample Coverage**: 35+ authentic test data samples covering all scenarios
+- **Production Deployment**: Enhanced reliability with complete banking operations support
+
+### 🚀 **Production Ready Enhancements**
+
+- **Enterprise-Grade Cash Management**: Complete account reporting and statement processing capabilities
+- **Enhanced Banking Integration**: Extended support for financial institutions requiring comprehensive cash management
+- **Real-time Processing**: Immediate transformation for all banking operations including cash management
+- **API Flexibility**: Single endpoint supporting expanded message type coverage including cash management
+- **Enhanced Monitoring**: Comprehensive observability for extended transformation scenarios
+
+### 📈 **Business Impact & Value**
+
+#### **Cash Management Capability**
+- **Complete Reporting Solution**: From interim transaction reports to daily customer statements
+- **Enhanced Customer Service**: Comprehensive account reporting capabilities for financial institutions
+- **Regulatory Compliance**: Full support for cash management regulations and standards
+
+#### **Extended Banking Operations**
+- **Complete Ecosystem**: Comprehensive coverage across payments, cheques, and cash management
+- **Legacy Integration**: Enhanced support for banking systems with complete message coverage
+- **Operational Efficiency**: Streamlined processing for all banking scenarios
+
+---
+
+**Total Enhanced Formats**: 30+ message variants → 12 ISO 20022 schemas with cash management support  
+**Transformation Coverage**: Complete banking operations ecosystem including cash management  
+**Cash Management**: Production-ready MT940/942 implementation with full lifecycle support  
+**Production Deployment**: Azure Container deployment with enhanced reliability and comprehensive banking coverage
+
+## Version 2.0.4 - Major Release: Cheque Processing & Enhanced Payment Status Ecosystem
 
 ### 🚀 **Revolutionary Banking Operations Support**
 

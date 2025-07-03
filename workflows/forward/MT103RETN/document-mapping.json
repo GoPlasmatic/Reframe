@@ -16,7 +16,26 @@
         {
             "id": "METAFCT004_settlement_method_determination",
             "name": "METAFCT004: Settlement Method Determination for Returns",
-            "description": "Implements settlement method logic for return payments - returns can only be serial",
+            "description": "Implements settlement method logic for return payments - returns can only be serial with field 55A validation",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.SwiftMT.fields.55A",
+                            "logic": {
+                                "!": { "exists": ["data", "SwiftMT", "fields", "55A"] }
+                            },
+                            "message": "Translation stopped: Field 55A Third Reimbursement Institution is not allowed in return payments (T20008)"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "METAFCT004_settlement_method_mapping",
+            "name": "METAFCT004: Settlement Method Mapping",
+            "description": "Maps settlement method and account information for return payments",
             "function": {
                 "name": "map",
                 "input": {
@@ -46,10 +65,10 @@
                                         "if": [
                                             { "starts_with": [{ "var": "data.SwiftMT.fields.53B.party_identifier" }, "/"] },
                                             { "substr": [{ "var": "data.SwiftMT.fields.53B.party_identifier" }, 1] },
-                                            null
+                                            ""
                                         ]
                                     },
-                                    null
+                                    ""
                                 ]
                             }
                         }
@@ -60,29 +79,28 @@
         {
             "id": "create_payment_return_structure",
             "name": "Create PaymentReturnV09 Structure",
+            "description": "Constructs pacs.004 group header with message identification, creation timestamp, transaction count, and settlement information using structural output",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.Document.PmtRtr.GrpHdr.MsgId",
-                            "logic": { "var": "data.SwiftMT.fields.20.value" }
-                        },
-                        {
-                            "path": "data.Document.PmtRtr.GrpHdr.CreDtTm",
-                            "logic": "9999-12-31T00:00:00+00:00"
-                        },
-                        {
-                            "path": "data.Document.PmtRtr.GrpHdr.NbOfTxs",
-                            "logic": "1"
-                        },
-                        {
-                            "path": "data.Document.PmtRtr.GrpHdr.SttlmInf.SttlmMtd",
-                            "logic": { "var": "temp_data.settlement_method" }
-                        },
-                        {
-                            "path": "data.Document.PmtRtr.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id",
-                            "logic": { "var": "temp_data.settlement_account" }
+                            "path": "data.Document.PmtRtr.GrpHdr",
+                            "logic": {
+                                "MsgId": { "var": "data.SwiftMT.fields.20.value" },
+                                "CreDtTm": "9999-12-31T00:00:00+00:00",
+                                "NbOfTxs": "1",
+                                "SttlmInf": {
+                                    "SttlmMtd": { "var": "temp_data.settlement_method" },
+                                    "SttlmAcct": {
+                                        "Id": {
+                                            "Othr": {
+                                                "Id": { "var": "temp_data.settlement_account" }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     ]
                 }
@@ -91,83 +109,91 @@
         {
             "id": "map_transaction_information",
             "name": "Map Transaction Information",
+            "description": "Maps complete transaction information including return identification, original references, settlement amounts, dates, charge bearer, and agents using structural output",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.Document.PmtRtr.TxInf.RtrId",
-                            "logic": { "var": "data.SwiftMT.fields.20.value" }
-                        },
-                        {
-                            "path": "data.Document.PmtRtr.TxInf.OrgnlUETR",
-                            "logic": { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" }
-                        },
-                        {
-                            "path": "data.Document.PmtRtr.TxInf.OrgnlInstrId",
-                            "logic": { "var": "temp_data.original_instruction_id" }
-                        },
-                        {
-                            "path": "data.Document.PmtRtr.TxInf.OrgnlEndToEndId",
-                            "logic": { "var": "temp_data.original_end_to_end_id" }
-                        },
-                        {
-                            "path": "data.Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt.@Ccy",
-                            "logic": { "var": "data.SwiftMT.fields.32A.currency" }
-                        },
-                        {
-                            "path": "data.Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt.$value",
-                            "logic": { "var": "data.SwiftMT.fields.32A.amount" }
-                        },
-                        {
-                            "path": "data.Document.PmtRtr.TxInf.IntrBkSttlmDt",
-                            "logic": { "var": "data.SwiftMT.fields.32A.value_date" }
-                        },
-                        {
-                            "path": "data.Document.PmtRtr.TxInf.ChrgBr",
+                            "path": "data.Document.PmtRtr.TxInf",
                             "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.71A.value" },
-                                    {
-                                        "if": [
-                                            { "==": [{ "var": "data.SwiftMT.fields.71A.value" }, "BEN"] },
-                                            "CRED",
-                                            "SHAR"
-                                        ]
-                                    },
-                                    "SHAR"
-                                ]
+                                "RtrId": { "var": "data.SwiftMT.fields.20.value" },
+                                "OrgnlUETR": { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
+                                "OrgnlInstrId": { "var": "temp_data.original_instruction_id" },
+                                "OrgnlEndToEndId": { "var": "temp_data.original_end_to_end_id" },
+                                "RtrdIntrBkSttlmAmt": {
+                                    "@Ccy": { "var": "data.SwiftMT.fields.32A.currency" },
+                                    "$value": { "+": { "var": "data.SwiftMT.fields.32A.amount" } }
+                                },
+                                "IntrBkSttlmDt": { "var": "data.SwiftMT.fields.32A.value_date" },
+                                "ChrgBr": {
+                                    "if": [
+                                        { "var": "data.SwiftMT.fields.71A.value" },
+                                        {
+                                            "if": [
+                                                { "==": [{ "var": "data.SwiftMT.fields.71A.value" }, "BEN"] },
+                                                "CRED",
+                                                "SHAR"
+                                            ]
+                                        },
+                                        "SHAR"
+                                    ]
+                                },
+                                "InstgAgt": {
+                                    "FinInstnId": {
+                                        "BICFI": { "var": "temp_data.Sender" }
+                                    }
+                                },
+                                "InstdAgt": {
+                                    "FinInstnId": {
+                                        "BICFI": { "var": "temp_data.Receiver" }
+                                    }
+                                }
                             }
-                        },
-                        {
-                            "path": "data.Document.PmtRtr.TxInf.InstgAgt.FinInstnId.BICFI",
-                            "logic": { "var": "temp_data.Sender" }
-                        },
-                        {
-                            "path": "data.Document.PmtRtr.TxInf.InstdAgt.FinInstnId.BICFI",
-                            "logic": { "var": "temp_data.Receiver" }
                         }
                     ]
                 }
             }
         },
         {
-            "id": "map_return_chain",
-            "name": "Map Return Chain Information",
+            "id": "TR016_debtor_party_agent_logic",
+            "name": "TR016: Debtor Party vs Agent Determination Logic",
+            "description": "Implements TR016 logic to determine if field 50K should map to Debtor/Party or Debtor/Agent based on account and name structure",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.Document.PmtRtr.TxInf.RtrChain.Dbtr.Pty.Nm",
+                            "path": "temp_data.debtor_is_agent",
                             "logic": {
                                 "if": [
-                                    { "var": "data.SwiftMT.fields.50.K.lines" },
+                                    { "var": "data.SwiftMT.fields.50K" },
+                                    {
+                                        "and": [
+                                            { "==": [{ "var": "data.SwiftMT.fields.50K.account" }, "/NOTPROVIDED"] },
+                                            { "starts_with": [{ "var": "data.SwiftMT.fields.50K.lines.0" }, "//"] }
+                                        ]
+                                    },
+                                    false
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.debtor_name",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.fields.50K.lines" },
                                     {
                                         "if": [
-                                            { ">": [{ "length": { "var": "data.SwiftMT.fields.50.K.lines" } }, 1] },
-                                            { "var": "data.SwiftMT.fields.50.K.lines.1" },
-                                            { "var": "data.SwiftMT.fields.50.K.lines.0" }
+                                            { "var": "temp_data.debtor_is_agent" },
+                                            "NOTPROVIDED",
+                                            {
+                                                "if": [
+                                                    { ">": [{ "length": { "var": "data.SwiftMT.fields.50K.lines" } }, 1] },
+                                                    { "var": "data.SwiftMT.fields.50K.lines.1" },
+                                                    { "var": "data.SwiftMT.fields.50K.lines.0" }
+                                                ]
+                                            }
                                         ]
                                     },
                                     {
@@ -185,40 +211,50 @@
                                     }
                                 ]
                             }
-                        },
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "TR017_creditor_party_agent_logic", 
+            "name": "TR017: Creditor Party vs Agent Determination Logic",
+            "description": "Implements TR017 logic to determine if field 59 should map to Creditor/Party or Creditor/Agent based on account and name structure",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
                         {
-                            "path": "data.Document.PmtRtr.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.Othr",
-                            "logic": [
-                                { 
-                                    "preserve": {
-                                        "Id": "NOTPROVIDED",
-                                        "SchmeNm": {
-                                            "Cd": "TXID"
-                                        }
-                                    }
-                                }
-                            ]
-                        },
-                        {
-                            "path": "data.Document.PmtRtr.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI",
+                            "path": "temp_data.creditor_is_agent",
                             "logic": {
                                 "if": [
-                                    { "var": "data.SwiftMT.fields.52A.bic.raw" },
-                                    { "var": "data.SwiftMT.fields.52A.bic.raw" },
-                                    null
+                                    { "var": "data.SwiftMT.fields.59.NoOption" },
+                                    {
+                                        "and": [
+                                            { "==": [{ "var": "data.SwiftMT.fields.59.NoOption.account" }, "/NOTPROVIDED"] },
+                                            { "starts_with": [{ "var": "data.SwiftMT.fields.59.NoOption.lines.0" }, "//"] }
+                                        ]
+                                    },
+                                    false
                                 ]
                             }
                         },
                         {
-                            "path": "data.Document.PmtRtr.TxInf.RtrChain.Cdtr.Pty.Nm",
+                            "path": "temp_data.creditor_name",
                             "logic": {
                                 "if": [
                                     { "var": "data.SwiftMT.fields.59.NoOption.lines" },
                                     {
                                         "if": [
-                                            { ">": [{ "length": [{ "var": "data.SwiftMT.fields.59.NoOption.lines" }] }, 1] },
-                                            { "var": "data.SwiftMT.fields.59.NoOption.lines.1" },
-                                            { "var": "data.SwiftMT.fields.59.NoOption.lines.0" }
+                                            { "var": "temp_data.creditor_is_agent" },
+                                            "NOTPROVIDED",
+                                            {
+                                                "if": [
+                                                    { ">": [{ "length": [{ "var": "data.SwiftMT.fields.59.NoOption.lines" }] }, 1] },
+                                                    { "var": "data.SwiftMT.fields.59.NoOption.lines.1" },
+                                                    { "var": "data.SwiftMT.fields.59.NoOption.lines.0" }
+                                                ]
+                                            }
                                         ]
                                     },
                                     {
@@ -236,28 +272,114 @@
                                     }
                                 ]
                             }
-                        },
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_return_chain",
+            "name": "Map Return Chain Information with TR016/TR017",
+            "description": "Constructs return chain information with proper party vs agent determination logic using TR016/TR017",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
                         {
-                            "path": "data.Document.PmtRtr.TxInf.RtrChain.Cdtr.Pty.Id.OrgId.Othr",
-                            "logic": [
-                                { 
-                                    "preserve": {
-                                        "Id": "NOTPROVIDED",
-                                        "SchmeNm": {
-                                            "Cd": "TXID"
+                            "path": "data.Document.PmtRtr.TxInf.RtrChain",
+                            "logic": {
+                                "Dbtr": {
+                                    "if": [
+                                        { "var": "temp_data.debtor_is_agent" },
+                                        {
+                                            "Agt": {
+                                                "FinInstnId": {
+                                                    "ClrSysMmbId": {
+                                                        "MmbId": { "substr": [{ "var": "data.SwiftMT.fields.50K.lines.0" }, 2] }
+                                                    },
+                                                    "Nm": "NOTPROVIDED",
+                                                    "PstlAdr": {
+                                                        "AdrLine": ["NOTPROVIDED"]
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Pty": {
+                                                "Nm": { "var": "temp_data.debtor_name" },
+                                                "Id": {
+                                                    "OrgId": {
+                                                        "Othr": [
+                                                            {
+                                                                "Id": "NOTPROVIDED",
+                                                                "SchmeNm": {
+                                                                    "Cd": "TXID"
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                "DbtrAgt": {
+                                    "FinInstnId": {
+                                        "BICFI": {
+                                            "if": [
+                                                { "var": "data.SwiftMT.fields.52A.bic.raw" },
+                                                { "var": "data.SwiftMT.fields.52A.bic.raw" },
+                                                ""
+                                            ]
+                                        }
+                                    }
+                                },
+                                "Cdtr": {
+                                    "if": [
+                                        { "var": "temp_data.creditor_is_agent" },
+                                        {
+                                            "Agt": {
+                                                "FinInstnId": {
+                                                    "ClrSysMmbId": {
+                                                        "MmbId": { "substr": [{ "var": "data.SwiftMT.fields.59.NoOption.lines.0" }, 2] }
+                                                    },
+                                                    "Nm": "NOTPROVIDED",
+                                                    "PstlAdr": {
+                                                        "AdrLine": ["NOTPROVIDED"]
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Pty": {
+                                                "Nm": { "var": "temp_data.creditor_name" },
+                                                "Id": {
+                                                    "OrgId": {
+                                                        "Othr": [
+                                                            {
+                                                                "Id": "NOTPROVIDED",
+                                                                "SchmeNm": {
+                                                                    "Cd": "TXID"
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                "CdtrAgt": {
+                                    "FinInstnId": {
+                                        "BICFI": {
+                                            "if": [
+                                                { "var": "data.SwiftMT.fields.57A.bic.raw" },
+                                                { "var": "data.SwiftMT.fields.57A.bic.raw" },
+                                                ""
+                                            ]
                                         }
                                     }
                                 }
-                            ]
-                        },
-                        {
-                            "path": "data.Document.PmtRtr.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.57A.bic.raw" },
-                                    { "var": "data.SwiftMT.fields.57A.bic.raw" },
-                                    null
-                                ]
                             }
                         }
                     ]
@@ -267,72 +389,73 @@
         {
             "id": "map_return_reason_information",
             "name": "Map Return Reason Information",
+            "description": "Extracts and maps return reason code and additional text from field 72, with default values if not specified",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.reason_code",
+                            "path": "temp_data",
                             "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.72.lines" },
-                                    {
-                                        "reduce": [
-                                            { "var": "data.SwiftMT.fields.72.lines" },
-                                            {
-                                                "if": [
-                                                    { "starts_with": [{ "var": "current" }, "/ReasonCode/"] },
-                                                    { "substr": [{ "var": "current" }, 12] },
-                                                    { "var": "accumulator" }
-                                                ]
-                                            },
-                                            ""
+                                "reason_code": {
+                                    "if": [
+                                        { "var": "data.SwiftMT.fields.72.lines" },
+                                        {
+                                            "reduce": [
+                                                { "var": "data.SwiftMT.fields.72.lines" },
+                                                {
+                                                    "if": [
+                                                        { "starts_with": [{ "var": "current" }, "/ReasonCode/"] },
+                                                        { "substr": [{ "var": "current" }, 12] },
+                                                        { "var": "accumulator" }
+                                                    ]
+                                                },
+                                                ""
+                                            ]
+                                        },
+                                        ""
+                                    ]
+                                },
+                                "additional_text": {
+                                    "if": [
+                                        { "var": "data.SwiftMT.fields.72.lines" },
+                                        {
+                                            "reduce": [
+                                                { "var": "data.SwiftMT.fields.72.lines" },
+                                                {
+                                                    "if": [
+                                                        { "starts_with": [{ "var": "current" }, "/TEXT/"] },
+                                                        { "substr": [{ "var": "current" }, 6] },
+                                                        { "var": "accumulator" }
+                                                    ]
+                                                },
+                                                ""
+                                            ]
+                                        },
+                                        ""
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "path": "data.Document.PmtRtr.TxInf.RtrRsnInf",
+                            "logic": {
+                                "Rsn": {
+                                    "Cd": {
+                                        "if": [
+                                            { "var": "temp_data.reason_code" },
+                                            { "var": "temp_data.reason_code" },
+                                            "NARR"
                                         ]
-                                    },
-                                    ""
-                                ]
-                            }
-                        },
-                        {
-                            "path": "temp_data.additional_text",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.72.lines" },
-                                    {
-                                        "reduce": [
-                                            { "var": "data.SwiftMT.fields.72.lines" },
-                                            {
-                                                "if": [
-                                                    { "starts_with": [{ "var": "current" }, "/TEXT/"] },
-                                                    { "substr": [{ "var": "current" }, 6] },
-                                                    { "var": "accumulator" }
-                                                ]
-                                            },
-                                            ""
-                                        ]
-                                    },
-                                    ""
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Cd",
-                            "logic": {
-                                "if": [
-                                    { "var": "temp_data.reason_code" },
-                                    { "var": "temp_data.reason_code" },
-                                    "NARR"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.Document.PmtRtr.TxInf.RtrRsnInf.AddtlInf",
-                            "logic": {
-                                "if": [
-                                    { "var": "temp_data.additional_text" },
-                                    [{ "var": "temp_data.additional_text" }],
-                                    ["Return reason not specified"]
-                                ]
+                                    }
+                                },
+                                "AddtlInf": {
+                                    "if": [
+                                        { "var": "temp_data.additional_text" },
+                                        [{ "var": "temp_data.additional_text" }],
+                                        ["Return reason not specified"]
+                                    ]
+                                }
                             }
                         }
                     ]
@@ -352,7 +475,7 @@
                                 "if": [
                                     { "var": "data.SwiftMT.fields.33B.currency" },
                                     { "var": "data.SwiftMT.fields.33B.currency" },
-                                    null
+                                    ""
                                 ]
                             }
                         },
@@ -361,8 +484,8 @@
                             "logic": {
                                 "if": [
                                     { "var": "data.SwiftMT.fields.33B.amount" },
-                                    { "var": "data.SwiftMT.fields.33B.amount" },
-                                    null
+                                    { "+": { "var": "data.SwiftMT.fields.33B.amount" } },
+                                    0.0
                                 ]
                             }
                         },
@@ -371,8 +494,8 @@
                             "logic": {
                                 "if": [
                                     { "var": "data.SwiftMT.fields.36.rate" },
-                                    { "var": "data.SwiftMT.fields.36.rate" },
-                                    null
+                                    { "+": { "var": "data.SwiftMT.fields.36.rate" } },
+                                    0.0
                                 ]
                             }
                         },
@@ -384,15 +507,73 @@
                                     {
                                         "if": [
                                             { "matches": [{ "var": "data.SwiftMT.user_header.service_type_identifier" }, "^00[1-9]$"] },
-                                            [
-                                                {
-                                                    "Cd": { "cat": ["G", { "var": "data.SwiftMT.user_header.service_type_identifier" }] }
-                                                }
-                                            ],
+                                            {
+                                                "Cd": { "cat": ["G", { "var": "data.SwiftMT.user_header.service_type_identifier" }] }
+                                            },
                                             null
                                         ]
                                     },
                                     null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "TR009_extract_field_72_charges",
+            "name": "TR009: Extract Charges from Field 72 /CHGS/",
+            "description": "Implements TR009 logic to extract charges from field 72 /CHGS/ when 71F and 71G are absent",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.charges_from_field_72",
+                            "logic": {
+                                "if": [
+                                    {
+                                        "and": [
+                                            { "!": { "exists": ["data", "SwiftMT", "fields", "71F"] } },
+                                            { "!": { "exists": ["data", "SwiftMT", "fields", "71G"] } },
+                                            { "var": "data.SwiftMT.fields.72.lines" }
+                                        ]
+                                    },
+                                    {
+                                        "reduce": [
+                                            { "var": "data.SwiftMT.fields.72.lines" },
+                                            {
+                                                "if": [
+                                                    { "starts_with": [{ "var": "current" }, "/CHGS/"] },
+                                                    { "substr": [{ "var": "current" }, 6] },
+                                                    { "var": "accumulator" }
+                                                ]
+                                            },
+                                            ""
+                                        ]
+                                    },
+                                    ""
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.parsed_chgs_currency",
+                            "logic": {
+                                "if": [
+                                    { "var": "temp_data.charges_from_field_72" },
+                                    { "substr": [{ "var": "temp_data.charges_from_field_72" }, 0, 3] },
+                                    ""
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.parsed_chgs_amount",
+                            "logic": {
+                                "if": [
+                                    { "var": "temp_data.charges_from_field_72" },
+                                    { "substr": [{ "var": "temp_data.charges_from_field_72" }, 3] },
+                                    ""
                                 ]
                             }
                         }
@@ -402,69 +583,72 @@
         },
         {
             "id": "map_charges_information",
-            "name": "Map Charges Information as Array",
+            "name": "Map Charges Information with TR009 Support",
+            "description": "Constructs charges information array from fields 71F, 71G, and field 72 /CHGS/ (TR009), mapping sender and receiver charges with amounts and agent details",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.charge_71f.Amt.@Ccy",
+                            "path": "temp_data",
                             "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.71F.currency" },
-                                    { "var": "data.SwiftMT.fields.71F.currency" },
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "temp_data.charge_71f.Amt.$value",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.71F.amount" },
-                                    { "var": "data.SwiftMT.fields.71F.amount" },
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "temp_data.charge_71f.Agt.FinInstnId.Nm",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.71F" },
-                                    "NOTPROVIDED",
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "temp_data.charge_71g.Amt.@Ccy",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.71G.currency" },
-                                    { "var": "data.SwiftMT.fields.71G.currency" },
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "temp_data.charge_71g.Amt.$value",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.71G.amount" },
-                                    { "var": "data.SwiftMT.fields.71G.amount" },
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "temp_data.charge_71g.Agt.FinInstnId.BICFI",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.71G" },
-                                    { "var": "temp_data.Receiver" },
-                                    null
-                                ]
+                                "charge_71f": {
+                                    "if": [
+                                        { "var": "data.SwiftMT.fields.71F" },
+                                        {
+                                            "Amt": {
+                                                "@Ccy": { "var": "data.SwiftMT.fields.71F.currency" },
+                                                "$value": { "+": { "var": "data.SwiftMT.fields.71F.amount" } }
+                                            },
+                                            "Agt": {
+                                                "FinInstnId": {
+                                                    "Nm": "NOTPROVIDED",
+                                                    "PstlAdr": {
+                                                        "AdrLine": ["NOTPROVIDED"]
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        null
+                                    ]
+                                },
+                                "charge_71g": {
+                                    "if": [
+                                        { "var": "data.SwiftMT.fields.71G" },
+                                        {
+                                            "Amt": {
+                                                "@Ccy": { "var": "data.SwiftMT.fields.71G.currency" },
+                                                "$value": { "+": { "var": "data.SwiftMT.fields.71G.amount" } }
+                                            },
+                                            "Agt": {
+                                                "FinInstnId": {
+                                                    "BICFI": { "var": "temp_data.Receiver" }
+                                                }
+                                            }
+                                        },
+                                        null
+                                    ]
+                                },
+                                "charge_field_72": {
+                                    "if": [
+                                        { "var": "temp_data.charges_from_field_72" },
+                                        {
+                                            "Amt": {
+                                                "@Ccy": { "var": "temp_data.parsed_chgs_currency" },
+                                                "$value": { "+": { "var": "temp_data.parsed_chgs_amount" } }
+                                            },
+                                            "Agt": {
+                                                "FinInstnId": {
+                                                    "Nm": "NOTPROVIDED",
+                                                    "PstlAdr": {
+                                                        "AdrLine": ["NOTPROVIDED"]
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        null
+                                    ]
+                                }
                             }
                         },
                         {
@@ -474,29 +658,193 @@
                                     {
                                         "or": [
                                             { "var": "data.SwiftMT.fields.71F" },
-                                            { "var": "data.SwiftMT.fields.71G" }
+                                            { "var": "data.SwiftMT.fields.71G" },
+                                            { "var": "temp_data.charges_from_field_72" }
                                         ]
                                     },
                                     {
                                         "filter": [
                                             [
-                                                {
-                                                    "if": [
-                                                        { "var": "data.SwiftMT.fields.71F" },
-                                                        { "var": "temp_data.charge_71f" },
-                                                        null
-                                                    ]
-                                                },
-                                                {
-                                                    "if": [
-                                                        { "var": "data.SwiftMT.fields.71G" },
-                                                        { "var": "temp_data.charge_71g" },
-                                                        null
-                                                    ]
-                                                }
+                                                { "var": "temp_data.charge_71f" },
+                                                { "var": "temp_data.charge_71g" },
+                                                { "var": "temp_data.charge_field_72" }
                                             ],
                                             { "!=": [{ "var": "" }, null] }
                                         ]
+                                    },
+                                    []
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "extract_ultimate_parties_field_70",
+            "name": "Extract Ultimate Parties Information from Field 70",
+            "description": "Extracts ultimate creditor (/ULTB/) and ultimate debtor (/ULTD/) information from field 70 per specification",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.ultimate_creditor_line",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.fields.70.lines" },
+                                    {
+                                        "reduce": [
+                                            { "var": "data.SwiftMT.fields.70.lines" },
+                                            {
+                                                "if": [
+                                                    { "starts_with": [{ "var": "current" }, "/ULTB/"] },
+                                                    { "substr": [{ "var": "current" }, 6] },
+                                                    { "var": "accumulator" }
+                                                ]
+                                            },
+                                            ""
+                                        ]
+                                    },
+                                    ""
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.ultimate_debtor_line",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.fields.70.lines" },
+                                    {
+                                        "reduce": [
+                                            { "var": "data.SwiftMT.fields.70.lines" },
+                                            {
+                                                "if": [
+                                                    { "starts_with": [{ "var": "current" }, "/ULTD/"] },
+                                                    { "substr": [{ "var": "current" }, 6] },
+                                                    { "var": "accumulator" }
+                                                ]
+                                            },
+                                            ""
+                                        ]
+                                    },
+                                    ""
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.ultimate_creditor_name",
+                            "logic": {
+                                "if": [
+                                    { "var": "temp_data.ultimate_creditor_line" },
+                                    {
+                                        "if": [
+                                            { "includes": [{ "var": "temp_data.ultimate_creditor_line" }, "/"] },
+                                            { "split": [{ "var": "temp_data.ultimate_creditor_line" }, "/", 0] },
+                                            { "var": "temp_data.ultimate_creditor_line" }
+                                        ]
+                                    },
+                                    ""
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.ultimate_creditor_country",
+                            "logic": {
+                                "if": [
+                                    { "var": "temp_data.ultimate_creditor_line" },
+                                    {
+                                        "if": [
+                                            { "includes": [{ "var": "temp_data.ultimate_creditor_line" }, "/"] },
+                                            { "split": [{ "var": "temp_data.ultimate_creditor_line" }, "/", 1] },
+                                            ""
+                                        ]
+                                    },
+                                    ""
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.ultimate_debtor_name",
+                            "logic": {
+                                "if": [
+                                    { "var": "temp_data.ultimate_debtor_line" },
+                                    {
+                                        "if": [
+                                            { "includes": [{ "var": "temp_data.ultimate_debtor_line" }, "/"] },
+                                            { "split": [{ "var": "temp_data.ultimate_debtor_line" }, "/", 0] },
+                                            { "var": "temp_data.ultimate_debtor_line" }
+                                        ]
+                                    },
+                                    ""
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.ultimate_debtor_country",
+                            "logic": {
+                                "if": [
+                                    { "var": "temp_data.ultimate_debtor_line" },
+                                    {
+                                        "if": [
+                                            { "includes": [{ "var": "temp_data.ultimate_debtor_line" }, "/"] },
+                                            { "split": [{ "var": "temp_data.ultimate_debtor_line" }, "/", 1] },
+                                            ""
+                                        ]
+                                    },
+                                    ""
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_ultimate_parties",
+            "name": "Map Ultimate Parties with MT_To_MXUltimateParty Logic",
+            "description": "Maps ultimate creditor and debtor information with proper name, country, and other ID parsing per specification",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.Document.PmtRtr.TxInf.RtrChain.UltmtCdtr",
+                            "logic": {
+                                "if": [
+                                    { "var": "temp_data.ultimate_creditor_name" },
+                                    {
+                                        "Nm": { "var": "temp_data.ultimate_creditor_name" },
+                                        "PstlAdr": {
+                                            "if": [
+                                                { "var": "temp_data.ultimate_creditor_country" },
+                                                {
+                                                    "Ctry": { "var": "temp_data.ultimate_creditor_country" }
+                                                },
+                                                null
+                                            ]
+                                        }
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.Document.PmtRtr.TxInf.RtrChain.UltmtDbtr",
+                            "logic": {
+                                "if": [
+                                    { "var": "temp_data.ultimate_debtor_name" },
+                                    {
+                                        "Nm": { "var": "temp_data.ultimate_debtor_name" },
+                                        "PstlAdr": {
+                                            "if": [
+                                                { "var": "temp_data.ultimate_debtor_country" },
+                                                {
+                                                    "Ctry": { "var": "temp_data.ultimate_debtor_country" }
+                                                },
+                                                null
+                                            ]
+                                        }
                                     },
                                     null
                                 ]
@@ -507,56 +855,40 @@
             }
         },
         {
-            "id": "map_ultimate_parties",
-            "name": "Map Ultimate Parties from Field 70",
+            "id": "POSTC001_dummy_returned_instructed_amount",
+            "name": "POSTC001: Create Dummy ReturnedInstructedAmount when ChargesInformation Present",
+            "description": "Implements POSTC001 to create dummy ReturnedInstructedAmount meeting UG rules when charges are present",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.Document.PmtRtr.TxInf.RtrChain.UltmtCdtr.Nm",
+                            "path": "data.Document.PmtRtr.TxInf.RtrdInstdAmt",
                             "logic": {
                                 "if": [
-                                    { "var": "data.SwiftMT.fields.70.lines" },
                                     {
-                                        "if": [
-                                            { "and": [
-                                                { ">": [{ "length": { "var": "data.SwiftMT.fields.70.lines" } }, 0] },
-                                                { "starts_with": [{ "var": "data.SwiftMT.fields.70.lines.0" }, "/ULTB/"] }
-                                            ]},
-                                            {
-                                                "substr": [
-                                                    { "var": "data.SwiftMT.fields.70.lines.0" },
-                                                    6,
-                                                    35
-                                                ]
-                                            },
-                                            null
+                                        "and": [
+                                            { "exists": ["data", "Document", "PmtRtr", "TxInf", "ChrgsInf"] },
+                                            { "!": { "exists": ["data", "SwiftMT", "fields", "33B"] } }
                                         ]
                                     },
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.Document.PmtRtr.TxInf.RtrChain.UltmtDbtr.Nm",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.70.lines" },
                                     {
                                         "if": [
-                                            { "and": [
-                                                { ">": [{ "length": { "var": "data.SwiftMT.fields.70.lines" } }, 0] },
-                                                { "starts_with": [{ "var": "data.SwiftMT.fields.70.lines.0" }, "/ULTD/"] }
-                                            ]},
+                                            { "!": { "exists": ["data", "SwiftMT", "fields", "36"] } },
                                             {
-                                                "substr": [
-                                                    { "var": "data.SwiftMT.fields.70.lines.0" },
-                                                    6,
-                                                    35
-                                                ]
+                                                "@Ccy": { "var": "data.SwiftMT.fields.32A.currency" },
+                                                "$value": 0.0
                                             },
-                                            null
+                                            {
+                                                "@Ccy": {
+                                                    "if": [
+                                                        { "!=": [{ "var": "data.SwiftMT.fields.32A.currency" }, "EUR"] },
+                                                        "EUR",
+                                                        "USD"
+                                                    ]
+                                                },
+                                                "$value": 0.0
+                                            }
                                         ]
                                     },
                                     null
@@ -570,6 +902,7 @@
         {
             "id": "publish_return_document_xml",
             "name": "Publish Return Document XML",
+            "description": "Generates the pacs.004 document XML output for MT103 return processing using the PublishMX function",
             "function": {
                 "name": "PublishMX",
                 "input": {

@@ -1,7 +1,7 @@
 {
     "id": "mt202-precondition",
     "name": "MT202 Message Precondition",
-    "description": "Precondition checks for MT202 message including PREC003 for CORE/ADV determination",
+    "description": "Precondition checks for MT202 message including PREC003 for CORE/ADV determination and validation of mandatory fields",
     "priority": 3,
     "condition": {
         "and": [
@@ -25,8 +25,8 @@
                             "path": "temp_data",
                             "logic": {
                                 "and": [
-                                    { "exists": [ "temp_data", "Sender" ] },
-                                    { "exists": [ "temp_data", "Receiver" ] },
+                                    { "var": "temp_data.Sender" },
+                                    { "var": "temp_data.Receiver" },
                                     { "!=": [ { "var": "temp_data.Sender" }, "NOTPROVIDED" ] },
                                     { "!=": [ { "var": "temp_data.Receiver" }, "NOTPROVIDED" ] }
                                 ]
@@ -68,9 +68,37 @@
             }
         },
         {
-            "id": "PREC003_determine_core_adv_translation",
-            "name": "PREC003: Determine CORE vs ADV Translation",
-            "description": "Determine if MT202 should be translated to pacs.009 CORE or ADV based on Serial vs Cover payment type",
+            "id": "PREC003_validate_mandatory_fields",
+            "name": "PREC003: Validate Mandatory MT202 Fields",
+            "description": "Ensure mandatory fields for MT202 are present and valid",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {
+                                "and": [
+                                    { "exists": [ "data", "SwiftMT", "fields", "20", "value" ] },
+                                    { "exists": [ "data", "SwiftMT", "fields", "32A", "value_date" ] },
+                                    { "exists": [ "data", "SwiftMT", "fields", "32A", "currency" ] },
+                                    { "exists": [ "data", "SwiftMT", "fields", "32A", "amount" ] },
+                                    { "exists": [ "data", "SwiftMT", "fields", "58A" ] },
+                                    { "!=": [ { "var": "data.SwiftMT.fields.20.value" }, "" ] },
+                                    { "!=": [ { "var": "data.SwiftMT.fields.32A.currency" }, "" ] },
+                                    { ">": [ { "var": "data.SwiftMT.fields.32A.amount" }, 0 ] }
+                                ]
+                            },
+                            "message": "Translation stopped: Mandatory MT202 fields (20, 32A, 58A) are missing or invalid"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC004_determine_payment_type",
+            "name": "PREC004: Determine Serial vs Cover Payment Type",
+            "description": "Implements CBPR+ METAFCT002 logic to determine if payment is SERIAL or COVER based on fields 53a/54a BIC relationships",
             "condition": {
                 "!=": [{"var": "SwiftMT.message_type"}, "205"]
             },
@@ -79,7 +107,7 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.MTType",
+                            "path": "temp_data.payment_scenario",
                             "logic": {
                                 "if": [
                                     {"and": [
@@ -90,7 +118,50 @@
                                         {"!": {"var": "data.SwiftMT.fields.54B"}},
                                         {"!": {"var": "data.SwiftMT.fields.54D"}}
                                     ]},
-                                    "SERIAL",
+                                    "NO_CORRESPONDENTS",
+                                    {
+                                        "if": [
+                                            {"and": [
+                                                {"or": [
+                                                    {"var": "data.SwiftMT.fields.53A"},
+                                                    {"var": "data.SwiftMT.fields.53B"},
+                                                    {"var": "data.SwiftMT.fields.53D"}
+                                                ]},
+                                                {"!": {"or": [
+                                                    {"var": "data.SwiftMT.fields.54A"},
+                                                    {"var": "data.SwiftMT.fields.54B"},
+                                                    {"var": "data.SwiftMT.fields.54D"}
+                                                ]}}
+                                            ]},
+                                            "SENDER_CORRESPONDENT_ONLY",
+                                            {
+                                                "if": [
+                                                    {"and": [
+                                                        {"!": {"or": [
+                                                            {"var": "data.SwiftMT.fields.53A"},
+                                                            {"var": "data.SwiftMT.fields.53B"},
+                                                            {"var": "data.SwiftMT.fields.53D"}
+                                                        ]}},
+                                                        {"or": [
+                                                            {"var": "data.SwiftMT.fields.54A"},
+                                                            {"var": "data.SwiftMT.fields.54B"},
+                                                            {"var": "data.SwiftMT.fields.54D"}
+                                                        ]}
+                                                    ]},
+                                                    "RECEIVER_CORRESPONDENT_ONLY",
+                                                    "BOTH_CORRESPONDENTS"
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.MTType",
+                            "logic": {
+                                "if": [
+                                    {"==": [{"var": "temp_data.payment_scenario"}, "BOTH_CORRESPONDENTS"]},
                                     {
                                         "if": [
                                             {"and": [
@@ -108,7 +179,8 @@
                                             "COVER",
                                             "SERIAL"
                                         ]
-                                    }
+                                    },
+                                    "SERIAL"
                                 ]
                             }
                         },
@@ -127,9 +199,31 @@
             }
         },
         {
-            "id": "MT205_skip_prec003",
-            "name": "MT205: Skip PREC003 and Set to CORE",
-            "description": "MT205 always translates to pacs.009 CORE (serial payment)",
+            "id": "PREC005_validate_core_compatibility",
+            "name": "PREC005: Validate CORE Translation Compatibility", 
+            "description": "Ensure COVER payments are redirected to ADV workflow and only SERIAL payments proceed to CORE workflow",
+            "condition": {
+                "!=": [{"var": "SwiftMT.message_type"}, "205"]
+            },
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "temp_data",
+                            "logic": {
+                                "!=": [{"var": "temp_data.MTType"}, "COVER"]
+                            },
+                            "message": "Translation stopped: COVER payment type detected - must use pacs.009 ADV workflow instead of CORE (T20089)"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "MT205_skip_cover_detection",
+            "name": "MT205: Skip Cover Detection and Set to CORE",
+            "description": "MT205 always translates to pacs.009 CORE (serial payment) - no field 54a present",
             "condition": {
                 "==": [{"var": "SwiftMT.message_type"}, "205"]
             },
@@ -137,6 +231,10 @@
                 "name": "map",
                 "input": {
                     "mappings": [
+                        {
+                            "path": "temp_data.payment_scenario",
+                            "logic": "MT205_ALWAYS_SERIAL"
+                        },
                         {
                             "path": "temp_data.MTType",
                             "logic": "SERIAL"

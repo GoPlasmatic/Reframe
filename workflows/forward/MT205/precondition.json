@@ -25,8 +25,8 @@
                             "path": "temp_data",
                             "logic": {
                                 "and": [
-                                    { "exists": [ "temp_data", "Sender" ] },
-                                    { "exists": [ "temp_data", "Receiver" ] },
+                                    { "var": "temp_data.Sender" },
+                                    { "var": "temp_data.Receiver" },
                                     { "!=": [ { "var": "temp_data.Sender" }, "NOTPROVIDED" ] },
                                     { "!=": [ { "var": "temp_data.Receiver" }, "NOTPROVIDED" ] }
                                 ]
@@ -68,13 +68,47 @@
             }
         },
         {
+            "id": "PREC003_validate_mandatory_fields",
+            "name": "PREC003: Validate Mandatory MT205 Fields",
+            "description": "Ensure mandatory fields for MT205 are present and valid - field 52A is mandatory in MT205",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {
+                                "and": [
+                                    { "exists": [ "data", "SwiftMT", "fields", "20", "value" ] },
+                                    { "exists": [ "data", "SwiftMT", "fields", "32A", "value_date" ] },
+                                    { "exists": [ "data", "SwiftMT", "fields", "32A", "currency" ] },
+                                    { "exists": [ "data", "SwiftMT", "fields", "32A", "amount" ] },
+                                    { "exists": [ "data", "SwiftMT", "fields", "52A" ] },
+                                    { "exists": [ "data", "SwiftMT", "fields", "58A" ] },
+                                    { "!=": [ { "var": "data.SwiftMT.fields.20.value" }, "" ] },
+                                    { "!=": [ { "var": "data.SwiftMT.fields.32A.currency" }, "" ] },
+                                    { ">": [ { "var": "data.SwiftMT.fields.32A.amount" }, 0 ] },
+                                    { "!=": [ { "var": "data.SwiftMT.fields.52A.bic.raw" }, "" ] }
+                                ]
+                            },
+                            "message": "Translation stopped: Mandatory MT205 fields (20, 32A, 52A, 58A) are missing or invalid"
+                        }
+                    ]
+                }
+            }
+        },
+        {
             "id": "MT205_set_core_translation",
             "name": "MT205: Set to CORE Translation",
-            "description": "MT205 always translates to pacs.009 CORE (corporate serial payment)",
+            "description": "MT205 always translates to pacs.009 CORE (corporate serial payment) - no field 54a present",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
+                        {
+                            "path": "temp_data.payment_scenario",
+                            "logic": "MT205_ALWAYS_SERIAL"
+                        },
                         {
                             "path": "temp_data.MTType",
                             "logic": "SERIAL"

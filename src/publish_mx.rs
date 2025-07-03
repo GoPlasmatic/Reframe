@@ -192,9 +192,13 @@ fn handle_mt_to_mx_header(
             debug!("Serializing MT900 to MX header");
             serialize_mt_to_mx_header::<bah_camt_054_001::BusinessApplicationHeaderV02>(data)?
         }
-        "192" | "292" | "196" | "296" => {
-            debug!("Serializing MT192/MT292/MT196/MT296 to MX header");
+        "192" | "292" => {
+            debug!("Serializing MT192/MT292 to MX header");
             serialize_mt_to_mx_header::<bah_camt_056_001_08::BusinessApplicationHeaderV02>(data)?
+        }
+        "196" | "296" => {
+            debug!("Serializing MT196/MT296 to MX header");
+            serialize_mt_to_mx_header::<bah_camt_029_001::BusinessApplicationHeaderV02>(data)?
         }
         _ => {
             error!("Invalid message type: {}", message_type);
@@ -293,9 +297,12 @@ fn handle_mt_to_mx_document(
         "900" | "910" => serialize_mt_to_mx_document::<
             camt_054_001_08::BankToCustomerDebitCreditNotificationV08,
         >(data.get("BkToCstmrDbtCdtNtfctn").unwrap().clone())?,
-        "192" | "292" | "196" | "296" => serialize_mt_to_mx_document::<
+        "192" | "292" => serialize_mt_to_mx_document::<
             camt_056_001_08::FIToFIPaymentCancellationRequestV08,
         >(data.get("FIToFIPmtCxlReq").unwrap().clone())?,
+        "196" | "296" => serialize_mt_to_mx_document::<
+            camt_029_001_09::ResolutionOfInvestigationV09,
+        >(data.get("RsltnOfInvstgtn").unwrap().clone())?,
         _ => {
             error!("Invalid message type: {}", message_type);
             return Err(DataflowError::Validation(format!(

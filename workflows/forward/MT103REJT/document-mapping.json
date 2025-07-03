@@ -16,23 +16,23 @@
         {
             "id": "map_rejection_group_header",
             "name": "Map pacs.002 Group Header for Rejection",
+            "description": "Constructs pacs.002 group header with message identification and creation timestamp using structural output",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.Document.FIToFIPmtStsRpt.GrpHdr.MsgId",
+                            "path": "data.Document.FIToFIPmtStsRpt.GrpHdr",
                             "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.20.value" },
-                                    { "var": "data.SwiftMT.fields.20.value" },
-                                    "NOTPROVIDED"
-                                ]
+                                "MsgId": {
+                                    "if": [
+                                        { "var": "data.SwiftMT.fields.20.value" },
+                                        { "var": "data.SwiftMT.fields.20.value" },
+                                        "NOTPROVIDED"
+                                    ]
+                                },
+                                "CreDtTm": "9999-12-31T00:00:00+00:00"
                             }
-                        },
-                        {
-                            "path": "data.Document.FIToFIPmtStsRpt.GrpHdr.CreDtTm",
-                            "logic": "9999-12-31T00:00:00+00:00"
                         }
                     ]
                 }
@@ -41,76 +41,68 @@
         {
             "id": "map_transaction_information_and_status",
             "name": "Map Transaction Information and Status for Rejection",
+            "description": "Constructs complete transaction information and status structure for rejection including agents, original references, transaction status, and group information using structural output",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.InstgAgt.FinInstnId.BICFI",
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts",
                             "logic": {
-                                "if": [
-                                    { "var": "temp_data.Sender" },
-                                    { "var": "temp_data.Sender" },
-                                    "NOTPROVIDED"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.InstdAgt.FinInstnId.BICFI",
-                            "logic": {
-                                "if": [
-                                    { "var": "temp_data.Receiver" },
-                                    { "var": "temp_data.Receiver" },
-                                    "NOTPROVIDED"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlUETR",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
-                                    { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
-                                    "NOTPROVIDED"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.TxSts",
-                            "logic": "RJCT"
-                        },
-                        {
-                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId",
-                            "logic": "MT103"
-                        },
-                        {
-                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlGrpInf.OrgnlMsgId",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.OriginalMessageIdentification" },
-                                    { "var": "data.OriginalMessageIdentification" },
-                                    "NOTPROVIDED"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlInstrId",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.OriginalInstructionIdentification" },
-                                    { "var": "data.OriginalInstructionIdentification" },
-                                    "NOTPROVIDED"
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlEndToEndId",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.OriginalEndToEndID" },
-                                    { "var": "data.OriginalEndToEndID" },
-                                    "NOTPROVIDED"
-                                ]
+                                "InstgAgt": {
+                                    "FinInstnId": {
+                                        "BICFI": {
+                                            "if": [
+                                                { "var": "temp_data.Sender" },
+                                                { "var": "temp_data.Sender" },
+                                                "NOTPROVIDED"
+                                            ]
+                                        }
+                                    }
+                                },
+                                "InstdAgt": {
+                                    "FinInstnId": {
+                                        "BICFI": {
+                                            "if": [
+                                                { "var": "temp_data.Receiver" },
+                                                { "var": "temp_data.Receiver" },
+                                                "NOTPROVIDED"
+                                            ]
+                                        }
+                                    }
+                                },
+                                "OrgnlUETR": {
+                                    "if": [
+                                        { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
+                                        { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
+                                        "NOTPROVIDED"
+                                    ]
+                                },
+                                "TxSts": "RJCT",
+                                "OrgnlGrpInf": {
+                                    "OrgnlMsgNmId": "MT103",
+                                    "OrgnlMsgId": {
+                                        "if": [
+                                            { "var": "data.OriginalMessageIdentification" },
+                                            { "var": "data.OriginalMessageIdentification" },
+                                            "NOTPROVIDED"
+                                        ]
+                                    }
+                                },
+                                "OrgnlInstrId": {
+                                    "if": [
+                                        { "var": "data.OriginalInstructionIdentification" },
+                                        { "var": "data.OriginalInstructionIdentification" },
+                                        "NOTPROVIDED"
+                                    ]
+                                },
+                                "OrgnlEndToEndId": {
+                                    "if": [
+                                        { "var": "data.OriginalEndToEndID" },
+                                        { "var": "data.OriginalEndToEndID" },
+                                        "NOTPROVIDED"
+                                    ]
+                                }
                             }
                         }
                     ]
@@ -119,7 +111,8 @@
         },
         {
             "id": "extract_rejection_reason_data",
-            "name": "Extract Rejection Reason Data from Field 72",
+            "name": "Extract Rejection Reason Data from Field 72 (MT_To_MXReject72)",
+            "description": "Extract rejection reason code and additional text information from Field 72 lines according to CBPR+ MT_To_MXReject72 function specification",
             "function": {
                 "name": "map",
                 "input": {
@@ -160,6 +153,21 @@
                                     []
                                 ]
                             }
+                        },
+                        {
+                            "path": "temp_data.AdditionalTextInfo",
+                            "logic": {
+                                "if": [
+                                    { "var": "temp_data.TextLines" },
+                                    {
+                                        "map": [
+                                            { "var": "temp_data.TextLines" },
+                                            { "substr": [{ "var": "" }, 6] }
+                                        ]
+                                    },
+                                    []
+                                ]
+                            }
                         }
                     ]
                 }
@@ -168,54 +176,58 @@
         {
             "id": "map_rejection_reason",
             "name": "Map Rejection Reason Information",
+            "description": "Maps rejection reason information including standard/proprietary reason codes and additional text information using structural output with conditional logic for code classification",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.Rsn.Cd",
+                            "path": "temp_data.standardReasonCodes",
+                            "logic": ["AC01", "AC04", "AC06", "AG01", "AG02", "AM05", "BE05", "MS03", "RR01", "RR02", "RR03", "RR04"]
+                        },
+                        {
+                            "path": "temp_data.isStandardCode",
                             "logic": {
-                                "if": [
-                                    { "and": [
-                                        { "var": "temp_data.ReasonCode" },
-                                        { "!=": [{ "var": "temp_data.ReasonCode" }, ""] },
-                                        { "in": [{ "var": "temp_data.ReasonCode" }, ["AC01", "AC04", "AC06", "AG01", "AG02", "AM05", "BE05", "MS03", "RR01", "RR02", "RR03", "RR04"]] }
-                                    ]},
+                                "and": [
                                     { "var": "temp_data.ReasonCode" },
-                                    null
+                                    { "!=": [{ "var": "temp_data.ReasonCode" }, ""] },
+                                    { "in": [{ "var": "temp_data.ReasonCode" }, { "var": "temp_data.standardReasonCodes" }] }
                                 ]
                             }
                         },
                         {
-                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.Rsn.Prtry",
+                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf",
                             "logic": {
-                                "if": [
-                                    { "and": [
-                                        { "var": "temp_data.ReasonCode" },
-                                        { "!=": [{ "var": "temp_data.ReasonCode" }, ""] },
-                                        { "!": [{ "in": [{ "var": "temp_data.ReasonCode" }, ["AC01", "AC04", "AC06", "AG01", "AG02", "AM05", "BE05", "MS03", "RR01", "RR02", "RR03", "RR04"]] }] }
-                                    ]},
-                                    { "var": "temp_data.ReasonCode" },
-                                    null
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.AddtlInf",
-                            "logic": {
-                                "if": [
-                                    { "and": [
-                                        { "var": "temp_data.TextLines" },
-                                        { ">": [{ "length": [{ "var": "temp_data.TextLines" }] }, 0] }
-                                    ]},
-                                    {
-                                        "map": [
-                                            { "var": "temp_data.TextLines" },
-                                            { "substr": [{ "var": "" }, 6] }
+                                "Rsn": {
+                                    "Cd": {
+                                        "if": [
+                                            { "var": "temp_data.isStandardCode" },
+                                            { "var": "temp_data.ReasonCode" },
+                                            null
                                         ]
                                     },
-                                    null
-                                ]
+                                    "Prtry": {
+                                        "if": [
+                                            { "and": [
+                                                { "var": "temp_data.ReasonCode" },
+                                                { "!=": [{ "var": "temp_data.ReasonCode" }, ""] },
+                                                { "!": { "var": "temp_data.isStandardCode" } }
+                                            ]},
+                                            { "var": "temp_data.ReasonCode" },
+                                            null
+                                        ]
+                                    }
+                                },
+                                "AddtlInf": {
+                                    "if": [
+                                        { "and": [
+                                            { "var": "temp_data.AdditionalTextInfo" },
+                                            { ">": [{ "length": [{ "var": "temp_data.AdditionalTextInfo" }] }, 0] }
+                                        ]},
+                                        { "var": "temp_data.AdditionalTextInfo" },
+                                        null
+                                    ]
+                                }
                             }
                         }
                     ]
@@ -225,6 +237,7 @@
         {
             "id": "publish_rejection_document_xml",
             "name": "Publish Rejection Document XML",
+            "description": "Generates the pacs.002 document XML output for MT103 rejection processing using the PublishMX function",
             "function": {
                 "name": "PublishMX",
                 "input": {

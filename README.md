@@ -7,7 +7,6 @@
   
   [![CI/CD Pipeline](https://github.com/GoPlasmatic/Reframe/actions/workflows/deploy-azure.yml/badge.svg?branch=main)](https://github.com/GoPlasmatic/Reframe/actions/workflows/deploy-azure.yml)
   [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-  [![Docker](https://img.shields.io/badge/Docker-Available-blue)](https://hub.docker.com/)
   [![Rust](https://img.shields.io/badge/Rust-1.70+-orange)](https://rust-lang.org)
   
   [🚀 Live Demo](http://reframe-api-prod.eastus.azurecontainer.io:3000) | [📚 Documentation](docs/) | [🔧 Installation Guide](docs/installation.md) | [💡 Architecture](docs/architecture.md)

@@ -14,9 +14,9 @@
     },
     "tasks": [
         {
-            "id": "PREC001_validate_currency",
-            "name": "PREC001: Validate Currency Not Commodities",
-            "description": "Ensure InterbankSettlementAmount currency is not XAU, XAG, XPD, XPT",
+            "id": "validate_preconditions",
+            "name": "Validate Preconditions",
+            "description": "Validate preconditions for pacs.008 to MT103 transformation including currency validation",
             "function": {
                 "name": "validate",
                 "input": {
@@ -38,9 +38,9 @@
             }
         },
         {
-            "id": "prepare_bic_context",
-            "name": "Prepare BIC Context",
-            "description": "Extracts sender and receiver BIC codes from pacs.008 message header for use in subsequent field mapping and validation rules",
+            "id": "extract_temp_variables",
+            "name": "Extract Temporary Variables",
+            "description": "Extract sender and receiver BIC codes from header for use in translation rules",
             "function": {
                 "name": "map",
                 "input": {
@@ -70,9 +70,9 @@
             }
         },
         {
-            "id": "construct_mt103_headers",
-            "name": "Construct MT103 Headers",
-            "description": "Builds SWIFT MT103 message headers including basic header (block 1) with sender BIC, application header (block 2) with receiver BIC and message type 103, and sets priority and direction",
+            "id": "construct_swift_headers",
+            "name": "Construct SWIFT Headers",
+            "description": "Build SWIFT MT103 basic and application headers using sender and receiver BICs",
             "function": {
                 "name": "map",
                 "input": {
@@ -80,13 +80,16 @@
                         {
                             "path": "data.SwiftMT",
                             "logic": {
+                                "message_type": "103",
                                 "basic_header": {
+                                    "application_id": "F",
+                                    "service_id": "01",
                                     "sender_bic": {
                                         "raw": {
                                             "if": [
                                                 {"var": "temp_data.Sender"},
                                                 {"substr": [{"var": "temp_data.Sender"}, 0, 8]},
-                                                ""
+                                                null
                                             ]
                                         }
                                     },
@@ -94,21 +97,22 @@
                                         "if": [
                                             {"var": "temp_data.Sender"},
                                             {"cat": [{"var": "temp_data.Sender"}, "AXXX"]},
-                                            ""
+                                            null
                                         ]
                                     },
-                                    "application_id": "F",
-                                    "service_id": "01",
                                     "session_number": "0000",
                                     "sequence_number": "000000"
                                 },
                                 "application_header": {
+                                    "direction": "I",
+                                    "message_type": "103",
+                                    "priority": "N",
                                     "receiver_bic": {
                                         "raw": {
                                             "if": [
                                                 {"var": "temp_data.Receiver"},
                                                 {"substr": [{"var": "temp_data.Receiver"}, 0, 8]},
-                                                ""
+                                                null
                                             ]
                                         }
                                     },
@@ -116,14 +120,10 @@
                                         "if": [
                                             {"var": "temp_data.Receiver"},
                                             {"cat": [{"var": "temp_data.Receiver"}, "XXXX"]},
-                                            ""
+                                            null
                                         ]
-                                    },
-                                    "direction": "I",
-                                    "message_type": "103",
-                                    "priority": "N"
-                                },
-                                "message_type": "103"
+                                    }
+                                }
                             }
                         }
                     ]
@@ -131,9 +131,9 @@
             }
         },
         {
-            "id": "construct_user_header",
-            "name": "Construct User Header",
-            "description": "Maps user header (block 3) fields including unique end-to-end reference (UETR) from payment identification and banking priority code from service level",
+            "id": "map_mandatory_fields",
+            "name": "Map Mandatory MT103 Fields",
+            "description": "Map mandatory MT103 fields including user header and core transaction fields",
             "function": {
                 "name": "map",
                 "input": {
@@ -145,41 +145,22 @@
                                     "if": [
                                         {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.UETR"},
                                         {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.UETR"},
-                                        ""
-                                    ]
-                                },
-                                "banking_priority": {
-                                    "if": [
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"},
-                                        {
-                                            "if": [
-                                                {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"}, "SDVA"]},
-                                                "SEPA",
-                                                ""
-                                            ]
-                                        },
-                                        ""
+                                        null
                                     ]
                                 }
                             }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_core_transaction_fields",
-            "name": "Map Core Transaction Fields",
-            "description": "Maps essential MT103 transaction fields: sender's reference (20), bank operation code (23B), value date/currency/amount (32A) from interbank settlement details",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
+                        },
                         {
                             "path": "data.SwiftMT.fields",
                             "logic": {
                                 "20": {
-                                    "value": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId"}
+                                    "value": {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId"},
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId"},
+                                            "NOTPROVIDED"
+                                        ]
+                                    }
                                 },
                                 "23B": {
                                     "value": "CRED"
@@ -188,12 +169,7 @@
                                     "value_date": {
                                         "if": [
                                             {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"},
-                                            {
-                                                "format_date": [
-                                                    {"parse_date": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}, "yyyy-MM-dd"]},
-                                                    "yyyy-MM-dd"
-                                                ]
-                                            },
+                                            {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}, 0, 10]},
                                             {"format_date": [{"now": []}, "yyyy-MM-dd"]}
                                         ]
                                     },
@@ -219,74 +195,42 @@
             }
         },
         {
-            "id": "TR013_map_instructed_amount",
-            "name": "TR013: Map Instructed Amount (Field 33B)",
-            "description": "Map InstructedAmount to Field 33B with EU country validation",
+            "id": "map_instructed_amount_and_charges",
+            "name": "Map Instructed Amount and Charges",
+            "description": "Map optional fields 33B (instructed amount) and 71A (charge bearer)",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.33B.value_date",
+                            "path": "data.SwiftMT.fields.33B",
                             "logic": {
                                 "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmDt"},
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstdAmt"},
                                     {
-                                        "format_date": [
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmDt"},
-                                            "yyyy-MM-dd"
-                                        ]
+                                        "currency": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstdAmt.@Ccy"},
+                                        "amount": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstdAmt.$value"}
                                     },
-                                    {"format_date": [{"now": []}, "yyyy-MM-dd"]}
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.33B.currency",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstdAmt.@Ccy"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstdAmt.@Ccy"},
                                     null
                                 ]
                             }
                         },
                         {
-                            "path": "data.SwiftMT.fields.33B.amount",
+                            "path": "data.SwiftMT.fields.71A",
                             "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstdAmt.$value"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstdAmt.$value"},
-                                    null
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "TR016_map_charge_bearer",
-            "name": "TR016: Map Charge Bearer (Field 71A)",
-            "description": "Convert ChrgBr codes to MT format",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.SwiftMT.fields.71A.value",
-                            "logic": {
-                                "if": [
-                                    {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgBr"}, "CRED"]},
-                                    "BEN",
-                                    {
-                                        "if": [
-                                            {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgBr"}, "DEBT"]},
-                                            "OUR",
-                                            "SHA"
-                                        ]
-                                    }
-                                ]
+                                "value": {
+                                    "if": [
+                                        {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgBr"}, "CRED"]},
+                                        "BEN",
+                                        {
+                                            "if": [
+                                                {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgBr"}, "DEBT"]},
+                                                "OUR",
+                                                "SHA"
+                                            ]
+                                        }
+                                    ]
+                                }
                             }
                         }
                     ]
@@ -296,7 +240,7 @@
         {
             "id": "map_customer_details",
             "name": "Map Customer Details",
-            "description": "Maps ordering customer (50K) and beneficiary customer (59) information including account numbers, names, and addresses from pacs.008 debtor and creditor party details",
+            "description": "Map ordering customer (50K) and beneficiary customer (59) party information",
             "function": {
                 "name": "map",
                 "input": {
@@ -306,18 +250,18 @@
                             "logic": {
                                 "50": {
                                     "K": {
-                                        "lines": {
-                                            "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.Nm"},
-                                                {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.Nm"},
+                                            {
+                                                "account_number": {
+                                                    "if": [
+                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAcct.Id.Othr.Id"},
+                                                        {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAcct.Id.Othr.Id"}]},
+                                                        null
+                                                    ]
+                                                },
+                                                "name_and_address": {
                                                     "merge": [
-                                                        {
-                                                            "if": [
-                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAcct.Id.Othr.Id"},
-                                                                [{"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAcct.Id.Othr.Id"}]}],
-                                                                []
-                                                            ]
-                                                        },
                                                         [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.Nm"}],
                                                         {
                                                             "if": [
@@ -347,10 +291,10 @@
                                                             ]
                                                         }
                                                     ]
-                                                },
-                                                []
-                                            ]
-                                        }
+                                                }
+                                            },
+                                            null
+                                        ]
                                     }
                                 },
                                 "59": {
@@ -412,9 +356,9 @@
             }
         },
         {
-            "id": "map_payment_chain_institutions",
-            "name": "Map Payment Chain Institutions",
-            "description": "Maps financial institution chain including ordering institution (52A), intermediary (56A), and account with institution (57A/B/C/D) for MT103 payment routing",
+            "id": "map_financial_institutions",
+            "name": "Map Financial Institutions",
+            "description": "Map payment chain institutions (52A, 56A, 57A/B/C/D)",
             "function": {
                 "name": "map",
                 "input": {
@@ -527,14 +471,14 @@
                                     }
                                 },
                                 "57D": {
-                                    "name_and_address": {
-                                        "if": [
-                                            {"and": [
-                                                {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}]},
-                                                {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}]},
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.Nm"}
-                                            ]},
-                                            {
+                                    "if": [
+                                        {"and": [
+                                            {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}]},
+                                            {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}]},
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.Nm"}
+                                        ]},
+                                        {
+                                            "name_and_address": {
                                                 "merge": [
                                                     [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.Nm"}],
                                                     {
@@ -565,10 +509,10 @@
                                                         ]
                                                     }
                                                 ]
-                                            },
-                                            []
-                                        ]
-                                    }
+                                            }
+                                        },
+                                        null
+                                    ]
                                 }
                             }
                         }
@@ -578,8 +522,8 @@
         },
         {
             "id": "map_remittance_information",
-            "name": "Map Remittance Information (Field 70)",
-            "description": "Maps unstructured remittance information to field 70 with optional ROC (Reason for Payment) prefix from end-to-end identification",
+            "name": "Map Remittance Information",
+            "description": "Map remittance information to field 70",
             "function": {
                 "name": "map",
                 "input": {
@@ -618,9 +562,9 @@
             }
         },
         {
-            "id": "map_charges_and_regulatory",
-            "name": "Map Charges and Regulatory Fields",
-            "description": "Maps optional fields including exchange rate (36), sender's charges (71F), receiver's charges (71G), and regulatory reporting information (77B)",
+            "id": "map_optional_fields",
+            "name": "Map Optional Fields",
+            "description": "Map optional fields (36, 71F, 71G, 77B)",
             "function": {
                 "name": "map",
                 "input": {
@@ -710,9 +654,9 @@
             }
         },
         {
-            "id": "map_payment_type_details",
-            "name": "Map Payment Type Details",
-            "description": "Maps payment type information including instruction codes (23E) from service level and category purpose, and sender-to-receiver information (72) from instruction details",
+            "id": "map_instruction_codes",
+            "name": "Map Instruction Codes",
+            "description": "Map instruction codes (23E) and sender-to-receiver information (72)",
             "function": {
                 "name": "map",
                 "input": {
@@ -746,47 +690,120 @@
             }
         },
         {
-            "id": "define_field_sequence",
-            "name": "Define Field Sequence",
-            "description": "Establishes the standard MT103 field ordering sequence for proper SWIFT message structure and validation",
+            "id": "generate_field_order",
+            "name": "Generate Field Order",
+            "description": "Generate the field order array for MT103",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
                             "path": "data.SwiftMT.field_order",
-                            "logic": [
-                                "20",
-                                "23B",
-                                "32A",
-                                "33B",
-                                "36",
-                                "50",
-                                "52A",
-                                "56A",
-                                "56B",
-                                "56C",
-                                "57A",
-                                "57B",
-                                "57C",
-                                "57D",
-                                "59",
-                                "70",
-                                "71A",
-                                "71F",
-                                "71G",
-                                "72",
-                                "77B"
-                            ]
+                            "logic": {
+                                "merge": [
+                                    ["20", "23B", "32A"],
+                                    {
+                                        "if": [
+                                            {"var": "data.SwiftMT.fields.33B"},
+                                            ["33B"],
+                                            []
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {"var": "data.SwiftMT.fields.36"},
+                                            ["36"],
+                                            []
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {"var": "data.SwiftMT.fields.50K"},
+                                            ["50K"],
+                                            []
+                                        ]
+                                    },
+                                    ["52A"],
+                                    {
+                                        "if": [
+                                            {"var": "data.SwiftMT.fields.56A.bic.raw"},
+                                            ["56A"],
+                                            []
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {"var": "data.SwiftMT.fields.57A.bic.raw"},
+                                            ["57A"],
+                                            {
+                                                "if": [
+                                                    {"var": "data.SwiftMT.fields.57B.party_identifier"},
+                                                    ["57B"],
+                                                    {
+                                                        "if": [
+                                                            {"var": "data.SwiftMT.fields.57C.account_number"},
+                                                            ["57C"],
+                                                            {
+                                                                "if": [
+                                                                    {"var": "data.SwiftMT.fields.57D"},
+                                                                    ["57D"],
+                                                                    []
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    ["59"],
+                                    {
+                                        "if": [
+                                            {"var": "data.SwiftMT.fields.70"},
+                                            ["70"],
+                                            []
+                                        ]
+                                    },
+                                    ["71A"],
+                                    {
+                                        "if": [
+                                            {"var": "data.SwiftMT.fields.71F"},
+                                            ["71F"],
+                                            []
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {"var": "data.SwiftMT.fields.71G"},
+                                            ["71G"],
+                                            []
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {"var": "data.SwiftMT.fields.72"},
+                                            ["72"],
+                                            []
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {"var": "data.SwiftMT.fields.77B"},
+                                            ["77B"],
+                                            []
+                                        ]
+                                    }
+                                ]
+                            }
                         }
                     ]
                 }
             }
         },
         {
-            "id": "generate_mt103_message",
-            "name": "Generate MT103 Message",
-            "description": "Finalizes the transformation by generating the complete SWIFT MT103 message with all headers, fields, and sequences in the correct format",
+            "id": "publish_mt103",
+            "name": "Publish MT103 Message",
+            "description": "Generate the complete SWIFT MT103 message",
             "function": {
                 "name": "PublishMT",
                 "input": {
@@ -797,9 +814,9 @@
             }
         },
         {
-            "id": "POSTC007_validate_clearing_codes",
-            "name": "POSTC007: Validate //FW and //RT Code Usage",
-            "description": "Ensure //FW or //RT codes appear only once and in first agent field (56a or 57a)",
+            "id": "validate_postconditions",
+            "name": "Validate Post-conditions",
+            "description": "Validate clearing code usage and other post-conditions",
             "function": {
                 "name": "validate",
                 "input": {

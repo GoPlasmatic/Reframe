@@ -14,44 +14,47 @@
     },
     "tasks": [
         {
-            "id": "prepare_rejection_context",
-            "name": "Prepare Rejection Context",
-            "description": "Extracts sender and receiver BIC codes from pacs.002 message header and determines target message type (MT199/MT299) based on original transaction information",
+            "id": "extract_temp_variables",
+            "name": "Extract Temporary Variables",
+            "description": "Extract sender and receiver BIC codes from message header and determine MT message type",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data",
+                            "path": "temp_data.Sender",
                             "logic": {
-                                "Sender": {
-                                    "if": [
-                                        {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
-                                        {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
-                                        null
-                                    ]
-                                },
-                                "Receiver": {
-                                    "if": [
-                                        {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
-                                        {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
-                                        null
-                                    ]
-                                },
-                                "target_message_type": {
-                                    "if": [
-                                        {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"},
-                                        {
-                                            "if": [
-                                                {"starts_with": [{"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"}, "2"]},
-                                                "299",
-                                                "199"
-                                            ]
-                                        },
-                                        "199"
-                                    ]
-                                },
-                                "rejection_method": "rejt"
+                                "if": [
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.Receiver",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.target_message_type",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"},
+                                    {
+                                        "if": [
+                                            {"starts_with": [{"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"}, "2"]},
+                                            "299",
+                                            "199"
+                                        ]
+                                    },
+                                    "199"
+                                ]
                             }
                         }
                     ]
@@ -59,9 +62,9 @@
             }
         },
         {
-            "id": "construct_mt_headers",
-            "name": "Construct MT Headers",
-            "description": "Builds SWIFT MT message headers including basic header (block 1), application header (block 2) with message type determination, and sets rejection method identifier",
+            "id": "construct_swift_headers",
+            "name": "Construct SWIFT Headers",
+            "description": "Build SWIFT MT199/MT299 basic and application headers using sender and receiver BICs",
             "function": {
                 "name": "map",
                 "input": {
@@ -69,7 +72,10 @@
                         {
                             "path": "data.SwiftMT",
                             "logic": {
+                                "message_type": {"var": "temp_data.target_message_type"},
                                 "basic_header": {
+                                    "application_id": "F",
+                                    "service_id": "01",
                                     "sender_bic": {
                                         "raw": {
                                             "if": [
@@ -86,12 +92,13 @@
                                             null
                                         ]
                                     },
-                                    "application_id": "F",
-                                    "service_id": "01",
                                     "session_number": "0000",
                                     "sequence_number": "000000"
                                 },
                                 "application_header": {
+                                    "direction": "I",
+                                    "message_type": {"var": "temp_data.target_message_type"},
+                                    "priority": "N",
                                     "receiver_bic": {
                                         "raw": {
                                             "if": [
@@ -107,13 +114,8 @@
                                             {"cat": [{"var": "temp_data.Receiver"}, "XXXX"]},
                                             null
                                         ]
-                                    },
-                                    "direction": "I",
-                                    "message_type": {"var": "temp_data.target_message_type"},
-                                    "priority": "N"
-                                },
-                                "message_type": {"var": "temp_data.target_message_type"},
-                                "method": {"var": "temp_data.rejection_method"}
+                                    }
+                                }
                             }
                         }
                     ]
@@ -123,7 +125,7 @@
         {
             "id": "construct_user_header",
             "name": "Construct User Header",
-            "description": "Maps user header (block 3) fields including original UETR from payment status report for transaction traceability",
+            "description": "Map user header (block 3) fields including original UETR",
             "function": {
                 "name": "map",
                 "input": {
@@ -145,9 +147,9 @@
             }
         },
         {
-            "id": "map_core_rejection_fields",
-            "name": "Map Core Rejection Fields",
-            "description": "Maps essential rejection message fields: sender's reference (20) and related reference (21) from pacs.002 group header and transaction information",
+            "id": "map_mt_fields",
+            "name": "Map MT Fields",
+            "description": "Map MT199/MT299 fields: sender's reference (20) and optional related reference (21)",
             "function": {
                 "name": "map",
                 "input": {
@@ -166,7 +168,7 @@
                                                     {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}
                                                 ]
                                             },
-                                            null
+                                            "NOTPROVIDED"
                                         ]
                                     }
                                 },
@@ -175,7 +177,7 @@
                                         "if": [
                                             {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"},
                                             {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"},
-                                            null
+                                            "NOTPROVIDED"
                                         ]
                                     }
                                 }
@@ -188,184 +190,58 @@
         {
             "id": "map_rejection_details",
             "name": "Map Rejection Details",
-            "description": "Maps comprehensive rejection information to field 79 including rejection indicator, original references, status, UETR, reason codes, and settlement details with structured prefixes",
+            "description": "Map comprehensive rejection information to field 79",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields",
+                            "path": "data.SwiftMT.fields.#79",
                             "logic": {
-                                "79": {
-                                    "lines": {
-                                        "merge": [
-                                            ["/REJT/"],
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"},
-                                                    [
-                                                        {
-                                                            "cat": [
-                                                                "/INST/",
-                                                                {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}
-                                                            ]
-                                                        }
-                                                    ],
-                                                    []
-                                                ]
-                                            },
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgId"},
-                                                    [
-                                                        {
-                                                            "cat": [
-                                                                "/MREF/",
-                                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgId"}
-                                                            ]
-                                                        }
-                                                    ],
-                                                    []
-                                                ]
-                                            },
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlEndToEndId"},
-                                                    [
-                                                        {
-                                                            "cat": [
-                                                                "/TREF/",
-                                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlEndToEndId"}
-                                                            ]
-                                                        }
-                                                    ],
-                                                    []
-                                                ]
-                                            },
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.TxSts"},
-                                                    [
-                                                        {
-                                                            "cat": [
-                                                                "/STAT/",
-                                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.TxSts"}
-                                                            ]
-                                                        }
-                                                    ],
-                                                    []
-                                                ]
-                                            },
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"},
-                                                    [
-                                                        {
-                                                            "cat": [
-                                                                "/UETR/",
-                                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"}
-                                                            ]
-                                                        }
-                                                    ],
-                                                    []
-                                                ]
-                                            },
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.Rsn.Cd"},
-                                                    [
-                                                        {
-                                                            "cat": [
-                                                                "/RJCT/",
-                                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.Rsn.Cd"}
-                                                            ]
-                                                        }
-                                                    ],
-                                                    []
-                                                ]
-                                            },
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.AddtlInf"},
-                                                    {
-                                                        "map": [
-                                                            {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.AddtlInf"},
-                                                            {"cat": ["/TEXT/", {"var": ""}]}
-                                                        ]
-                                                    },
-                                                    []
-                                                ]
-                                            },
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlTxRef.IntrBkSttlmAmt"},
-                                                    [
-                                                        {
-                                                            "cat": [
-                                                                "/SETT/",
-                                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlTxRef.IntrBkSttlmAmt.@Ccy"},
-                                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlTxRef.IntrBkSttlmAmt.$value"}
-                                                            ]
-                                                        }
-                                                    ],
-                                                    []
-                                                ]
-                                            },
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlTxRef.IntrBkSttlmDt"},
-                                                    [
-                                                        {
-                                                            "cat": [
-                                                                "/VALU/",
-                                                                {"format_date": [{"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlTxRef.IntrBkSttlmDt"}, "yyMMdd"]}
-                                                            ]
-                                                        }
-                                                    ],
-                                                    []
-                                                ]
-                                            }
-                                        ]
-                                    }
-                                }
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_rejection_institutions",
-            "name": "Map Rejection Institutions",
-            "description": "Maps instructing institution (51A) and instructed institution (52A) from original transaction reference or fallback to message header BIC codes",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.SwiftMT.fields",
-                            "logic": {
-                                "51A": {
-                                    "bic": {
-                                        "raw": {
+                                "lines": {
+                                    "merge": [
+                                        ["/REJT/"],
+                                        {
                                             "if": [
-                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlTxRef.InstgAgt.FinInstnId.BICFI"},
-                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlTxRef.InstgAgt.FinInstnId.BICFI"},
-                                                {"var": "temp_data.Sender"}
+                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgId"},
+                                                [{"cat": ["/MREF/", {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgId"}]}],
+                                                []
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlEndToEndId"},
+                                                [{"cat": ["/TREF/", {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlEndToEndId"}]}],
+                                                []
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.Rsn.Cd"},
+                                                [{"cat": ["/RJCT/", {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.Rsn.Cd"}]}],
+                                                []
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"},
+                                                [{"cat": ["/UETR/", {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"}]}],
+                                                []
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.AddtlInf"},
+                                                {
+                                                    "map": [
+                                                        {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.AddtlInf"},
+                                                        {"cat": ["/TEXT/", {"var": ""}]}
+                                                    ]
+                                                },
+                                                []
                                             ]
                                         }
-                                    }
-                                },
-                                "52A": {
-                                    "bic": {
-                                        "raw": {
-                                            "if": [
-                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlTxRef.InstdAgt.FinInstnId.BICFI"},
-                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlTxRef.InstdAgt.FinInstnId.BICFI"},
-                                                {"var": "temp_data.Receiver"}
-                                            ]
-                                        }
-                                    }
+                                    ]
                                 }
                             }
                         }
@@ -374,101 +250,35 @@
             }
         },
         {
-            "id": "map_settlement_account",
-            "name": "Map Settlement Account",
-            "description": "Maps settlement account identification (25) from group header settlement information with support for both IBAN and other account formats",
+            "id": "generate_field_order",
+            "name": "Generate Field Order",
+            "description": "Generate the field order array for MT199/MT299",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields",
-                            "logic": {
-                                "25": {
-                                    "value": {
-                                        "if": [
-                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"},
-                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"},
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"},
-                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"},
-                                                    null
-                                                ]
-                                            }
-                                        ]
-                                    }
-                                }
-                            }
+                            "path": "data.SwiftMT.field_order",
+                            "logic": [
+                                "20",
+                                "21", 
+                                "79"
+                            ]
                         }
                     ]
                 }
             }
         },
         {
-            "id": "finalize_rejection_message",
-            "name": "Finalize Rejection Message",
-            "description": "Establishes field ordering sequence for MT199/MT299 rejection message and prepares message for generation",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.SwiftMT",
-                            "logic": {
-                                "field_order": [
-                                    "20",
-                                    "21",
-                                    "25",
-                                    "51A",
-                                    "52A",
-                                    "79"
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "generate_mt_rejection_message",
-            "name": "Generate MT Rejection Message",
-            "description": "Finalizes the transformation by generating the complete SWIFT MT199/MT299 rejection message with all headers, fields, and sequences in the correct format",
+            "id": "publish_mt_rejection",
+            "name": "Publish MT Rejection Message",
+            "description": "Generate the complete SWIFT MT199/MT299 rejection message",
             "function": {
                 "name": "PublishMT",
                 "input": {
                     "input_field_name": "SwiftMT",
                     "output_field_name": "result",
                     "source_format": "pacs.002.001.10"
-                }
-            }
-        },
-        {
-            "id": "validate_rejection_format",
-            "name": "Validate Rejection Format",
-            "description": "Ensures the generated rejection message follows MT199/MT299 format requirements including mandatory field 79 rejection prefix and field 20 length constraints",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data.SwiftMT.fields.79.lines.0",
-                            "logic": {
-                                "starts_with": [{"var": "data.SwiftMT.fields.79.lines.0"}, "/REJT/"]
-                            },
-                            "message": "Field 79 must start with /REJT/ for rejection messages"
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.20.value",
-                            "logic": {
-                                "and": [
-                                    {"var": "data.SwiftMT.fields.20.value"},
-                                    {"<=": [{"length": {"var": "data.SwiftMT.fields.20.value"}}, 16]}
-                                ]
-                            },
-                            "message": "Field 20 is required and must not exceed 16 characters"
-                        }
-                    ]
                 }
             }
         }

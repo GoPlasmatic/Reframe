@@ -1,7 +1,7 @@
 {
     "id": "pacs004-to-mt-retn-mapper",
     "name": "pacs.004 to MT103/MT202/MT205 RETN Field Mapping",
-    "description": "Maps ISO 20022 pacs.004 PaymentReturnV09 fields to SWIFT MT103/MT202/MT205 RETN message structure for payment returns according to CBPR+ reverse transformation specification",
+    "description": "Maps ISO 20022 pacs.004 PaymentReturnV09 fields to SWIFT MT103/MT202/MT205 RETN message structure according to CBPR+ reverse transformation specification",
     "priority": 2,
     "condition": {
         "and": [
@@ -14,52 +14,56 @@
     },
     "tasks": [
         {
-            "id": "prepare_return_context",
-            "name": "Prepare Return Context",
-            "description": "Extracts sender and receiver BIC codes from pacs.004 message header and determines target message type (MT103/MT202/MT205) based on return chain structure",
+            "id": "extract_temp_variables",
+            "name": "Extract Temporary Variables",
+            "description": "Extract sender/receiver BIC codes and determine MT message type from pacs.004 return chain",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data",
+                            "path": "temp_data.Sender",
                             "logic": {
-                                "Sender": {
-                                    "if": [
-                                        {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
-                                        {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
-                                        ""
-                                    ]
-                                },
-                                "Receiver": {
-                                    "if": [
-                                        {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
-                                        {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
-                                        ""
-                                    ]
-                                },
-                                "target_message_type": {
-                                    "if": [
-                                        {"and": [
-                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty"},
-                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty"}
-                                        ]},
-                                        "103",
-                                        {
-                                            "if": [
-                                                {"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.CtgyPurp.Cd"},
-                                                {
-                                                    "if": [
-                                                        {"==": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.CtgyPurp.Cd"}, "INTC"]},
-                                                        "205",
-                                                        "202"
-                                                    ]
-                                                },
-                                                "202"
-                                            ]
-                                        }
-                                    ]
-                                }
+                                "if": [
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.Receiver",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.target_message_type",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty"},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty"}
+                                    ]},
+                                    "103",
+                                    {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.CtgyPurp.Cd"},
+                                            {
+                                                "if": [
+                                                    {"==": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.CtgyPurp.Cd"}, "INTC"]},
+                                                    "205",
+                                                    "202"
+                                                ]
+                                            },
+                                            "202"
+                                        ]
+                                    }
+                                ]
                             }
                         }
                     ]
@@ -67,9 +71,9 @@
             }
         },
         {
-            "id": "construct_mt_headers",
-            "name": "Construct MT Headers",
-            "description": "Builds SWIFT MT message headers including basic header (block 1), application header (block 2) with RETN suffix, and sets return method identifier",
+            "id": "construct_swift_headers",
+            "name": "Construct SWIFT Headers",
+            "description": "Build SWIFT MT message headers with RETN suffix based on target message type",
             "function": {
                 "name": "map",
                 "input": {
@@ -77,13 +81,18 @@
                         {
                             "path": "data.SwiftMT",
                             "logic": {
+                                "message_type": {
+                                    "cat": [{"var": "temp_data.target_message_type"}, "RETN"]
+                                },
                                 "basic_header": {
+                                    "application_id": "F",
+                                    "service_id": "01",
                                     "sender_bic": {
                                         "raw": {
                                             "if": [
                                                 {"var": "temp_data.Sender"},
                                                 {"substr": [{"var": "temp_data.Sender"}, 0, 8]},
-                                                ""
+                                                null
                                             ]
                                         }
                                     },
@@ -91,21 +100,24 @@
                                         "if": [
                                             {"var": "temp_data.Sender"},
                                             {"cat": [{"var": "temp_data.Sender"}, "AXXX"]},
-                                            ""
+                                            null
                                         ]
                                     },
-                                    "application_id": "F",
-                                    "service_id": "01",
                                     "session_number": "0000",
                                     "sequence_number": "000000"
                                 },
                                 "application_header": {
+                                    "direction": "I",
+                                    "message_type": {
+                                        "cat": [{"var": "temp_data.target_message_type"}, "RETN"]
+                                    },
+                                    "priority": "N",
                                     "receiver_bic": {
                                         "raw": {
                                             "if": [
                                                 {"var": "temp_data.Receiver"},
                                                 {"substr": [{"var": "temp_data.Receiver"}, 0, 8]},
-                                                ""
+                                                null
                                             ]
                                         }
                                     },
@@ -113,19 +125,10 @@
                                         "if": [
                                             {"var": "temp_data.Receiver"},
                                             {"cat": [{"var": "temp_data.Receiver"}, "XXXX"]},
-                                            ""
+                                            null
                                         ]
-                                    },
-                                    "direction": "I",
-                                    "message_type": {
-                                        "cat": [{"var": "temp_data.target_message_type"}, "RETN"]
-                                    },
-                                    "priority": "N"
-                                },
-                                "message_type": {
-                                    "cat": [{"var": "temp_data.target_message_type"}, "RETN"]
-                                },
-                                "method": "return"
+                                    }
+                                }
                             }
                         }
                     ]
@@ -135,7 +138,7 @@
         {
             "id": "construct_user_header",
             "name": "Construct User Header",
-            "description": "Maps user header (block 3) fields including original UETR from return transaction and service type identifier from original payment type information",
+            "description": "Map user header (block 3) fields including original UETR",
             "function": {
                 "name": "map",
                 "input": {
@@ -147,20 +150,7 @@
                                     "if": [
                                         {"var": "data.ISO20022_MX.document.TxInf.OrgnlUETR"},
                                         {"var": "data.ISO20022_MX.document.TxInf.OrgnlUETR"},
-                                        ""
-                                    ]
-                                },
-                                "service_type_identifier": {
-                                    "if": [
-                                        {"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"},
-                                        {
-                                            "if": [
-                                                {"starts_with": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"}, "G00"]},
-                                                {"substr": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"}, 1, 3]},
-                                                ""
-                                            ]
-                                        },
-                                        ""
+                                        null
                                     ]
                                 }
                             }
@@ -170,9 +160,9 @@
             }
         },
         {
-            "id": "map_core_return_fields",
-            "name": "Map Core Return Fields",
-            "description": "Maps essential return transaction fields: sender's reference (20), related reference (21), value date/currency/amount (32A), and bank operation code (23B) for MT103 returns",
+            "id": "map_mandatory_fields",
+            "name": "Map Mandatory Fields",
+            "description": "Map mandatory MT RETN fields: sender's reference (20), related reference (21), amount (32A), and bank operation code (23B)",
             "function": {
                 "name": "map",
                 "input": {
@@ -195,32 +185,12 @@
                                         ]
                                     }
                                 },
-                                "21": {
-                                    "value": {
-                                        "if": [
-                                            {"==": [{"var": "temp_data.target_message_type"}, "103"]},
-                                            "",
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"},
-                                                    {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"},
-                                                    "NOTPROVIDED"
-                                                ]
-                                            }
-                                        ]
-                                    }
-                                },
                                 "32A": {
                                     "value_date": {
                                         "if": [
                                             {"var": "data.ISO20022_MX.document.TxInf.IntrBkSttlmDt"},
-                                            {
-                                                "format_date": [
-                                                    {"parse_date": [{"var": "data.ISO20022_MX.document.TxInf.IntrBkSttlmDt"}, "yyyy-MM-dd"]},
-                                                    "yyyy-MM-dd"
-                                                ]
-                                            },
-                                            {"format_date": [{"now": []}, "yyyy-MM-dd"]}
+                                            {"var": "data.ISO20022_MX.document.TxInf.IntrBkSttlmDt"},
+                                            "NOTPROVIDED"
                                         ]
                                     },
                                     "currency": {
@@ -243,7 +213,7 @@
                                         "if": [
                                             {"==": [{"var": "temp_data.target_message_type"}, "103"]},
                                             "RETN",
-                                            ""
+                                            "NOTAPPLICABLE"
                                         ]
                                     }
                                 }
@@ -254,372 +224,77 @@
             }
         },
         {
-            "id": "map_message_specific_fields",
-            "name": "Map Message-Specific Fields",
-            "description": "Maps settlement account (53B) and conditional fields based on message type: ordering customer/institution (50), beneficiary institution/customer (58/59), charge bearer (71A)",
+            "id": "map_mandatory_party_fields",
+            "name": "Map Mandatory Party Fields",
+            "description": "Map mandatory party fields for MT103 (50, 59, 71A)",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields",
+                            "path": "data.SwiftMT.fields.#50",
                             "logic": {
-                                "53B": {
-                                    "party_identifier": {
-                                        "if": [
-                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"},
-                                            {"cat": ["/", {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}]},
-                                            ""
-                                        ]
-                                    }
-                                },
-                                "50": {
-                                    "if": [
-                                        {"==": [{"var": "temp_data.target_message_type"}, "103"]},
-                                        {
-                                            "K": {
-                                                "lines": {
-                                                    "if": [
-                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"},
-                                                        [
-                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"}
-                                                        ],
-                                                        ["NOTPROVIDED"]
-                                                    ]
-                                                }
-                                            }
-                                        },
-                                        {}
-                                    ]
-                                },
-                                "50A": {
-                                    "bic": {
-                                        "raw": {
-                                            "if": [
-                                                {"==": [{"var": "temp_data.target_message_type"}, "103"]},
-                                                {
-                                                    "if": [
-                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.AnyBIC"},
-                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.AnyBIC"},
-                                                        ""
-                                                    ]
-                                                },
-                                                {
-                                                    "if": [
-                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"},
-                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"},
-                                                        ""
-                                                    ]
-                                                }
+                                "if": [
+                                    {"==": [{"var": "temp_data.target_message_type"}, "103"]},
+                                    {
+                                        "K": {
+                                            "name_and_address": [
+                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"}
                                             ]
                                         }
-                                    }
-                                },
-                                "50D": {
-                                    "name_and_address": {
-                                        "if": [
-                                            {"and": [
-                                                {"!=": [{"var": "temp_data.target_message_type"}, "103"]},
-                                                {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"}]},
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.Nm"}
-                                            ]},
-                                            [
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.Nm"}
-                                            ],
-                                            []
-                                        ]
-                                    }
-                                },
-                                "58A": {
-                                    "bic": {
-                                        "raw": {
-                                            "if": [
-                                                {"and": [
-                                                    {"!=": [{"var": "temp_data.target_message_type"}, "103"]},
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"}
-                                                ]},
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"},
-                                                ""
-                                            ]
-                                        }
-                                    }
-                                },
-                                "58D": {
-                                    "name_and_address": {
-                                        "if": [
-                                            {"and": [
-                                                {"!=": [{"var": "temp_data.target_message_type"}, "103"]},
-                                                {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"}]},
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.Nm"}
-                                            ]},
-                                            [
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.Nm"}
-                                            ],
-                                            []
-                                        ]
-                                    }
-                                },
-                                "59": {
-                                    "NoOption": {
-                                        "lines": {
-                                            "if": [
-                                                {"==": [{"var": "temp_data.target_message_type"}, "103"]},
-                                                {
-                                                    "if": [
-                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"},
-                                                        [
-                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"}
-                                                        ],
-                                                        ["NOTPROVIDED"]
-                                                    ]
-                                                },
-                                                []
-                                            ]
-                                        }
-                                    }
-                                },
-                                "59A": {
-                                    "bic": {
-                                        "raw": {
-                                            "if": [
-                                                {"and": [
-                                                    {"==": [{"var": "temp_data.target_message_type"}, "103"]},
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Id.OrgId.AnyBIC"}
-                                                ]},
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Id.OrgId.AnyBIC"},
-                                                ""
-                                            ]
-                                        }
-                                    }
-                                },
-                                "71A": {
-                                    "value": {
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#59",
+                            "logic": {
+                                "NoOption": {
+                                    "lines": {
                                         "if": [
                                             {"==": [{"var": "temp_data.target_message_type"}, "103"]},
                                             {
                                                 "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.ChrgBr"},
-                                                    {
-                                                        "if": [
-                                                            {"==": [{"var": "data.ISO20022_MX.document.TxInf.ChrgBr"}, "CRED"]},
-                                                            "BEN",
-                                                            {
-                                                                "if": [
-                                                                    {"==": [{"var": "data.ISO20022_MX.document.TxInf.ChrgBr"}, "DEBT"]},
-                                                                    "OUR",
-                                                                    "SHA"
-                                                                ]
-                                                            }
-                                                        ]
-                                                    },
-                                                    "SHA"
+                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"},
+                                                    [
+                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"}
+                                                    ],
+                                                    ["NOTPROVIDED"]
                                                 ]
                                             },
-                                            ""
+                                            ["NOTAPPLICABLE"]
                                         ]
                                     }
                                 }
                             }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_payment_chain_institutions",
-            "name": "Map Payment Chain Institutions",
-            "description": "Maps return chain financial institutions including ordering institution (52A/D), intermediary (56A/D), and account with institution (57A/D) for payment routing",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
+                        },
                         {
-                            "path": "data.SwiftMT.fields",
+                            "path": "data.SwiftMT.fields.71A",
                             "logic": {
-                                "52A": {
-                                    "bic": {
-                                        "raw": {
-                                            "if": [
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"},
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"},
-                                                ""
-                                            ]
-                                        }
-                                    }
-                                },
-                                "52D": {
-                                    "name_and_address": {
-                                        "if": [
-                                            {"and": [
-                                                {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"}]},
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.Nm"}
-                                            ]},
-                                            [
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.Nm"}
-                                            ],
-                                            []
-                                        ]
-                                    }
-                                },
-                                "56A": {
-                                    "bic": {
-                                        "raw": {
-                                            "if": [
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.BICFI"},
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.BICFI"},
-                                                ""
-                                            ]
-                                        }
-                                    }
-                                },
-                                "56D": {
-                                    "name_and_address": {
-                                        "if": [
-                                            {"and": [
-                                                {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.BICFI"}]},
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.Nm"}
-                                            ]},
-                                            [
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.Nm"}
-                                            ],
-                                            []
-                                        ]
-                                    }
-                                },
-                                "57A": {
-                                    "bic": {
-                                        "raw": {
-                                            "if": [
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"},
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"},
-                                                ""
-                                            ]
-                                        }
-                                    }
-                                },
-                                "57D": {
-                                    "name_and_address": {
-                                        "if": [
-                                            {"and": [
-                                                {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"}]},
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.Nm"}
-                                            ]},
-                                            [
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.Nm"}
-                                            ],
-                                            []
-                                        ]
-                                    }
-                                },
-                                "72": {
-                                    "lines": {
-                                        "merge": [
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.OrgnlInstrId"},
-                                                    [
-                                                        {
-                                                            "cat": [
-                                                                "/MREF/",
-                                                                {"var": "data.ISO20022_MX.document.TxInf.OrgnlInstrId"}
-                                                            ]
-                                                        }
-                                                    ],
-                                                    []
-                                                ]
-                                            },
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"},
-                                                    [
-                                                        {
-                                                            "cat": [
-                                                                "/TREF/",
-                                                                {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"}
-                                                            ]
-                                                        }
-                                                    ],
-                                                    []
-                                                ]
-                                            },
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.Rsn.Cd"},
-                                                    [
-                                                        {
-                                                            "cat": [
-                                                                "/RTRN/",
-                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.Rsn.Cd"}
-                                                            ]
-                                                        }
-                                                    ],
-                                                    []
-                                                ]
-                                            },
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.AddtlInf"},
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.AddtlInf"},
-                                                    []
-                                                ]
-                                            }
-                                        ]
-                                    }
-                                }
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "finalize_return_message",
-            "name": "Finalize Return Message",
-            "description": "Maps return reason information to field 72 with structured prefixes and establishes field ordering sequence based on target message type",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.SwiftMT",
-                            "logic": {
-                                "field_order": {
+                                "value": {
                                     "if": [
                                         {"==": [{"var": "temp_data.target_message_type"}, "103"]},
-                                        [
-                                            "20",
-                                            "23B",
-                                            "32A",
-                                            "50K",
-                                            "50A",
-                                            "52A",
-                                            "52D",
-                                            "53B",
-                                            "56A",
-                                            "56D", 
-                                            "57A",
-                                            "57D",
-                                            "59",
-                                            "59A",
-                                            "70",
-                                            "71A",
-                                            "72"
-                                        ],
-                                        [
-                                            "20",
-                                            "21",
-                                            "32A",
-                                            "52A",
-                                            "52D",
-                                            "53B",
-                                            "56A",
-                                            "56D",
-                                            "57A",
-                                            "57D",
-                                            "58A",
-                                            "58D",
-                                            "72"
-                                        ]
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.TxInf.ChrgBr"},
+                                                {
+                                                    "if": [
+                                                        {"==": [{"var": "data.ISO20022_MX.document.TxInf.ChrgBr"}, "CRED"]},
+                                                        "BEN",
+                                                        {
+                                                            "if": [
+                                                                {"==": [{"var": "data.ISO20022_MX.document.TxInf.ChrgBr"}, "DEBT"]},
+                                                                "OUR",
+                                                                "SHA"
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                "SHA"
+                                            ]
+                                        },
+                                        "NOTAPPLICABLE"
                                     ]
                                 }
                             }
@@ -629,9 +304,522 @@
             }
         },
         {
-            "id": "generate_mt_return_message",
-            "name": "Generate MT Return Message",
-            "description": "Finalizes the transformation by generating the complete SWIFT MT103/MT202/MT205 RETN message with all headers, fields, and sequences in the correct format",
+            "id": "map_optional_21_field",
+            "name": "Map Optional Field 21",
+            "description": "Map field 21 for MT202/MT205 when applicable",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#21",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!=": [{"var": "temp_data.target_message_type"}, "103"]},
+                                        {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"}
+                                    ]},
+                                    {
+                                        "value": {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"}
+                                    },
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_optional_50a_field",
+            "name": "Map Optional Field 50A",
+            "description": "Map field 50A for MT202/MT205 when BIC is available",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.50A",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!=": [{"var": "temp_data.target_message_type"}, "103"]},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"}
+                                    ]},
+                                    {
+                                        "bic": {
+                                            "raw": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"}
+                                        }
+                                    },
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_optional_50d_field",
+            "name": "Map Optional Field 50D",
+            "description": "Map field 50D for MT202/MT205 when name is available but no BIC",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.50D",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!=": [{"var": "temp_data.target_message_type"}, "103"]},
+                                        {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"}]},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.Nm"}
+                                    ]},
+                                    {
+                                        "name_and_address": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.Nm"}
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_optional_58a_field",
+            "name": "Map Optional Field 58A",
+            "description": "Map field 58A for MT202/MT205 when BIC is available",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.58A",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!=": [{"var": "temp_data.target_message_type"}, "103"]},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"}
+                                    ]},
+                                    {
+                                        "bic": {
+                                            "raw": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"}
+                                        }
+                                    },
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_optional_58d_field",
+            "name": "Map Optional Field 58D",
+            "description": "Map field 58D for MT202/MT205 when name is available but no BIC",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.58D",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!=": [{"var": "temp_data.target_message_type"}, "103"]},
+                                        {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"}]},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.Nm"}
+                                    ]},
+                                    {
+                                        "name_and_address": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.Nm"}
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_optional_52a_field",
+            "name": "Map Optional Field 52A",
+            "description": "Map field 52A when BIC is available",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.52A",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"},
+                                    {
+                                        "bic": {
+                                            "raw": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"}
+                                        }
+                                    },
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_optional_52d_field",
+            "name": "Map Optional Field 52D",
+            "description": "Map field 52D when name is available but no BIC",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.52D",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"}]},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.Nm"}
+                                    ]},
+                                    {
+                                        "name_and_address": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.Nm"}
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_optional_56a_field",
+            "name": "Map Optional Field 56A",
+            "description": "Map field 56A when intermediary BIC is available",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.56A",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.BICFI"},
+                                    {
+                                        "bic": {
+                                            "raw": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.BICFI"}
+                                        }
+                                    },
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_optional_56d_field",
+            "name": "Map Optional Field 56D",
+            "description": "Map field 56D when intermediary name is available but no BIC",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.56D",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.BICFI"}]},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.Nm"}
+                                    ]},
+                                    {
+                                        "name_and_address": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.Nm"}
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_optional_57a_field",
+            "name": "Map Optional Field 57A",
+            "description": "Map field 57A when creditor agent BIC is available",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.57A",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"},
+                                    {
+                                        "bic": {
+                                            "raw": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"}
+                                        }
+                                    },
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_optional_57d_field",
+            "name": "Map Optional Field 57D",
+            "description": "Map field 57D when creditor agent name is available but no BIC",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.57D",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"}]},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.Nm"}
+                                    ]},
+                                    {
+                                        "name_and_address": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.Nm"}
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_72",
+            "name": "Map Field 72",
+            "description": "Map sender to receiver information field 72",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#72",
+                            "logic": {
+                                "lines": {
+                                    "merge": [
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.TxInf.OrgnlInstrId"},
+                                                [
+                                                    {"cat": ["/MREF/", {"var": "data.ISO20022_MX.document.TxInf.OrgnlInstrId"}]}
+                                                ],
+                                                []
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"},
+                                                [
+                                                    {"cat": ["/TREF/", {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"}]}
+                                                ],
+                                                []
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.Rsn.Cd"},
+                                                [
+                                                    {"cat": ["/RTRN/", {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.Rsn.Cd"}]}
+                                                ],
+                                                []
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.AddtlInf"},
+                                                {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.AddtlInf"},
+                                                []
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "generate_field_order",
+            "name": "Generate Field Order",
+            "description": "Generate the field order array based on target message type",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.field_order",
+                            "logic": {
+                                "if": [
+                                    {"==": [{"var": "temp_data.target_message_type"}, "103"]},
+                                    {"merge": [
+                                        ["20", "23B", "32A"],
+                                        {
+                                            "if": [
+                                                {"var": "data.SwiftMT.fields.50"},
+                                                ["50"],
+                                                []
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.SwiftMT.fields.52A"},
+                                                ["52A"],
+                                                {
+                                                    "if": [
+                                                        {"var": "data.SwiftMT.fields.52D"},
+                                                        ["52D"],
+                                                        []
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.SwiftMT.fields.56A"},
+                                                ["56A"],
+                                                {
+                                                    "if": [
+                                                        {"var": "data.SwiftMT.fields.56D"},
+                                                        ["56D"],
+                                                        []
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.SwiftMT.fields.57A"},
+                                                ["57A"],
+                                                {
+                                                    "if": [
+                                                        {"var": "data.SwiftMT.fields.57D"},
+                                                        ["57D"],
+                                                        []
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        ["59", "71A"],
+                                        ["72"]
+                                    ]},
+                                    {"merge": [
+                                        ["20"],
+                                        {
+                                            "if": [
+                                                {"var": "data.SwiftMT.fields.21"},
+                                                ["21"],
+                                                []
+                                            ]
+                                        },
+                                        ["32A"],
+                                        {
+                                            "if": [
+                                                {"var": "data.SwiftMT.fields.50A"},
+                                                ["50A"],
+                                                {
+                                                    "if": [
+                                                        {"var": "data.SwiftMT.fields.50D"},
+                                                        ["50D"],
+                                                        []
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.SwiftMT.fields.52A"},
+                                                ["52A"],
+                                                {
+                                                    "if": [
+                                                        {"var": "data.SwiftMT.fields.52D"},
+                                                        ["52D"],
+                                                        []
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.SwiftMT.fields.56A"},
+                                                ["56A"],
+                                                {
+                                                    "if": [
+                                                        {"var": "data.SwiftMT.fields.56D"},
+                                                        ["56D"],
+                                                        []
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.SwiftMT.fields.57A"},
+                                                ["57A"],
+                                                {
+                                                    "if": [
+                                                        {"var": "data.SwiftMT.fields.57D"},
+                                                        ["57D"],
+                                                        []
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.SwiftMT.fields.58A"},
+                                                ["58A"],
+                                                {
+                                                    "if": [
+                                                        {"var": "data.SwiftMT.fields.58D"},
+                                                        ["58D"],
+                                                        []
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        ["72"]
+                                    ]}
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "publish_mt_return",
+            "name": "Publish MT Return Message",
+            "description": "Generate the complete SWIFT MT103/MT202/MT205 RETN message",
             "function": {
                 "name": "PublishMT",
                 "input": {

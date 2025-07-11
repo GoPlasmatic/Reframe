@@ -24,10 +24,12 @@ import {
   IconExclamationMark,
   IconCopy,
   IconBrandGithub,
+  IconSettings,
 } from '@tabler/icons-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { FORWARD_TRANSFORMATIONS, REVERSE_TRANSFORMATIONS } from './transformationSamples';
+import MTSampleGenerator from './MTSampleGenerator';
 
 // API Configuration - using relative URL since we're serving from the same origin
 const API_ENDPOINTS = {
@@ -330,6 +332,16 @@ function App() {
               >
                 Reverse (MX → MT)
               </Tabs.Tab>
+              <Tabs.Tab 
+                value="generator" 
+                leftSection={<IconSettings size={16} />}
+                style={{ 
+                  color: activeTab === 'generator' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  borderColor: activeTab === 'generator' ? 'var(--plasmatic-emerald)' : 'transparent'
+                }}
+              >
+                MT Sample Generator
+              </Tabs.Tab>
             </Tabs.List>
 
             <Tabs.Panel value="forward" pt="md">
@@ -349,10 +361,22 @@ function App() {
                 </div>
               </div>
             </Tabs.Panel>
+
+            <Tabs.Panel value="generator" pt="md">
+              <div className="plasmatic-alert info">
+                <IconSettings size={16} style={{ color: 'var(--plasmatic-blue-green)' }} />
+                <div>
+                  <strong>MT Sample Generator v2.3.4:</strong> Generate realistic SWIFT MT messages with enhanced BIC codes, company names, and addresses from major financial centers
+                </div>
+              </div>
+            </Tabs.Panel>
           </Tabs>
 
           {/* Main Content Grid */}
-          <Grid style={{ flex: 1, height: 'calc(100vh - 280px)' }}>
+          {activeTab === 'generator' ? (
+            <MTSampleGenerator />
+          ) : (
+            <Grid style={{ flex: 1, height: 'calc(100vh - 280px)' }}>
             {/* Input Panel */}
             <Grid.Col span={{ base: 12, md: 6 }} style={{ height: '100%' }}>
               <Card className="plasmatic-card plasmatic-card-detailed" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -594,6 +618,7 @@ function App() {
               </Card>
             </Grid.Col>
           </Grid>
+          )}
 
           {/* Footer */}
           <Paper className="plasmatic-card" style={{ backgroundColor: 'var(--bg-secondary)', marginTop: 'auto' }}>

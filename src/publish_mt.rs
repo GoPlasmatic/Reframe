@@ -8,7 +8,9 @@ use dataflow_rs::engine::{
 };
 use serde_json::Value;
 use swift_mt_message::SwiftMessage;
-use swift_mt_message::messages::{MT103, MT110, MT111, MT112, MT199, MT202, MT205, MT940, MT942};
+use swift_mt_message::messages::{
+    MT103, MT110, MT111, MT112, MT199, MT202, MT205, MT299, MT940, MT942,
+};
 use tracing::{debug, error, instrument};
 
 pub struct PublishMT;
@@ -122,12 +124,24 @@ impl AsyncFunctionHandler for PublishMT {
 
             debug!(target_message_type = %target_message_type, "Processing pacs.002 to MT199/MT299 transformation");
 
-            // Both MT199 and MT299 use the same structure, so we can use MT199 for both
-            let data: SwiftMessage<MT199> = serde_json::from_str(&json_str).map_err(|e| {
-                error!(error = ?e, target_message_type = %target_message_type, "Failed to parse JSON string for pacs.002");
-                DataflowError::Validation(format!("Failed to parse JSON string for pacs.002 (target: {target_message_type}): {e}"))
-            })?;
-            data.to_mt_message()
+            if target_message_type == "199" {
+                let data: SwiftMessage<MT199> = serde_json::from_str(&json_str).map_err(|e| {
+                    error!(error = ?e, target_message_type = %target_message_type, "Failed to parse JSON string for pacs.002 MT199");
+                    DataflowError::Validation(format!("Failed to parse JSON string for pacs.002 MT199: {e}"))
+                })?;
+                data.to_mt_message()
+            } else if target_message_type == "299" {
+                let data: SwiftMessage<MT299> = serde_json::from_str(&json_str).map_err(|e| {
+                    error!(error = ?e, target_message_type = %target_message_type, "Failed to parse JSON string for pacs.002 MT299");
+                    DataflowError::Validation(format!("Failed to parse JSON string for pacs.002 MT299: {e}"))
+                })?;
+                data.to_mt_message()
+            } else {
+                error!(target_message_type = %target_message_type, "Invalid target message type for pacs.002");
+                return Err(DataflowError::Validation(format!(
+                    "Invalid target message type for pacs.002: {target_message_type}"
+                )));
+            }
         } else if source_format == "camt.107.001.01" {
             debug!("Processing camt.107 to MT110 transformation");
 

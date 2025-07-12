@@ -38,7 +38,11 @@ impl AsyncFunctionHandler for ParseMX {
                 .data
                 .get(input_field_name)
                 .and_then(Value::as_str)
-                .unwrap_or("")
+                .ok_or_else(|| {
+                    DataflowError::Validation(format!(
+                        "Field {input_field_name} not found or not a string in message data for MX parsing"
+                    ))
+                })?
                 .to_string()
         };
 
@@ -51,11 +55,19 @@ impl AsyncFunctionHandler for ParseMX {
         let message_type = Self::extract_message_type(document_xmlns, app_hdr_content.clone())?;
         info!("Message type: {:?}", message_type);
 
-        let header = Self::parse_header(&message_type, &app_hdr_content.unwrap_or("".to_string()))
-            .unwrap_or(Value::Null);
-        let document =
-            Self::parse_document(&message_type, &document_content.unwrap_or("".to_string()))
-                .unwrap_or(Value::Null);
+        let app_hdr_content = app_hdr_content.ok_or_else(|| {
+            DataflowError::Validation(
+                "Failed to extract application header content from MX message".to_string(),
+            )
+        })?;
+        let document_content = document_content.ok_or_else(|| {
+            DataflowError::Validation(
+                "Failed to extract document content from MX message".to_string(),
+            )
+        })?;
+
+        let header = Self::parse_header(&message_type, &app_hdr_content)?;
+        let document = Self::parse_document(&message_type, &document_content)?;
 
         let parsed_result = json!({
             "header": header,

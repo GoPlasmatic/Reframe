@@ -146,9 +146,13 @@ class ReframeAPITester:
                     
                     # Check if transformation was successful based on success field and transformed_message
                     if not response_data.get("success", False):
-                        result["error"] = "Transformation failed (success=false)"
+                        # Use specific error details from API if available
+                        if "errors" in response_data and response_data["errors"]:
+                            result["error"] = "; ".join(response_data["errors"])
+                        else:
+                            result["error"] = "Transformation failed (success=false)"
                         result["success"] = False
-                        self.log_detail(f"Error: Transformation failed")
+                        self.log_detail(f"Error: {result['error']}")
                     else:
                         transformed_message = response_data.get("transformed_message")
                         if transformed_message is None or transformed_message == []:
@@ -233,14 +237,33 @@ class ReframeAPITester:
                     else:
                         self.log_detail(f"No debug_info in response. Keys: {list(response_data.keys())}")
                     
-                    # Check if transformed_message is null or empty array
-                    transformed_message = response_data.get("transformed_message")
-                    if transformed_message is None or transformed_message == []:
-                        result["error"] = "Transformation returned empty or null result"
+                    # Store errors and warnings if present
+                    if "errors" in response_data and response_data["errors"]:
+                        result["errors"] = response_data["errors"]
+                        self.log_detail(f"Errors found: {response_data['errors']}")
+                    
+                    if "warnings" in response_data and response_data["warnings"]:
+                        result["warnings"] = response_data["warnings"]
+                        self.log_detail(f"Warnings found: {response_data['warnings']}")
+                    
+                    # Check if transformation was successful based on success field and transformed_message
+                    if not response_data.get("success", False):
+                        # Use specific error details from API if available
+                        if "errors" in response_data and response_data["errors"]:
+                            result["error"] = "; ".join(response_data["errors"])
+                        else:
+                            result["error"] = "Transformation failed (success=false)"
                         result["success"] = False
-                        self.log_detail(f"Error: Empty or null transformed_message")
+                        self.log_detail(f"Error: {result['error']}")
                     else:
-                        self.log_detail(f"Success: Transformed to {result['mt_message_type']}")
+                        # Check if transformed_message is null or empty array
+                        transformed_message = response_data.get("transformed_message")
+                        if transformed_message is None or transformed_message == []:
+                            result["error"] = "Transformation returned empty or null result"
+                            result["success"] = False
+                            self.log_detail(f"Error: Empty or null transformed_message")
+                        else:
+                            self.log_detail(f"Success: Transformed to {result['mt_message_type']}")
                 except json.JSONDecodeError:
                     result["error"] = "Invalid JSON response"
                     result["success"] = False

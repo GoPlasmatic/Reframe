@@ -240,69 +240,169 @@ fn handle_mt_to_mx_document(
         "103" => {
             if message_method == "reject" {
                 serialize_mt_to_mx_document::<pacs_002_001_10::FIToFIPaymentStatusReportV10>(
-                    data.get("FIToFIPmtStsRpt").unwrap().clone(),
+                    data.get("FIToFIPmtStsRpt")
+                        .ok_or_else(|| {
+                            DataflowError::Validation(
+                                "Missing FIToFIPmtStsRpt field for MT103 reject".to_string(),
+                            )
+                        })?
+                        .clone(),
                 )?
             } else if message_method == "return" {
                 serialize_mt_to_mx_document::<pacs_004_001_09::PaymentReturnV09>(
-                    data.get("PmtRtr").unwrap().clone(),
+                    data.get("PmtRtr")
+                        .ok_or_else(|| {
+                            DataflowError::Validation(
+                                "Missing PmtRtr field for MT103 return".to_string(),
+                            )
+                        })?
+                        .clone(),
                 )?
             } else if message_method == "stp" {
                 serialize_mt_to_mx_document::<pacs_008_001_08_stp::FIToFICustomerCreditTransferV08>(
-                    data.get("FIToFICstmrCdtTrf").unwrap().clone(),
+                    data.get("FIToFICstmrCdtTrf")
+                        .ok_or_else(|| {
+                            DataflowError::Validation(
+                                "Missing FIToFICstmrCdtTrf field for MT103 STP".to_string(),
+                            )
+                        })?
+                        .clone(),
                 )?
             } else {
                 serialize_mt_to_mx_document::<pacs_008_001_08::FIToFICustomerCreditTransferV08>(
-                    data.get("FIToFICstmrCdtTrf").unwrap().clone(),
+                    data.get("FIToFICstmrCdtTrf")
+                        .ok_or_else(|| {
+                            DataflowError::Validation(
+                                "Missing FIToFICstmrCdtTrf field for MT103".to_string(),
+                            )
+                        })?
+                        .clone(),
                 )?
             }
         }
         "202" => {
             if message_method == "reject" {
                 serialize_mt_to_mx_document::<pacs_002_001_10::FIToFIPaymentStatusReportV10>(
-                    data.get("FIToFIPmtStsRpt").unwrap().clone(),
+                    data.get("FIToFIPmtStsRpt")
+                        .ok_or_else(|| {
+                            DataflowError::Validation(
+                                "Missing FIToFIPmtStsRpt field for MT202 reject".to_string(),
+                            )
+                        })?
+                        .clone(),
                 )?
             } else if message_method == "return" {
                 serialize_mt_to_mx_document::<pacs_004_001_09::PaymentReturnV09>(
-                    data.get("PmtRtr").unwrap().clone(),
+                    data.get("PmtRtr")
+                        .ok_or_else(|| {
+                            DataflowError::Validation(
+                                "Missing PmtRtr field for MT202 return".to_string(),
+                            )
+                        })?
+                        .clone(),
                 )?
             } else if message_method == "cover" {
                 serialize_mt_to_mx_document::<
                     pacs_009_001_08_cov::FinancialInstitutionCreditTransferV08,
-                >(data.get("FIToFICdtTrf").unwrap().clone())?
+                >(
+                    data.get("FIToFICdtTrf")
+                        .ok_or_else(|| {
+                            DataflowError::Validation(
+                                "Missing FIToFICdtTrf field for MT202 cover".to_string(),
+                            )
+                        })?
+                        .clone(),
+                )?
             } else {
                 serialize_mt_to_mx_document::<pacs_009_001_08::FinancialInstitutionCreditTransferV08>(
-                    data.get("FIToFICdtTrf").unwrap().clone(),
+                    data.get("FIToFICdtTrf")
+                        .ok_or_else(|| {
+                            DataflowError::Validation(
+                                "Missing FIToFICdtTrf field for MT202".to_string(),
+                            )
+                        })?
+                        .clone(),
                 )?
             }
         }
         "205" => {
             if message_method == "reject" {
                 serialize_mt_to_mx_document::<pacs_002_001_10::FIToFIPaymentStatusReportV10>(
-                    data.get("FIToFIPmtStsRpt").unwrap().clone(),
+                    data.get("FIToFIPmtStsRpt")
+                        .ok_or_else(|| {
+                            DataflowError::Validation(
+                                "Missing FIToFIPmtStsRpt field for MT205 reject".to_string(),
+                            )
+                        })?
+                        .clone(),
                 )?
             } else if message_method == "return" {
                 serialize_mt_to_mx_document::<pacs_004_001_09::PaymentReturnV09>(
-                    data.get("PmtRtr").unwrap().clone(),
+                    data.get("PmtRtr")
+                        .ok_or_else(|| {
+                            DataflowError::Validation(
+                                "Missing PmtRtr field for MT205 return".to_string(),
+                            )
+                        })?
+                        .clone(),
                 )?
             } else if message_method == "cover" {
                 serialize_mt_to_mx_document::<
                     pacs_009_001_08_cov::FinancialInstitutionCreditTransferV08,
-                >(data.get("FIToFICdtTrf").unwrap().clone())?
+                >(
+                    data.get("FIToFICdtTrf")
+                        .ok_or_else(|| {
+                            DataflowError::Validation(
+                                "Missing FIToFICdtTrf field for MT205 cover".to_string(),
+                            )
+                        })?
+                        .clone(),
+                )?
             } else {
                 serialize_mt_to_mx_document::<pacs_009_001_08::FinancialInstitutionCreditTransferV08>(
-                    data.get("FIToFICdtTrf").unwrap().clone(),
+                    data.get("FIToFICdtTrf")
+                        .ok_or_else(|| {
+                            DataflowError::Validation(
+                                "Missing FIToFICdtTrf field for MT205".to_string(),
+                            )
+                        })?
+                        .clone(),
                 )?
             }
         }
-        "900" | "910" => serialize_mt_to_mx_document::<
-            camt_054_001_08::BankToCustomerDebitCreditNotificationV08,
-        >(data.get("BkToCstmrDbtCdtNtfctn").unwrap().clone())?,
-        "192" | "292" => serialize_mt_to_mx_document::<
-            camt_056_001_08::FIToFIPaymentCancellationRequestV08,
-        >(data.get("FIToFIPmtCxlReq").unwrap().clone())?,
-        "196" | "296" => serialize_mt_to_mx_document::<
-            camt_029_001_09::ResolutionOfInvestigationV09,
-        >(data.get("RsltnOfInvstgtn").unwrap().clone())?,
+        "900" | "910" => {
+            serialize_mt_to_mx_document::<camt_054_001_08::BankToCustomerDebitCreditNotificationV08>(
+                data.get("BkToCstmrDbtCdtNtfctn")
+                    .ok_or_else(|| {
+                        DataflowError::Validation(
+                            "Missing BkToCstmrDbtCdtNtfctn field for MT900/910".to_string(),
+                        )
+                    })?
+                    .clone(),
+            )?
+        }
+        "192" | "292" => {
+            serialize_mt_to_mx_document::<camt_056_001_08::FIToFIPaymentCancellationRequestV08>(
+                data.get("FIToFIPmtCxlReq")
+                    .ok_or_else(|| {
+                        DataflowError::Validation(
+                            "Missing FIToFIPmtCxlReq field for MT192/292".to_string(),
+                        )
+                    })?
+                    .clone(),
+            )?
+        }
+        "196" | "296" => {
+            serialize_mt_to_mx_document::<camt_029_001_09::ResolutionOfInvestigationV09>(
+                data.get("RsltnOfInvstgtn")
+                    .ok_or_else(|| {
+                        DataflowError::Validation(
+                            "Missing RsltnOfInvstgtn field for MT196/296".to_string(),
+                        )
+                    })?
+                    .clone(),
+            )?
+        }
         _ => {
             error!("Invalid message type: {}", message_type);
             return Err(DataflowError::Validation(format!(

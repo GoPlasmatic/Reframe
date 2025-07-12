@@ -7,7 +7,7 @@ use dataflow_rs::engine::{
 };
 use serde_json::{Value, json};
 use swift_mt_message::SwiftParser;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, info, instrument};
 
 pub struct ParseMT;
 
@@ -88,20 +88,10 @@ impl ParseMT {
 
             debug!(method = %method, "Determined MT103 processing method");
 
-            match serde_json::to_value(&mt103_message) {
-                Ok(json_value) => {
-                    debug!("MT103 JSON conversion successful");
-                    json_value
-                }
-                Err(e) => {
-                    error!(error = ?e, "MT103 JSON conversion failed");
-                    json!({
-                        "conversion_error": format!("{:?}", e),
-                        "message_type": message_type,
-                        "raw_payload": payload
-                    })
-                }
-            }
+            serde_json::to_value(&mt103_message).map_err(|e| {
+                error!(error = ?e, "MT103 JSON conversion failed");
+                DataflowError::Validation(format!("MT103 JSON conversion failed: {e}"))
+            })?
         } else if message_type == "202" {
             let Some(mt202_message) = parsed_message.into_mt202() else {
                 error!("Failed to convert SwiftMessage to MT202");
@@ -122,20 +112,10 @@ impl ParseMT {
 
             debug!(method = %method, "Determined MT202 processing method");
 
-            match serde_json::to_value(&mt202_message) {
-                Ok(json_value) => {
-                    debug!("MT202 JSON conversion successful");
-                    json_value
-                }
-                Err(e) => {
-                    error!(error = ?e, "MT202 JSON conversion failed");
-                    json!({
-                        "conversion_error": format!("{:?}", e),
-                        "message_type": message_type,
-                        "raw_payload": payload
-                    })
-                }
-            }
+            serde_json::to_value(&mt202_message).map_err(|e| {
+                error!(error = ?e, "MT202 JSON conversion failed");
+                DataflowError::Validation(format!("MT202 JSON conversion failed: {e}"))
+            })?
         } else if message_type == "205" {
             let Some(mt205_message) = parsed_message.into_mt205() else {
                 error!("Failed to convert SwiftMessage to MT205");
@@ -156,20 +136,10 @@ impl ParseMT {
 
             debug!(method = %method, "Determined MT205 processing method");
 
-            match serde_json::to_value(&mt205_message) {
-                Ok(json_value) => {
-                    debug!("MT205 JSON conversion successful");
-                    json_value
-                }
-                Err(e) => {
-                    error!(error = ?e, "MT205 JSON conversion failed");
-                    json!({
-                        "conversion_error": format!("{:?}", e),
-                        "message_type": message_type,
-                        "raw_payload": payload
-                    })
-                }
-            }
+            serde_json::to_value(&mt205_message).map_err(|e| {
+                error!(error = ?e, "MT205 JSON conversion failed");
+                DataflowError::Validation(format!("MT205 JSON conversion failed: {e}"))
+            })?
         } else if message_type == "900" {
             let Some(mt900_message) = parsed_message.into_mt900() else {
                 error!("Failed to convert SwiftMessage to MT900");
@@ -181,20 +151,10 @@ impl ParseMT {
             method = "normal".to_string();
             debug!("Processing MT900 with normal method");
 
-            match serde_json::to_value(&mt900_message) {
-                Ok(json_value) => {
-                    debug!("MT900 JSON conversion successful");
-                    json_value
-                }
-                Err(e) => {
-                    error!(error = ?e, "MT900 JSON conversion failed");
-                    json!({
-                        "conversion_error": format!("{:?}", e),
-                        "message_type": message_type,
-                        "raw_payload": payload
-                    })
-                }
-            }
+            serde_json::to_value(&mt900_message).map_err(|e| {
+                error!(error = ?e, "MT900 JSON conversion failed");
+                DataflowError::Validation(format!("MT900 JSON conversion failed: {e}"))
+            })?
         } else if message_type == "910" {
             let Some(mt910_message) = parsed_message.into_mt910() else {
                 error!("Failed to convert SwiftMessage to MT910");
@@ -206,20 +166,10 @@ impl ParseMT {
             method = "normal".to_string();
             debug!("Processing MT910 with normal method");
 
-            match serde_json::to_value(&mt910_message) {
-                Ok(json_value) => {
-                    debug!("MT910 JSON conversion successful");
-                    json_value
-                }
-                Err(e) => {
-                    error!(error = ?e, "MT910 JSON conversion failed");
-                    json!({
-                        "conversion_error": format!("{:?}", e),
-                        "message_type": message_type,
-                        "raw_payload": payload
-                    })
-                }
-            }
+            serde_json::to_value(&mt910_message).map_err(|e| {
+                error!(error = ?e, "MT910 JSON conversion failed");
+                DataflowError::Validation(format!("MT910 JSON conversion failed: {e}"))
+            })?
         } else if message_type == "192" {
             let Some(mt192_message) = parsed_message.into_mt192() else {
                 error!("Failed to convert SwiftMessage to MT192");
@@ -231,20 +181,10 @@ impl ParseMT {
             method = "normal".to_string();
             debug!("Processing MT192 with normal method");
 
-            match serde_json::to_value(&mt192_message) {
-                Ok(json_value) => {
-                    debug!("MT192 JSON conversion successful");
-                    json_value
-                }
-                Err(e) => {
-                    error!(error = ?e, "MT192 JSON conversion failed");
-                    json!({
-                        "conversion_error": format!("{:?}", e),
-                        "message_type": message_type,
-                        "raw_payload": payload
-                    })
-                }
-            }
+            serde_json::to_value(&mt192_message).map_err(|e| {
+                error!(error = ?e, "MT192 JSON conversion failed");
+                DataflowError::Validation(format!("MT192 JSON conversion failed: {e}"))
+            })?
         } else if message_type == "292" {
             let Some(mt292_message) = parsed_message.into_mt292() else {
                 error!("Failed to convert SwiftMessage to MT292");
@@ -256,20 +196,10 @@ impl ParseMT {
             method = "normal".to_string();
             debug!("Processing MT292 with normal method");
 
-            match serde_json::to_value(&mt292_message) {
-                Ok(json_value) => {
-                    debug!("MT292 JSON conversion successful");
-                    json_value
-                }
-                Err(e) => {
-                    error!(error = ?e, "MT292 JSON conversion failed");
-                    json!({
-                        "conversion_error": format!("{:?}", e),
-                        "message_type": message_type,
-                        "raw_payload": payload
-                    })
-                }
-            }
+            serde_json::to_value(&mt292_message).map_err(|e| {
+                error!(error = ?e, "MT292 JSON conversion failed");
+                DataflowError::Validation(format!("MT292 JSON conversion failed: {e}"))
+            })?
         } else if message_type == "196" {
             let Some(mt196_message) = parsed_message.into_mt196() else {
                 error!("Failed to convert SwiftMessage to MT196");
@@ -281,20 +211,10 @@ impl ParseMT {
             method = "normal".to_string();
             debug!("Processing MT196 with normal method");
 
-            match serde_json::to_value(&mt196_message) {
-                Ok(json_value) => {
-                    debug!("MT196 JSON conversion successful");
-                    json_value
-                }
-                Err(e) => {
-                    error!(error = ?e, "MT196 JSON conversion failed");
-                    json!({
-                        "conversion_error": format!("{:?}", e),
-                        "message_type": message_type,
-                        "raw_payload": payload
-                    })
-                }
-            }
+            serde_json::to_value(&mt196_message).map_err(|e| {
+                error!(error = ?e, "MT196 JSON conversion failed");
+                DataflowError::Validation(format!("MT196 JSON conversion failed: {e}"))
+            })?
         } else if message_type == "296" {
             let Some(mt296_message) = parsed_message.into_mt296() else {
                 error!("Failed to convert SwiftMessage to MT296");
@@ -306,28 +226,15 @@ impl ParseMT {
             method = "normal".to_string();
             debug!("Processing MT296 with normal method");
 
-            match serde_json::to_value(&mt296_message) {
-                Ok(json_value) => {
-                    debug!("MT296 JSON conversion successful");
-                    json_value
-                }
-                Err(e) => {
-                    error!(error = ?e, "MT296 JSON conversion failed");
-                    json!({
-                        "conversion_error": format!("{:?}", e),
-                        "message_type": message_type,
-                        "raw_payload": payload
-                    })
-                }
-            }
+            serde_json::to_value(&mt296_message).map_err(|e| {
+                error!(error = ?e, "MT296 JSON conversion failed");
+                DataflowError::Validation(format!("MT296 JSON conversion failed: {e}"))
+            })?
         } else {
-            method = "normal".to_string();
-            warn!(message_type = %message_type, "Unsupported message type encountered");
-            json!({
-                "conversion_error": "Unsupported message type",
-                "message_type": message_type,
-                "raw_payload": payload
-            })
+            error!(message_type = %message_type, "Unsupported message type encountered");
+            return Err(DataflowError::Validation(format!(
+                "Unsupported message type: {message_type}"
+            )));
         };
 
         // Store the parsed result in message data

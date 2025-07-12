@@ -1,7 +1,9 @@
 use axum::{Json, extract::State, http::StatusCode};
 use dataflow_rs::engine::message::Message;
+use quick_xml::Reader;
 use serde_json::Value;
 use std::time::Instant;
+use swift_mt_message::SwiftParser;
 use tracing::{debug, error, info, instrument};
 
 use crate::sample_generator::{generate_mt_from_config, is_supported_message_type};
@@ -9,6 +11,83 @@ use crate::types::{
     AppState, DebugInfo, EngineStatus, HealthResponse, SampleGenerationRequest,
     TransformationRequest, TransformationResponse,
 };
+
+/// Validates that the given string is well-formed XML
+fn validate_xml_well_formed(xml_content: &str) -> Result<(), String> {
+    if xml_content.trim().is_empty() {
+        return Err("XML content is empty".to_string());
+    }
+
+    let mut reader = Reader::from_str(xml_content);
+    reader.config_mut().trim_text(true);
+
+    let mut buf = Vec::new();
+
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(quick_xml::events::Event::Eof) => break,
+            Ok(_) => {}
+            Err(e) => {
+                return Err(format!("XML parsing error: {e}"));
+            }
+        }
+        buf.clear();
+    }
+
+    Ok(())
+}
+
+/// Validates that the given string is a well-formed SWIFT MT message
+fn validate_mt_well_formed(mt_content: &str) -> Result<(), String> {
+    if mt_content.trim().is_empty() {
+        return Err("MT content is empty".to_string());
+    }
+
+    // Normalize line endings - convert \n to \r\n if needed for SWIFT format
+    let normalized_content = if mt_content.contains("\r\n") {
+        mt_content.to_string()
+    } else {
+        mt_content.replace('\n', "\r\n")
+    };
+
+    match SwiftParser::parse_auto(&normalized_content) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("SWIFT MT parsing error: {e:?}")),
+    }
+}
+
+/// Extracts workflow errors from the message object
+fn extract_workflow_errors(message: &Message) -> Vec<String> {
+    let mut errors = Vec::new();
+
+    // Check for errors in the message's error array
+    if !message.errors.is_empty() {
+        for error in &message.errors {
+            let error_msg = &error.error_message;
+            // Clean up the error message to make it more user-friendly
+            let clean_error = if error_msg.starts_with("Validation error: ") {
+                error_msg
+                    .strip_prefix("Validation error: ")
+                    .unwrap_or(error_msg)
+            } else {
+                error_msg
+            };
+
+            // Further clean up SwiftMT parser errors
+            let clean_error = if clean_error.starts_with("SwiftMT parser error: ") {
+                clean_error
+                    .strip_prefix("SwiftMT parser error: ")
+                    .unwrap_or(clean_error)
+            } else {
+                clean_error
+            };
+
+            errors.push(clean_error.to_string());
+        }
+    }
+
+    errors
+}
 
 // New endpoint handlers
 #[instrument(skip(state, request), fields(message_length = request.message.len()))]
@@ -39,24 +118,192 @@ pub async fn transform_mt_to_mx(
                 processing_time
             );
 
-            Ok(Json(TransformationResponse {
-                success: true,
-                transformed_message: Some(
-                    message.data.get("result").unwrap_or(&Value::Null).clone(),
-                ),
-                debug_info: if request.options.include_debug {
-                    let message_json = serde_json::to_value(message).unwrap();
-                    Some(DebugInfo {
-                        engine_state: "forward".to_string(),
-                        workflow_execution: vec!["Completed".to_string()],
-                        intermediate_data: message_json,
-                    })
-                } else {
-                    None
-                },
-                errors: Vec::new(),
-                warnings: Vec::new(),
-            }))
+            // Check for validation/processing errors even if engine returned Ok
+            let workflow_errors = extract_workflow_errors(&message);
+            if !workflow_errors.is_empty() {
+                error!(
+                    "❌ MT to MX transformation failed with validation errors: {:?}",
+                    workflow_errors
+                );
+                return Ok(Json(TransformationResponse {
+                    success: false,
+                    transformed_message: None,
+                    debug_info: if request.options.include_debug {
+                        let message_json = serde_json::to_value(&message).unwrap();
+                        Some(DebugInfo {
+                            engine_state: "forward".to_string(),
+                            workflow_execution: vec!["Failed - Validation errors".to_string()],
+                            intermediate_data: message_json,
+                        })
+                    } else {
+                        None
+                    },
+                    errors: workflow_errors,
+                    warnings: Vec::new(),
+                }));
+            }
+
+            // Validate that the transformation actually produced a result
+            match message.data.get("result") {
+                Some(result) if !result.is_null() => {
+                    // Handle both string and array results (MT to MX can produce multiple messages)
+                    match result {
+                        Value::String(s) if !s.trim().is_empty() => {
+                            // Single string result - validate XML
+                            match validate_xml_well_formed(s) {
+                                Ok(()) => Ok(Json(TransformationResponse {
+                                    success: true,
+                                    transformed_message: Some(result.clone()),
+                                    debug_info: if request.options.include_debug {
+                                        let message_json = serde_json::to_value(&message).unwrap();
+                                        Some(DebugInfo {
+                                            engine_state: "forward".to_string(),
+                                            workflow_execution: vec!["Completed".to_string()],
+                                            intermediate_data: message_json,
+                                        })
+                                    } else {
+                                        None
+                                    },
+                                    errors: Vec::new(),
+                                    warnings: Vec::new(),
+                                })),
+                                Err(xml_error) => {
+                                    error!(
+                                        "❌ MT to MX transformation produced malformed XML: {}",
+                                        xml_error
+                                    );
+                                    Ok(Json(TransformationResponse {
+                                        success: false,
+                                        transformed_message: None,
+                                        debug_info: if request.options.include_debug {
+                                            let message_json =
+                                                serde_json::to_value(&message).unwrap();
+                                            Some(DebugInfo {
+                                                engine_state: "forward".to_string(),
+                                                workflow_execution: vec![
+                                                    "Failed - Malformed XML output".to_string(),
+                                                ],
+                                                intermediate_data: message_json,
+                                            })
+                                        } else {
+                                            None
+                                        },
+                                        errors: vec![format!(
+                                            "Transformation produced malformed XML: {}",
+                                            xml_error
+                                        )],
+                                        warnings: Vec::new(),
+                                    }))
+                                }
+                            }
+                        }
+                        Value::Array(arr) if !arr.is_empty() => {
+                            // Multiple results - validate each XML message
+                            let mut errors = Vec::new();
+                            for (i, item) in arr.iter().enumerate() {
+                                if let Some(xml_str) = item.as_str() {
+                                    if let Err(xml_error) = validate_xml_well_formed(xml_str) {
+                                        errors.push(format!("Message {}: {}", i + 1, xml_error));
+                                    }
+                                } else {
+                                    errors.push(format!("Message {}: Not a valid string", i + 1));
+                                }
+                            }
+
+                            if errors.is_empty() {
+                                Ok(Json(TransformationResponse {
+                                    success: true,
+                                    transformed_message: Some(result.clone()),
+                                    debug_info: if request.options.include_debug {
+                                        let message_json = serde_json::to_value(&message).unwrap();
+                                        Some(DebugInfo {
+                                            engine_state: "forward".to_string(),
+                                            workflow_execution: vec![format!(
+                                                "Completed - {} messages generated",
+                                                arr.len()
+                                            )],
+                                            intermediate_data: message_json,
+                                        })
+                                    } else {
+                                        None
+                                    },
+                                    errors: Vec::new(),
+                                    warnings: Vec::new(),
+                                }))
+                            } else {
+                                error!(
+                                    "❌ MT to MX transformation produced malformed XML in multiple messages: {:?}",
+                                    errors
+                                );
+                                Ok(Json(TransformationResponse {
+                                    success: false,
+                                    transformed_message: None,
+                                    debug_info: if request.options.include_debug {
+                                        let message_json = serde_json::to_value(&message).unwrap();
+                                        Some(DebugInfo {
+                                            engine_state: "forward".to_string(),
+                                            workflow_execution: vec![format!(
+                                                "Failed - XML validation errors in {} messages",
+                                                errors.len()
+                                            )],
+                                            intermediate_data: message_json,
+                                        })
+                                    } else {
+                                        None
+                                    },
+                                    errors,
+                                    warnings: Vec::new(),
+                                }))
+                            }
+                        }
+                        _ => {
+                            error!("❌ MT to MX transformation produced empty or invalid result");
+                            Ok(Json(TransformationResponse {
+                                success: false,
+                                transformed_message: None,
+                                debug_info: if request.options.include_debug {
+                                    let message_json = serde_json::to_value(message).unwrap();
+                                    Some(DebugInfo {
+                                        engine_state: "forward".to_string(),
+                                        workflow_execution: vec![
+                                            "Failed - Empty or invalid result".to_string(),
+                                        ],
+                                        intermediate_data: message_json,
+                                    })
+                                } else {
+                                    None
+                                },
+                                errors: vec![
+                                    "Transformation completed but produced empty or invalid result"
+                                        .to_string(),
+                                ],
+                                warnings: Vec::new(),
+                            }))
+                        }
+                    }
+                }
+                _ => {
+                    error!("❌ MT to MX transformation completed but no valid result found");
+                    Ok(Json(TransformationResponse {
+                        success: false,
+                        transformed_message: None,
+                        debug_info: if request.options.include_debug {
+                            let message_json = serde_json::to_value(message).unwrap();
+                            Some(DebugInfo {
+                                engine_state: "forward".to_string(),
+                                workflow_execution: vec!["Failed - No result produced".to_string()],
+                                intermediate_data: message_json,
+                            })
+                        } else {
+                            None
+                        },
+                        errors: vec![
+                            "Transformation completed but no valid result was produced".to_string(),
+                        ],
+                        warnings: Vec::new(),
+                    }))
+                }
+            }
         }
         Err(e) => {
             error!("❌ MT to MX transformation failed: {}", e);
@@ -64,7 +311,16 @@ pub async fn transform_mt_to_mx(
             Ok(Json(TransformationResponse {
                 success: false,
                 transformed_message: None,
-                debug_info: None,
+                debug_info: if request.options.include_debug {
+                    let message_json = serde_json::to_value(message).unwrap();
+                    Some(DebugInfo {
+                        engine_state: "forward".to_string(),
+                        workflow_execution: vec![format!("Failed - Engine error: {}", e)],
+                        intermediate_data: message_json,
+                    })
+                } else {
+                    None
+                },
                 errors: vec![e.to_string()],
                 warnings: Vec::new(),
             }))
@@ -100,24 +356,143 @@ pub async fn transform_mx_to_mt(
                 processing_time
             );
 
-            Ok(Json(TransformationResponse {
-                success: true,
-                transformed_message: Some(
-                    message.data.get("result").unwrap_or(&Value::Null).clone(),
-                ),
-                debug_info: if request.options.include_debug {
-                    let message_json = serde_json::to_value(message).unwrap();
-                    Some(DebugInfo {
-                        engine_state: "reverse".to_string(),
-                        workflow_execution: vec!["Completed".to_string()],
-                        intermediate_data: message_json,
-                    })
-                } else {
-                    None
-                },
-                errors: Vec::new(),
-                warnings: Vec::new(),
-            }))
+            // Check for validation/processing errors even if engine returned Ok
+            let workflow_errors = extract_workflow_errors(&message);
+            if !workflow_errors.is_empty() {
+                error!(
+                    "❌ MX to MT transformation failed with validation errors: {:?}",
+                    workflow_errors
+                );
+                return Ok(Json(TransformationResponse {
+                    success: false,
+                    transformed_message: None,
+                    debug_info: if request.options.include_debug {
+                        let message_json = serde_json::to_value(&message).unwrap();
+                        Some(DebugInfo {
+                            engine_state: "reverse".to_string(),
+                            workflow_execution: vec!["Failed - Validation errors".to_string()],
+                            intermediate_data: message_json,
+                        })
+                    } else {
+                        None
+                    },
+                    errors: workflow_errors,
+                    warnings: Vec::new(),
+                }));
+            }
+
+            // Validate that the transformation actually produced a result
+            match message.data.get("result") {
+                Some(result) if !result.is_null() => {
+                    // Handle both string and array results (workflow can return either)
+                    let result_str = match result {
+                        Value::String(s) => Some(s.as_str()),
+                        Value::Array(arr) if !arr.is_empty() => arr[0].as_str(),
+                        _ => None,
+                    };
+
+                    // Check if result is a valid non-empty string
+                    match result_str {
+                        Some(result_str) if !result_str.trim().is_empty() => {
+                            // Validate that the result is well-formed SWIFT MT message
+                            match validate_mt_well_formed(result_str) {
+                                Ok(()) => Ok(Json(TransformationResponse {
+                                    success: true,
+                                    transformed_message: Some(Value::String(
+                                        result_str.to_string(),
+                                    )),
+                                    debug_info: if request.options.include_debug {
+                                        let message_json = serde_json::to_value(&message).unwrap();
+                                        Some(DebugInfo {
+                                            engine_state: "reverse".to_string(),
+                                            workflow_execution: vec!["Completed".to_string()],
+                                            intermediate_data: message_json,
+                                        })
+                                    } else {
+                                        None
+                                    },
+                                    errors: Vec::new(),
+                                    warnings: Vec::new(),
+                                })),
+                                Err(mt_error) => {
+                                    error!(
+                                        "❌ MX to MT transformation produced malformed SWIFT MT message: {}",
+                                        mt_error
+                                    );
+                                    Ok(Json(TransformationResponse {
+                                        success: false,
+                                        transformed_message: None,
+                                        debug_info: if request.options.include_debug {
+                                            let message_json =
+                                                serde_json::to_value(&message).unwrap();
+                                            Some(DebugInfo {
+                                                engine_state: "reverse".to_string(),
+                                                workflow_execution: vec![
+                                                    "Failed - Malformed SWIFT MT output"
+                                                        .to_string(),
+                                                ],
+                                                intermediate_data: message_json,
+                                            })
+                                        } else {
+                                            None
+                                        },
+                                        errors: vec![format!(
+                                            "Transformation produced malformed SWIFT MT message: {}",
+                                            mt_error
+                                        )],
+                                        warnings: Vec::new(),
+                                    }))
+                                }
+                            }
+                        }
+                        _ => {
+                            error!("❌ MX to MT transformation produced empty or invalid result");
+                            Ok(Json(TransformationResponse {
+                                success: false,
+                                transformed_message: None,
+                                debug_info: if request.options.include_debug {
+                                    let message_json = serde_json::to_value(message).unwrap();
+                                    Some(DebugInfo {
+                                        engine_state: "reverse".to_string(),
+                                        workflow_execution: vec![
+                                            "Failed - Empty or invalid result".to_string(),
+                                        ],
+                                        intermediate_data: message_json,
+                                    })
+                                } else {
+                                    None
+                                },
+                                errors: vec![
+                                    "Transformation completed but produced empty or invalid result"
+                                        .to_string(),
+                                ],
+                                warnings: Vec::new(),
+                            }))
+                        }
+                    }
+                }
+                _ => {
+                    error!("❌ MX to MT transformation completed but no valid result found");
+                    Ok(Json(TransformationResponse {
+                        success: false,
+                        transformed_message: None,
+                        debug_info: if request.options.include_debug {
+                            let message_json = serde_json::to_value(message).unwrap();
+                            Some(DebugInfo {
+                                engine_state: "reverse".to_string(),
+                                workflow_execution: vec!["Failed - No result produced".to_string()],
+                                intermediate_data: message_json,
+                            })
+                        } else {
+                            None
+                        },
+                        errors: vec![
+                            "Transformation completed but no valid result was produced".to_string(),
+                        ],
+                        warnings: Vec::new(),
+                    }))
+                }
+            }
         }
         Err(e) => {
             error!("❌ MX to MT transformation failed: {}", e);
@@ -125,7 +500,16 @@ pub async fn transform_mx_to_mt(
             Ok(Json(TransformationResponse {
                 success: false,
                 transformed_message: None,
-                debug_info: None,
+                debug_info: if request.options.include_debug {
+                    let message_json = serde_json::to_value(message).unwrap();
+                    Some(DebugInfo {
+                        engine_state: "reverse".to_string(),
+                        workflow_execution: vec![format!("Failed - Engine error: {}", e)],
+                        intermediate_data: message_json,
+                    })
+                } else {
+                    None
+                },
                 errors: vec![e.to_string()],
                 warnings: Vec::new(),
             }))
@@ -188,7 +572,15 @@ pub async fn generate_mt_sample(
             Ok(Json(TransformationResponse {
                 success: false,
                 transformed_message: None,
-                debug_info: None,
+                debug_info: if request.options.include_debug {
+                    Some(DebugInfo {
+                        engine_state: "sample_generation".to_string(),
+                        workflow_execution: vec![format!("Failed - Generation error: {}", e)],
+                        intermediate_data: request.config,
+                    })
+                } else {
+                    None
+                },
                 errors: vec![e.to_string()],
                 warnings: Vec::new(),
             }))

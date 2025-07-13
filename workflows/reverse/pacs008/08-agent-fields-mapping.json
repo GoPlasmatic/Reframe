@@ -1,7 +1,7 @@
 {
     "id": "pacs008-to-mt103-agent-fields",
     "name": "pacs.008 to MT103 Agent Fields Mapping",
-    "description": "Maps financial institution agent fields including Field 52A (Ordering Institution - TR021), Field 56A (Intermediary Institution - TR019), and Field 57A/B/C/D (Account With Institution - TR023)",
+    "description": "Mapping for agent fields (52-57) implementing full CBPR+ specification with proper clearing system logic, option prioritization, and //RT//FW handling per TR003, TR005, TR007, TR019, TR021, TR023",
     "priority": 8,
     "condition": {
         "and": [
@@ -16,7 +16,7 @@
         {
             "id": "map_ordering_institution",
             "name": "Map Ordering Institution",
-            "description": "Map Field 52A (Ordering Institution) from DebtorAgent information (TR021)",
+            "description": "Map Field 52A/D (Ordering Institution) from DebtorAgent per TR021 with proper BIC/clearing code priority",
             "function": {
                 "name": "map",
                 "input": {
@@ -24,50 +24,82 @@
                         {
                             "path": "data.SwiftMT.fields.52A",
                             "logic": {
-                                "bic": {
-                                    "raw": {
-                                        "if": [
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"},
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"},
-                                            {"var": "temp_data.Sender"}
-                                        ]
-                                    }
-                                },
-                                "account": {
-                                    "if": [
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgtAcct.Id.Othr.Id"},
-                                        {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgtAcct.Id.Othr.Id"}]},
-                                        ""
-                                    ]
-                                }
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_intermediary_institution",
-            "name": "Map Intermediary Institution",
-            "description": "Map Field 56A (Intermediary Institution) from IntermediaryAgent1 information (TR019)",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.SwiftMT.fields.56A",
-                            "logic": {
                                 "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"},
                                     {
                                         "bic": {
-                                            "raw": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"}
+                                            "raw": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"}
                                         },
-                                        "account": {
+                                        "party_identifier": {
                                             "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1Acct.Id.Othr.Id"},
-                                                {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1Acct.Id.Othr.Id"}]},
+                                                {"and": [
+                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgtAcct.Id.Othr.Id"},
+                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"}
+                                                ]},
+                                                {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgtAcct.Id.Othr.Id"}]},
+                                                {
+                                                    "if": [
+                                                        {"and": [
+                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                                            {"in": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, ["ATBLZ", "AUBSB", "CNAPS", "DEBLZ", "CACPA", "GRBIC", "HKNCC", "IENCC", "INFSC", "ITNCC", "PLKNR", "PTNCC", "ZANCC", "ESNCC", "GBDSC", "USABA"]]}
+                                                        ]},
+                                                        {"cat": ["//", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"}]},
+                                                        ""
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.52D",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"}]},
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.Nm"}
+                                    ]},
+                                    {
+                                        "party_identifier": {
+                                            "if": [
+                                                {"and": [
+                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                                    {"in": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, ["ATBLZ", "AUBSB", "DEBLZ", "CACPA", "GRBIC", "HKNCC", "IENCC", "INFSC", "ITNCC", "PLKNR", "PTNCC", "ZANCC", "RUCBC", "CHBCC", "CHSIC", "ESNCC", "GBDSC", "USPID", "USABA"]]}
+                                                ]},
+                                                {"cat": ["//", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"}]},
                                                 ""
+                                            ]
+                                        },
+                                        "name_and_address": {
+                                            "merge": [
+                                                [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.Nm"}],
+                                                {
+                                                    "if": [
+                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.AdrLine"},
+                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.AdrLine"},
+                                                        {
+                                                            "if": [
+                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.StrtNm"},
+                                                                [
+                                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.StrtNm"},
+                                                                    {"cat": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.TwnNm"}, {
+                                                                        "if": [
+                                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.Ctry"},
+                                                                            {"cat": [", ", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.Ctry"}]},
+                                                                            ""
+                                                                        ]
+                                                                    }]}
+                                                                ],
+                                                                ["NOTPROVIDED"]
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
                                             ]
                                         }
                                     },
@@ -80,9 +112,9 @@
             }
         },
         {
-            "id": "map_senders_correspondent", 
+            "id": "map_senders_correspondent",
             "name": "Map Sender's Correspondent",
-            "description": "Map Field 53a (Sender's Correspondent) from InstructingReimbursementAgent information based on settlement method (TR003)",
+            "description": "Map Field 53A/B (Sender's Correspondent) per TR003 with settlement method validation",
             "function": {
                 "name": "map",
                 "input": {
@@ -92,21 +124,47 @@
                             "logic": {
                                 "if": [
                                     {"and": [
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmInf.SttlmMtd"},
-                                        {"in": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmInf.SttlmMtd"}, ["INGA", "INDA"]]},
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"}
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"},
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"},
+                                        {"==": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"}, "COVE"]}
                                     ]},
                                     {
                                         "bic": {
-                                            "raw": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"}
+                                            "raw": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"}
                                         },
-                                        "account": {
+                                        "party_identifier": {
                                             "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"},
-                                                {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"}]},
-                                                ""
+                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"},
+                                                {"cat": ["/", {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"}]},
+                                                {
+                                                    "if": [
+                                                        {"and": [
+                                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                                            {"!": [{"in": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, ["USPID", "RUCBC", "CHBCC", "CHSIC"]]}]}
+                                                        ]},
+                                                        {"cat": ["//", {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}]},
+                                                        ""
+                                                    ]
+                                                }
                                             ]
                                         }
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.53B",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"},
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"},
+                                        {"in": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"}, ["INGA", "INDA"]]}
+                                    ]},
+                                    {
+                                        "party_identifier": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}
                                     },
                                     null
                                 ]
@@ -119,7 +177,7 @@
         {
             "id": "map_receivers_correspondent",
             "name": "Map Receiver's Correspondent", 
-            "description": "Map Field 54a (Receiver's Correspondent) from InstructedReimbursementAgent information (TR005)",
+            "description": "Map Field 54A/D (Receiver's Correspondent) per TR005 with clearing system validation",
             "function": {
                 "name": "map",
                 "input": {
@@ -128,16 +186,62 @@
                             "path": "data.SwiftMT.fields.54A",
                             "logic": {
                                 "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"},
                                     {
                                         "bic": {
-                                            "raw": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"}
+                                            "raw": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"}
                                         },
-                                        "account": {
+                                        "party_identifier": {
                                             "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmInf.InstdRmbrsmntAgtAcct.Id.Othr.Id"},
-                                                {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmInf.InstdRmbrsmntAgtAcct.Id.Othr.Id"}]},
+                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgtAcct.Id.Othr.Id"},
+                                                {"cat": ["/", {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgtAcct.Id.Othr.Id"}]},
+                                                {
+                                                    "if": [
+                                                        {"and": [
+                                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                                            {"!": [{"in": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, ["USPID", "RUCBC", "CHBCC", "CHSIC"]]}]}
+                                                        ]},
+                                                        {"cat": ["//", {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}]},
+                                                        ""
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.54D",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"}]},
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.Nm"}
+                                    ]},
+                                    {
+                                        "party_identifier": {
+                                            "if": [
+                                                {"and": [
+                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                                ]},
+                                                {"cat": ["//", {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}]},
                                                 ""
+                                            ]
+                                        },
+                                        "name_and_address": {
+                                            "merge": [
+                                                [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.Nm"}],
+                                                {
+                                                    "if": [
+                                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.PstlAdr.AdrLine"},
+                                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.PstlAdr.AdrLine"},
+                                                        ["NOTPROVIDED"]
+                                                    ]
+                                                }
                                             ]
                                         }
                                     },
@@ -152,7 +256,7 @@
         {
             "id": "map_third_reimbursement",
             "name": "Map Third Reimbursement Institution",
-            "description": "Map Field 55a (Third Reimbursement Institution) from ThirdReimbursementAgent information (TR007)",
+            "description": "Map Field 55A/D (Third Reimbursement Institution) per TR007 with full option support",
             "function": {
                 "name": "map", 
                 "input": {
@@ -161,16 +265,159 @@
                             "path": "data.SwiftMT.fields.55A",
                             "logic": {
                                 "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.BICFI"},
                                     {
                                         "bic": {
-                                            "raw": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.BICFI"}
+                                            "raw": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.BICFI"}
                                         },
-                                        "account": {
+                                        "party_identifier": {
                                             "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmInf.ThrdRmbrsmntAgtAcct.Id.Othr.Id"},
-                                                {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmInf.ThrdRmbrsmntAgtAcct.Id.Othr.Id"}]},
+                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgtAcct.Id.Othr.Id"},
+                                                {"cat": ["/", {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgtAcct.Id.Othr.Id"}]},
+                                                {
+                                                    "if": [
+                                                        {"and": [
+                                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                                            {"!": [{"in": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, ["USPID", "RUCBC", "CHBCC", "CHSIC"]]}]}
+                                                        ]},
+                                                        {"cat": ["//", {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}]},
+                                                        ""
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.55D",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.BICFI"}]},
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.Nm"}
+                                    ]},
+                                    {
+                                        "party_identifier": {
+                                            "if": [
+                                                {"and": [
+                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                                ]},
+                                                {"cat": ["//", {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}]},
                                                 ""
+                                            ]
+                                        },
+                                        "name_and_address": {
+                                            "merge": [
+                                                [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.Nm"}],
+                                                {
+                                                    "if": [
+                                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.PstlAdr.AdrLine"},
+                                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.PstlAdr.AdrLine"},
+                                                        ["NOTPROVIDED"]
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_intermediary_institution",
+            "name": "Map Intermediary Institution",
+            "description": "Map Field 56A/C/D (Intermediary Institution) per TR019 with RTGS and clearing channel support",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.56A",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"},
+                                    {
+                                        "bic": {
+                                            "raw": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"}
+                                        },
+                                        "party_identifier": {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1Acct.Id.Othr.Id"},
+                                                {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1Acct.Id.Othr.Id"}]},
+                                                {
+                                                    "if": [
+                                                        {"and": [
+                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}
+                                                        ]},
+                                                        {
+                                                            "if": [
+                                                                {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
+                                                                {"cat": ["//RT", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}]},
+                                                                {"cat": ["//", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}]}
+                                                            ]
+                                                        },
+                                                        ""
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.56C",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"}]},
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}
+                                    ]},
+                                    {
+                                        "account_number": {
+                                            "if": [
+                                                {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
+                                                {"cat": ["//RT", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}]},
+                                                {"cat": ["//", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}]}
+                                            ]
+                                        }
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.56D",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"}]},
+                                        {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}]},
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.Nm"}
+                                    ]},
+                                    {
+                                        "name_and_address": {
+                                            "merge": [
+                                                [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.Nm"}],
+                                                {
+                                                    "if": [
+                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.PstlAdr.AdrLine"},
+                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.PstlAdr.AdrLine"},
+                                                        ["NOTPROVIDED"]
+                                                    ]
+                                                }
                                             ]
                                         }
                                     },
@@ -185,7 +432,7 @@
         {
             "id": "map_account_with_institution",
             "name": "Map Account With Institution",
-            "description": "Map Field 57A/B/C/D (Account With Institution) from CreditorAgent information with clearing system logic (TR023)",
+            "description": "Map Field 57A/B/C/D (Account With Institution) per TR023 with full CBPR+ compliance and clearing validation",
             "function": {
                 "name": "map",
                 "input": {
@@ -193,25 +440,22 @@
                         {
                             "path": "data.SwiftMT.fields.57A",
                             "logic": {
-                                "bic": {
-                                    "raw": {
-                                        "if": [
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
-                                            ""
-                                        ]
-                                    }
-                                },
-                                "account": {
-                                    "if": [
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
-                                        {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
+                                    {
+                                        "bic": {
+                                            "raw": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}
+                                        },
+                                        "party_identifier": {
                                             "if": [
                                                 {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgtAcct.Id.Othr.Id"},
                                                 {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgtAcct.Id.Othr.Id"}]},
                                                 {
                                                     "if": [
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                        {"and": [
+                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                                        ]},
                                                         {
                                                             "if": [
                                                                 {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
@@ -223,48 +467,50 @@
                                                     ]
                                                 }
                                             ]
-                                        },
-                                        ""
-                                    ]
-                                }
+                                        }
+                                    },
+                                    null
+                                ]
                             }
                         },
                         {
                             "path": "data.SwiftMT.fields.57B",
                             "logic": {
-                                "party_identifier": {
-                                    "if": [
-                                        {"and": [
-                                            {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}]},
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                            {"in": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, ["USABA", "CACPA", "GBDSC", "AUBSB"]]}
-                                        ]},
+                                "if": [
+                                    {"and": [
+                                        {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}]},
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
                                         {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
-                                        ""
-                                    ]
-                                }
+                                        {"in": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, ["USABA", "CACPA", "GBDSC", "AUBSB"]]}
+                                    ]},
+                                    {
+                                        "party_identifier": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                    },
+                                    null
+                                ]
                             }
                         },
                         {
                             "path": "data.SwiftMT.fields.57C",
                             "logic": {
-                                "account_number": {
-                                    "if": [
-                                        {"and": [
-                                            {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}]},
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                            {"!": [{"in": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, ["USABA", "CACPA", "GBDSC", "AUBSB"]]}]}
-                                        ]},
-                                        {
+                                "if": [
+                                    {"and": [
+                                        {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}]},
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                        {"!": [{"in": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, ["USABA", "CACPA", "GBDSC", "AUBSB"]]}]}
+                                    ]},
+                                    {
+                                        "account_number": {
                                             "if": [
                                                 {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
                                                 {"cat": ["//RT", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}]},
                                                 {"cat": ["//", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}, {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}]}
                                             ]
-                                        },
-                                        ""
-                                    ]
-                                }
+                                        }
+                                    },
+                                    null
+                                ]
                             }
                         },
                         {
@@ -289,20 +535,15 @@
                                                                 {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.StrtNm"},
                                                                 [
                                                                     {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.StrtNm"},
-                                                                    {
-                                                                        "cat": [
-                                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.TwnNm"},
-                                                                            {
-                                                                                "if": [
-                                                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.Ctry"},
-                                                                                    {"cat": [", ", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.Ctry"}]},
-                                                                                    ""
-                                                                                ]
-                                                                            }
+                                                                    {"cat": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.TwnNm"}, {
+                                                                        "if": [
+                                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.Ctry"},
+                                                                            {"cat": [", ", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.Ctry"}]},
+                                                                            ""
                                                                         ]
-                                                                    }
+                                                                    }]}
                                                                 ],
-                                                                []
+                                                                ["NOTPROVIDED"]
                                                             ]
                                                         }
                                                     ]

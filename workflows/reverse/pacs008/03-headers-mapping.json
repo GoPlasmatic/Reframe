@@ -1,0 +1,134 @@
+{
+    "id": "pacs008-to-mt103-headers",
+    "name": "pacs.008 to MT103 Headers Construction",
+    "description": "Constructs SWIFT MT103 basic and application headers from pacs.008 BAH information",
+    "priority": 3,
+    "condition": {
+        "and": [
+            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.008.001.08"]},
+            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+            {"==": [{"var": "progress.workflow_id"}, "pacs008-to-mt103-preconditions"]},
+            {"==": [{"var": "progress.task_id"}, "validate_mandatory_elements"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "extract_temp_variables",
+            "name": "Extract Temporary Variables",
+            "description": "Extract sender and receiver BIC codes from header for use in translation rules (TR013)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.Sender",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.Receiver",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "construct_swift_headers",
+            "name": "Construct SWIFT Headers",
+            "description": "Build SWIFT MT103 basic and application headers using sender and receiver BICs",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT",
+                            "logic": {
+                                "message_type": "103",
+                                "basic_header": {
+                                    "application_id": "F",
+                                    "service_id": "01",
+                                    "sender_bic": {
+                                        "raw": {
+                                            "if": [
+                                                {"var": "temp_data.Sender"},
+                                                {"substr": [{"var": "temp_data.Sender"}, 0, 8]},
+                                                null
+                                            ]
+                                        }
+                                    },
+                                    "logical_terminal": {
+                                        "if": [
+                                            {"var": "temp_data.Sender"},
+                                            {"cat": [{"var": "temp_data.Sender"}, "AXXX"]},
+                                            null
+                                        ]
+                                    },
+                                    "session_number": "0000",
+                                    "sequence_number": "000000"
+                                },
+                                "application_header": {
+                                    "direction": "I",
+                                    "message_type": "103",
+                                    "priority": "N",
+                                    "receiver_bic": {
+                                        "raw": {
+                                            "if": [
+                                                {"var": "temp_data.Receiver"},
+                                                {"substr": [{"var": "temp_data.Receiver"}, 0, 8]},
+                                                null
+                                            ]
+                                        }
+                                    },
+                                    "destination_address": {
+                                        "if": [
+                                            {"var": "temp_data.Receiver"},
+                                            {"cat": [{"var": "temp_data.Receiver"}, "XXXX"]},
+                                            null
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_user_header",
+            "name": "Map User Header",
+            "description": "Map unique end-to-end transaction reference (UETR) to user header",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.user_header",
+                            "logic": {
+                                "unique_end_to_end_reference": {
+                                    "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.UETR"},
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.UETR"},
+                                        null
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

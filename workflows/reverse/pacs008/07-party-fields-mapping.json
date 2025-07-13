@@ -1,0 +1,148 @@
+{
+    "id": "pacs008-to-mt103-party-fields",
+    "name": "pacs.008 to MT103 Party Fields Mapping",
+    "description": "Maps customer party information including Field 50K (Ordering Customer - TR026) and Field 59 (Beneficiary Customer - TR025)",
+    "priority": 7,
+    "condition": {
+        "and": [
+            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.008.001.08"]},
+            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+            {"==": [{"var": "progress.workflow_id"}, "pacs008-to-mt103-charge-fields"]},
+            {"==": [{"var": "progress.task_id"}, "map_receivers_charges"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "map_ordering_customer",
+            "name": "Map Ordering Customer",
+            "description": "Map Field 50K (Ordering Customer) from Debtor information including account and name/address (TR026)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#50",
+                            "logic": {
+                                "K": {
+                                    "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.Nm"},
+                                        {
+                                            "account_number": {
+                                                "if": [
+                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAcct.Id.Othr.Id"},
+                                                    {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAcct.Id.Othr.Id"}]},
+                                                    null
+                                                ]
+                                            },
+                                            "name_and_address": {
+                                                "merge": [
+                                                    [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.Nm"}],
+                                                    {
+                                                        "if": [
+                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.AdrLine"},
+                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.AdrLine"},
+                                                            {
+                                                                "if": [
+                                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.StrtNm"},
+                                                                    [
+                                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.StrtNm"},
+                                                                        {
+                                                                            "cat": [
+                                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.TwnNm"},
+                                                                                {
+                                                                                    "if": [
+                                                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.Ctry"},
+                                                                                        {"cat": [", ", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.Ctry"}]},
+                                                                                        ""
+                                                                                    ]
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                    ],
+                                                                    []
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        null
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_beneficiary_customer",
+            "name": "Map Beneficiary Customer",
+            "description": "Map Field 59 (Beneficiary Customer) from Creditor information including account and name/address (TR025)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#59",
+                            "logic": {
+                                "NoOption": {
+                                    "lines": {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.Nm"},
+                                            {
+                                                "merge": [
+                                                    {
+                                                        "if": [
+                                                            { "and": [
+                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAcct.Id.Othr.Id"},
+                                                                {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAcct.Id.Othr.Id"}, "NOTPROVIDED"]}
+                                                            ]},
+                                                            [{"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAcct.Id.Othr.Id"}]}],
+                                                            []
+                                                        ]
+                                                    },
+                                                    [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.Nm"}],
+                                                    {
+                                                        "if": [
+                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.AdrLine"},
+                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.AdrLine"},
+                                                            {
+                                                                "if": [
+                                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.StrtNm"},
+                                                                    [
+                                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.StrtNm"},
+                                                                        {
+                                                                            "cat": [
+                                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.TwnNm"},
+                                                                                {
+                                                                                    "if": [
+                                                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.Ctry"},
+                                                                                        {"cat": [", ", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.Ctry"}]},
+                                                                                        ""
+                                                                                    ]
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                    ],
+                                                                    []
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            },
+                                            []
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

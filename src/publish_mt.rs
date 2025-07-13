@@ -51,7 +51,20 @@ impl AsyncFunctionHandler for PublishMT {
 
         debug!(data_type = ?input_data, "Processing MX to MT conversion data");
 
-        let json_str = input_data.to_string();
+        // Clean up null values from fields before serialization
+        let mut cleaned_data = input_data.clone();
+        if let Some(fields) = cleaned_data.get_mut("fields").and_then(|f| f.as_object_mut()) {
+            fields.retain(|_key, value| {
+                if let Some(obj) = value.as_object() {
+                    // Check if any values are null and remove those fields
+                    !obj.values().any(|v| v.is_null())
+                } else {
+                    true
+                }
+            });
+        }
+        
+        let json_str = cleaned_data.to_string();
         let mt_message = if source_format == "pacs.008.001.08" {
             let data: SwiftMessage<MT103> = serde_json::from_str(&json_str).map_err(|e| {
                 error!(error = ?e, "Failed to parse JSON string");

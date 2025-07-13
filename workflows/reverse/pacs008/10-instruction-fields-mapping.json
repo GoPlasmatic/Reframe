@@ -1,0 +1,70 @@
+{
+    "id": "pacs008-to-mt103-instruction-fields",
+    "name": "pacs.008 to MT103 Instruction Fields Mapping",
+    "description": "Maps sender-to-receiver information including Field 72 (Sender to Receiver Information)",
+    "priority": 10,
+    "condition": {
+        "and": [
+            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.008.001.08"]},
+            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+            {"==": [{"var": "progress.workflow_id"}, "pacs008-to-mt103-remittance-fields"]},
+            {"==": [{"var": "progress.task_id"}, "map_remittance_information"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "map_creditor_agent_instructions",
+            "name": "Map Creditor Agent Instructions",
+            "description": "Map Field 72 from InstructionForCreditorAgent codes (HOLD, CHQB, PHOB, TELB)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#72",
+                            "logic": {
+                                "lines": {
+                                    "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForCdtrAgt.0.Cd"},
+                                        {
+                                            "merge": [
+                                                {"var": "data.SwiftMT.fields.72.lines"},
+                                                [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForCdtrAgt.0.Cd"}]
+                                            ]
+                                        },
+                                        {"var": "data.SwiftMT.fields.72.lines"}
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_sender_to_receiver_information",
+            "name": "Map Sender to Receiver Information",
+            "description": "Map Field 72 (Sender to Receiver Information) from InstructionForNextAgent information",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#72",
+                            "logic": {
+                                "lines": {
+                                    "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForNxtAgt.0.InstrInf"},
+                                        {"split": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForNxtAgt.0.InstrInf"}, "\n"]},
+                                        null
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

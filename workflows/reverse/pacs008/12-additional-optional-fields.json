@@ -1,0 +1,156 @@
+{
+    "id": "pacs008-to-mt103-additional-optional-fields",
+    "name": "pacs.008 to MT103 Additional Optional Fields Mapping",
+    "description": "Maps additional optional MT103 fields including Field 21 (Related Reference), Field 26T (Transaction Type Code), and other missing optional fields",
+    "priority": 12,
+    "condition": {
+        "and": [
+            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.008.001.08"]},
+            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+            {"==": [{"var": "progress.workflow_id"}, "pacs008-to-mt103-optional-fields"]},
+            {"==": [{"var": "progress.task_id"}, "map_regulatory_reporting"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "map_related_reference",
+            "name": "Map Related Reference",
+            "description": "Map Field 21 (Related Reference) from TransactionIdentification when available",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#21",
+                            "logic": {
+                                "value": {
+                                    "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.TxId"},
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.TxId"},
+                                        null
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_transaction_type_code",
+            "name": "Map Transaction Type Code",
+            "description": "Map Field 26T (Transaction Type Code) from Purpose code with specific pattern matching",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#26T",
+                            "logic": {
+                                "value": {
+                                    "if": [
+                                        {"and": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Purp.Cd"},
+                                            {"==": [{"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.Purp.Cd"}, 0, 1]}, "T"]}
+                                        ]},
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Purp.Cd"},
+                                        null
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_time_indications",
+            "name": "Map Time Indications",
+            "description": "Map Field 13C (Time Indications) per TR014 specification - SNDTIME, RNCTIME, CLSTIME, TILTIME, FROTIME, REJTIME",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#13C",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"},
+                                    {
+                                        "time_code": "/SNDTIME/",
+                                        "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, 11, 5]},
+                                        "utc_offset": {
+                                            "if": [
+                                                {"==": [{"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -1, 1]}, "Z"]},
+                                                "+0000",
+                                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -5, 5]}
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "if": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"},
+                                            {
+                                                "time_code": "/RNCTIME/",
+                                                "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, 11, 5]},
+                                                "utc_offset": {
+                                                    "if": [
+                                                        {"==": [{"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -1, 1]}, "Z"]},
+                                                        "+0000",
+                                                        {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -5, 5]}
+                                                    ]
+                                                }
+                                            },
+                                            {
+                                                "if": [
+                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.CLSTm"},
+                                                    {
+                                                        "time_code": "/CLSTIME/",
+                                                        "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.CLSTm"}, 0, 5]},
+                                                        "utc_offset": "+0000"
+                                                    },
+                                                    {
+                                                        "if": [
+                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.TillTm"},
+                                                            {
+                                                                "time_code": "/TILTIME/",
+                                                                "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.TillTm"}, 0, 5]},
+                                                                "utc_offset": "+0000"
+                                                            },
+                                                            {
+                                                                "if": [
+                                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.FrTm"},
+                                                                    {
+                                                                        "time_code": "/FROTIME/",
+                                                                        "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.FrTm"}, 0, 5]},
+                                                                        "utc_offset": "+0000"
+                                                                    },
+                                                                    {
+                                                                        "if": [
+                                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.RjctTm"},
+                                                                            {
+                                                                                "time_code": "/REJTIME/",
+                                                                                "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.RjctTm"}, 0, 5]},
+                                                                                "utc_offset": "+0000"
+                                                                            },
+                                                                            null
+                                                                        ]
+                                                                    }
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

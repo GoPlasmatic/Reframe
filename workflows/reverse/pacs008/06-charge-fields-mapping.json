@@ -1,0 +1,97 @@
+{
+    "id": "pacs008-to-mt103-charge-fields",
+    "name": "pacs.008 to MT103 Charge Fields Mapping",
+    "description": "Maps charge-related fields including Field 71A (Details of Charges - TR016), Field 71F (Sender's Charges - TR017), and Field 71G (Receiver's Charges - TR018)",
+    "priority": 6,
+    "condition": {
+        "and": [
+            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.008.001.08"]},
+            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+            {"==": [{"var": "progress.workflow_id"}, "pacs008-to-mt103-amount-fields"]},
+            {"==": [{"var": "progress.task_id"}, "map_exchange_rate"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "map_charge_bearer",
+            "name": "Map Charge Bearer",
+            "description": "Map Field 71A (Details of Charges) based on ChargeBearer code (TR016)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.71A",
+                            "logic": {
+                                "value": {
+                                    "if": [
+                                        {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgBr"}, "CRED"]},
+                                        "BEN",
+                                        {
+                                            "if": [
+                                                {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgBr"}, "DEBT"]},
+                                                "OUR",
+                                                "SHA"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_senders_charges",
+            "name": "Map Sender's Charges",
+            "description": "Map Field 71F (Sender's Charges) for first charge information when ChargeBearer is CRED or SHAR (TR017)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.71F",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgsInf.0.Amt"},
+                                    {
+                                        "currency": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgsInf.0.Amt.@Ccy"},
+                                        "amount": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgsInf.0.Amt.$value"}
+                                    },
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_receivers_charges",
+            "name": "Map Receiver's Charges",
+            "description": "Map Field 71G (Receiver's Charges) for second charge information when ChargeBearer is DEBT (TR018)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.71G",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgsInf.1.Amt"},
+                                    {
+                                        "currency": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgsInf.1.Amt.@Ccy"},
+                                        "amount": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgsInf.1.Amt.$value"}
+                                    },
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

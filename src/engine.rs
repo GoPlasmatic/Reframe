@@ -10,6 +10,7 @@ use crate::parse_mt::ParseMT;
 use crate::parse_mx::ParseMX;
 use crate::publish_mt::PublishMT;
 use crate::publish_mx::PublishMX;
+use dataflow_rs::engine::functions::validation::ValidationFunction;
 use crate::types::AppState;
 
 pub async fn initialize_engines() -> AppState {
@@ -39,6 +40,7 @@ async fn initialize_forward_engine() -> Result<Engine, Box<dyn std::error::Error
     // Register MT-specific functions for forward transformation
     engine.register_task_function("ParseMT".to_string(), Box::new(ParseMT));
     engine.register_task_function("PublishMX".to_string(), Box::new(PublishMX));
+    engine.register_task_function("validate".to_string(), Box::new(ValidationFunction::new()));
 
     // Load forward workflows
     load_workflows_for_engine(&mut engine, "workflows/forward").await?;
@@ -55,6 +57,7 @@ async fn initialize_reverse_engine() -> Result<Engine, Box<dyn std::error::Error
     // Register MX-specific functions for reverse transformation
     engine.register_task_function("ParseMX".to_string(), Box::new(ParseMX));
     engine.register_task_function("PublishMT".to_string(), Box::new(PublishMT));
+    engine.register_task_function("validate".to_string(), Box::new(ValidationFunction::new()));
 
     // Load reverse workflows
     load_workflows_for_engine(&mut engine, "workflows/reverse").await?;

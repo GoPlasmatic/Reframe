@@ -1,0 +1,232 @@
+{
+    "id": "pacs008-to-mt103-preconditions",
+    "name": "pacs.008 to MT103 Preconditions Validation",
+    "description": "Validates preconditions for pacs.008 to MT103 transformation according to CBPR+ specification PREC001-PREC002",
+    "priority": 2,
+    "condition": {
+        "and": [
+            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.008.001.08"]},
+            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+            {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+            {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "validate_preconditions",
+            "name": "Validate Preconditions",
+            "description": "Validate preconditions for pacs.008 to MT103 transformation per CBPR+ specification",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy",
+                            "logic": {
+                                "!": {
+                                    "in": [
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
+                                        ["XAU", "XAG", "XPD", "XPT"]
+                                    ]
+                                }
+                            },
+                            "message": "PREC001: T20054 - Commodities currencies not allowed in Field 32A. Note: This is redundant as such currencies are excluded in the UGs, so this will never be met if the MX is valid"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.GrpHdr.NbOfTxs",
+                            "logic": {
+                                "or": [
+                                    {"==": [{"var": "data.ISO20022_MX.document.GrpHdr.NbOfTxs"}, "1"]},
+                                    {"==": [{"var": "data.ISO20022_MX.document.GrpHdr.NbOfTxs"}, 1]}
+                                ]
+                            },
+                            "message": "PREC002: T20053 - The number of occurrences must be 1. Note: This is redundant as the schema already restricts to 1 occurrence"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_mandatory_elements",
+            "name": "Validate Mandatory Elements",
+            "description": "Additional validation for mandatory elements required by CBPR+ even though not explicitly listed as preconditions in the specification",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId",
+                            "logic": {
+                                "and": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId"},
+                                    {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId"}, ""]},
+                                    {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId"}, null]}
+                                ]
+                            },
+                            "message": "InstructionIdentification is mandatory for Field 20 mapping (TR001)"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt",
+                            "logic": {
+                                "and": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
+                                    {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"}, ""]},
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"},
+                                    {">": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"}, 0]}
+                                ]
+                            },
+                            "message": "InterbankSettlementAmount with currency is mandatory for Field 32A mapping (TR012)"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt",
+                            "logic": {
+                                "and": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"},
+                                    {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}, ""]},
+                                    {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}, null]}
+                                ]
+                            },
+                            "message": "InterbankSettlementDate is mandatory for Field 32A mapping (TR012)"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgBr",
+                            "logic": {
+                                "and": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgBr"},
+                                    {"in": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgBr"}, ["CRED", "DEBT", "SHAR"]]}
+                                ]
+                            },
+                            "message": "ChargeBearer is mandatory with valid code for Field 71A mapping (TR016)"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr",
+                            "logic": {
+                                "or": [
+                                    {
+                                        "and": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.Nm"},
+                                            {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.Nm"}, ""]},
+                                            {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.Nm"}, null]}
+                                        ]
+                                    },
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.Id.OrgId.AnyBIC"},
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.Id.PrvtId"}
+                                ]
+                            },
+                            "message": "Debtor must have Name, BIC, or other identification for Field 50 mapping (TR026)"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt",
+                            "logic": {
+                                "or": [
+                                    {
+                                        "and": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"},
+                                            {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"}, ""]},
+                                            {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"}, null]}
+                                        ]
+                                    },
+                                    {
+                                        "and": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                            {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"}, ""]},
+                                            {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"}, null]}
+                                        ]
+                                    },
+                                    {
+                                        "and": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.Nm"},
+                                            {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.Nm"}, ""]},
+                                            {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.Nm"}, null]}
+                                        ]
+                                    }
+                                ]
+                            },
+                            "message": "DebtorAgent must have identification (BICFI, ClrSysMmbId.MmbId, or Name) for Field 52 mapping (TR021)"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt",
+                            "logic": {
+                                "or": [
+                                    {
+                                        "and": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
+                                            {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}, ""]},
+                                            {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}, null]}
+                                        ]
+                                    },
+                                    {
+                                        "and": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                            {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}, ""]},
+                                            {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}, null]}
+                                        ]
+                                    },
+                                    {
+                                        "and": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.Nm"},
+                                            {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.Nm"}, ""]},
+                                            {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.Nm"}, null]}
+                                        ]
+                                    }
+                                ]
+                            },
+                            "message": "CreditorAgent must have identification (BICFI, ClrSysMmbId.MmbId, or Name) for Field 57 mapping (TR023)"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr",
+                            "logic": {
+                                "or": [
+                                    {
+                                        "and": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.Nm"},
+                                            {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.Nm"}, ""]},
+                                            {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.Nm"}, null]}
+                                        ]
+                                    },
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.Id.OrgId.AnyBIC"},
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.Id.PrvtId"}
+                                ]
+                            },
+                            "message": "Creditor must have Name, BIC, or other identification for Field 59 mapping (TR025)"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI",
+                            "logic": {
+                                "and": [
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    {"!=": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, ""]},
+                                    {"!=": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, null]}
+                                ]
+                            },
+                            "message": "BAH From/Sender BICFI is required for headers and TR013 EU country validation"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI",
+                            "logic": {
+                                "and": [
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    {"!=": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, ""]},
+                                    {"!=": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, null]}
+                                ]
+                            },
+                            "message": "BAH To/Receiver BICFI is required for headers and TR013 EU country validation"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.UETR",
+                            "logic": {
+                                "and": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.UETR"},
+                                    {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.UETR"}, ""]},
+                                    {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.UETR"}, null]}
+                                ]
+                            },
+                            "message": "UETR is mandatory for SWIFT gpi compliance and Block 3 user header"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

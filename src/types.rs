@@ -81,3 +81,12 @@ pub struct EngineStatus {
     pub forward: String,
     pub reverse: String,
 }
+
+#[derive(Serialize)]
+pub struct ReloadResponse {
+    pub success: bool,
+    pub message: String,
+    pub timestamp: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}

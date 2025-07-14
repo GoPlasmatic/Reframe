@@ -7,8 +7,9 @@ use swift_mt_message::SwiftParser;
 use tracing::{debug, error, info, instrument};
 
 use crate::sample_generator::{generate_mt_from_config, is_supported_message_type};
+use crate::engine::reload_engines;
 use crate::types::{
-    AppState, DebugInfo, EngineStatus, HealthResponse, SampleGenerationRequest,
+    AppState, DebugInfo, EngineStatus, HealthResponse, ReloadResponse, SampleGenerationRequest,
     TransformationRequest, TransformationResponse,
 };
 
@@ -616,4 +617,36 @@ pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse>
             "Supported MT types: MT101, MT103, MT104, MT107, MT110, MT111, MT112, MT192, MT196, MT199, MT202, MT205, MT210, MT292, MT296, MT299, MT900, MT910, MT920, MT935, MT940, MT941, MT942, MT950".to_string(),
         ],
     })
+}
+
+#[instrument(skip(state))]
+pub async fn reload_workflows(State(state): State<AppState>) -> Result<Json<ReloadResponse>, StatusCode> {
+    let start_time = Instant::now();
+    
+    info!("🔄 Processing workflow reload request");
+
+    match reload_engines(&state).await {
+        Ok(()) => {
+            let reload_time = start_time.elapsed().as_millis() as u64;
+            info!("✅ Workflow reload completed successfully in {}ms", reload_time);
+
+            Ok(Json(ReloadResponse {
+                success: true,
+                message: format!("Workflows reloaded successfully in {reload_time}ms"),
+                timestamp: chrono::Utc::now().to_rfc3339(),
+                error: None,
+            }))
+        }
+        Err(e) => {
+            let reload_time = start_time.elapsed().as_millis() as u64;
+            error!("❌ Workflow reload failed after {}ms: {}", reload_time, e);
+
+            Ok(Json(ReloadResponse {
+                success: false,
+                message: format!("Workflow reload failed after {reload_time}ms"),
+                timestamp: chrono::Utc::now().to_rfc3339(),
+                error: Some(e.to_string()),
+            }))
+        }
+    }
 }

@@ -40,6 +40,7 @@ In the rapidly evolving landscape of financial messaging, **Reframe** stands as 
 - **High Availability**: Stateless architecture enabling horizontal scaling
 - **Production-Ready**: Comprehensive error handling, monitoring, and observability
 - **Container-Native**: Single Docker image for seamless deployment
+- **Hot Reload**: Runtime workflow reloading without service restart
 
 ### 🌐 **Comprehensive Message Coverage**
 - **Payment Messages**: MT103, MT202, MT205 with all variants (normal, cover, rejection, return)
@@ -98,24 +99,28 @@ Transform your first message instantly:
 ```bash
 # Forward transformation (MT103 → pacs.008)
 curl -X POST http://localhost:3000/transform/mt-to-mx \
-  -H "Content-Type: text/plain" \
-  -d "{1:F01BNPAFRPPXXX0000000000}...{-}"
+  -H "Content-Type: application/json" \
+  -d '{"message": "{1:F01BNPAFRPPXXX0000000000}...{-}"}'
 
 # Reverse transformation (pacs.008 → MT103)  
 curl -X POST http://localhost:3000/transform/mx-to-mt \
-  -H "Content-Type: application/xml" \
-  -d "<?xml version=\"1.0\"?>..."
+  -H "Content-Type: application/json" \
+  -d '{"message": "<?xml version=\"1.0\"?>..."}'
+
+# Reload workflows (for hot-swapping configurations)
+curl -X POST http://localhost:3000/admin/reload-workflows
 ```
 
 ---
 
 ## 🗺️ Roadmap
 
-### 🎯 **Currently Available (v2.2)**
+### 🎯 **Currently Available (v2.8)**
 - ✅ Complete bidirectional MT ↔ ISO 20022 transformation
 - ✅ 30+ message variants with full lifecycle support
 - ✅ Production-ready container deployment
 - ✅ Comprehensive Web UI with testing capabilities
+- ✅ Hot reload workflow API for runtime configuration updates
 - ✅ AI-powered message mapping generation
 
 ### 🌟 **Future Vision**

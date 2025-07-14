@@ -104,3 +104,24 @@ async fn load_workflows_for_engine(
 
     Ok(())
 }
+
+pub async fn reload_engines(app_state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
+    info!("🔄 Reloading both Forward and Reverse Engines");
+
+    let new_forward_engine = initialize_forward_engine().await?;
+    let new_reverse_engine = initialize_reverse_engine().await?;
+
+    {
+        let mut forward_guard = app_state.forward_engine.lock().await;
+        *forward_guard = new_forward_engine;
+    }
+
+    {
+        let mut reverse_guard = app_state.reverse_engine.lock().await;
+        *reverse_guard = new_reverse_engine;
+    }
+
+    info!("✅ Both engines reloaded successfully");
+    Ok(())
+}
+

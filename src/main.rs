@@ -19,7 +19,7 @@ mod types;
 
 // Import public items from modules
 use engine::initialize_engines;
-use handlers::{generate_mt_sample, health_check, transform_mt_to_mx, transform_mx_to_mt};
+use handlers::{generate_mt_sample, health_check, reload_workflows, transform_mt_to_mx, transform_mx_to_mt};
 
 #[tokio::main]
 async fn main() {
@@ -37,6 +37,7 @@ async fn main() {
         .route("/transform/mt-to-mx", post(transform_mt_to_mx))
         .route("/transform/mx-to-mt", post(transform_mx_to_mt))
         .route("/generate/mt-sample", post(generate_mt_sample))
+        .route("/admin/reload-workflows", post(reload_workflows))
         .nest_service("/", ServeDir::new("static"))
         .with_state(app_state);
 
@@ -45,6 +46,7 @@ async fn main() {
     info!("📡 Forward endpoint: POST /transform/mt-to-mx");
     info!("📡 Reverse endpoint: POST /transform/mx-to-mt");
     info!("🔧 Sample generation: POST /generate/mt-sample");
+    info!("🔄 Workflow reload: POST /admin/reload-workflows");
     info!("🏥 Health check: GET /health");
 
     axum::serve(listener, app).await.unwrap();

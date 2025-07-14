@@ -1,0 +1,221 @@
+{
+    "id": "pacs004-to-mt-retn-preconditions",
+    "name": "pacs.004 to MT RETN Preconditions Validation",
+    "description": "Validates preconditions for pacs.004 to MT103/MT202/MT205 RETN transformation according to CBPR+ specification PREC001-PREC004",
+    "priority": 2,
+    "condition": {
+        "and": [
+            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+            {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+            {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "validate_prec001_prec002",
+            "name": "Validate PREC001-PREC002",
+            "description": "Validate currency and transaction count preconditions",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.@Ccy",
+                            "logic": {
+                                "!": {
+                                    "in": [
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.@Ccy"},
+                                        ["XAU", "XAG", "XPD", "XPT"]
+                                    ]
+                                }
+                            },
+                            "message": "PREC001: T20054 - Commodity currencies (XAU, XAG, XPD, XPT) not allowed in returned interbank settlement amount"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.GrpHdr.NbOfTxs",
+                            "logic": {
+                                "or": [
+                                    {"==": [{"var": "data.ISO20022_MX.document.GrpHdr.NbOfTxs"}, "1"]},
+                                    {"==": [{"var": "data.ISO20022_MX.document.GrpHdr.NbOfTxs"}, 1]}
+                                ]
+                            },
+                            "message": "PREC002: T20053 - Multiple transactions not supported in pacs.004 to MT RETN transformation"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "implement_prec003",
+            "name": "Implement PREC003 - Message Type Determination",
+            "description": "Determine target message type (MT103/MT202/MT205 RETN) based on original message and return chain structure",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.message_name_present",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"},
+                                    {
+                                        "or": [
+                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]},
+                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]},
+                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.009"]},
+                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT202"]},
+                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT205"]}
+                                        ]
+                                    },
+                                    false
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.target_message_type",
+                            "logic": {
+                                "if": [
+                                    {
+                                        "and": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf"},
+                                            {"var": "temp_data.message_name_present"}
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {
+                                                "or": [
+                                                    {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]},
+                                                    {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]}
+                                                ]
+                                            },
+                                            "103",
+                                            {
+                                                "if": [
+                                                    {
+                                                        "or": [
+                                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.009"]},
+                                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT202"]}
+                                                        ]
+                                                    },
+                                                    "202",
+                                                    {
+                                                        "if": [
+                                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT205"]},
+                                                            "205",
+                                                            {
+                                                                "if": [
+                                                                    {
+                                                                        "and": [
+                                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
+                                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
+                                                                        ]
+                                                                    },
+                                                                    "202",
+                                                                    "103"
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "if": [
+                                            {
+                                                "and": [
+                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
+                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
+                                                ]
+                                            },
+                                            "202",
+                                            "103"
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_mandatory_elements",
+            "name": "Validate Mandatory Elements",
+            "description": "Additional validation for mandatory elements required for pacs.004 PaymentReturn messages",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.TxInf",
+                            "logic": {
+                                "!!": { "var": "data.ISO20022_MX.document.TxInf" }
+                            },
+                            "message": "Transaction information is mandatory in pacs.004 messages"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.TxInf.RtrChain",
+                            "logic": {
+                                "!!": { "var": "data.ISO20022_MX.document.TxInf.RtrChain" }
+                            },
+                            "message": "Return chain is mandatory in pacs.004 PaymentReturn messages"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.TxInf.RtrRsnInf",
+                            "logic": {
+                                "!!": { "var": "data.ISO20022_MX.document.TxInf.RtrRsnInf" }
+                            },
+                            "message": "Return reason information is mandatory in pacs.004 messages"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.TxInf.RtrRsnInf.Rsn.Cd",
+                            "logic": {
+                                "!!": { "var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.Rsn.Cd" }
+                            },
+                            "message": "Return reason code is mandatory in return reason information"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.@Ccy",
+                            "logic": {
+                                "!!": { "var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.@Ccy" }
+                            },
+                            "message": "Returned interbank settlement amount currency is mandatory for Field 32A mapping"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.$value",
+                            "logic": {
+                                "!!": { "var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.$value" }
+                            },
+                            "message": "Returned interbank settlement amount value is mandatory"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.TxInf.IntrBkSttlmDt",
+                            "logic": {
+                                "!!": { "var": "data.ISO20022_MX.document.TxInf.IntrBkSttlmDt" }
+                            },
+                            "message": "Interbank settlement date is mandatory for Field 32A mapping"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI",
+                            "logic": {
+                                "!!": { "var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI" }
+                            },
+                            "message": "BAH From/Sender BICFI is required for headers and EU country validation"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI",
+                            "logic": {
+                                "!!": { "var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI" }
+                            },
+                            "message": "BAH To/Receiver BICFI is required for headers and EU country validation"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

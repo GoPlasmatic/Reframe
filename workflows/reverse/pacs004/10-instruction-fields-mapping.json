@@ -1,0 +1,95 @@
+{
+    "id": "pacs004-instruction-fields-mapping",
+    "name": "PACS.004 to MT RETN Instruction Fields Mapping",
+    "description": "Maps instruction and return information to field 72",
+    "priority": 10,
+    "condition": {
+        "and": [
+            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+            {"==": [{"var": "progress.workflow_id"}, "pacs004-remittance-fields-mapping"]},
+            {"==": [{"var": "progress.task_id"}, "combine_field_70"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "map_field_72",
+            "name": "Map Field 72 - Sender to Receiver Information",
+            "description": "Map return reason and reference information to field 72",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#72",
+                            "logic": {
+                                "lines": {
+                                    "merge": [
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.TxInf.OrgnlInstrId"},
+                                                [{"cat": ["/MREF/", {"var": "data.ISO20022_MX.document.TxInf.OrgnlInstrId"}]}],
+                                                []
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"},
+                                                [{"cat": ["/TREF/", {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"}]}],
+                                                []
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.Rsn.Cd"},
+                                                [{"cat": ["/RTRN/", {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.Rsn.Cd"}]}],
+                                                []
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.AddtlInf"},
+                                                {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.AddtlInf"},
+                                                []
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "temp_data.charges_for_field_72"},
+                                                {"var": "temp_data.charges_for_field_72"},
+                                                []
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_field_72_length",
+            "name": "Validate Field 72 Length",
+            "description": "Ensure field 72 lines comply with SWIFT format restrictions",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.SwiftMT.fields.72.lines",
+                            "logic": {
+                                "or": [
+                                    {"!": [{"var": "data.SwiftMT.fields.72.lines"}]},
+                                    {"<=": [{"length": {"var": "data.SwiftMT.fields.72.lines"}}, 6]}
+                                ]
+                            },
+                            "message": "T20037: Field 72 exceeds 6 line limit"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

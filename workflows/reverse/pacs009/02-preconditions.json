@@ -1,0 +1,135 @@
+{
+    "id": "pacs009-to-mt202-preconditions",
+    "name": "pacs.009 to MT202 Preconditions Validation",
+    "description": "Validates preconditions for pacs.009 to MT202/MT205 transformation according to CBPR+ specification PREC001-PREC002",
+    "priority": 2,
+    "condition": {
+        "and": [
+            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.009.001.08"]},
+            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+            {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+            {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "validate_prec001_prec002",
+            "name": "Validate PREC001-PREC002",
+            "description": "Validate CBPR+ specification preconditions for PACS009 to MT202 transformation",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy",
+                            "logic": {
+                                "!": {
+                                    "in": [
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
+                                        ["XAU", "XAG", "XPD", "XPT"]
+                                    ]
+                                }
+                            },
+                            "message": "PREC001: T20054 - Commodities currencies not allowed in Field 32A. Note: This is redundant as such currencies are excluded in the UGs, so this will never be met if the MX is valid"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.GrpHdr.NbOfTxs",
+                            "logic": {
+                                "or": [
+                                    {"==": [{"var": "data.ISO20022_MX.document.GrpHdr.NbOfTxs"}, "1"]},
+                                    {"==": [{"var": "data.ISO20022_MX.document.GrpHdr.NbOfTxs"}, 1]}
+                                ]
+                            },
+                            "message": "PREC002: T20053 - The number of occurrences must be 1. Note: This is redundant as the schema already restricts to 1 occurrence"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "set_target_message_type",
+            "name": "Set Target Message Type",
+            "description": "Set target message type to 202 for pacs.009 to MT202 transformation",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.target_message_type",
+                            "logic": "202"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_basic_requirements",
+            "name": "Validate Basic Requirements",
+            "description": "Validate basic requirements for PACS009 to MT202 transformation (not explicitly in CBPR+ preconditions but required for valid MT construction)",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId",
+                            "logic": {
+                                "and": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId"},
+                                    {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId"}, ""]},
+                                    {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId"}, null]}
+                                ]
+                            },
+                            "message": "InstructionIdentification is mandatory for Field 20 construction"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt",
+                            "logic": {
+                                "and": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
+                                    {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"}, ""]},
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"},
+                                    {">": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"}, 0]}
+                                ]
+                            },
+                            "message": "InterbankSettlementAmount with currency is mandatory for Field 32A construction"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt",
+                            "logic": {
+                                "and": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"},
+                                    {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}, ""]},
+                                    {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}, null]}
+                                ]
+                            },
+                            "message": "InterbankSettlementDate is mandatory for Field 32A construction"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI",
+                            "logic": {
+                                "and": [
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    {"!=": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, ""]},
+                                    {"!=": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, null]}
+                                ]
+                            },
+                            "message": "BAH From/Sender BICFI is required for SWIFT headers construction"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI",
+                            "logic": {
+                                "and": [
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    {"!=": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, ""]},
+                                    {"!=": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, null]}
+                                ]
+                            },
+                            "message": "BAH To/Receiver BICFI is required for SWIFT headers construction"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

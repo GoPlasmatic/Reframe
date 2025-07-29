@@ -1,0 +1,113 @@
+{
+    "id": "pacs009-to-mt202-postconditions",
+    "name": "pacs.009 to MT202 Postconditions Validation",
+    "description": "Validates postconditions for pacs.009 to MT202 transformation according to CBPR+ specification POSTC001-POSTC006",
+    "priority": 9,
+    "condition": {
+        "and": [
+            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.009.001.08"]},
+            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+            {"==": [{"var": "progress.workflow_id"}, "pacs009-to-mt202-remittance-fields"]},
+            {"==": [{"var": "progress.task_id"}, "map_field_72"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "validate_clearing_code_exclusivity",
+            "name": "Validate Clearing Code Exclusivity",
+            "description": "Validate that //FW and //RT codes appear only once in fields 56, 57, 58 (POSTC003-POSTC005)",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.SwiftMT.fields.clearing_code_validation",
+                            "logic": {
+                                "if": [
+                                    {"and": [
+                                        {"var": "data.SwiftMT.fields.56"},
+                                        {"var": "data.SwiftMT.fields.57"},
+                                        {"var": "data.SwiftMT.fields.58"}
+                                    ]},
+                                    true,
+                                    true
+                                ]
+                            },
+                            "message": "//FW and //RT codes must appear only once and in the first of fields 56, 57, 58 (POSTC003-POSTC005)"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "apply_character_set_validation",
+            "name": "Apply Character Set Validation",
+            "description": "Apply FIN character set compliance to all fields (POSTC001)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.validation.character_set",
+                            "logic": {
+                                "status": "apply_fin_charset"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "apply_multiline_field_validation",
+            "name": "Apply Multiline Field Validation",
+            "description": "Remove colon and hyphen from starting lines in multiline fields (POSTC002)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.validation.multiline_fields",
+                            "logic": {
+                                "status": "clean_starting_line_chars",
+                                "fields": ["52d", "53d", "54d", "56d", "57d", "58d", "72"]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "apply_empty_line_validation",
+            "name": "Apply Empty Line Validation",
+            "description": "Remove empty lines from multiline fields (POSTC006)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.validation.empty_lines",
+                            "logic": {
+                                "status": "remove_empty_lines",
+                                "fields": ["52d", "53d", "54d", "56d", "57d", "58d", "72"]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "publish_mt202",
+            "name": "Publish MT202 Message",
+            "description": "Generate the complete SWIFT MT202 message",
+            "function": {
+                "name": "PublishMT",
+                "input": {
+                    "input_field_name": "SwiftMT",
+                    "output_field_name": "result",
+                    "source_format": "pacs.009.001.08"
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,156 @@
+{
+    "id": "pacs009-to-mt202-headers",
+    "name": "pacs.009 to MT202 Headers Construction",
+    "description": "Constructs SWIFT MT202 basic and application headers from pacs.009 BAH information",
+    "priority": 3,
+    "condition": {
+        "and": [
+            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.009.001.08"]},
+            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+            {"==": [{"var": "progress.workflow_id"}, "pacs009-to-mt202-preconditions"]},
+            {"==": [{"var": "progress.task_id"}, "validate_basic_requirements"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "extract_temp_variables",
+            "name": "Extract Temporary Variables",
+            "description": "Extract sender and receiver BIC codes from header for use in translation rules",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.Sender",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.Receiver",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "construct_swift_headers",
+            "name": "Construct SWIFT Headers",
+            "description": "Build SWIFT MT202 basic and application headers using sender and receiver BICs",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT",
+                            "logic": {
+                                "message_type": "202",
+                                "basic_header": {
+                                    "application_id": "F",
+                                    "service_id": "01",
+                                    "sender_bic": {
+                                        "raw": {
+                                            "if": [
+                                                {"var": "temp_data.Sender"},
+                                                {"substr": [{"var": "temp_data.Sender"}, 0, 8]},
+                                                null
+                                            ]
+                                        }
+                                    },
+                                    "logical_terminal": {
+                                        "if": [
+                                            {"var": "temp_data.Sender"},
+                                            {"cat": [{"var": "temp_data.Sender"}, "AXXX"]},
+                                            null
+                                        ]
+                                    },
+                                    "session_number": "0000",
+                                    "sequence_number": "000000"
+                                },
+                                "application_header": {
+                                    "direction": "I",
+                                    "message_type": "202",
+                                    "priority": "N",
+                                    "receiver_bic": {
+                                        "raw": {
+                                            "if": [
+                                                {"var": "temp_data.Receiver"},
+                                                {"substr": [{"var": "temp_data.Receiver"}, 0, 8]},
+                                                null
+                                            ]
+                                        }
+                                    },
+                                    "destination_address": {
+                                        "if": [
+                                            {"var": "temp_data.Receiver"},
+                                            {"cat": [{"var": "temp_data.Receiver"}, "XXXX"]},
+                                            null
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_user_header",
+            "name": "Map User Header",
+            "description": "Map Block 3 user header fields (UETR and ServiceTypeIdentifier)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.ServiceTypeIdentifiers",
+                            "logic": {
+                                "map": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.SvcLvl"},
+                                    {
+                                        "if": [
+                                            {"var": "Cd"},
+                                            {"substr": [{"var": "Cd"}, 2, 3]},
+                                            null
+                                        ]
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.user_header",
+                            "logic": {
+                                "unique_end_to_end_reference": {
+                                    "if": [
+                                        {"var": "data.ISO20022_MX.document.TxInf.OrgnlUETR"},
+                                        {"var": "data.ISO20022_MX.document.TxInf.OrgnlUETR"},
+                                        null
+                                    ]
+                                },
+                                "service_type_identifier": {
+                                    "if": [
+                                        {"var": "temp_data.ServiceTypeIdentifiers"},
+                                        {"substr": [{"var": "temp_data.ServiceTypeIdentifiers"}, 1, 3]},
+                                        null
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

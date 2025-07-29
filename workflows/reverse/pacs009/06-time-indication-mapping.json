@@ -1,0 +1,138 @@
+{
+    "id": "pacs009-to-mt202-time-indication",
+    "name": "pacs.009 to MT202 Time Indication Mapping",
+    "description": "Maps time indication fields from pacs.009 to MT202 Field 13C according to CBPR+ specification (TR006)",
+    "priority": 6,
+    "condition": {
+        "and": [
+            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.009.001.08"]},
+            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+            {"==": [{"var": "progress.workflow_id"}, "pacs009-to-mt202-settlement-fields"]},
+            {"==": [{"var": "progress.task_id"}, "map_field_53_core_cov"]},
+            {"==": [{"var": "progress.status_code"}, 200]}
+        ]
+    },
+    "tasks": [
+        {
+            "id": "map_field_13c",
+            "name": "Map Field 13C - Time Indication",
+            "description": "Map settlement time indication to Field 13C with multiple occurrences (TR006)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.TimeIndicationsList",
+                            "logic": {
+                                "filter": [
+                                    [
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"},
+                                                {
+                                                    "cat": [
+                                                        "/SNDTIME/",
+                                                        {"mx_to_mt_datetime_offset": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}}
+                                                    ]
+                                                },
+                                                null
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"},
+                                                {
+                                                    "cat": [
+                                                        "/RNCTIME/",
+                                                        {"mx_to_mt_datetime_offset": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}}
+                                                    ]
+                                                },
+                                                null
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.CLSTm"},
+                                                {
+                                                    "cat": [
+                                                        "/CLSTIME/",
+                                                        {"mx_to_mt_time_offset": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.CLSTm"}}
+                                                    ]
+                                                },
+                                                null
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.TillTm"},
+                                                {
+                                                    "cat": [
+                                                        "/TILTIME/",
+                                                        {"mx_to_mt_time_offset": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.TillTm"}}
+                                                    ]
+                                                },
+                                                null
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.FrTm"},
+                                                {
+                                                    "cat": [
+                                                        "/FROTIME/",
+                                                        {"mx_to_mt_time_offset": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.FrTm"}}
+                                                    ]
+                                                },
+                                                null
+                                            ]
+                                        },
+                                        {
+                                            "if": [
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.RjctTm"},
+                                                {
+                                                    "cat": [
+                                                        "/REJTIME/",
+                                                        {"mx_to_mt_time_offset": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.RjctTm"}}
+                                                    ]
+                                                },
+                                                null
+                                            ]
+                                        }
+                                    ],
+                                    {"!=": [{"var": ""}, null]}
+                                ]
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#13C",
+                            "logic": [
+                                {
+                                    "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"},
+                                        {
+                                            "time_code": "/SNDTIME/",
+                                            "time": {
+                                                "cat": [
+                                                    {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, 11, 2]},
+                                                    {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, 14, 2]}
+                                                ]
+                                            },
+                                            "utc_offset": {
+                                                "if": [
+                                                    {"includes": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, "+"]},
+                                                    {"cat": ["+", {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, 20, 4]}]},
+                                                    "+0000"
+                                                ]
+                                            }
+                                        },
+                                        null
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

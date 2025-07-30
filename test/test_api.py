@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Reframe API Test Script
-Tests all sample files in test_data/ against the Reframe API endpoints
-and logs results to test_data/logs/
+Tests transformations using dynamically generated samples with scenarios
+from the swift-mt-message library and logs results to logs/
 """
 
 import os
@@ -11,7 +11,7 @@ import json
 import datetime
 import requests
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
@@ -23,8 +23,7 @@ init(autoreset=True)
 class ReframeAPITester:
     def __init__(self, base_url: str = "http://localhost:3000"):
         self.base_url = base_url
-        self.test_data_dir = Path("data")
-        self.logs_dir = self.test_data_dir / "logs"
+        self.logs_dir = Path("logs")
         self.timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         
         # Create logs directory if it doesn't exist
@@ -54,30 +53,79 @@ class ReframeAPITester:
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
             f.write(f"[{timestamp}] {message}\n")
     
-    def save_debug_info(self, file_name: str, direction: str, debug_info: Dict):
-        """Save debug info for a specific file"""
-        # Create filename without extension and add direction
-        base_name = Path(file_name).stem
-        debug_file = self.debug_dir / f"{direction}_{base_name}.json"
+    def save_debug_info(self, test_name: str, direction: str, debug_info: Dict):
+        """Save debug info for a specific test"""
+        debug_file = self.debug_dir / f"{direction}_{test_name}.json"
         
         with open(debug_file, 'w') as f:
             json.dump({
-                "file": file_name,
+                "test": test_name,
                 "direction": direction,
                 "debug_info": debug_info
             }, f, indent=2)
         
         self.log_detail(f"Debug info saved to {debug_file.name}")
     
-    def test_forward_transformation(self, file_path: Path) -> Tuple[bool, Dict]:
+    def generate_mt_sample(self, message_type: str, scenario: str = None) -> Tuple[bool, Optional[str], Dict]:
+        """Generate MT sample using the API"""
+        endpoint = f"{self.base_url}/generate/mt-sample"
+        
+        try:
+            # Prepare request
+            config = {}
+            if scenario:
+                config["scenario"] = scenario
+                
+            payload = {
+                "message_type": message_type,
+                "config": config,
+                "options": {
+                    "validation": True,
+                    "include_debug": True
+                }
+            }
+            
+            self.log_detail(f"Generating {message_type} sample with scenario: {scenario or 'default'}")
+            
+            # Make API call
+            start_time = time.time()
+            response = requests.post(
+                endpoint,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+                timeout=30
+            )
+            elapsed_time = (time.time() - start_time) * 1000
+            
+            self.log_detail(f"Response status: {response.status_code}")
+            self.log_detail(f"Response time: {elapsed_time:.2f}ms")
+            
+            if response.status_code == 200:
+                response_data = response.json()
+                
+                if response_data.get("success") and response_data.get("transformed_message"):
+                    mt_message = response_data["transformed_message"]
+                    self.log_detail(f"Successfully generated {message_type} ({len(mt_message)} characters)")
+                    return True, mt_message, {"elapsed_ms": elapsed_time}
+                else:
+                    error = response_data.get("errors", ["Unknown error"])[0]
+                    self.log_detail(f"Generation failed: {error}")
+                    return False, None, {"error": error, "elapsed_ms": elapsed_time}
+            else:
+                error = f"HTTP {response.status_code}: {response.text}"
+                self.log_detail(f"Generation failed: {error}")
+                return False, None, {"error": error, "elapsed_ms": elapsed_time}
+                
+        except Exception as e:
+            error = f"Exception during generation: {str(e)}"
+            self.log_detail(error)
+            return False, None, {"error": error}
+    
+    def test_forward_transformation(self, mt_content: str, test_name: str) -> Tuple[bool, Dict]:
         """Test MT to MX transformation"""
         endpoint = f"{self.base_url}/transform/mt-to-mx"
         
         try:
-            # Read the MT message
-            with open(file_path, 'r') as f:
-                mt_content = f.read()
-            
             # Prepare request with debug option
             payload = {
                 "message": mt_content,
@@ -88,7 +136,7 @@ class ReframeAPITester:
                 }
             }
             
-            self.log_detail(f"Testing forward transformation for: {file_path.name}")
+            self.log_detail(f"Testing forward transformation for: {test_name}")
             self.log_detail(f"Request payload size: {len(mt_content)} bytes")
             
             # Make API call
@@ -105,7 +153,7 @@ class ReframeAPITester:
             self.log_detail(f"Response time: {elapsed_time:.2f}ms")
             
             result = {
-                "file": file_path.name,
+                "test_name": test_name,
                 "status_code": response.status_code,
                 "elapsed_ms": elapsed_time,
                 "success": response.status_code == 200
@@ -131,7 +179,7 @@ class ReframeAPITester:
                         result["debug_info"] = response_data["debug_info"]
                         self.log_detail(f"Debug info captured: {len(str(response_data['debug_info']))} bytes")
                         # Save debug info to individual file
-                        self.save_debug_info(file_path.name, "forward", response_data["debug_info"])
+                        self.save_debug_info(test_name, "forward", response_data["debug_info"])
                     else:
                         self.log_detail(f"No debug_info in response. Keys: {list(response_data.keys())}")
                     
@@ -175,20 +223,16 @@ class ReframeAPITester:
             error_msg = f"Exception during forward transformation: {str(e)}"
             self.log_detail(error_msg)
             return False, {
-                "file": file_path.name,
+                "test_name": test_name,
                 "error": error_msg,
                 "success": False
             }
     
-    def test_reverse_transformation(self, file_path: Path) -> Tuple[bool, Dict]:
+    def test_reverse_transformation(self, mx_content: str, test_name: str) -> Tuple[bool, Dict]:
         """Test MX to MT transformation"""
         endpoint = f"{self.base_url}/transform/mx-to-mt"
         
         try:
-            # Read the XML message
-            with open(file_path, 'r') as f:
-                mx_content = f.read()
-            
             # Prepare request with debug option
             payload = {
                 "message": mx_content,
@@ -199,7 +243,7 @@ class ReframeAPITester:
                 }
             }
             
-            self.log_detail(f"Testing reverse transformation for: {file_path.name}")
+            self.log_detail(f"Testing reverse transformation for: {test_name}")
             self.log_detail(f"Request payload size: {len(mx_content)} bytes")
             
             # Make API call
@@ -216,7 +260,7 @@ class ReframeAPITester:
             self.log_detail(f"Response time: {elapsed_time:.2f}ms")
             
             result = {
-                "file": file_path.name,
+                "test_name": test_name,
                 "status_code": response.status_code,
                 "elapsed_ms": elapsed_time,
                 "success": response.status_code == 200
@@ -233,7 +277,7 @@ class ReframeAPITester:
                         result["debug_info"] = response_data["debug_info"]
                         self.log_detail(f"Debug info captured: {len(str(response_data['debug_info']))} bytes")
                         # Save debug info to individual file
-                        self.save_debug_info(file_path.name, "reverse", response_data["debug_info"])
+                        self.save_debug_info(test_name, "reverse", response_data["debug_info"])
                     else:
                         self.log_detail(f"No debug_info in response. Keys: {list(response_data.keys())}")
                     
@@ -278,7 +322,7 @@ class ReframeAPITester:
             error_msg = f"Exception during reverse transformation: {str(e)}"
             self.log_detail(error_msg)
             return False, {
-                "file": file_path.name,
+                "test_name": test_name,
                 "error": error_msg,
                 "success": False
             }
@@ -295,19 +339,57 @@ class ReframeAPITester:
             self.log_detail(f"Server health check failed: {str(e)}")
         return False
     
-    def print_progress(self, direction: str, file_name: str, success: bool, elapsed_ms: float, error: str = None):
+    def print_progress(self, direction: str, test_name: str, success: bool, elapsed_ms: float, error: str = None):
         """Print colored progress to console"""
         direction_color = Fore.CYAN if direction == "forward" else Fore.MAGENTA
         status_icon = f"{Fore.GREEN}✓{Style.RESET_ALL}" if success else f"{Fore.RED}✗{Style.RESET_ALL}"
         
-        message = f"{direction_color}[{direction.upper():7}]{Style.RESET_ALL} {status_icon} {file_name:30} [{elapsed_ms:7.2f}ms]"
+        message = f"{direction_color}[{direction.upper():7}]{Style.RESET_ALL} {status_icon} {test_name:30} [{elapsed_ms:7.2f}ms]"
         
         if error:
             message += f" {Fore.RED}{error[:60]}...{Style.RESET_ALL}" if len(error) > 60 else f" {Fore.RED}{error}{Style.RESET_ALL}"
         
         print(message)
     
-    def run_tests(self, parallel: bool = False):
+    def get_test_scenarios(self) -> List[Dict]:
+        """Get test scenarios for different message types"""
+        scenarios = []
+        
+        # MT103 scenarios
+        for scenario in ["standard", "high_value", "remittance_enhanced", "cbpr_stp_compliant"]:
+            scenarios.append({
+                "message_type": "MT103",
+                "scenario": scenario,
+                "test_name": f"MT103_{scenario}"
+            })
+        
+        # MT202 scenarios  
+        for scenario in ["standard", "cbpr_cov_standard", "fi_to_fi_transparency"]:
+            scenarios.append({
+                "message_type": "MT202",
+                "scenario": scenario,
+                "test_name": f"MT202_{scenario}"
+            })
+            
+        # MT900/910 scenarios
+        for mt_type in ["MT900", "MT910"]:
+            scenarios.append({
+                "message_type": mt_type,
+                "scenario": "standard",
+                "test_name": f"{mt_type}_standard"
+            })
+            
+        # Add a few more message types with standard scenario
+        for mt_type in ["MT192", "MT196", "MT292", "MT296", "MT940", "MT950"]:
+            scenarios.append({
+                "message_type": mt_type,
+                "scenario": "standard",
+                "test_name": f"{mt_type}_standard"
+            })
+            
+        return scenarios
+    
+    def run_tests(self, test_scenarios: List[Dict] = None):
         """Run all tests"""
         print(f"\n{Fore.YELLOW}Reframe API Test Runner{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}{'='*60}{Style.RESET_ALL}\n")
@@ -319,72 +401,84 @@ class ReframeAPITester:
             sys.exit(1)
         print(f"{Fore.GREEN}Server is healthy!{Style.RESET_ALL}\n")
         
-        # Collect test files
-        mt_files = list(self.test_data_dir.glob("*.txt"))
-        mx_files = list(self.test_data_dir.glob("*.xml"))
+        # Use provided scenarios or get defaults
+        if not test_scenarios:
+            test_scenarios = self.get_test_scenarios()
         
-        print(f"Found {len(mt_files)} MT files for forward transformation")
-        print(f"Found {len(mx_files)} MX files for reverse transformation\n")
+        print(f"Running tests for {len(test_scenarios)} scenarios\n")
         
-        # Test forward transformations
-        print(f"{Fore.CYAN}Testing Forward Transformations (MT → MX){Style.RESET_ALL}")
+        # Test each scenario
+        print(f"{Fore.CYAN}Testing Message Generation and Transformation{Style.RESET_ALL}")
         print(f"{Fore.CYAN}{'-'*60}{Style.RESET_ALL}")
         
-        forward_results = []
-        for mt_file in sorted(mt_files):
-            success, result = self.test_forward_transformation(mt_file)
-            forward_results.append(result)
-            if success:
+        all_results = []
+        
+        for scenario in test_scenarios:
+            test_name = scenario["test_name"]
+            message_type = scenario["message_type"]
+            scenario_name = scenario.get("scenario")
+            
+            # Generate MT sample
+            gen_success, mt_content, gen_metrics = self.generate_mt_sample(message_type, scenario_name)
+            
+            if not gen_success:
+                result = {
+                    "test_name": test_name,
+                    "message_type": message_type,
+                    "scenario": scenario_name,
+                    "stage": "generation",
+                    "success": False,
+                    "error": gen_metrics.get("error", "Generation failed")
+                }
+                all_results.append(result)
+                self.results["forward"]["failed"] += 1
+                self.results["forward"]["errors"].append({
+                    "test": test_name,
+                    "error": result["error"]
+                })
+                
+                self.print_progress(
+                    "generate",
+                    test_name,
+                    False,
+                    gen_metrics.get("elapsed_ms", 0),
+                    result["error"]
+                )
+                continue
+            
+            # Test forward transformation
+            fwd_success, fwd_result = self.test_forward_transformation(mt_content, test_name)
+            fwd_result["message_type"] = message_type
+            fwd_result["scenario"] = scenario_name
+            fwd_result["stage"] = "forward"
+            all_results.append(fwd_result)
+            
+            if fwd_success:
                 self.results["forward"]["success"] += 1
             else:
                 self.results["forward"]["failed"] += 1
                 self.results["forward"]["errors"].append({
-                    "file": mt_file.name,
-                    "error": result.get("error", "Unknown error")
+                    "test": test_name,
+                    "error": fwd_result.get("error", "Unknown error")
                 })
             
             self.print_progress(
-                "forward", 
-                mt_file.name, 
-                success, 
-                result.get("elapsed_ms", 0),
-                result.get("error")
+                "forward",
+                test_name,
+                fwd_success,
+                fwd_result.get("elapsed_ms", 0),
+                fwd_result.get("error")
             )
-        
-        print()
-        
-        # Test reverse transformations
-        print(f"{Fore.MAGENTA}Testing Reverse Transformations (MX → MT){Style.RESET_ALL}")
-        print(f"{Fore.MAGENTA}{'-'*60}{Style.RESET_ALL}")
-        
-        reverse_results = []
-        for mx_file in sorted(mx_files):
-            success, result = self.test_reverse_transformation(mx_file)
-            reverse_results.append(result)
-            if success:
-                self.results["reverse"]["success"] += 1
-            else:
-                self.results["reverse"]["failed"] += 1
-                self.results["reverse"]["errors"].append({
-                    "file": mx_file.name,
-                    "error": result.get("error", "Unknown error")
-                })
             
-            self.print_progress(
-                "reverse",
-                mx_file.name,
-                success,
-                result.get("elapsed_ms", 0),
-                result.get("error")
-            )
+            # If forward transformation succeeded, we could test reverse too
+            # (but that's covered by round_trip tests)
         
         # Save results
         summary = {
             "timestamp": self.timestamp,
             "server": self.base_url,
             "results": self.results,
-            "forward_details": forward_results,
-            "reverse_details": reverse_results
+            "test_details": all_results
         }
         
         with open(self.summary_log, 'w') as f:
@@ -399,14 +493,12 @@ class ReframeAPITester:
         print(f"\n{Fore.YELLOW}Test Summary{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}{'='*60}{Style.RESET_ALL}")
         
-        total_tests = len(mt_files) + len(mx_files)
-        total_success = self.results["forward"]["success"] + self.results["reverse"]["success"]
-        total_failed = self.results["forward"]["failed"] + self.results["reverse"]["failed"]
+        total_tests = len(test_scenarios)
+        total_success = self.results["forward"]["success"]
+        total_failed = self.results["forward"]["failed"]
         
-        print(f"\nForward (MT→MX): {Fore.GREEN}{self.results['forward']['success']} passed{Style.RESET_ALL}, "
+        print(f"\nResults: {Fore.GREEN}{self.results['forward']['success']} passed{Style.RESET_ALL}, "
               f"{Fore.RED}{self.results['forward']['failed']} failed{Style.RESET_ALL}")
-        print(f"Reverse (MX→MT): {Fore.GREEN}{self.results['reverse']['success']} passed{Style.RESET_ALL}, "
-              f"{Fore.RED}{self.results['reverse']['failed']} failed{Style.RESET_ALL}")
         print(f"\nTotal: {total_tests} tests, "
               f"{Fore.GREEN}{total_success} passed{Style.RESET_ALL}, "
               f"{Fore.RED}{total_failed} failed{Style.RESET_ALL}")
@@ -415,9 +507,7 @@ class ReframeAPITester:
         if total_failed > 0:
             print(f"\n{Fore.RED}Failed Tests:{Style.RESET_ALL}")
             for error in self.results["forward"]["errors"]:
-                print(f"  - {error['file']}: {error['error']}")
-            for error in self.results["reverse"]["errors"]:
-                print(f"  - {error['file']}: {error['error']}")
+                print(f"  - {error['test']}: {error['error']}")
         
         print(f"\nLogs saved to:")
         print(f"  - Summary: {self.summary_log}")
@@ -426,22 +516,45 @@ class ReframeAPITester:
             print(f"  - Debug Files: {self.debug_dir}/ ({len(debug_files_created)} files)")
 
 def main():
-    parser = argparse.ArgumentParser(description="Test Reframe API with sample files")
+    parser = argparse.ArgumentParser(description="Test Reframe API with dynamically generated samples")
     parser.add_argument(
         "--url", 
         default="http://localhost:3000",
         help="Base URL of the Reframe server (default: http://localhost:3000)"
     )
     parser.add_argument(
-        "--parallel",
-        action="store_true",
-        help="Run tests in parallel (experimental)"
+        "--scenario",
+        help="Test a specific scenario (e.g., 'standard', 'high_value')"
+    )
+    parser.add_argument(
+        "--message-type",
+        help="Test a specific message type (e.g., 'MT103', 'MT202')"
     )
     
     args = parser.parse_args()
     
     tester = ReframeAPITester(base_url=args.url)
-    tester.run_tests(parallel=args.parallel)
+    
+    # Build custom test scenarios if filters provided
+    test_scenarios = None
+    if args.message_type or args.scenario:
+        test_scenarios = []
+        if args.message_type:
+            test_scenarios.append({
+                "message_type": args.message_type,
+                "scenario": args.scenario or "standard",
+                "test_name": f"{args.message_type}_{args.scenario or 'standard'}"
+            })
+        else:
+            # Use all message types with specified scenario
+            for mt_type in ["MT103", "MT202", "MT900", "MT910"]:
+                test_scenarios.append({
+                    "message_type": mt_type,
+                    "scenario": args.scenario,
+                    "test_name": f"{mt_type}_{args.scenario}"
+                })
+    
+    tester.run_tests(test_scenarios)
 
 if __name__ == "__main__":
     main()

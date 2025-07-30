@@ -21,7 +21,7 @@ init(autoreset=True)
 class RoundTripTester:
     def __init__(self, base_url: str = "http://localhost:3000"):
         self.base_url = base_url
-        self.logs_dir = Path("logs")
+        self.logs_dir = Path("logs") / "round_trip"
         self.timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         
         # Create logs directories if they don't exist
@@ -88,31 +88,27 @@ class RoundTripTester:
             self.log_detail(f"Server health check failed: {str(e)}")
         return False
     
-    def generate_mt_sample(self, message_type: str, config: Dict, test_name: str) -> Tuple[bool, Optional[str], Dict]:
+    def generate_mt_sample(self, message_type: str, scenario: str, test_name: str) -> Tuple[bool, Optional[str], Dict]:
         """Generate MT sample using the API"""
         endpoint = f"{self.base_url}/generate/mt-sample"
         
         try:
-            # Prepare request with proper default config structure
-            default_config = {
-                "include_optional": False,
-                "scenario": "Standard",
-                "field_configs": {}
-            }
-            user_config = config.get("config", {})
-            merged_config = {**default_config, **user_config}
+            # Prepare request with scenario
+            config = {}
+            if scenario:
+                config["scenario"] = scenario
             
             payload = {
                 "message_type": message_type,
-                "config": merged_config,
-                "options": config.get("options", {
+                "config": config,
+                "options": {
                     "validation": True,
                     "include_debug": True
-                })
+                }
             }
             
             self.log_detail(f"Generating MT sample for {message_type}")
-            self.log_detail(f"Config: {json.dumps(payload['config'])}")
+            self.log_detail(f"Scenario: {scenario or 'default'}")
             
             # Make API call
             start_time = time.time()
@@ -326,12 +322,12 @@ class RoundTripTester:
         
         return False, diff
     
-    def run_single_test(self, message_type: str, config: Dict, test_name: str) -> Dict:
+    def run_single_test(self, message_type: str, scenario: str, test_name: str) -> Dict:
         """Run a single round-trip test"""
         test_result = {
             "test_name": test_name,
             "message_type": message_type,
-            "config": config,
+            "scenario": scenario,
             "stages": {},
             "success": False,
             "comparison_result": None,
@@ -341,10 +337,11 @@ class RoundTripTester:
         self.log_detail(f"\n{'='*60}")
         self.log_detail(f"Starting round-trip test: {test_name}")
         self.log_detail(f"Message Type: {message_type}")
+        self.log_detail(f"Scenario: {scenario or 'default'}")
         self.log_detail(f"{'='*60}")
         
         # Stage 1: Generate MT sample
-        success, original_mt, metrics = self.generate_mt_sample(message_type, config, test_name)
+        success, original_mt, metrics = self.generate_mt_sample(message_type, scenario, test_name)
         test_result["stages"]["generate"] = {
             "success": success,
             "metrics": metrics
@@ -447,45 +444,45 @@ class RoundTripTester:
             for error in result["errors"]:
                 print(f"    - {error}")
     
-    def get_default_configs(self) -> List[Dict]:
-        """Get default test configurations"""
-        configs = []
+    def get_default_test_scenarios(self) -> List[Dict]:
+        """Get default test scenarios"""
+        scenarios = []
         
-        # Basic test for each message type
-        for mt_type in self.supported_types:
-            configs.append({
-                "test_name": f"{mt_type}_default",
-                "message_type": mt_type,
-                "config": {
-                    "include_optional": False,
-                    "scenario": "Standard",
-                    "field_configs": {}
-                },
-                "options": {
-                    "validation": True,
-                    "include_debug": True
-                }
+        # MT103 with various scenarios
+        for scenario in ["standard", "high_value", "cbpr_stp_compliant"]:
+            scenarios.append({
+                "test_name": f"MT103_{scenario}",
+                "message_type": "MT103",
+                "scenario": scenario
             })
         
-        # Additional tests with optional fields
-        for mt_type in ["MT103", "MT202", "MT900"]:
-            configs.append({
-                "test_name": f"{mt_type}_with_optional",
-                "message_type": mt_type,
-                "config": {
-                    "include_optional": True,
-                    "scenario": "Standard",
-                    "field_configs": {}
-                },
-                "options": {
-                    "validation": True,
-                    "include_debug": True
-                }
+        # MT202 scenarios
+        for scenario in ["standard", "cbpr_cov_standard"]:
+            scenarios.append({
+                "test_name": f"MT202_{scenario}",
+                "message_type": "MT202",
+                "scenario": scenario
             })
         
-        return configs
+        # MT900/910 standard scenarios
+        for mt_type in ["MT900", "MT910"]:
+            scenarios.append({
+                "test_name": f"{mt_type}_standard",
+                "message_type": mt_type,
+                "scenario": "standard"
+            })
+        
+        # Additional message types with standard scenario
+        for mt_type in ["MT940", "MT950"]:
+            scenarios.append({
+                "test_name": f"{mt_type}_standard",
+                "message_type": mt_type,
+                "scenario": "standard"
+            })
+        
+        return scenarios
     
-    def run_batch_tests(self, test_configs: List[Dict]):
+    def run_batch_tests(self, test_scenarios: List[Dict]):
         """Run multiple round-trip tests"""
         print(f"\n{Fore.YELLOW}Reframe Round-Trip Test Runner{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}{'='*70}{Style.RESET_ALL}\n")
@@ -497,15 +494,16 @@ class RoundTripTester:
             sys.exit(1)
         print(f"{Fore.GREEN}Server is healthy!{Style.RESET_ALL}\n")
         
-        print(f"Running {len(test_configs)} round-trip tests...")
+        print(f"Running {len(test_scenarios)} round-trip tests...")
         print(f"{'-'*70}")
         
         # Run each test
-        for config in test_configs:
-            test_name = config.get("test_name", f"{config['message_type']}_test")
-            message_type = config["message_type"]
+        for scenario in test_scenarios:
+            test_name = scenario.get("test_name")
+            message_type = scenario["message_type"]
+            scenario_name = scenario.get("scenario", "standard")
             
-            result = self.run_single_test(message_type, config, test_name)
+            result = self.run_single_test(message_type, scenario_name, test_name)
             self.results["test_details"].append(result)
             self.results["total_tests"] += 1
             
@@ -591,7 +589,7 @@ def main():
     )
     parser.add_argument(
         "--config",
-        help="Path to JSON configuration file with test configs"
+        help="Path to JSON configuration file with test scenarios"
     )
     parser.add_argument(
         "--message-type",
@@ -604,14 +602,13 @@ def main():
         help="Test a specific message type"
     )
     parser.add_argument(
-        "--include-optional",
-        action="store_true",
-        help="Include optional fields in generated messages"
+        "--scenario",
+        help="Test with a specific scenario (e.g., 'standard', 'high_value')"
     )
     parser.add_argument(
         "--all",
         action="store_true",
-        help="Run tests for all supported message types"
+        help="Run tests for all supported message types with standard scenario"
     )
     
     args = parser.parse_args()
@@ -619,53 +616,37 @@ def main():
     tester = RoundTripTester(base_url=args.url)
     
     # Determine which tests to run
-    test_configs = []
+    test_scenarios = []
     
     if args.config:
         # Load from config file
         with open(args.config, 'r') as f:
             config_data = json.load(f)
             if isinstance(config_data, list):
-                test_configs = config_data
+                test_scenarios = config_data
             else:
-                test_configs = [config_data]
+                test_scenarios = [config_data]
     elif args.message_type:
         # Single message type test
-        test_configs = [{
-            "test_name": f"{args.message_type}_cli_test",
+        test_scenarios = [{
+            "test_name": f"{args.message_type}_{args.scenario or 'standard'}_cli_test",
             "message_type": args.message_type,
-            "config": {
-                "include_optional": args.include_optional,
-                "scenario": "Standard",
-                "field_configs": {}
-            },
-            "options": {
-                "validation": True,
-                "include_debug": True
-            }
+            "scenario": args.scenario or "standard"
         }]
     elif args.all:
-        # All message types
-        test_configs = tester.get_default_configs()
-    else:
-        # Default: test a few common message types
-        for mt_type in ["MT103", "MT202", "MT900"]:
-            test_configs.append({
-                "test_name": f"{mt_type}_default",
+        # All message types with standard scenario
+        for mt_type in tester.supported_types:
+            test_scenarios.append({
+                "test_name": f"{mt_type}_standard",
                 "message_type": mt_type,
-                "config": {
-                    "include_optional": False,
-                    "scenario": "Standard",
-                    "field_configs": {}
-                },
-                "options": {
-                    "validation": True,
-                    "include_debug": True
-                }
+                "scenario": "standard"
             })
+    else:
+        # Default: use predefined test scenarios
+        test_scenarios = tester.get_default_test_scenarios()
     
     # Run the tests
-    tester.run_batch_tests(test_configs)
+    tester.run_batch_tests(test_scenarios)
 
 if __name__ == "__main__":
     main()

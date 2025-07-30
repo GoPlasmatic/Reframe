@@ -197,40 +197,6 @@ jobs:
         draft: false
         prerelease: ${{ contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'rc') }}
 
-  build-web-ui:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: 'web-ui/package-lock.json'
-    
-    - name: Install dependencies
-      run: |
-        cd web-ui
-        npm ci
-    
-    - name: Build web UI
-      run: |
-        cd web-ui
-        npm run build
-    
-    - name: Prepare static files
-      run: |
-        mkdir -p static
-        cp -r web-ui/build/* static/
-    
-    - name: Upload static files artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: static-files
-        path: static/
-        retention-days: 1
-
   setup-azure-infrastructure:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
@@ -347,7 +313,7 @@ jobs:
         echo "📦 Using existing registry: $REGISTRY_NAME.azurecr.io"
 
   build-and-push:
-    needs: [test, build-web-ui, setup-azure-infrastructure, version-and-release]
+    needs: [test, setup-azure-infrastructure, version-and-release]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     outputs:
@@ -359,12 +325,6 @@ jobs:
     - uses: actions/checkout@v4
       with:
         ref: main  # Ensure we get the updated version
-    
-    - name: Download static files
-      uses: actions/download-artifact@v4
-      with:
-        name: static-files
-        path: static/
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -485,7 +445,7 @@ jobs:
         
         # Test the main API endpoint with sample data
         echo "Testing main API endpoint..."
-        curl -X POST "http://${FQDN}:3000/reframe" \
+        curl -X POST "http://${FQDN}:3000/transform/mt-to-mx" \
           -H "Content-Type: text/plain" \
           -d "{1:F01BNPAFRPPXXX0000000000}{2:O1031234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
         :20:FT21001234567890
@@ -564,8 +524,8 @@ jobs:
         echo "🚀 Production deployment successful!"
         echo "📦 Version: ${{ needs.version-and-release.outputs.version }}"
         echo "🏷️ Tag: ${{ needs.version-and-release.outputs.tag }}"
-        echo "Web UI: http://${FQDN}:3000/"
-        echo "API endpoint: http://${FQDN}:3000/reframe"
+        echo "API endpoint: http://${FQDN}:3000/transform/mt-to-mx"
+        echo "API endpoint: http://${FQDN}:3000/transform/mx-to-mt"
         echo "Health check: http://${FQDN}:3000/health"
     
     - name: Test production deployment
@@ -582,13 +542,9 @@ jobs:
         echo "Testing health endpoint..."
         curl -f "http://${FQDN}:3000/health" || echo "Health check failed"
         
-        # Test web UI (check if index.html is served)
-        echo "Testing web UI..."
-        curl -f "http://${FQDN}:3000/" | grep -q "Reframe" || echo "Web UI test failed"
-        
         # Test API endpoint
         echo "Testing API endpoint..."
-        curl -X POST "http://${FQDN}:3000/reframe" \
+        curl -X POST "http://${FQDN}:3000/transform/mt-to-mx" \
           -H "Content-Type: text/plain" \
           -d "{1:F01BNPAFRPPXXX0000000000}{2:O1031234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
         :20:FT21001234567890
@@ -609,8 +565,8 @@ jobs:
         echo ""
         echo "🎉 All tests completed!"
         echo "✅ Version: ${{ needs.version-and-release.outputs.version }}"
-        echo "✅ Web UI: http://${FQDN}:3000/"
-        echo "✅ API: http://${FQDN}:3000/reframe"
+        echo "✅ API: http://${FQDN}:3000/transform/mt-to-mx"
+        echo "✅ API: http://${FQDN}:3000/transform/mx-to-mt"
     
     - name: Update GitHub Release with deployment info
       if: needs.version-and-release.outputs.tag != ''
@@ -635,8 +591,8 @@ jobs:
           
           ## 🚀 Deployment Completed
           
-          - **Production URL**: [http://${fqdn}:3000/](http://${fqdn}:3000/)
-          - **API Endpoint**: [http://${fqdn}:3000/reframe](http://${fqdn}:3000/reframe)
+          - **MT to MX API**: [http://${fqdn}:3000/transform/mt-to-mx](http://${fqdn}:3000/transform/mt-to-mx)
+          - **MX to MT API**: [http://${fqdn}:3000/transform/mx-to-mt](http://${fqdn}:3000/transform/mx-to-mt)
           - **Health Check**: [http://${fqdn}:3000/health](http://${fqdn}:3000/health)
           - **Deployed At**: ${new Date().toISOString()}
           - **Git SHA**: ${context.sha}`;

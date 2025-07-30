@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Reframe** is an enterprise-grade, open-source bidirectional SWIFT MT ↔ ISO 20022 transformation service built in Rust. It provides REST API endpoints for converting between legacy SWIFT MT messages and modern ISO 20022 XML format in both directions, with a React-based web UI for testing and demonstration.
+**Reframe** is an enterprise-grade, open-source bidirectional SWIFT MT ↔ ISO 20022 transformation service built in Rust. It provides REST API endpoints for converting between legacy SWIFT MT messages and modern ISO 20022 XML format in both directions.
 
 ## Development Commands
 
@@ -43,25 +43,6 @@ cargo clippy
 
 # Check for linting errors
 cargo clippy -- -D warnings
-```
-
-### Web UI Commands
-
-```bash
-# Navigate to web-ui directory
-cd web-ui
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
 ```
 
 ### Docker Commands
@@ -120,7 +101,6 @@ The application uses `dataflow-rs` as the workflow engine with JSON-based config
 - `POST /transform/mx-to-mt` - Reverse transformation (ISO 20022 to MT)
 - `POST /generate/mt-sample` - Generate sample MT messages from JSON configuration
 - `POST /admin/reload-workflows` - Hot reload workflow configurations without restart
-- `GET /` - Web UI (served from `static/` directory)
 
 ## Configuration and Workflow Management
 
@@ -162,21 +142,20 @@ This feature enables:
 
 - **Unit Tests**: Run with `cargo test`
 - **Sample Data**: Located in `test/data/` directory with various message types
-- **Integration Testing**: API endpoints can be tested with curl or the web UI
+- **Integration Testing**: API endpoints can be tested with curl
 
 ## Deployment
 
 ### Local Development
 
 1. Run the Rust application: `cargo run`
-2. Separately run the web UI: `cd web-ui && npm run dev`
-3. Access the application at `http://localhost:3000`
+2. Access the API endpoints at `http://localhost:3000`
 
 ### Production Docker Deployment
 
 1. Build: `docker build -t reframe .`
 2. Run: `docker run -p 3000:3000 reframe`
-3. The container includes both the API and web UI
+3. The container runs the API service
 
 ### Azure Deployment
 
@@ -192,13 +171,10 @@ This feature enables:
 - **Legacy Note**: Previously required restart after modifying workflow configurations, now supports hot reload
 - Message type detection is automatic based on content analysis
 - All transformations are logged with structured tracing for debugging
-- The web UI is built separately and served as static files from the Rust application
 
 ## File Structure Key Points
 
 - `src/`: Core Rust application code
-- `web-ui/`: React-based web interface
 - `workflows/`: JSON-based transformation workflows (forward and reverse)
 - `test/data/`: Sample SWIFT MT and ISO 20022 messages for testing
-- `static/`: Built web UI assets served by the Rust application
 - `specification/`: Message format specifications and mapping tables

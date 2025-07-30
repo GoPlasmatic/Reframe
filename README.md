@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="static/plasmatic_logo.png" alt="Plasmatic Logo" width="200" height="200">
+  <img src="https://raw.githubusercontent.com/GoPlasmatic/Reframe/main/docs/plasmatic_logo.png" alt="Plasmatic Logo" width="200" height="200">
   <h1>Reframe</h1>
   <p><strong>Enterprise-Grade Bidirectional SWIFT MT ↔ ISO 20022 Transformation Engine</strong></p>
   <p>The world's first completely transparent, open-source, bidirectional SWIFT message transformation platform</p>
@@ -9,7 +9,7 @@
   [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
   [![Rust](https://img.shields.io/badge/Rust-1.70+-orange)](https://rust-lang.org)
   
-  [🚀 Live Demo](http://reframe-api-prod.eastus.azurecontainer.io:3000) | [📚 Documentation](docs/) | [🔧 Installation Guide](docs/installation.md) | [💡 Architecture](docs/architecture.md)
+  [📚 Documentation](docs/) | [🔧 Installation Guide](docs/installation.md) | [💡 Architecture](docs/architecture.md)
 </div>
 
 ---
@@ -78,8 +78,9 @@ In the rapidly evolving landscape of financial messaging, **Reframe** stands as 
 # Pull and run the latest version
 docker run -p 3000:3000 plasmatic/reframe:latest
 
-# Access the web interface
-open http://localhost:3000
+# API endpoints are available at
+# http://localhost:3000/transform/mt-to-mx
+# http://localhost:3000/transform/mx-to-mt
 ```
 
 ### 🔧 **From Source**
@@ -119,13 +120,11 @@ curl -X POST http://localhost:3000/admin/reload-workflows
 - ✅ Complete bidirectional MT ↔ ISO 20022 transformation
 - ✅ 30+ message variants with full lifecycle support
 - ✅ Production-ready container deployment
-- ✅ Comprehensive Web UI with testing capabilities
 - ✅ Hot reload workflow API for runtime configuration updates
 - ✅ AI-powered message mapping generation
 
 ### 🌟 **Future Vision**
 - 🌐 Cloud-native SaaS offering
-- 🚧 Advanced workflow visual editor
 - 🚧 Multi-tenant architecture support
 - 🚧 Enhanced monitoring and analytics dashboard
 - 🚧 Additional message format support (RTP, FedNow)

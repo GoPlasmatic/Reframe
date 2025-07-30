@@ -124,4 +124,3 @@ pub async fn reload_engines(app_state: &AppState) -> Result<(), Box<dyn std::err
     info!("✅ Both engines reloaded successfully");
     Ok(())
 }
-

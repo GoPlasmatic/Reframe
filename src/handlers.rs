@@ -6,8 +6,8 @@ use std::time::Instant;
 use swift_mt_message::SwiftParser;
 use tracing::{debug, error, info, instrument};
 
-use crate::sample_generator::{generate_mt_from_config, is_supported_message_type};
 use crate::engine::reload_engines;
+use crate::sample_generator::{generate_mt_from_config, is_supported_message_type};
 use crate::types::{
     AppState, DebugInfo, EngineStatus, HealthResponse, ReloadResponse, SampleGenerationRequest,
     TransformationRequest, TransformationResponse,
@@ -620,15 +620,20 @@ pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse>
 }
 
 #[instrument(skip(state))]
-pub async fn reload_workflows(State(state): State<AppState>) -> Result<Json<ReloadResponse>, StatusCode> {
+pub async fn reload_workflows(
+    State(state): State<AppState>,
+) -> Result<Json<ReloadResponse>, StatusCode> {
     let start_time = Instant::now();
-    
+
     info!("🔄 Processing workflow reload request");
 
     match reload_engines(&state).await {
         Ok(()) => {
             let reload_time = start_time.elapsed().as_millis() as u64;
-            info!("✅ Workflow reload completed successfully in {}ms", reload_time);
+            info!(
+                "✅ Workflow reload completed successfully in {}ms",
+                reload_time
+            );
 
             Ok(Json(ReloadResponse {
                 success: true,

@@ -2,7 +2,6 @@ use axum::{
     Router,
     routing::{get, post},
 };
-use tower_http::services::ServeDir;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
@@ -19,7 +18,9 @@ mod types;
 
 // Import public items from modules
 use engine::initialize_engines;
-use handlers::{generate_mt_sample, health_check, reload_workflows, transform_mt_to_mx, transform_mx_to_mt};
+use handlers::{
+    generate_mt_sample, health_check, reload_workflows, transform_mt_to_mx, transform_mx_to_mt,
+};
 
 #[tokio::main]
 async fn main() {
@@ -38,7 +39,6 @@ async fn main() {
         .route("/transform/mx-to-mt", post(transform_mx_to_mt))
         .route("/generate/mt-sample", post(generate_mt_sample))
         .route("/admin/reload-workflows", post(reload_workflows))
-        .nest_service("/", ServeDir::new("static"))
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();

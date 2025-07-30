@@ -133,6 +133,40 @@ This feature enables:
 4. Use the reload API to apply changes: `POST /admin/reload-workflows`
 5. Test with sample messages in `test/data/` directory
 
+### Sample Generation (Updated for swift-mt-message v3)
+
+The sample generation now uses scenario-based templates from the swift-mt-message library. The library provides pre-defined test scenarios for realistic message generation:
+
+```bash
+# Generate MT103 with default scenario
+curl -X POST http://localhost:3000/generate/mt-sample \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message_type": "MT103",
+    "config": {}
+  }'
+
+# Generate MT103 with specific scenario
+curl -X POST http://localhost:3000/generate/mt-sample \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message_type": "MT103",
+    "config": {
+      "scenario": "high_value"
+    }
+  }'
+```
+
+**Important Note**: The v3 library uses JSON scenario files with datafake-rs for dynamic data generation. The old `MessageConfig` format with `field_configs` is no longer supported.
+
+**Available Scenarios**: Located in `test_scenarios/[message_type]/`. Common scenarios include:
+- `standard` - Default scenario with typical values
+- `high_value` - High-value payment scenario  
+- `remittance_enhanced` - Enhanced remittance information
+- `cbpr_*` - Cross-Border Payments Regulation compliant scenarios
+- `regulatory_compliant` - Regulatory compliance focused
+- See the full list in each message type's scenario directory
+
 ### Environment Variables
 
 - `RUST_LOG`: Controls logging level (debug, info, warn, error)

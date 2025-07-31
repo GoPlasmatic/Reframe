@@ -14,36 +14,9 @@
     },
     "tasks": [
         {
-            "id": "PREC001_validate_uetr_presence",
-            "name": "PREC001: Validate UETR Presence",
-            "description": "Ensure UETR is present in Block3 or field 77A as per specification",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": {
-                                "or": [
-                                    { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
-                                    {
-                                        "and": [
-                                            { "exists": ["data", "SwiftMT", "fields", "77A", "narrative"] },
-                                            { "matches": [{ "var": "data.SwiftMT.fields.77A.narrative" }, "/UETR/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}"] }
-                                        ]
-                                    }
-                                ]
-                            },
-                            "message": "T20087: Translation stopped - UETR is required but not found in Block3 or field 77A"
-                        }
-                    ]
-                }
-            }
-        },
-        {
             "id": "PREC002_validate_field_76_status",
             "name": "PREC002: Validate Field 76 Status Codes",
-            "description": "Ensure field 76 first line starts with valid status codes /CNCL/, /PDCR/, or /RJCR/",
+            "description": "Ensure field 76 first line starts with valid status codes",
             "function": {
                 "name": "validate",
                 "input": {
@@ -52,18 +25,24 @@
                             "path": "data",
                             "logic": {
                                 "and": [
-                                    { "exists": ["data", "SwiftMT", "fields", "76", "lines"] },
-                                    { ">": [{ "length": { "var": "data.SwiftMT.fields.76.lines" } }, 0] },
+                                    { "exists": ["data", "SwiftMT", "fields", "76", "information"] },
+                                    { ">": [{ "length": { "var": "data.SwiftMT.fields.76.information" } }, 0] },
                                     {
                                         "or": [
-                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.lines.0" }, "/CNCL/"] },
-                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.lines.0" }, "/PDCR/"] },
-                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.lines.0" }, "/RJCR/"] }
+                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.information.0" }, "/CNCL/"] },
+                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.information.0" }, "/PDCR/"] },
+                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.information.0" }, "/RJCR/"] },
+                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.information.0" }, "CANC"] },
+                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.information.0" }, "CNCL"] },
+                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.information.0" }, "PART"] },
+                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.information.0" }, "INFO"] },
+                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.information.0" }, "RJCT"] },
+                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.information.0" }, "NPAY"] }
                                         ]
                                     }
                                 ]
                             },
-                            "message": "T20093: Translation stopped - Field 76 first line must start with /CNCL/, /PDCR/, or /RJCR/"
+                            "message": "T20093: Translation stopped - Field 76 first line must start with valid status code"
                         }
                     ]
                 }
@@ -105,36 +84,27 @@
                             "path": "temp_data.original_message_type",
                             "logic": {
                                 "if": [
-                                    { "var": "data.SwiftMT.fields.11R.message_type" },
+                                    { "var": "data.SwiftMT.fields.11.R.message_type" },
                                     {
                                         "if": [
-                                            { "==": [{ "var": "data.SwiftMT.fields.11R.message_type" }, "103"] },
+                                            { "==": [{ "var": "data.SwiftMT.fields.11.R.message_type" }, "103"] },
                                             "pacs.008",
                                             {
                                                 "if": [
-                                                    { "==": [{ "var": "data.SwiftMT.fields.11R.message_type" }, "104"] },
+                                                    { "==": [{ "var": "data.SwiftMT.fields.11.R.message_type" }, "104"] },
                                                     "pacs.003",
                                                     {
                                                         "if": [
-                                                            { "in": [{ "var": "data.SwiftMT.fields.11R.message_type" }, ["202", "205"]] },
+                                                            { "or": [
+                                                                { "==": [{ "var": "data.SwiftMT.fields.11.R.message_type" }, "202"] },
+                                                                { "==": [{ "var": "data.SwiftMT.fields.11.R.message_type" }, "205"] }
+                                                            ]},
                                                             "pacs.009",
                                                             {
                                                                 "if": [
-                                                                    { "==": [{ "var": "data.SwiftMT.fields.11R.message_type" }, "204"] },
+                                                                    { "==": [{ "var": "data.SwiftMT.fields.11.R.message_type" }, "204"] },
                                                                     "pacs.010",
-                                                                    {
-                                                                        "if": [
-                                                                            { "matches": [{ "var": "data.SwiftMT.fields.11R.message_type" }, "^10[0-9]$"] },
-                                                                            { "cat": ["MT", { "var": "data.SwiftMT.fields.11R.message_type" }] },
-                                                                            {
-                                                                                "if": [
-                                                                                    { "matches": [{ "var": "data.SwiftMT.fields.11R.message_type" }, "^20[0-9]$"] },
-                                                                                    { "cat": ["MT", { "var": "data.SwiftMT.fields.11R.message_type" }] },
-                                                                                    { "cat": ["MT", { "var": "data.SwiftMT.fields.11R.message_type" }] }
-                                                                                ]
-                                                                            }
-                                                                        ]
-                                                                    }
+                                                                    { "cat": ["MT", { "var": "data.SwiftMT.fields.11.R.message_type" }] }
                                                                 ]
                                                             }
                                                         ]
@@ -169,17 +139,11 @@
                                         "if": [
                                             {
                                                 "and": [
-                                                    { "var": "data.SwiftMT.fields.77A.narrative" },
-                                                    { "matches": [{ "var": "data.SwiftMT.fields.77A.narrative" }, "/UETR/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}"] }
+                                                    { "var": "data.SwiftMT.fields.77A" },
+                                                    { "in": ["/UETR/", { "reduce": [{ "var": "data.SwiftMT.fields.77A.information" }, { "cat": [{ "var": "accumulator" }, " ", { "var": "current" }] }, ""] }] }
                                                 ]
                                             },
-                                            {
-                                                "substr": [
-                                                    { "var": "data.SwiftMT.fields.77A.narrative" },
-                                                    { "+": [{ "indexof": [{ "var": "data.SwiftMT.fields.77A.narrative" }, "/UETR/"] }, 6] },
-                                                    36
-                                                ]
-                                            },
+                                            "EXTRACTED_FROM_FIELD_77A",
                                             ""
                                         ]
                                     }
@@ -190,20 +154,56 @@
                             "path": "temp_data.field76_status_code",
                             "logic": {
                                 "if": [
-                                    { "var": "data.SwiftMT.fields.76.lines.0" },
+                                    { "var": "data.SwiftMT.fields.76.information.0" },
                                     {
                                         "if": [
-                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.lines.0" }, "/CNCL/"] },
+                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.information.0" }, "/CNCL/"] },
                                             "CNCL",
                                             {
                                                 "if": [
-                                                    { "starts_with": [{ "var": "data.SwiftMT.fields.76.lines.0" }, "/PDCR/"] },
+                                                    { "starts_with": [{ "var": "data.SwiftMT.fields.76.information.0" }, "/PDCR/"] },
                                                     "PDCR",
                                                     {
                                                         "if": [
-                                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.lines.0" }, "/RJCR/"] },
+                                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.information.0" }, "/RJCR/"] },
                                                             "RJCR",
-                                                            "NARR"
+                                                            {
+                                                                "if": [
+                                                                    { "starts_with": [{ "var": "data.SwiftMT.fields.76.information.0" }, "CANC"] },
+                                                                    "CNCL",
+                                                                    {
+                                                                        "if": [
+                                                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.information.0" }, "CNCL"] },
+                                                                            "CNCL",
+                                                                            {
+                                                                                "if": [
+                                                                                    { "starts_with": [{ "var": "data.SwiftMT.fields.76.information.0" }, "PART"] },
+                                                                                    "CNCL",
+                                                                                    {
+                                                                                        "if": [
+                                                                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.information.0" }, "INFO"] },
+                                                                                            "NARR",
+                                                                                            {
+                                                                                                "if": [
+                                                                                                    { "starts_with": [{ "var": "data.SwiftMT.fields.76.information.0" }, "RJCT"] },
+                                                                                                    "RJCR",
+                                                                                                    {
+                                                                                                        "if": [
+                                                                                                            { "starts_with": [{ "var": "data.SwiftMT.fields.76.information.0" }, "NPAY"] },
+                                                                                                            "RJCR",
+                                                                                                            "NARR"
+                                                                                                        ]
+                                                                                                    }
+                                                                                                ]
+                                                                                            }
+                                                                                        ]
+                                                                                    }
+                                                                                ]
+                                                                            }
+                                                                        ]
+                                                                    }
+                                                                ]
+                                                            }
                                                         ]
                                                     }
                                                 ]
@@ -218,10 +218,10 @@
                             "path": "temp_data.field76_processed_lines",
                             "logic": {
                                 "if": [
-                                    { "var": "data.SwiftMT.fields.76.lines" },
+                                    { "var": "data.SwiftMT.fields.76.information" },
                                     {
                                         "filter": [
-                                            { "var": "data.SwiftMT.fields.76.lines" },
+                                            { "var": "data.SwiftMT.fields.76.information" },
                                             {
                                                 "and": [
                                                     { "!=": [{ "var": "" }, ""] },
@@ -239,4 +239,4 @@
             }
         }
     ]
-} 
+}

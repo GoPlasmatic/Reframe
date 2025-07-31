@@ -48,4 +48,64 @@ Workflows reference each other through the `progress.workflow_id` condition fiel
 2. **Clear Dependencies** - Easy to understand workflow relationships 
 3. **Scalable** - New message types can be added as new subfolders
 4. **Consistent Naming** - No more numbered prefixes, semantic names instead
-5. **Self-Documenting** - Structure reflects the business logic organization 
+5. **Self-Documenting** - Structure reflects the business logic organization
+
+## JSON Semi-Beautifier
+
+A smart JSON formatter tool (`json_semi_beautifier.py`) is available in the root directory that strikes a balance between minification and beautification, specifically optimized for JSONLogic workflow files.
+
+### Features
+
+- **Smart Formatting**: Keeps simple structures compact while breaking down complex ones
+- **JSONLogic Aware**: Recognizes common JSONLogic operators (`var`, `==`, `if`, `and`, `or`, etc.)
+- **Configurable**: Adjust inline length, item counts, and indentation
+- **Batch Processing**: Format multiple files at once
+- **In-Place Editing**: Option to modify files directly
+
+### Usage
+
+Format and display a file:
+```bash
+../json_semi_beautifier.py forward/MT103/bah-mapping.json
+```
+
+Format multiple files in place:
+```bash
+../json_semi_beautifier.py --in-place forward/MT103/*.json
+```
+
+### Options
+
+- `--in-place, -i`: Format files in place (modifies the original files)
+- `--max-inline-length N`: Maximum length for inline objects/arrays (default: 80)
+- `--max-inline-items N`: Maximum number of items for inline objects/arrays (default: 3)
+- `--indent N`: Number of spaces for indentation (default: 4)
+
+### Example
+
+Before (Standard JSON formatting):
+```json
+{
+  "condition": {
+    "and": [
+      {
+        "==": [
+          {
+            "var": "SwiftMT.message_type"
+          },
+          "103"
+        ]
+      }
+    ]
+  }
+}
+```
+
+After (Semi-beautified):
+```json
+{
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "103"]}
+    ]}
+}
+``` 

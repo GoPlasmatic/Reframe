@@ -14,9 +14,122 @@
     },
     "tasks": [
         {
+            "id": "extract_mt_type_from_field_11s",
+            "name": "Extract MT Type from Field 11S",
+            "description": "Extract original MT type from field 11S and convert to MX equivalent",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.original_mt_type",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.fields.11S.message_type" },
+                                    { "var": "data.SwiftMT.fields.11S.message_type" },
+                                    "103"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "convert_mt_type_to_mx",
+            "name": "Convert MT Type to MX",
+            "description": "Convert MT type to corresponding MX message type according to TR003",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.original_mx_type",
+                            "logic": {
+                                "if": [
+                                    { "==": [{ "var": "temp_data.original_mt_type" }, "103"] },
+                                    "pacs.008",
+                                    { "if": [
+                                        { "==": [{ "var": "temp_data.original_mt_type" }, "104"] },
+                                        "pacs.003",
+                                        { "if": [
+                                            { "==": [{ "var": "temp_data.original_mt_type" }, "202"] },
+                                            "pacs.009",
+                                            { "if": [
+                                                { "==": [{ "var": "temp_data.original_mt_type" }, "205"] },
+                                                "pacs.009",
+                                                { "if": [
+                                                    { "==": [{ "var": "temp_data.original_mt_type" }, "204"] },
+                                                    "pacs.010",
+                                                    { "cat": ["MT", { "var": "temp_data.original_mt_type" }] }
+                                                ]}
+                                            ]}
+                                        ]}
+                                    ]}
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "extract_uetr_and_field_79",
+            "name": "Extract UETR and Process Field 79",
+            "description": "Extract UETR from user header or field 79, and process cancellation reason",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field_79_narrative",
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.fields.79.information" },
+                                    { "var": "data.SwiftMT.fields.79.information" },
+                                    []
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.field_79_concat",
+                            "logic": {
+                                "if": [
+                                    { "var": "temp_data.field_79_narrative" },
+                                    {
+                                        "reduce": [
+                                            { "var": "temp_data.field_79_narrative" },
+                                            { "cat": [{ "var": "accumulator" }, " ", { "var": "current" }] },
+                                            ""
+                                        ]
+                                    },
+                                    ""
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.has_uetr_in_field_79",
+                            "logic": {
+                                "if": [
+                                    { "var": "temp_data.field_79_concat" },
+                                    { 
+                                        "and": [
+                                            { ">": [{ "length": { "var": "temp_data.field_79_concat" }}, 0] },
+                                            { "in": ["/UETR/", { "var": "temp_data.field_79_concat" }] }
+                                        ]
+                                    },
+                                    false
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
             "id": "set_basic_values",
             "name": "Set Basic Values",
-            "description": "Set basic temp data values",
+            "description": "Set basic temp data values including UETR and cancellation info",
             "function": {
                 "name": "map",
                 "input": {
@@ -30,26 +143,40 @@
                             "logic": "CANC"
                         },
                         {
-                            "path": "temp_data.original_mx_type",
-                            "logic": "pacs.008.001.08"
-                        },
-                        {
                             "path": "temp_data.extracted_uetr",
                             "logic": {
                                 "if": [
                                     { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
                                     { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
-                                    ""
+                                    {
+                                        "if": [
+                                            { "var": "temp_data.has_uetr_in_field_79" },
+                                            "EXTRACTED_FROM_FIELD_79",
+                                            ""
+                                        ]
+                                    }
                                 ]
                             }
                         },
                         {
                             "path": "temp_data.cancellation_reason",
-                            "logic": "NARR"
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.fields.79" },
+                                    "NARR",
+                                    "NARR"
+                                ]
+                            }
                         },
                         {
                             "path": "temp_data.cancellation_additional_info",
-                            "logic": ["NOTPROVIDED"]
+                            "logic": {
+                                "if": [
+                                    { "var": "data.SwiftMT.fields.79" },
+                                    { "var": "temp_data.field_79_narrative" },
+                                    ["NOTPROVIDED"]
+                                ]
+                            }
                         }
                     ]
                 }

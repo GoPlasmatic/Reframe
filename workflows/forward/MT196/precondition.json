@@ -14,33 +14,6 @@
     },
     "tasks": [
         {
-            "id": "PREC001_validate_uetr_or_field77A",
-            "name": "PREC001: Validate UETR Present or Extract from Field 77A",
-            "description": "Ensure UETR is present in Block3 or can be extracted from Field 77A with /UETR/ pattern",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": {
-                                "or": [
-                                    { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
-                                    {
-                                        "and": [
-                                            { "var": "data.SwiftMT.fields.77A.narrative" },
-                                            { "matches": [{ "var": "data.SwiftMT.fields.77A.narrative" }, "/UETR/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}"] }
-                                        ]
-                                    }
-                                ]
-                            },
-                            "message": "Translation stopped: UETR is required either in Block3 or Field 77A with valid /UETR/ pattern (T20087)"
-                        }
-                    ]
-                }
-            }
-        },
-        {
             "id": "PREC001_extract_uetr_from_field77A",
             "name": "PREC001: Extract UETR from Field 77A using TR004 Logic",
             "description": "Extract UETR from Field 77A if not present in Block3 EndToEndReference using TR004 implementation",
@@ -58,17 +31,11 @@
                                         "if": [
                                             {
                                                 "and": [
-                                                    { "var": "data.SwiftMT.fields.77A.narrative" },
-                                                    { "matches": [{ "var": "data.SwiftMT.fields.77A.narrative" }, "/UETR/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}"] }
+                                                    { "var": "data.SwiftMT.fields.77A" },
+                                                    { "in": ["/UETR/", { "reduce": [{ "var": "data.SwiftMT.fields.77A.information" }, { "cat": [{ "var": "accumulator" }, " ", { "var": "current" }] }, ""] }] }
                                                 ]
                                             },
-                                            {
-                                                "substr": [
-                                                    { "var": "data.SwiftMT.fields.77A.narrative" },
-                                                    { "+": [{ "indexOf": [{ "var": "data.SwiftMT.fields.77A.narrative" }, "/UETR/"] }, 6] },
-                                                    36
-                                                ]
-                                            },
+                                            "EXTRACTED_FROM_FIELD_77A",
                                             ""
                                         ]
                                     }
@@ -81,20 +48,20 @@
                                 "if": [
                                     {
                                         "and": [
-                                            { "var": "data.SwiftMT.fields.77A.narrative" },
-                                            { "matches": [{ "var": "data.SwiftMT.fields.77A.narrative" }, "/UETR/"] }
+                                            { "var": "data.SwiftMT.fields.77A" },
+                                            { "in": ["/UETR/", { "reduce": [{ "var": "data.SwiftMT.fields.77A.information" }, { "cat": [{ "var": "accumulator" }, " ", { "var": "current" }] }, ""] }] }
                                         ]
                                     },
                                     {
                                         "filter": [
-                                            { "split": [{ "var": "data.SwiftMT.fields.77A.narrative" }, "\n"] },
+                                            { "var": "data.SwiftMT.fields.77A.information" },
                                             { "!": { "or": [
-                                                { "matches": [{ "var": "" }, "/UETR/"] },
-                                                { "matches": [{ "var": "" }, "^//"] }
+                                                { "in": ["/UETR/", { "var": "" }] },
+                                                { "starts_with": [{ "var": "" }, "//"] }
                                             ]}}
                                         ]
                                     },
-                                    { "var": "data.SwiftMT.fields.77A.narrative" }
+                                    { "var": "data.SwiftMT.fields.77A.information" }
                                 ]
                             }
                         }
@@ -114,18 +81,19 @@
                             "path": "data",
                             "logic": {
                                 "if": [
-                                    { "var": "data.SwiftMT.fields.76.lines" },
+                                    { "var": "data.SwiftMT.fields.76.information" },
                                     {
                                         "or": [
-                                            { "matches": [{ "substr": [{ "var": "data.SwiftMT.fields.76.lines.0" }, 0, 6] }, "/CNCL/"] },
-                                            { "matches": [{ "substr": [{ "var": "data.SwiftMT.fields.76.lines.0" }, 0, 6] }, "/PDCR/"] },
-                                            { "matches": [{ "substr": [{ "var": "data.SwiftMT.fields.76.lines.0" }, 0, 6] }, "/RJCR/"] }
+                                            { "in": ["/CNCL/", { "var": "data.SwiftMT.fields.76.information.0" }] },
+                                            { "in": ["/PDCR/", { "var": "data.SwiftMT.fields.76.information.0" }] },
+                                            { "in": ["/RJCR/", { "var": "data.SwiftMT.fields.76.information.0" }] },
+                                            { "in": ["/CUST/", { "var": "data.SwiftMT.fields.76.information.0" }] }
                                         ]
                                     },
                                     true
                                 ]
                             },
-                            "message": "Translation stopped: Field 76 Line 1 must contain /CNCL/, /PDCR/, or /RJCR/ pattern (T20093)"
+                            "message": "Translation stopped: Field 76 Line 1 must contain /CNCL/, /PDCR/, /RJCR/, or /CUST/ pattern (T20093)"
                         }
                     ]
                 }
@@ -143,11 +111,11 @@
                             "path": "data",
                             "logic": {
                                 "and": [
-                                    { "exists": [ "data", "SwiftMT", "fields", "20", "value" ] },
-                                    { "exists": [ "data", "SwiftMT", "fields", "21", "value" ] },
-                                    { "exists": [ "data", "SwiftMT", "fields", "76", "lines" ] },
-                                    { "!=": [ { "var": "data.SwiftMT.fields.20.value" }, "" ] },
-                                    { "!=": [ { "var": "data.SwiftMT.fields.21.value" }, "" ] }
+                                    { "exists": [ "data", "SwiftMT", "fields", "20", "reference" ] },
+                                    { "exists": [ "data", "SwiftMT", "fields", "21", "reference" ] },
+                                    { "exists": [ "data", "SwiftMT", "fields", "76", "information" ] },
+                                    { "!=": [ { "var": "data.SwiftMT.fields.20.reference" }, "" ] },
+                                    { "!=": [ { "var": "data.SwiftMT.fields.21.reference" }, "" ] }
                                 ]
                             },
                             "message": "Translation stopped: Mandatory MT196 fields (20, 21, 76) are missing or invalid"
@@ -168,7 +136,7 @@
                             "path": "temp_data.original_mx_type",
                             "logic": {
                                 "if": [
-                                    { "var": "data.SwiftMT.fields.11R.message_type" },
+                                    { "var": "data.SwiftMT.fields.11.R.message_type" },
                                     {
                                         "if": [
                                             { "==": [{ "var": "data.SwiftMT.fields.11R.message_type" }, "103"] },

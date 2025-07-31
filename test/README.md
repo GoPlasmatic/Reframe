@@ -4,70 +4,40 @@ This directory contains the test suite for the Reframe SWIFT MT ↔ ISO 20022 tr
 
 ## Overview
 
-The test suite now uses **dynamic sample generation** powered by the swift-mt-message v3 library's scenario-based system. This approach:
+The test suite uses **dynamic sample generation** powered by the swift-mt-message v3 library's scenario-based system. This approach:
 - Eliminates the need for static sample files
 - Provides more realistic and varied test data
 - Uses datafake-rs for dynamic value generation
 - Supports multiple scenarios per message type
 
-## Test Scripts
+## Test Script
 
-### 1. `test_api.py` - API Transformation Tests
-Tests individual transformations using dynamically generated samples.
-
-```bash
-# Run all default test scenarios
-python test_api.py
-
-# Test specific message type
-python test_api.py --message-type MT103
-
-# Test specific scenario
-python test_api.py --scenario high_value
-
-# Test specific combination
-python test_api.py --message-type MT103 --scenario cbpr_stp_compliant
-```
-
-### 2. `test_round_trip.py` - Round-Trip Tests
-Tests complete transformation cycles: Generate MT → Transform to MX → Transform back to MT → Compare
+### `test_scenarios.py` - Comprehensive Scenario Testing
+Tests MT message generation and transformation to ISO 20022 for all available scenarios.
 
 ```bash
-# Run default round-trip tests
-python test_round_trip.py
+# Test all scenarios for a message type
+python test_scenarios.py --message-type MT103
 
-# Test specific message type
-python test_round_trip.py --message-type MT103
+# Test specific scenarios
+python test_scenarios.py --message-type MT103 --scenarios standard high_value
 
-# Test with specific scenario
-python test_round_trip.py --message-type MT103 --scenario high_value
+# Use custom server URL
+python test_scenarios.py --message-type MT103 --base-url http://localhost:8080
 
-# Run all message types
-python test_round_trip.py --all
-
-# Use configuration file
-python test_round_trip.py --config round_trip_config.json
+# Export results to JSON file
+python test_scenarios.py --message-type MT103 --export
 ```
 
-## Configuration
+**Command-line options:**
+- `--message-type`, `-m`: Message type to test (e.g., MT103, MT202, MT292)
+- `--scenarios`, `-s`: Specific scenarios to test (otherwise uses all from index.json)
+- `--base-url`, `-u`: Base URL of the transformation service (default: http://localhost:3000)
+- `--export`, `-e`: Export results to JSON file in test/logs/
 
-### `round_trip_config.json`
-Defines test scenarios for round-trip testing:
+## Scenario Discovery
 
-```json
-[
-  {
-    "test_name": "MT103_standard",
-    "message_type": "MT103",
-    "scenario": "standard"
-  },
-  {
-    "test_name": "MT103_high_value",
-    "message_type": "MT103",
-    "scenario": "high_value"
-  }
-]
-```
+The test script automatically discovers available scenarios from `test_scenarios/[message_type]/index.json` files. If no index.json is found, it falls back to common scenario names like standard, high_value, remittance_enhanced, etc.
 
 ## Available Scenarios
 
@@ -94,26 +64,24 @@ Most other message types have at least a `standard` scenario, with some having s
 ```
 test/
 ├── README.md              # This file
-├── test_api.py           # API transformation tests
-├── test_round_trip.py    # Round-trip transformation tests
-├── round_trip_config.json # Test configuration
-├── requirements.txt      # Python dependencies
-└── logs/                 # Test results and debug logs
-    ├── test_summary_latest.json
-    ├── test_details_latest.log
-    ├── debug/            # Individual debug files per test
-    └── round_trip/       # Round-trip test logs
-        ├── summary_latest.json
-        ├── details_latest.log
-        └── debug/        # Round-trip debug files
+├── test_scenarios.py      # Main test script for scenario testing
+└── logs/                  # Test results and logs (created automatically)
+    └── scenario_test_results_*.json  # Timestamped test results
 ```
 
 ## Requirements
 
-Install Python dependencies:
-```bash
-pip install -r requirements.txt
-```
+The test script requires Python 3.6+ with the following standard library modules:
+- `json`
+- `requests`
+- `argparse`
+- `pathlib`
+- `datetime`
+- `time`
+- `collections`
+- `re`
+
+No additional dependencies are required.
 
 ## Running Tests
 
@@ -126,26 +94,65 @@ pip install -r requirements.txt
 2. **In another terminal, run tests:**
    ```bash
    cd test
-   python test_api.py
-   python test_round_trip.py
+   
+   # Test all scenarios for MT103
+   python test_scenarios.py --message-type MT103
+   
+   # Test specific scenarios
+   python test_scenarios.py --message-type MT103 --scenarios standard high_value
+   
+   # Test MT292 (or any other message type)
+   python test_scenarios.py --message-type MT292
+   
+   # Export results
+   python test_scenarios.py --message-type MT103 --export
    ```
 
 ## Understanding Test Results
 
+### Test Output
+The script displays real-time progress for each scenario:
+```
+Testing MT103 with 5 scenarios...
+================================================================================
+
+[1/5] Testing scenario: standard
+  Generation: ✅
+  Transformation: ✅
+  Validation: ✅
+  Document Type: pacs.008
+  Business Service: swift.cbprplus.01
+```
+
 ### Success Indicators
-- ✓ Green checkmarks indicate passed tests
-- All stages (generate, transform, compare) should pass
-- Round-trip tests verify message integrity through full transformation cycle
+- ✅ Generation: MT message was successfully generated
+- ✅ Transformation: MT to MX transformation succeeded
+- ✅ Validation: MX output is valid and contains expected elements
 
-### Failure Analysis
-- ✗ Red X marks indicate failures
-- Check `logs/` directory for detailed error information
-- Debug files in `logs/debug/` contain transformation details
+### Summary Statistics
+After all tests, a summary is displayed:
+```
+================================================================================
+TEST SUMMARY
+================================================================================
+Total scenarios tested: 5
+Generation success: 5/5 (100.0%)
+Transformation success: 5/5 (100.0%)
+Validation success: 5/5 (100.0%)
 
-### Log Files
-- `test_summary_latest.json` - High-level test results
-- `test_details_latest.log` - Detailed execution logs
-- `debug/*.json` - Individual test debug information
+By Document Type:
+  pacs.002: 1
+  pacs.004: 1
+  pacs.008: 3
+
+By Method:
+  cover: 1
+  normal: 3
+  rejection: 1
+```
+
+### Export Results
+Use `--export` to save detailed results to `test/logs/scenario_test_results_[timestamp].json`
 
 ## Adding New Test Scenarios
 
@@ -153,35 +160,45 @@ To test new scenarios:
 
 1. Check available scenarios in the swift-mt-message library:
    ```bash
-   ls ../test_scenarios/[message_type]/
+   ls test_scenarios/[message_type]/
    ```
 
-2. Add to configuration or use command-line:
+2. Use the specific scenario name with the command-line option:
    ```bash
-   python test_round_trip.py --message-type MT103 --scenario your_scenario
+   python test_scenarios.py --message-type MT103 --scenarios your_scenario
    ```
+
+3. Scenarios are defined in JSON files within the swift-mt-message library and use datafake-rs for dynamic value generation.
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **"No test scenarios found" error**
-   - Ensure the `test_scenarios` symlink exists in the project root
-   - Check that swift-mt-message test scenarios are available
+1. **"No index.json found" message**
+   - This is normal - the script will use default scenario names
+   - Check that test_scenarios directory exists in the swift-mt-message library
 
 2. **Server connection errors**
    - Verify Reframe server is running on http://localhost:3000
-   - Use `--url` flag for different server location
+   - Use `--base-url` flag for different server location
 
-3. **Transformation failures**
+3. **Generation failures**
+   - Check if the message type is supported
+   - Verify the scenario name is valid for that message type
+   - Some scenarios may require specific swift-mt-message library versions
+
+4. **Transformation failures**
    - Check server logs for detailed error messages
-   - Review debug files in `logs/debug/` for transformation details
    - Ensure workflows are properly configured for the message type
+   - Validation errors will be shown in the test output
 
-## Migration from Static Files
+### Exit Codes
+- Exit code 0: Success (≥95% validation success rate)
+- Exit code 1: Failure (<95% validation success rate)
 
-This test suite previously used static sample files in `data/`. The new approach:
-- No longer requires maintaining static `.txt` and `.xml` files
-- Generates fresh samples for each test run
-- Provides more comprehensive test coverage through scenarios
-- Reduces repository size and maintenance burden
+## Notes
+
+- The test suite uses the swift-mt-message v3 library's scenario-based generation system
+- Each test run generates fresh, realistic MT messages using datafake-rs
+- Results can be exported to JSON for further analysis or CI/CD integration
+- The 0.1 second delay between tests prevents overwhelming the service

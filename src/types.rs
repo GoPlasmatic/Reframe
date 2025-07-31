@@ -90,3 +90,43 @@ pub struct ReloadResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }
+
+// Validation API types
+#[derive(Debug, Deserialize)]
+pub struct ValidationRequest {
+    pub message: String,
+    #[serde(default)]
+    pub options: ValidationOptions,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct ValidationOptions {
+    #[serde(default)]
+    pub include_canonical_json: bool,
+    #[serde(default)]
+    pub include_business_validation: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ValidationResponse {
+    pub valid: bool,
+    pub message_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub canonical_json: Option<Value>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub parse_errors: Vec<ValidationError>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub business_errors: Vec<ValidationError>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub warnings: Vec<ValidationError>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ValidationError {
+    pub code: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub field: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub location: Option<String>,
+}

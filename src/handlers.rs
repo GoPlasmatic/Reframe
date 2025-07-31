@@ -10,7 +10,8 @@ use crate::engine::reload_engines;
 use crate::sample_generator::{generate_mt_from_config, is_supported_message_type};
 use crate::types::{
     AppState, DebugInfo, EngineStatus, HealthResponse, ReloadResponse, SampleGenerationRequest,
-    TransformationRequest, TransformationResponse,
+    TransformationRequest, TransformationResponse, ValidationError, ValidationRequest,
+    ValidationResponse,
 };
 
 /// Validates that the given string is well-formed XML
@@ -654,4 +655,267 @@ pub async fn reload_workflows(
             }))
         }
     }
+}
+
+// MT validation endpoint
+#[instrument(skip(request), fields(message_length = request.message.len()))]
+pub async fn validate_mt(
+    Json(request): Json<ValidationRequest>,
+) -> Result<Json<ValidationResponse>, StatusCode> {
+    let start_time = Instant::now();
+
+    info!("🔍 Processing MT validation request");
+    debug!("Request options: {:?}", request.options);
+
+    // Normalize line endings - convert \n to \r\n if needed for SWIFT format
+    let normalized_content = if request.message.contains("\r\n") {
+        request.message.clone()
+    } else {
+        request.message.replace('\n', "\r\n")
+    };
+
+    // Parse the MT message
+    match SwiftParser::parse_auto(&normalized_content) {
+        Ok(parsed_message) => {
+            let message_type = parsed_message.message_type().to_string();
+            info!(
+                "✅ MT validation completed in {}ms - Message type: {}",
+                start_time.elapsed().as_millis(),
+                message_type
+            );
+
+            let parse_errors = Vec::new();
+            let mut business_errors = Vec::new();
+            let mut warnings = Vec::new();
+
+            // Convert to canonical JSON if requested
+            let canonical_json = if request.options.include_canonical_json {
+                match &message_type[..] {
+                    "103" => parsed_message
+                        .clone()
+                        .into_mt103()
+                        .and_then(|msg| serde_json::to_value(msg).ok()),
+                    "202" => parsed_message
+                        .clone()
+                        .into_mt202()
+                        .and_then(|msg| serde_json::to_value(msg).ok()),
+                    "205" => parsed_message
+                        .clone()
+                        .into_mt205()
+                        .and_then(|msg| serde_json::to_value(msg).ok()),
+                    "900" => parsed_message
+                        .clone()
+                        .into_mt900()
+                        .and_then(|msg| serde_json::to_value(msg).ok()),
+                    "910" => parsed_message
+                        .clone()
+                        .into_mt910()
+                        .and_then(|msg| serde_json::to_value(msg).ok()),
+                    "192" => parsed_message
+                        .clone()
+                        .into_mt192()
+                        .and_then(|msg| serde_json::to_value(msg).ok()),
+                    "292" => parsed_message
+                        .clone()
+                        .into_mt292()
+                        .and_then(|msg| serde_json::to_value(msg).ok()),
+                    "196" => parsed_message
+                        .clone()
+                        .into_mt196()
+                        .and_then(|msg| serde_json::to_value(msg).ok()),
+                    "296" => parsed_message
+                        .clone()
+                        .into_mt296()
+                        .and_then(|msg| serde_json::to_value(msg).ok()),
+                    _ => None,
+                }
+            } else {
+                None
+            };
+
+            // Perform business validation if requested
+            if request.options.include_business_validation {
+                // Use the built-in validate() method for business validation
+                let validation_result = parsed_message.validate();
+                
+                // Check if there are any validation errors
+                if !validation_result.is_valid {
+                    // Extract errors from the validation result
+                    for error in validation_result.errors {
+                        let (code, field, message) = match error {
+                            swift_mt_message::ValidationError::FormatValidation { field_tag, message } => {
+                                (format!("MT_{}_FORMAT", field_tag), Some(field_tag), message)
+                            }
+                            swift_mt_message::ValidationError::LengthValidation { field_tag, expected, actual } => {
+                                (format!("MT_{}_LENGTH", field_tag), Some(field_tag), 
+                                 format!("Expected length {}, got {}", expected, actual))
+                            }
+                            swift_mt_message::ValidationError::PatternValidation { field_tag, message } => {
+                                (format!("MT_{}_PATTERN", field_tag), Some(field_tag), message)
+                            }
+                            swift_mt_message::ValidationError::ValueValidation { field_tag, message } => {
+                                (format!("MT_{}_VALUE", field_tag), Some(field_tag), message)
+                            }
+                            swift_mt_message::ValidationError::BusinessRuleValidation { rule_name, message } => {
+                                (rule_name, None, message)
+                            }
+                        };
+                        
+                        business_errors.push(ValidationError {
+                            code,
+                            message,
+                            field,
+                            location: None,
+                        });
+                    }
+                }
+                
+                // Add any warnings from validation
+                for warning in validation_result.warnings {
+                    warnings.push(ValidationError {
+                        code: "MT_VALIDATION_WARNING".to_string(),
+                        message: warning,
+                        field: None,
+                        location: None,
+                    });
+                }
+                
+                // Extract additional validation information based on message type
+                match &message_type[..] {
+                    "103" => {
+                        if let Some(mt103) = parsed_message.into_mt103() {
+                            // Check for reject/return codes
+                            if mt103.has_reject_codes() {
+                                warnings.push(ValidationError {
+                                    code: "MT103_HAS_REJECT".to_string(),
+                                    message: "Message contains reject codes".to_string(),
+                                    field: None,
+                                    location: None,
+                                });
+                            }
+                            if mt103.has_return_codes() {
+                                warnings.push(ValidationError {
+                                    code: "MT103_HAS_RETURN".to_string(),
+                                    message: "Message contains return codes".to_string(),
+                                    field: None,
+                                    location: None,
+                                });
+                            }
+
+                            // Validate basic header fields
+                            if mt103.basic_header.service_id.is_empty() {
+                                business_errors.push(ValidationError {
+                                    code: "MT103_MISSING_SERVICE_ID".to_string(),
+                                    message: "Service ID is missing in basic header".to_string(),
+                                    field: Some("basic_header.service_id".to_string()),
+                                    location: None,
+                                });
+                            }
+
+                            // Validate sender BIC in basic header
+                            if !is_valid_bic(&mt103.basic_header.sender_bic) {
+                                business_errors.push(ValidationError {
+                                    code: "MT103_INVALID_SENDER_BIC".to_string(),
+                                    message: format!("Invalid sender BIC in header: {}", mt103.basic_header.sender_bic),
+                                    field: Some("basic_header.sender_bic".to_string()),
+                                    location: None,
+                                });
+                            }
+
+                            // Check if this is an STP message
+                            if mt103.is_stp_message() {
+                                warnings.push(ValidationError {
+                                    code: "MT103_IS_STP".to_string(),
+                                    message: "Message is marked as STP (Straight Through Processing)".to_string(),
+                                    field: None,
+                                    location: None,
+                                });
+                            }
+
+                            // Additional business validations can be added here based on the
+                            // specific fields exposed by the swift-mt-message library
+                        }
+                    }
+                    "202" => {
+                        if let Some(mt202) = parsed_message.into_mt202() {
+                            // Similar business validations for MT202
+                            if mt202.has_reject_codes() {
+                                warnings.push(ValidationError {
+                                    code: "MT202_HAS_REJECT".to_string(),
+                                    message: "Message contains reject codes".to_string(),
+                                    field: None,
+                                    location: None,
+                                });
+                            }
+                            if mt202.has_return_codes() {
+                                warnings.push(ValidationError {
+                                    code: "MT202_HAS_RETURN".to_string(),
+                                    message: "Message contains return codes".to_string(),
+                                    field: None,
+                                    location: None,
+                                });
+                            }
+                        }
+                    }
+                    _ => {
+                        // Generic validations for other message types
+                    }
+                }
+            }
+
+            Ok(Json(ValidationResponse {
+                valid: parse_errors.is_empty() && business_errors.is_empty(),
+                message_type: Some(message_type),
+                canonical_json,
+                parse_errors,
+                business_errors,
+                warnings,
+            }))
+        }
+        Err(parse_error) => {
+            error!("❌ MT validation failed: {:?}", parse_error);
+
+            // Extract detailed parse errors
+            let mut parse_errors = vec![ValidationError {
+                code: "MT_PARSE_ERROR".to_string(),
+                message: format!("{:?}", parse_error),
+                field: None,
+                location: None,
+            }];
+
+            // Try to extract more specific error information
+            let error_str = format!("{:?}", parse_error);
+            if error_str.contains("unexpected character") {
+                parse_errors.push(ValidationError {
+                    code: "MT_INVALID_CHARACTER".to_string(),
+                    message: "Message contains invalid characters".to_string(),
+                    field: None,
+                    location: None,
+                });
+            } else if error_str.contains("missing field") {
+                parse_errors.push(ValidationError {
+                    code: "MT_MISSING_FIELD".to_string(),
+                    message: "Required field is missing".to_string(),
+                    field: None,
+                    location: None,
+                });
+            }
+
+            Ok(Json(ValidationResponse {
+                valid: false,
+                message_type: None,
+                canonical_json: None,
+                parse_errors,
+                business_errors: Vec::new(),
+                warnings: Vec::new(),
+            }))
+        }
+    }
+}
+
+// Helper function to validate BIC codes
+fn is_valid_bic(bic: &str) -> bool {
+    // Basic BIC validation: 8 or 11 characters, alphanumeric
+    let len = bic.len();
+    (len == 8 || len == 11) && bic.chars().all(|c| c.is_alphanumeric())
 }

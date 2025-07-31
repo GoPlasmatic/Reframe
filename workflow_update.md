@@ -467,3 +467,171 @@ Instead of mapping to parent objects, map each field to its specific sub-path:
 4. Review audit trails to identify overwriting issues
 5. Test transformations with debug output to verify all fields are preserved
 
+## 6. Troubleshooting Common JSONLogic Issues
+
+When updating workflows, you may encounter "Invalid arguments error" messages. Here are common causes and solutions:
+
+### Field Structure Mismatches
+
+**Problem**: The workflow references a field structure that doesn't match the actual parsed output.
+
+**Example**:
+```json
+// Workflow expects:
+{"var": "data.SwiftMT.fields.70.lines"}
+
+// But actual structure has:
+{"var": "data.SwiftMT.fields.70.narrative"}
+```
+
+**Solution**: Always verify the canonical JSON structure using the `/validate/mt` API to ensure field references match the actual parsed structure.
+
+### Invalid JSONLogic Functions
+
+The datalogic-rs library implements a subset of JSONLogic. Some commonly mistaken functions:
+
+**1. `index_of` doesn't exist**
+```json
+// ❌ Invalid:
+{"index_of": [{"var": "field72"}, "/ACC/"]}
+
+// ✅ Use starts_with instead:
+{"starts_with": [{"var": "field72"}, "/ACC/"]}
+```
+
+**2. `matches` (regex) doesn't exist**
+```json
+// ❌ Invalid:
+{"matches": [{"var": "field"}, "^[A-Z]+$"]}
+
+// ✅ Use simpler logic:
+{"and": [
+    {">=": [{"length": {"var": "field"}}, 1]},
+    {"<=": [{"length": {"var": "field"}}, 10]}
+]}
+```
+
+**3. `count` should be `length`**
+```json
+// ❌ Invalid:
+{"count": {"var": "array"}}
+
+// ✅ Correct:
+{"length": {"var": "array"}}
+```
+
+**4. `concat` should be `cat`**
+```json
+// ❌ Invalid:
+{"concat": ["Hello", " ", "World"]}
+
+// ✅ Correct:
+{"cat": ["Hello", " ", "World"]}
+```
+
+### Available datalogic-rs Operators
+
+**Array Operators**: `map`, `filter`, `reduce`, `all`, `some`, `none`, `merge`, `in`, `length`, `slice`, `sort`
+
+**String Operators**: `cat`, `substr`, `starts_with`
+
+**Logic Operators**: `if`, `and`, `or`, `not`, `==`, `!=`, `>`, `<`, `>=`, `<=`
+
+**Math Operators**: `+`, `-`, `*`, `/`, `%`, `min`, `max`
+
+### Complex Field Access Issues
+
+**Problem**: Trying to access nested properties incorrectly.
+
+**Example with Field 72**:
+```json
+// ❌ Wrong - direct access:
+{"var": "data.SwiftMT.fields.72"}
+
+// ✅ Correct - access the information array:
+{"var": "data.SwiftMT.fields.72.information"}
+```
+
+### Map Operation on Non-Arrays
+
+**Problem**: Using `map` on a single value instead of an array.
+
+```json
+// ❌ Invalid - map expects an array:
+{
+    "map": [
+        {"cat": ["value1", "value2"]},  // This returns a string!
+        {"var": ""}
+    ]
+}
+
+// ✅ Solution 1 - Process the string directly:
+{"cat": ["value1", "value2"]}
+
+// ✅ Solution 2 - Create array first if mapping needed:
+{
+    "map": [
+        ["item1", "item2"],  // Array literal
+        {"var": ""}
+    ]
+}
+```
+
+### Preprocessing Complex Data
+
+For complex transformations, use preprocessing steps:
+
+```json
+{
+    "mappings": [
+        {
+            "path": "temp_data.field72_concat",
+            "logic": { 
+                "if": [
+                    {"var": "data.SwiftMT.fields.72.information"},
+                    {
+                        "reduce": [
+                            {"var": "data.SwiftMT.fields.72.information"},
+                            {"cat": [{"var": "accumulator"}, " ", {"var": "current"}]},
+                            ""
+                        ]
+                    },
+                    ""
+                ]
+            }
+        },
+        {
+            "path": "data.Document.SomeField",
+            "logic": {"var": "temp_data.field72_concat"}
+        }
+    ]
+}
+```
+
+### Testing and Debugging Tips
+
+1. **Use the test scenarios script**: Run comprehensive tests across multiple scenarios
+   ```bash
+   python3 test/test_scenarios.py
+   ```
+
+2. **Hot reload workflows**: Apply changes without restarting
+   ```bash
+   curl -X POST http://localhost:3000/admin/reload-workflows
+   ```
+
+3. **Check debug output**: Use `include_debug: true` in API calls to see detailed execution traces
+
+4. **Validate field structures**: Always verify the canonical JSON structure matches your workflow references
+
+5. **Test incrementally**: When fixing complex issues, test after each change to isolate problems
+
+### Common Error Patterns
+
+| Error Message | Common Cause | Solution |
+|--------------|--------------|----------|
+| "Invalid arguments error" | Unknown JSONLogic function | Check available operators list |
+| "Cannot read property of null" | Field doesn't exist | Verify canonical JSON structure |
+| "Expected array but got string" | Map/filter on non-array | Use appropriate operator or preprocess |
+| "Path not found" | Incorrect field reference | Check exact path in parsed output |
+

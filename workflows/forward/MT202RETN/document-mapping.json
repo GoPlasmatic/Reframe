@@ -28,7 +28,11 @@
                                     {"var": "data.SwiftMT.user_header.service_type_identifier"},
                                     {
                                         "if": [
-                                            {"matches": [{"var": "data.SwiftMT.user_header.service_type_identifier"}, "^00[1-9]$"]},
+                                            {"and": [
+                                {"var": "data.SwiftMT.user_header.service_type_identifier"},
+                                {">=": [{"length": {"var": "data.SwiftMT.user_header.service_type_identifier"}}, 3]},
+                                {"==": [{"substr": [{"var": "data.SwiftMT.user_header.service_type_identifier"}, 0, 2]}, "00"]}
+                            ]},
                                             {"cat": ["G", {"var": "data.SwiftMT.user_header.service_type_identifier"}]},
                                             ""
                                         ]
@@ -41,10 +45,10 @@
                             "path": "temp_data.original_instruction_id",
                             "logic": {
                                 "if": [
-                                    {"var": "data.SwiftMT.fields.72.lines"},
+                                    {"var": "data.SwiftMT.fields.72.information"},
                                     {
                                         "reduce": [
-                                            {"var": "data.SwiftMT.fields.72.lines"},
+                                            {"var": "data.SwiftMT.fields.72.information"},
                                             {
                                                 "if": [
                                                     {"starts_with": [{"var": "current"}, "/MREF/"]},
@@ -63,21 +67,20 @@
                             "path": "temp_data.return_reason_code",
                             "logic": {
                                 "if": [
-                                    {"var": "data.SwiftMT.fields.72.lines"},
+                                    {"var": "data.SwiftMT.fields.72.information"},
                                     {
                                         "reduce": [
-                                            {"var": "data.SwiftMT.fields.72.lines"},
+                                            {"var": "data.SwiftMT.fields.72.information"},
                                             {
                                                 "if": [
-                                                    {"and": [
-                                                        {"!": {"starts_with": [{"var": "current"}, "/RETN/"]}},
-                                                        {"!": {"starts_with": [{"var": "current"}, "/MREF/"]}},
-                                                        {"!": {"starts_with": [{"var": "current"}, "/TREF/"]}},
-                                                        {"!": {"starts_with": [{"var": "current"}, "/CHGS/"]}},
-                                                        {"!": {"starts_with": [{"var": "current"}, "/TEXT/"]}},
-                                                        {"!=": [{"var": "current"}, ""]}
-                                                    ]},
-                                                    {"var": "current"},
+                                                    {"starts_with": [{"var": "current"}, "/RETN/"]},
+                                                    {
+                                                        "if": [
+                                                            {">": [{"length": {"var": "current"}}, 6]},
+                                                            {"substr": [{"var": "current"}, 6]},
+                                                            {"var": "accumulator"}
+                                                        ]
+                                                    },
                                                     {"var": "accumulator"}
                                                 ]
                                             },
@@ -92,10 +95,10 @@
                             "path": "temp_data.additional_info",
                             "logic": {
                                 "if": [
-                                    {"var": "data.SwiftMT.fields.72.lines"},
+                                    {"var": "data.SwiftMT.fields.72.information"},
                                     {
                                         "reduce": [
-                                            {"var": "data.SwiftMT.fields.72.lines"},
+                                            {"var": "data.SwiftMT.fields.72.information"},
                                             {
                                                 "if": [
                                                     {"starts_with": [{"var": "current"}, "/TEXT/"]},
@@ -134,14 +137,14 @@
                                 "if": [
                                     {"and": [
                                         {"!": {"or": [
-                                            {"var": "data.SwiftMT.fields.53A"},
-                                            {"var": "data.SwiftMT.fields.53B"},
-                                            {"var": "data.SwiftMT.fields.53D"}
+                                            {"var": "data.SwiftMT.fields.53.A"},
+                                            {"var": "data.SwiftMT.fields.53.B"},
+                                            {"var": "data.SwiftMT.fields.53.D"}
                                         ]}},
                                         {"!": {"or": [
-                                            {"var": "data.SwiftMT.fields.54A"},
-                                            {"var": "data.SwiftMT.fields.54B"},
-                                            {"var": "data.SwiftMT.fields.54D"}
+                                            {"var": "data.SwiftMT.fields.54.A"},
+                                            {"var": "data.SwiftMT.fields.54.B"},
+                                            {"var": "data.SwiftMT.fields.54.D"}
                                         ]}}
                                     ]},
                                     "INDA",
@@ -149,21 +152,21 @@
                                         "if": [
                                             {"and": [
                                                 {"or": [
-                                                    {"var": "data.SwiftMT.fields.53A"},
-                                                    {"var": "data.SwiftMT.fields.53B"},
-                                                    {"var": "data.SwiftMT.fields.53D"}
+                                                    {"var": "data.SwiftMT.fields.53.A"},
+                                                    {"var": "data.SwiftMT.fields.53.B"},
+                                                    {"var": "data.SwiftMT.fields.53.D"}
                                                 ]},
                                                 {"!": {"or": [
-                                                    {"var": "data.SwiftMT.fields.54A"},
-                                                    {"var": "data.SwiftMT.fields.54B"},
-                                                    {"var": "data.SwiftMT.fields.54D"}
+                                                    {"var": "data.SwiftMT.fields.54.A"},
+                                                    {"var": "data.SwiftMT.fields.54.B"},
+                                                    {"var": "data.SwiftMT.fields.54.D"}
                                                 ]}}
                                             ]},
                                             {
                                                 "if": [
                                                     {"and": [
-                                                        {"var": "data.SwiftMT.fields.53B.party_identifier"},
-                                                        {"starts_with": [{"var": "data.SwiftMT.fields.53B.party_identifier"}, "/C"]}
+                                                        {"var": "data.SwiftMT.fields.53.B.party_identifier"},
+                                                        {"starts_with": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, "/C"]}
                                                     ]},
                                                     "INGA",
                                                     "INDA"
@@ -173,23 +176,23 @@
                                                 "if": [
                                                     {"and": [
                                                         {"or": [
-                                                            {"var": "data.SwiftMT.fields.53A"},
-                                                            {"var": "data.SwiftMT.fields.53B"},
-                                                            {"var": "data.SwiftMT.fields.53D"}
+                                                            {"var": "data.SwiftMT.fields.53.A"},
+                                                            {"var": "data.SwiftMT.fields.53.B"},
+                                                            {"var": "data.SwiftMT.fields.53.D"}
                                                         ]},
                                                         {"or": [
-                                                            {"var": "data.SwiftMT.fields.54A"},
-                                                            {"var": "data.SwiftMT.fields.54B"},
-                                                            {"var": "data.SwiftMT.fields.54D"}
+                                                            {"var": "data.SwiftMT.fields.54.A"},
+                                                            {"var": "data.SwiftMT.fields.54.B"},
+                                                            {"var": "data.SwiftMT.fields.54.D"}
                                                         ]}
                                                     ]},
                                                     {
                                                         "if": [
                                                             {"and": [
-                                                                {"var": "data.SwiftMT.fields.53A.bic.raw"},
-                                                                {"var": "data.SwiftMT.fields.54A.bic.raw"},
-                                                                {"==": [{"var": "data.SwiftMT.fields.53A.bic.raw"}, {"var": "temp_data.Sender"}]},
-                                                                {"==": [{"var": "data.SwiftMT.fields.54A.bic.raw"}, {"var": "temp_data.Receiver"}]}
+                                                                {"var": "data.SwiftMT.fields.53.A.bic"},
+                                                                {"var": "data.SwiftMT.fields.54.A.bic"},
+                                                                {"==": [{"var": "data.SwiftMT.fields.53.A.bic"}, {"var": "temp_data.Sender"}]},
+                                                                {"==": [{"var": "data.SwiftMT.fields.54.A.bic"}, {"var": "temp_data.Receiver"}]}
                                                             ]},
                                                             "INDA",
                                                             "COVE"
@@ -211,31 +214,31 @@
                                         {"in": [{"var": "temp_data.settlement_method"}, ["INDA", "INGA"]]},
                                         {"or": [
                                             {"and": [
-                                                {"var": "data.SwiftMT.fields.53B.party_identifier"},
-                                                {"starts_with": [{"var": "data.SwiftMT.fields.53B.party_identifier"}, "/"]}
+                                                {"var": "data.SwiftMT.fields.53.B.party_identifier"},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, "/"]}
                                             ]},
                                             {"and": [
-                                                {"var": "data.SwiftMT.fields.53A.party_identifier"},
-                                                {"starts_with": [{"var": "data.SwiftMT.fields.53A.party_identifier"}, "/"]}
+                                                {"var": "data.SwiftMT.fields.53.A.party_identifier"},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.53.A.party_identifier"}, "/"]}
                                             ]},
                                             {"and": [
-                                                {"var": "data.SwiftMT.fields.53D.party_identifier"},
-                                                {"starts_with": [{"var": "data.SwiftMT.fields.53D.party_identifier"}, "/"]}
+                                                {"var": "data.SwiftMT.fields.53.D.party_identifier"},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.53.D.party_identifier"}, "/"]}
                                             ]}
                                         ]}
                                     ]},
                                     {
                                         "if": [
-                                            {"var": "data.SwiftMT.fields.53B.party_identifier"},
-                                            {"substr": [{"var": "data.SwiftMT.fields.53B.party_identifier"}, 1]},
+                                            {"var": "data.SwiftMT.fields.53.B.party_identifier"},
+                                            {"substr": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, 1]},
                                             {
                                                 "if": [
-                                                    {"var": "data.SwiftMT.fields.53A.party_identifier"},
-                                                    {"substr": [{"var": "data.SwiftMT.fields.53A.party_identifier"}, 1]},
+                                                    {"var": "data.SwiftMT.fields.53.A.party_identifier"},
+                                                    {"substr": [{"var": "data.SwiftMT.fields.53.A.party_identifier"}, 1]},
                                                     {
                                                         "if": [
-                                                            {"var": "data.SwiftMT.fields.53D.party_identifier"},
-                                                            {"substr": [{"var": "data.SwiftMT.fields.53D.party_identifier"}, 1]},
+                                                            {"var": "data.SwiftMT.fields.53.D.party_identifier"},
+                                                            {"substr": [{"var": "data.SwiftMT.fields.53.D.party_identifier"}, 1]},
                                                             ""
                                                         ]
                                                     }
@@ -265,8 +268,8 @@
                                 "GrpHdr": {
                                     "MsgId": {
                                         "if": [
-                                            {"var": "data.SwiftMT.fields.20.value"},
-                                            {"var": "data.SwiftMT.fields.20.value"},
+                                            {"var": "data.SwiftMT.fields.20.reference"},
+                                            {"var": "data.SwiftMT.fields.20.reference"},
                                             "NOTPROVIDED"
                                         ]
                                     },
@@ -286,15 +289,15 @@
                                 "TxInf": {
                                     "RtrId": {
                                         "if": [
-                                            {"var": "data.SwiftMT.fields.20.value"},
-                                            {"var": "data.SwiftMT.fields.20.value"},
+                                            {"var": "data.SwiftMT.fields.20.reference"},
+                                            {"var": "data.SwiftMT.fields.20.reference"},
                                             "NOTPROVIDED"
                                         ]
                                     },
                                     "OrgnlEndToEndId": {
                                         "if": [
-                                            {"var": "data.SwiftMT.fields.21.value"},
-                                            {"var": "data.SwiftMT.fields.21.value"},
+                                            {"var": "data.SwiftMT.fields.21.reference"},
+                                            {"var": "data.SwiftMT.fields.21.reference"},
                                             "NOTPROVIDED"
                                         ]
                                     },
@@ -366,8 +369,8 @@
                                             "Pty": {
                                                 "Nm": {
                                                     "if": [
-                                                        {"var": "data.SwiftMT.fields.52D.name_and_address"},
-                                                        {"var": "data.SwiftMT.fields.52D.name_and_address.0"},
+                                                        {"var": "data.SwiftMT.fields.52.D.name_and_address"},
+                                                        {"var": "data.SwiftMT.fields.52.D.name_and_address.0"},
                                                         "ORDERING INSTITUTION"
                                                     ]
                                                 }
@@ -377,27 +380,27 @@
                                             "FinInstnId": {
                                                 "BICFI": {
                                                     "if": [
-                                                        {"var": "data.SwiftMT.fields.52A.bic.raw"},
-                                                        {"var": "data.SwiftMT.fields.52A.bic.raw"},
+                                                        {"var": "data.SwiftMT.fields.52.A.bic"},
+                                                        {"var": "data.SwiftMT.fields.52.A.bic"},
                                                         {"var": "temp_data.Sender"}
                                                     ]
                                                 },
                                                 "Nm": {
                                                     "if": [
-                                                        {"var": "data.SwiftMT.fields.52D.name_and_address"},
-                                                        {"var": "data.SwiftMT.fields.52D.name_and_address.0"},
+                                                        {"var": "data.SwiftMT.fields.52.D.name_and_address"},
+                                                        {"var": "data.SwiftMT.fields.52.D.name_and_address.0"},
                                                         ""
                                                     ]
                                                 },
                                                 "ClrSysMmbId": {
                                                     "if": [
                                                         {"and": [
-                                                            {"var": "data.SwiftMT.fields.52A.party_identifier"},
-                                                            {"starts_with": [{"var": "data.SwiftMT.fields.52A.party_identifier"}, "//"]},
-                                                            {"!": {"starts_with": [{"var": "data.SwiftMT.fields.52A.party_identifier"}, "//CH"]}}
+                                                            {"var": "data.SwiftMT.fields.52.A.party_identifier"},
+                                                            {"starts_with": [{"var": "data.SwiftMT.fields.52.A.party_identifier"}, "//"]},
+                                                            {"!": {"starts_with": [{"var": "data.SwiftMT.fields.52.A.party_identifier"}, "//CH"]}}
                                                         ]},
                                                         {
-                                                            "MmbId": {"substr": [{"var": "data.SwiftMT.fields.52A.party_identifier"}, 2]}
+                                                            "MmbId": {"substr": [{"var": "data.SwiftMT.fields.52.A.party_identifier"}, 2]}
                                                         },
                                                         null
                                                     ]
@@ -408,29 +411,29 @@
                                             "FinInstnId": {
                                                 "BICFI": {
                                                     "if": [
-                                                        {"var": "data.SwiftMT.fields.56A.bic.raw"},
-                                                        {"var": "data.SwiftMT.fields.56A.bic.raw"},
+                                                        {"var": "data.SwiftMT.fields.56.A.bic"},
+                                                        {"var": "data.SwiftMT.fields.56.A.bic"},
                                                         ""
                                                     ]
                                                 },
                                                 "Nm": {
                                                     "if": [
-                                                        {"var": "data.SwiftMT.fields.56D.name_and_address"},
-                                                        {"var": "data.SwiftMT.fields.56D.name_and_address.0"},
+                                                        {"var": "data.SwiftMT.fields.56.D.name_and_address"},
+                                                        {"var": "data.SwiftMT.fields.56.D.name_and_address.0"},
                                                         ""
                                                     ]
                                                 },
                                                 "ClrSysMmbId": {
                                                     "if": [
                                                         {"and": [
-                                                            {"var": "data.SwiftMT.fields.56A.party_identifier"},
-                                                            {"starts_with": [{"var": "data.SwiftMT.fields.56A.party_identifier"}, "//"]},
-                                                            {"!": {"starts_with": [{"var": "data.SwiftMT.fields.56A.party_identifier"}, "//CH"]}},
-                                                            {"!": {"starts_with": [{"var": "data.SwiftMT.fields.56A.party_identifier"}, "//FW"]}},
-                                                            {"!": {"starts_with": [{"var": "data.SwiftMT.fields.56A.party_identifier"}, "//RT"]}}
+                                                            {"var": "data.SwiftMT.fields.56.A.party_identifier"},
+                                                            {"starts_with": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, "//"]},
+                                                            {"!": {"starts_with": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, "//CH"]}},
+                                                            {"!": {"starts_with": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, "//FW"]}},
+                                                            {"!": {"starts_with": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, "//RT"]}}
                                                         ]},
                                                         {
-                                                            "MmbId": {"substr": [{"var": "data.SwiftMT.fields.56A.party_identifier"}, 2]}
+                                                            "MmbId": {"substr": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, 2]}
                                                         },
                                                         null
                                                     ]
@@ -441,23 +444,23 @@
                                             "FinInstnId": {
                                                 "BICFI": {
                                                     "if": [
-                                                        {"var": "data.SwiftMT.fields.57A.bic.raw"},
-                                                        {"var": "data.SwiftMT.fields.57A.bic.raw"},
+                                                        {"var": "data.SwiftMT.fields.57.A.bic"},
+                                                        {"var": "data.SwiftMT.fields.57.A.bic"},
                                                         {"var": "temp_data.Receiver"}
                                                     ]
                                                 },
                                                 "Nm": {
                                                     "if": [
-                                                        {"var": "data.SwiftMT.fields.57D.name_and_address"},
-                                                        {"var": "data.SwiftMT.fields.57D.name_and_address.0"},
+                                                        {"var": "data.SwiftMT.fields.57.D.name_and_address"},
+                                                        {"var": "data.SwiftMT.fields.57.D.name_and_address.0"},
                                                         {
                                                             "if": [
                                                                 {"and": [
-                                                                    {"var": "data.SwiftMT.fields.57B.party_identifier"},
-                                                                    {"!": {"starts_with": [{"var": "data.SwiftMT.fields.57B.party_identifier"}, "//"]}},
-                                                                    {"starts_with": [{"var": "data.SwiftMT.fields.57B.party_identifier"}, "/"]}
+                                                                    {"var": "data.SwiftMT.fields.57.B.party_identifier"},
+                                                                    {"!": {"starts_with": [{"var": "data.SwiftMT.fields.57.B.party_identifier"}, "//"]}},
+                                                                    {"starts_with": [{"var": "data.SwiftMT.fields.57.B.party_identifier"}, "/"]}
                                                                 ]},
-                                                                {"var": "data.SwiftMT.fields.57B.party_identifier"},
+                                                                {"var": "data.SwiftMT.fields.57.B.party_identifier"},
                                                                 "NOTPROVIDED"
                                                             ]
                                                         }
@@ -466,24 +469,24 @@
                                                 "ClrSysMmbId": {
                                                     "if": [
                                                         {"and": [
-                                                            {"var": "data.SwiftMT.fields.57A.party_identifier"},
-                                                            {"starts_with": [{"var": "data.SwiftMT.fields.57A.party_identifier"}, "//"]},
-                                                            {"!": {"starts_with": [{"var": "data.SwiftMT.fields.57A.party_identifier"}, "//CH"]}},
-                                                            {"!": {"starts_with": [{"var": "data.SwiftMT.fields.57A.party_identifier"}, "//RT"]}},
-                                                            {"!": {"starts_with": [{"var": "data.SwiftMT.fields.57A.party_identifier"}, "//FW"]}}
+                                                            {"var": "data.SwiftMT.fields.57.A.party_identifier"},
+                                                            {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//"]},
+                                                            {"!": {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//CH"]}},
+                                                            {"!": {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//RT"]}},
+                                                            {"!": {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//FW"]}}
                                                         ]},
                                                         {
-                                                            "MmbId": {"substr": [{"var": "data.SwiftMT.fields.57A.party_identifier"}, 2]}
+                                                            "MmbId": {"substr": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, 2]}
                                                         },
                                                         {
                                                             "if": [
                                                                 {"and": [
-                                                                    {"var": "data.SwiftMT.fields.57B.party_identifier"},
-                                                                    {"starts_with": [{"var": "data.SwiftMT.fields.57B.party_identifier"}, "//"]},
-                                                                    {"!": {"starts_with": [{"var": "data.SwiftMT.fields.57B.party_identifier"}, "//CH"]}}
+                                                                    {"var": "data.SwiftMT.fields.57.B.party_identifier"},
+                                                                    {"starts_with": [{"var": "data.SwiftMT.fields.57.B.party_identifier"}, "//"]},
+                                                                    {"!": {"starts_with": [{"var": "data.SwiftMT.fields.57.B.party_identifier"}, "//CH"]}}
                                                                 ]},
                                                                 {
-                                                                    "MmbId": {"substr": [{"var": "data.SwiftMT.fields.57B.party_identifier"}, 2]}
+                                                                    "MmbId": {"substr": [{"var": "data.SwiftMT.fields.57.B.party_identifier"}, 2]}
                                                                 },
                                                                 null
                                                             ]
@@ -493,18 +496,18 @@
                                                 "PstlAdr": {
                                                     "if": [
                                                         {"or": [
-                                                            {"var": "data.SwiftMT.fields.57D.name_and_address"},
-                                                            {"var": "data.SwiftMT.fields.57B.location"}
+                                                            {"var": "data.SwiftMT.fields.57.D.name_and_address"},
+                                                            {"var": "data.SwiftMT.fields.57.B.location"}
                                                         ]},
                                                         {
                                                             "AdrLine": {
                                                                 "if": [
-                                                                    {"var": "data.SwiftMT.fields.57D.name_and_address"},
-                                                                    {"var": "data.SwiftMT.fields.57D.name_and_address"},
+                                                                    {"var": "data.SwiftMT.fields.57.D.name_and_address"},
+                                                                    {"var": "data.SwiftMT.fields.57.D.name_and_address"},
                                                                     {
                                                                         "if": [
-                                                                            {"var": "data.SwiftMT.fields.57B.location"},
-                                                                            [{"var": "data.SwiftMT.fields.57B.location"}],
+                                                                            {"var": "data.SwiftMT.fields.57.B.location"},
+                                                                            [{"var": "data.SwiftMT.fields.57.B.location"}],
                                                                             ["NOTPROVIDED"]
                                                                         ]
                                                                     }
@@ -521,29 +524,29 @@
                                                 "FinInstnId": {
                                                     "BICFI": {
                                                         "if": [
-                                                            {"var": "data.SwiftMT.fields.58A.bic.raw"},
-                                                            {"var": "data.SwiftMT.fields.58A.bic.raw"},
+                                                            {"var": "data.SwiftMT.fields.58.A.bic"},
+                                                            {"var": "data.SwiftMT.fields.58.A.bic"},
                                                             {"var": "temp_data.Receiver"}
                                                         ]
                                                     },
                                                     "Nm": {
                                                         "if": [
-                                                            {"var": "data.SwiftMT.fields.58D.name_and_address"},
-                                                            {"var": "data.SwiftMT.fields.58D.name_and_address.0"},
+                                                            {"var": "data.SwiftMT.fields.58.D.name_and_address"},
+                                                            {"var": "data.SwiftMT.fields.58.D.name_and_address.0"},
                                                             ""
                                                         ]
                                                     },
                                                     "ClrSysMmbId": {
                                                         "if": [
                                                             {"and": [
-                                                                {"var": "data.SwiftMT.fields.58A.party_identifier"},
-                                                                {"starts_with": [{"var": "data.SwiftMT.fields.58A.party_identifier"}, "//"]},
-                                                                {"!": {"starts_with": [{"var": "data.SwiftMT.fields.58A.party_identifier"}, "//CH"]}},
-                                                                {"!": {"starts_with": [{"var": "data.SwiftMT.fields.58A.party_identifier"}, "//FW"]}},
-                                                                {"!": {"starts_with": [{"var": "data.SwiftMT.fields.58A.party_identifier"}, "//RT"]}}
+                                                                {"var": "data.SwiftMT.fields.58.A.party_identifier"},
+                                                                {"starts_with": [{"var": "data.SwiftMT.fields.58.A.party_identifier"}, "//"]},
+                                                                {"!": {"starts_with": [{"var": "data.SwiftMT.fields.58.A.party_identifier"}, "//CH"]}},
+                                                                {"!": {"starts_with": [{"var": "data.SwiftMT.fields.58.A.party_identifier"}, "//FW"]}},
+                                                                {"!": {"starts_with": [{"var": "data.SwiftMT.fields.58.A.party_identifier"}, "//RT"]}}
                                                             ]},
                                                             {
-                                                                "MmbId": {"substr": [{"var": "data.SwiftMT.fields.58A.party_identifier"}, 2]}
+                                                                "MmbId": {"substr": [{"var": "data.SwiftMT.fields.58.A.party_identifier"}, 2]}
                                                             },
                                                             null
                                                         ]
@@ -636,7 +639,7 @@
                                             "if": [
                                                 {"!=": [{"var": "temp_data.additional_info"}, ""]},
                                                 [{"var": "temp_data.additional_info"}],
-                                                ""
+                                                []
                                             ]
                                         }
                                     }

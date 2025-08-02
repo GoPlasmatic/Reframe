@@ -3,15 +3,13 @@
     "name": "PACS.004 to MT RETN Remittance Fields Mapping",
     "description": "Maps remittance information fields for ultimate debtor and creditor",
     "priority": 9,
-    "condition": {
-        "and": [
-            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
-            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
-            {"==": [{"var": "progress.workflow_id"}, "pacs004-agent-fields-mapping"]},
-            {"==": [{"var": "progress.task_id"}, "map_field_57"]},
-            {"==": [{"var": "progress.status_code"}, 200]}
-        ]
-    },
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs004-agent-fields-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_field_57"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
     "tasks": [
         {
             "id": "map_ultimate_debtor",
@@ -23,43 +21,53 @@
                     "mappings": [
                         {
                             "path": "temp_data.ultimate_debtor_info",
-                            "logic": {
-                                "if": [
-                                    {"and": [
-                                        {"or": [
-                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]},
-                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]},
-                                            {"and": [
-                                                {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
-                                                {"!": [{"and": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
-                                                ]}]}
-                                            ]}
-                                        ]},
-                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtDbtr"}
-                                    ]},
-                                    {
-                                        "merge": [
+                            "logic": { "if": [
+                                {
+                                    "and": [
+                                        { "or": [
                                             {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtDbtr.Nm"},
-                                                    [{"cat": ["/ULTD/", {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtDbtr.Nm"}]}],
-                                                    []
-                                                ]
+                                                "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]
                                             },
                                             {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtDbtr.PstlAdr.AdrLine"},
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtDbtr.PstlAdr.AdrLine"},
-                                                    []
+                                                "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]
+                                            },
+                                            {
+                                                "and": [
+                                                    {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
+                                                    {
+                                                        "!": [
+                                                            {
+                                                                "and": [
+                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
+                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
                                                 ]
                                             }
-                                        ]
-                                    },
-                                    []
-                                ]
-                            }
+                                        ]},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtDbtr"}
+                                    ]
+                                },
+                                {
+                                    "merge": [
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtDbtr.Nm"},
+                                            [
+                                                {"cat": ["/ULTD/", {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtDbtr.Nm"}]}
+                                            ],
+                                            []
+                                        ]},
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtDbtr.PstlAdr.AdrLine"},
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtDbtr.PstlAdr.AdrLine"},
+                                            []
+                                        ]}
+                                    ]
+                                },
+                                []
+                            ]}
                         }
                     ]
                 }
@@ -75,43 +83,53 @@
                     "mappings": [
                         {
                             "path": "temp_data.ultimate_creditor_info",
-                            "logic": {
-                                "if": [
-                                    {"and": [
-                                        {"or": [
-                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]},
-                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]},
-                                            {"and": [
-                                                {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
-                                                {"!": [{"and": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
-                                                ]}]}
-                                            ]}
-                                        ]},
-                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtCdtr"}
-                                    ]},
-                                    {
-                                        "merge": [
+                            "logic": { "if": [
+                                {
+                                    "and": [
+                                        { "or": [
                                             {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtCdtr.Nm"},
-                                                    [{"cat": ["/ULTB/", {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtCdtr.Nm"}]}],
-                                                    []
-                                                ]
+                                                "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]
                                             },
                                             {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtCdtr.PstlAdr.AdrLine"},
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtCdtr.PstlAdr.AdrLine"},
-                                                    []
+                                                "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]
+                                            },
+                                            {
+                                                "and": [
+                                                    {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
+                                                    {
+                                                        "!": [
+                                                            {
+                                                                "and": [
+                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
+                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
                                                 ]
                                             }
-                                        ]
-                                    },
-                                    []
-                                ]
-                            }
+                                        ]},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtCdtr"}
+                                    ]
+                                },
+                                {
+                                    "merge": [
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtCdtr.Nm"},
+                                            [
+                                                {"cat": ["/ULTB/", {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtCdtr.Nm"}]}
+                                            ],
+                                            []
+                                        ]},
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtCdtr.PstlAdr.AdrLine"},
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtCdtr.PstlAdr.AdrLine"},
+                                            []
+                                        ]}
+                                    ]
+                                },
+                                []
+                            ]}
                         }
                     ]
                 }
@@ -127,36 +145,50 @@
                     "mappings": [
                         {
                             "path": "data.SwiftMT.fields.#70",
-                            "logic": {
-                                "if": [
-                                    {"and": [
-                                        {"or": [
-                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]},
-                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]},
-                                            {"and": [
-                                                {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
-                                                {"!": [{"and": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
-                                                ]}]}
-                                            ]}
+                            "logic": { "if": [
+                                {
+                                    "and": [
+                                        { "or": [
+                                            {
+                                                "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]
+                                            },
+                                            {
+                                                "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]
+                                            },
+                                            {
+                                                "and": [
+                                                    {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
+                                                    {
+                                                        "!": [
+                                                            {
+                                                                "and": [
+                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
+                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
                                         ]},
-                                        {"or": [
-                                            {"var": "temp_data.ultimate_debtor_info"},
-                                            {"var": "temp_data.ultimate_creditor_info"}
-                                        ]}
-                                    ]},
-                                    {
-                                        "lines": {
-                                            "merge": [
+                                        {
+                                            "or": [
                                                 {"var": "temp_data.ultimate_debtor_info"},
                                                 {"var": "temp_data.ultimate_creditor_info"}
                                             ]
                                         }
-                                    },
-                                    null
-                                ]
-                            }
+                                    ]
+                                },
+                                {
+                                    "lines": {
+                                        "merge": [
+                                            {"var": "temp_data.ultimate_debtor_info"},
+                                            {"var": "temp_data.ultimate_creditor_info"}
+                                        ]
+                                    }
+                                },
+                                null
+                            ]}
                         }
                     ]
                 }

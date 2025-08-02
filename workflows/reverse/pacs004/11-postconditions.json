@@ -3,15 +3,13 @@
     "name": "PACS.004 to MT RETN Postconditions",
     "description": "Final validation and MT message generation for pacs.004 transformation",
     "priority": 11,
-    "condition": {
-        "and": [
-            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
-            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
-            {"==": [{"var": "progress.workflow_id"}, "pacs004-instruction-fields-mapping"]},
-            {"==": [{"var": "progress.task_id"}, "validate_field_72_length"]},
-            {"==": [{"var": "progress.status_code"}, 200]}
-        ]
-    },
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs004-instruction-fields-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "validate_field_72_length"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
     "tasks": [
         {
             "id": "validate_mandatory_fields",
@@ -23,23 +21,17 @@
                     "rules": [
                         {
                             "path": "data.SwiftMT.fields.20",
-                            "logic": {
-                                "!!": {"var": "data.SwiftMT.fields.20"}
-                            },
+                            "logic": {"!!": {"var": "data.SwiftMT.fields.20"}},
                             "message": "T30001: Field 20 (Sender's Reference) is mandatory"
                         },
                         {
                             "path": "data.SwiftMT.fields.32A",
-                            "logic": {
-                                "!!": {"var": "data.SwiftMT.fields.32A"}
-                            },
+                            "logic": {"!!": {"var": "data.SwiftMT.fields.32A"}},
                             "message": "T30002: Field 32A (Value Date/Currency/Amount) is mandatory"
                         },
                         {
                             "path": "data.SwiftMT.fields.72",
-                            "logic": {
-                                "!!": {"var": "data.SwiftMT.fields.72"}
-                            },
+                            "logic": {"!!": {"var": "data.SwiftMT.fields.72"}},
                             "message": "T30007: Field 72 (Sender to Receiver Information) is mandatory for MT RETN"
                         }
                     ]
@@ -56,28 +48,42 @@
                     "rules": [
                         {
                             "path": "data.SwiftMT.fields",
-                            "logic": {
-                                "if": [
-                                    {"!": [{"or": [
-                                        {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]},
-                                        {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]},
-                                        {"and": [
-                                            {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
-                                            {"!": [{"and": [
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
-                                            ]}]}
+                            "logic": { "if": [
+                                {
+                                    "!": [
+                                        { "or": [
+                                            {
+                                                "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]
+                                            },
+                                            {
+                                                "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]
+                                            },
+                                            {
+                                                "and": [
+                                                    {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
+                                                    {
+                                                        "!": [
+                                                            {
+                                                                "and": [
+                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
+                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
                                         ]}
-                                    ]}]},
-                                    {
-                                        "and": [
-                                            {"!": [{"var": "data.SwiftMT.fields.50.K"}]},
-                                            {"!": [{"var": "data.SwiftMT.fields.59.NoOption"}]}
-                                        ]
-                                    },
-                                    true
-                                ]
-                            },
+                                    ]
+                                },
+                                {
+                                    "and": [
+                                        {"!": [{"var": "data.SwiftMT.fields.50.K"}]},
+                                        {"!": [{"var": "data.SwiftMT.fields.59.NoOption"}]}
+                                    ]
+                                },
+                                true
+                            ]},
                             "message": "T30008: MT202/205 RETN cannot have customer party fields"
                         }
                     ]

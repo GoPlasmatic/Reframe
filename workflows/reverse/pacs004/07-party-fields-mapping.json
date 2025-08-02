@@ -3,15 +3,13 @@
     "name": "PACS.004 to MT RETN Party Fields Mapping",
     "description": "Maps party fields (debtor and creditor) based on return chain information",
     "priority": 7,
-    "condition": {
-        "and": [
-            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
-            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
-            {"==": [{"var": "progress.workflow_id"}, "pacs004-charge-fields-mapping"]},
-            {"==": [{"var": "progress.task_id"}, "map_charges_to_field_72"]},
-            {"==": [{"var": "progress.status_code"}, 200]}
-        ]
-    },
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs004-charge-fields-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_charges_to_field_72"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
     "tasks": [
         {
             "id": "map_field_50_mt103",
@@ -23,115 +21,126 @@
                     "mappings": [
                         {
                             "path": "data.SwiftMT.fields.#50",
-                            "logic": {
-                                "if": [
-                                    {"or": [
-                                        {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]},
-                                        {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]},
-                                        {"and": [
-                                            {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
-                                            {"!": [{"and": [
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
-                                            ]}]}
-                                        ]}
-                                    ]},
+                            "logic": { "if": [
+                                { "or": [
                                     {
-                                        "if": [
-                                            {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain"}]},
+                                        "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]
+                                    },
+                                    {
+                                        "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]
+                                    },
+                                    {
+                                        "and": [
+                                            {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
                                             {
-                                                "K": {
-                                                    "name_and_address": ["NOTPROVIDED"]
-                                                }
-                                            },
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.AnyBIC"},
+                                                "!": [
                                                     {
-                                                        "A": {
-                                                            "bic": {
-                                                                "raw": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.AnyBIC"}
-                                                            }
-                                                        }
-                                                    },
-                                                    {
-                                                        "if": [
-                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.PstlAdr.Ctry"},
-                                                            {
-                                                                "F": {
-                                                                    "party_identifier": {
-                                                                        "if": [
-                                                                            {"or": [
-                                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.Othr"},
-                                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.PrvtId.Othr"}
-                                                                            ]},
-                                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.Othr.0.Id"},
-                                                                            "/NOTPROVIDED"
-                                                                        ]
-                                                                    },
-                                                                    "name_and_address": {
-                                                                        "merge": [
-                                                                            {"if": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"}, [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"}], []]},
-                                                                            {"if": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.PstlAdr.AdrLine"}, {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.PstlAdr.AdrLine"}, []]}
-                                                                        ]
-                                                                    }
-                                                                }
-                                                            },
-                                                            {
-                                                                "if": [
-                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.PstlAdr.AdrLine"},
-                                                                    {
-                                                                        "if": [
-                                                                            {"matches": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.PstlAdr.AdrLine.0"}, "^[1-9]/"]},
-                                                                            {
-                                                                                "F": {
-                                                                                    "party_identifier": {
-                                                                                        "if": [
-                                                                                            {"or": [
-                                                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.Othr"},
-                                                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.PrvtId.Othr"}
-                                                                                            ]},
-                                                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.Othr.0.Id"},
-                                                                                            "/NOTPROVIDED"
-                                                                                        ]
-                                                                                    },
-                                                                                    "name_and_address": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.PstlAdr.AdrLine"}
-                                                                                }
-                                                                            },
-                                                                            {
-                                                                                "K": {
-                                                                                    "name_and_address": {
-                                                                                        "merge": [
-                                                                                            {"if": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"}, [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"}], []]},
-                                                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.PstlAdr.AdrLine"}
-                                                                                        ]
-                                                                                    }
-                                                                                }
-                                                                            }
-                                                                        ]
-                                                                    },
-                                                                    {
-                                                                        "K": {
-                                                                            "name_and_address": {
-                                                                                "if": [
-                                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"},
-                                                                                    [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"}],
-                                                                                    ["NOTPROVIDED"]
-                                                                                ]
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                ]
-                                                            }
+                                                        "and": [
+                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
+                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
                                                         ]
                                                     }
                                                 ]
                                             }
                                         ]
-                                    },
-                                    null
-                                ]
-                            }
+                                    }
+                                ]},
+                                { "if": [
+                                    {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain"}]},
+                                    {"K": {"name_and_address": ["NOTPROVIDED"]}},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.AnyBIC"},
+                                        {
+                                            "A": {
+                                                "bic": {
+                                                    "raw": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.AnyBIC"}
+                                                }
+                                            }
+                                        },
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.PstlAdr.Ctry"},
+                                            {
+                                                "F": {
+                                                    "party_identifier": { "if": [
+                                                        {
+                                                            "or": [
+                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.Othr"},
+                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.PrvtId.Othr"}
+                                                            ]
+                                                        },
+                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.Othr.0.Id"},
+                                                        "/NOTPROVIDED"
+                                                    ]},
+                                                    "name_and_address": {
+                                                        "merge": [
+                                                            { "if": [
+                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"},
+                                                                [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"}],
+                                                                []
+                                                            ]},
+                                                            { "if": [
+                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.PstlAdr.AdrLine"},
+                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.PstlAdr.AdrLine"},
+                                                                []
+                                                            ]}
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.PstlAdr.AdrLine"},
+                                                { "if": [
+                                                    {
+                                                        "matches": [
+                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.PstlAdr.AdrLine.0"},
+                                                            "^[1-9]/"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "F": {
+                                                            "party_identifier": { "if": [
+                                                                {
+                                                                    "or": [
+                                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.Othr"},
+                                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.PrvtId.Othr"}
+                                                                    ]
+                                                                },
+                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.Othr.0.Id"},
+                                                                "/NOTPROVIDED"
+                                                            ]},
+                                                            "name_and_address": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.PstlAdr.AdrLine"}
+                                                        }
+                                                    },
+                                                    {
+                                                        "K": {
+                                                            "name_and_address": {
+                                                                "merge": [
+                                                                    { "if": [
+                                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"},
+                                                                        [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"}],
+                                                                        []
+                                                                    ]},
+                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.PstlAdr.AdrLine"}
+                                                                ]
+                                                            }
+                                                        }
+                                                    }
+                                                ]},
+                                                {
+                                                    "K": {
+                                                        "name_and_address": { "if": [
+                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"},
+                                                            [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"}],
+                                                            ["NOTPROVIDED"]
+                                                        ]}
+                                                    }
+                                                }
+                                            ]}
+                                        ]}
+                                    ]}
+                                ]},
+                                null
+                            ]}
                         }
                     ]
                 }
@@ -147,97 +156,108 @@
                     "mappings": [
                         {
                             "path": "data.SwiftMT.fields.#59",
-                            "logic": {
-                                "if": [
-                                    {"or": [
-                                        {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]},
-                                        {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]},
-                                        {"and": [
-                                            {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
-                                            {"!": [{"and": [
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
-                                            ]}]}
-                                        ]}
-                                    ]},
+                            "logic": { "if": [
+                                { "or": [
                                     {
-                                        "if": [
-                                            {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain"}]},
+                                        "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]
+                                    },
+                                    {
+                                        "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]
+                                    },
+                                    {
+                                        "and": [
+                                            {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
                                             {
-                                                "NoOption": {
-                                                    "lines": ["NOTPROVIDED"]
-                                                }
-                                            },
-                                            {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Id.OrgId.AnyBIC"},
+                                                "!": [
                                                     {
-                                                        "A": {
-                                                            "bic": {
-                                                                "raw": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Id.OrgId.AnyBIC"}
-                                                            }
-                                                        }
-                                                    },
-                                                    {
-                                                        "if": [
-                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.PstlAdr.Ctry"},
-                                                            {
-                                                                "F": {
-                                                                    "party_identifier": "/NOTPROVIDED",
-                                                                    "name_and_address": {
-                                                                        "merge": [
-                                                                            {"if": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"}, [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"}], []]},
-                                                                            {"if": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.PstlAdr.AdrLine"}, {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.PstlAdr.AdrLine"}, []]}
-                                                                        ]
-                                                                    }
-                                                                }
-                                                            },
-                                                            {
-                                                                "if": [
-                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.PstlAdr.AdrLine"},
-                                                                    {
-                                                                        "if": [
-                                                                            {"matches": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.PstlAdr.AdrLine.0"}, "^[1-9]/"]},
-                                                                            {
-                                                                                "F": {
-                                                                                    "party_identifier": "/NOTPROVIDED",
-                                                                                    "name_and_address": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.PstlAdr.AdrLine"}
-                                                                                }
-                                                                            },
-                                                                            {
-                                                                                "NoOption": {
-                                                                                    "lines": {
-                                                                                        "merge": [
-                                                                                            {"if": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"}, [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"}], []]},
-                                                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.PstlAdr.AdrLine"}
-                                                                                        ]
-                                                                                    }
-                                                                                }
-                                                                            }
-                                                                        ]
-                                                                    },
-                                                                    {
-                                                                        "NoOption": {
-                                                                            "lines": {
-                                                                                "if": [
-                                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"},
-                                                                                    [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"}],
-                                                                                    ["NOTPROVIDED"]
-                                                                                ]
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                ]
-                                                            }
+                                                        "and": [
+                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
+                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
                                                         ]
                                                     }
                                                 ]
                                             }
                                         ]
-                                    },
-                                    null
-                                ]
-                            }
+                                    }
+                                ]},
+                                { "if": [
+                                    {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain"}]},
+                                    {"NoOption": {"lines": ["NOTPROVIDED"]}},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Id.OrgId.AnyBIC"},
+                                        {
+                                            "A": {
+                                                "bic": {
+                                                    "raw": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Id.OrgId.AnyBIC"}
+                                                }
+                                            }
+                                        },
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.PstlAdr.Ctry"},
+                                            {
+                                                "F": {
+                                                    "party_identifier": "/NOTPROVIDED",
+                                                    "name_and_address": {
+                                                        "merge": [
+                                                            { "if": [
+                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"},
+                                                                [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"}],
+                                                                []
+                                                            ]},
+                                                            { "if": [
+                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.PstlAdr.AdrLine"},
+                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.PstlAdr.AdrLine"},
+                                                                []
+                                                            ]}
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.PstlAdr.AdrLine"},
+                                                { "if": [
+                                                    {
+                                                        "matches": [
+                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.PstlAdr.AdrLine.0"},
+                                                            "^[1-9]/"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "F": {
+                                                            "party_identifier": "/NOTPROVIDED",
+                                                            "name_and_address": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.PstlAdr.AdrLine"}
+                                                        }
+                                                    },
+                                                    {
+                                                        "NoOption": {
+                                                            "lines": {
+                                                                "merge": [
+                                                                    { "if": [
+                                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"},
+                                                                        [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"}],
+                                                                        []
+                                                                    ]},
+                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.PstlAdr.AdrLine"}
+                                                                ]
+                                                            }
+                                                        }
+                                                    }
+                                                ]},
+                                                {
+                                                    "NoOption": {
+                                                        "lines": { "if": [
+                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"},
+                                                            [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"}],
+                                                            ["NOTPROVIDED"]
+                                                        ]}
+                                                    }
+                                                }
+                                            ]}
+                                        ]}
+                                    ]}
+                                ]},
+                                null
+                            ]}
                         }
                     ]
                 }
@@ -253,73 +273,93 @@
                     "mappings": [
                         {
                             "path": "data.SwiftMT.fields.#50",
-                            "logic": {
-                                "if": [
-                                    {"and": [
-                                        {"!": [{"or": [
-                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]},
-                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]},
-                                            {"and": [
-                                                {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
-                                                {"!": [{"and": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
-                                                ]}]}
-                                            ]}
-                                        ]}]},
-                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"}
-                                    ]},
-                                    {
-                                        "if": [
-                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"},
-                                            {
-                                                "A": {
-                                                    "bic": {
-                                                        "raw": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"}
-                                                    }
-                                                }
-                                            },
-                                            {
-                                                "if": [
-                                                    {"or": [
-                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.PstlAdr.Ctry"},
-                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.PstlAdr.AdrLine"},
-                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.Nm"}
-                                                    ]},
+                            "logic": { "if": [
+                                {
+                                    "and": [
+                                        {
+                                            "!": [
+                                                { "or": [
                                                     {
-                                                        "K": {
-                                                            "name_and_address": {
-                                                                "merge": [
-                                                                    {"if": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.Nm"}, [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.Nm"}], []]},
-                                                                    {"if": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.PstlAdr.AdrLine"}, {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.PstlAdr.AdrLine"}, []]}
-                                                                ]
-                                                            }
-                                                        }
+                                                        "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]
                                                     },
                                                     {
-                                                        "if": [
-                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.ClrSysMmbId"},
+                                                        "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]
+                                                    },
+                                                    {
+                                                        "and": [
+                                                            {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
                                                             {
-                                                                "K": {
-                                                                    "account": "/NOTPROVIDED",
-                                                                    "name_and_address": [
-                                                                        {"cat": [
-                                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.ClrSysMmbId.MmbId"}
-                                                                        ]}
-                                                                    ]
-                                                                }
-                                                            },
-                                                            null
+                                                                "!": [
+                                                                    {
+                                                                        "and": [
+                                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
+                                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
+                                                                        ]
+                                                                    }
+                                                                ]
+                                                            }
                                                         ]
                                                     }
-                                                ]
+                                                ]}
+                                            ]
+                                        },
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"}
+                                    ]
+                                },
+                                { "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"},
+                                    {
+                                        "A": {
+                                            "bic": {
+                                                "raw": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"}
                                             }
-                                        ]
+                                        }
                                     },
-                                    null
-                                ]
-                            }
+                                    { "if": [
+                                        { "or": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.PstlAdr.Ctry"},
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.PstlAdr.AdrLine"},
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.Nm"}
+                                        ]},
+                                        {
+                                            "K": {
+                                                "name_and_address": {
+                                                    "merge": [
+                                                        { "if": [
+                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.Nm"},
+                                                            [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.Nm"}],
+                                                            []
+                                                        ]},
+                                                        { "if": [
+                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.PstlAdr.AdrLine"},
+                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.PstlAdr.AdrLine"},
+                                                            []
+                                                        ]}
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.ClrSysMmbId"},
+                                            {
+                                                "K": {
+                                                    "account": "/NOTPROVIDED",
+                                                    "name_and_address": [
+                                                        {
+                                                            "cat": [
+                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.ClrSysMmbId.MmbId"}
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            null
+                                        ]}
+                                    ]}
+                                ]},
+                                null
+                            ]}
                         }
                     ]
                 }
@@ -335,73 +375,93 @@
                     "mappings": [
                         {
                             "path": "data.SwiftMT.fields.#58",
-                            "logic": {
-                                "if": [
-                                    {"and": [
-                                        {"!": [{"or": [
-                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]},
-                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]},
-                                            {"and": [
-                                                {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
-                                                {"!": [{"and": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
-                                                ]}]}
-                                            ]}
-                                        ]}]},
-                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
-                                    ]},
-                                    {
-                                        "if": [
-                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"},
-                                            {
-                                                "A": {
-                                                    "bic": {
-                                                        "raw": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"}
-                                                    }
-                                                }
-                                            },
-                                            {
-                                                "if": [
-                                                    {"or": [
-                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.PstlAdr.Ctry"},
-                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.PstlAdr.AdrLine"},
-                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.Nm"}
-                                                    ]},
+                            "logic": { "if": [
+                                {
+                                    "and": [
+                                        {
+                                            "!": [
+                                                { "or": [
                                                     {
-                                                        "D": {
-                                                            "name_and_address": {
-                                                                "merge": [
-                                                                    {"if": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.Nm"}, [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.Nm"}], []]},
-                                                                    {"if": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.PstlAdr.AdrLine"}, {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.PstlAdr.AdrLine"}, []]}
-                                                                ]
-                                                            }
-                                                        }
+                                                        "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]
                                                     },
                                                     {
-                                                        "if": [
-                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.ClrSysMmbId"},
+                                                        "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]
+                                                    },
+                                                    {
+                                                        "and": [
+                                                            {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
                                                             {
-                                                                "D": {
-                                                                    "name_and_address": [
-                                                                        "/NOTPROVIDED",
-                                                                        {"cat": [
-                                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.ClrSysMmbId.MmbId"}
-                                                                        ]}
-                                                                    ]
-                                                                }
-                                                            },
-                                                            null
+                                                                "!": [
+                                                                    {
+                                                                        "and": [
+                                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
+                                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
+                                                                        ]
+                                                                    }
+                                                                ]
+                                                            }
                                                         ]
                                                     }
-                                                ]
+                                                ]}
+                                            ]
+                                        },
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
+                                    ]
+                                },
+                                { "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"},
+                                    {
+                                        "A": {
+                                            "bic": {
+                                                "raw": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"}
                                             }
-                                        ]
+                                        }
                                     },
-                                    null
-                                ]
-                            }
+                                    { "if": [
+                                        { "or": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.PstlAdr.Ctry"},
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.PstlAdr.AdrLine"},
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.Nm"}
+                                        ]},
+                                        {
+                                            "D": {
+                                                "name_and_address": {
+                                                    "merge": [
+                                                        { "if": [
+                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.Nm"},
+                                                            [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.Nm"}],
+                                                            []
+                                                        ]},
+                                                        { "if": [
+                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.PstlAdr.AdrLine"},
+                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.PstlAdr.AdrLine"},
+                                                            []
+                                                        ]}
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.ClrSysMmbId"},
+                                            {
+                                                "D": {
+                                                    "name_and_address": [
+                                                        "/NOTPROVIDED",
+                                                        {
+                                                            "cat": [
+                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.ClrSysMmbId.MmbId"}
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            null
+                                        ]}
+                                    ]}
+                                ]},
+                                null
+                            ]}
                         }
                     ]
                 }
@@ -417,48 +477,72 @@
                     "mappings": [
                         {
                             "path": "data.SwiftMT.fields.77B",
-                            "logic": {
-                                "if": [
-                                    {"and": [
-                                        {"or": [
-                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]},
-                                            {"startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]},
-                                            {"and": [
-                                                {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
-                                                {"!": [{"and": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
-                                                ]}]}
-                                            ]}
+                            "logic": { "if": [
+                                {
+                                    "and": [
+                                        { "or": [
+                                            {
+                                                "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]
+                                            },
+                                            {
+                                                "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]
+                                            },
+                                            {
+                                                "and": [
+                                                    {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
+                                                    {
+                                                        "!": [
+                                                            {
+                                                                "and": [
+                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
+                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
                                         ]},
-                                        {"or": [
-                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.CtryOfRes"},
-                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.CtryOfRes"}
-                                        ]}
-                                    ]},
-                                    {
-                                        "lines": {
-                                            "merge": [
-                                                {
-                                                    "if": [
-                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.CtryOfRes"},
-                                                        [{"cat": ["/BENEFRES/", {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.CtryOfRes"}]}],
-                                                        []
-                                                    ]
-                                                },
-                                                {
-                                                    "if": [
-                                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.CtryOfRes"},
-                                                        [{"cat": ["/ORDERRES/", {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.CtryOfRes"}]}],
-                                                        []
-                                                    ]
-                                                }
+                                        {
+                                            "or": [
+                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.CtryOfRes"},
+                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.CtryOfRes"}
                                             ]
                                         }
-                                    },
-                                    null
-                                ]
-                            }
+                                    ]
+                                },
+                                {
+                                    "lines": {
+                                        "merge": [
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.CtryOfRes"},
+                                                [
+                                                    {
+                                                        "cat": [
+                                                            "/BENEFRES/",
+                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.CtryOfRes"}
+                                                        ]
+                                                    }
+                                                ],
+                                                []
+                                            ]},
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.CtryOfRes"},
+                                                [
+                                                    {
+                                                        "cat": [
+                                                            "/ORDERRES/",
+                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.CtryOfRes"}
+                                                        ]
+                                                    }
+                                                ],
+                                                []
+                                            ]}
+                                        ]
+                                    }
+                                },
+                                null
+                            ]}
                         }
                     ]
                 }

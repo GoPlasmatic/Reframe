@@ -3,15 +3,13 @@
     "name": "PACS.004 to MT RETN Headers Mapping",
     "description": "Maps pacs.004 header information to SWIFT MT headers (blocks 1, 2, and 3)",
     "priority": 3,
-    "condition": {
-        "and": [
-            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
-            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
-            {"==": [{"var": "progress.workflow_id"}, "pacs004-to-mt-retn-preconditions"]},
-            {"==": [{"var": "progress.task_id"}, "validate_mandatory_elements"]},
-            {"==": [{"var": "progress.status_code"}, 200]}
-        ]
-    },
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs004-to-mt-retn-preconditions"]},
+        {"==": [{"var": "progress.task_id"}, "validate_mandatory_elements"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
     "tasks": [
         {
             "id": "construct_basic_header",
@@ -27,21 +25,22 @@
                                 "application_id": "F",
                                 "service_id": "01",
                                 "sender_bic": {
-                                    "raw": {
-                                        "if": [
-                                            {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
-                                            {"substr": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, 0, 8]},
-                                            "NOTPROVIDED"
-                                        ]
-                                    }
-                                },
-                                "logical_terminal": {
-                                    "if": [
+                                    "raw": { "if": [
                                         {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
-                                        {"cat": [{"substr": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, 0, 8]}, "AXXX"]},
-                                        "NOTPROVIDEDAXXX"
-                                    ]
+                                        {"substr": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, 0, 8]},
+                                        "NOTPROVIDED"
+                                    ]}
                                 },
+                                "logical_terminal": { "if": [
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    {
+                                        "cat": [
+                                            {"substr": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, 0, 8]},
+                                            "AXXX"
+                                        ]
+                                    },
+                                    "NOTPROVIDEDAXXX"
+                                ]},
                                 "session_number": "0000",
                                 "sequence_number": "000000"
                             }
@@ -62,24 +61,25 @@
                             "path": "data.SwiftMT.application_header",
                             "logic": {
                                 "direction": "I",
-                                "message_type": { "var": "temp_data.target_message_type" },
+                                "message_type": {"var": "temp_data.target_message_type"},
                                 "priority": "N",
                                 "receiver_bic": {
-                                    "raw": {
-                                        "if": [
-                                            {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
-                                            {"substr": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, 0, 8]},
-                                            "NOTPROVIDED"
-                                        ]
-                                    }
-                                },
-                                "destination_address": {
-                                    "if": [
+                                    "raw": { "if": [
                                         {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
-                                        {"cat": [{"substr": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, 0, 8]}, "XXXX"]},
-                                        "NOTPROVIDEDXXXX"
-                                    ]
-                                }
+                                        {"substr": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, 0, 8]},
+                                        "NOTPROVIDED"
+                                    ]}
+                                },
+                                "destination_address": { "if": [
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    {
+                                        "cat": [
+                                            {"substr": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, 0, 8]},
+                                            "XXXX"
+                                        ]
+                                    },
+                                    "NOTPROVIDEDXXXX"
+                                ]}
                             }
                         }
                     ]
@@ -97,29 +97,25 @@
                         {
                             "path": "data.SwiftMT.user_header",
                             "logic": {
-                                "unique_end_to_end_reference": {
-                                    "if": [
-                                        {"var": "data.ISO20022_MX.document.TxInf.OrgnlUETR"},
-                                        {"var": "data.ISO20022_MX.document.TxInf.OrgnlUETR"},
-                                        null
-                                    ]
-                                },
-                                "service_type_identifier": {
-                                    "if": [
-                                        {"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"},
+                                "unique_end_to_end_reference": { "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.OrgnlUETR"},
+                                    {"var": "data.ISO20022_MX.document.TxInf.OrgnlUETR"},
+                                    null
+                                ]},
+                                "service_type_identifier": { "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"},
+                                    { "if": [
                                         {
-                                            "if": [
-                                                {"matches": [
-                                                    {"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"},
-                                                    "^G00[1-9]$"
-                                                ]},
-                                                {"substr": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"}, 1, 3]},
-                                                null
+                                            "matches": [
+                                                {"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"},
+                                                "^G00[1-9]$"
                                             ]
                                         },
+                                        {"substr": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"}, 1, 3]},
                                         null
-                                    ]
-                                }
+                                    ]},
+                                    null
+                                ]}
                             }
                         }
                     ]
@@ -136,7 +132,7 @@
                     "mappings": [
                         {
                             "path": "data.SwiftMT.message_type",
-                            "logic": { "var": "temp_data.target_message_type" }
+                            "logic": {"var": "temp_data.target_message_type"}
                         }
                     ]
                 }

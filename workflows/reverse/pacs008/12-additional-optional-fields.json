@@ -3,15 +3,13 @@
     "name": "pacs.008 to MT103 Additional Optional Fields Mapping",
     "description": "Maps additional optional MT103 fields including Field 26T (Transaction Type Code) and time indication fields per CBPR+ specification",
     "priority": 12,
-    "condition": {
-        "and": [
-            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.008.001.08"]},
-            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
-            {"==": [{"var": "progress.workflow_id"}, "pacs008-to-mt103-optional-fields"]},
-            {"==": [{"var": "progress.task_id"}, "map_regulatory_reporting"]},
-            {"==": [{"var": "progress.status_code"}, 200]}
-        ]
-    },
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.008.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs008-to-mt103-optional-fields"]},
+        {"==": [{"var": "progress.task_id"}, "map_regulatory_reporting"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
     "tasks": [
         {
             "id": "map_transaction_type_code",
@@ -24,16 +22,16 @@
                         {
                             "path": "data.SwiftMT.fields.#26T",
                             "logic": {
-                                "value": {
-                                    "if": [
-                                        {"and": [
+                                "value": { "if": [
+                                    {
+                                        "and": [
                                             {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Purp.Cd"},
                                             {"==": [{"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.Purp.Cd"}, 0, 1]}, "T"]}
-                                        ]},
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Purp.Cd"},
-                                        null
-                                    ]
-                                }
+                                        ]
+                                    },
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Purp.Cd"},
+                                    null
+                                ]}
                             }
                         }
                     ]
@@ -50,79 +48,73 @@
                     "mappings": [
                         {
                             "path": "data.SwiftMT.fields.#13C",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"},
-                                    {
-                                        "time_code": "/SNDTIME/",
-                                        "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, 11, 5]},
-                                        "utc_offset": {
-                                            "if": [
-                                                {"==": [{"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -1, 1]}, "Z"]},
-                                                "+0000",
-                                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -5, 5]}
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"},
+                                {
+                                    "time_code": "/SNDTIME/",
+                                    "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, 11, 5]},
+                                    "utc_offset": { "if": [
+                                        {
+                                            "==": [
+                                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -1, 1]},
+                                                "Z"
                                             ]
-                                        }
-                                    },
+                                        },
+                                        "+0000",
+                                        {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -5, 5]}
+                                    ]}
+                                },
+                                { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"},
                                     {
-                                        "if": [
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"},
+                                        "time_code": "/RNCTIME/",
+                                        "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, 11, 5]},
+                                        "utc_offset": { "if": [
                                             {
-                                                "time_code": "/RNCTIME/",
-                                                "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, 11, 5]},
-                                                "utc_offset": {
-                                                    "if": [
-                                                        {"==": [{"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -1, 1]}, "Z"]},
-                                                        "+0000",
-                                                        {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -5, 5]}
-                                                    ]
-                                                }
+                                                "==": [
+                                                    {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -1, 1]},
+                                                    "Z"
+                                                ]
                                             },
+                                            "+0000",
+                                            {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -5, 5]}
+                                        ]}
+                                    },
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.CLSTm"},
+                                        {
+                                            "time_code": "/CLSTIME/",
+                                            "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.CLSTm"}, 0, 5]},
+                                            "utc_offset": "+0000"
+                                        },
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.TillTm"},
                                             {
-                                                "if": [
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.CLSTm"},
+                                                "time_code": "/TILTIME/",
+                                                "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.TillTm"}, 0, 5]},
+                                                "utc_offset": "+0000"
+                                            },
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.FrTm"},
+                                                {
+                                                    "time_code": "/FROTIME/",
+                                                    "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.FrTm"}, 0, 5]},
+                                                    "utc_offset": "+0000"
+                                                },
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.RjctTm"},
                                                     {
-                                                        "time_code": "/CLSTIME/",
-                                                        "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.CLSTm"}, 0, 5]},
+                                                        "time_code": "/REJTIME/",
+                                                        "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.RjctTm"}, 0, 5]},
                                                         "utc_offset": "+0000"
                                                     },
-                                                    {
-                                                        "if": [
-                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.TillTm"},
-                                                            {
-                                                                "time_code": "/TILTIME/",
-                                                                "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.TillTm"}, 0, 5]},
-                                                                "utc_offset": "+0000"
-                                                            },
-                                                            {
-                                                                "if": [
-                                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.FrTm"},
-                                                                    {
-                                                                        "time_code": "/FROTIME/",
-                                                                        "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.FrTm"}, 0, 5]},
-                                                                        "utc_offset": "+0000"
-                                                                    },
-                                                                    {
-                                                                        "if": [
-                                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.RjctTm"},
-                                                                            {
-                                                                                "time_code": "/REJTIME/",
-                                                                                "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.RjctTm"}, 0, 5]},
-                                                                                "utc_offset": "+0000"
-                                                                            },
-                                                                            null
-                                                                        ]
-                                                                    }
-                                                                ]
-                                                            }
-                                                        ]
-                                                    }
-                                                ]
-                                            }
-                                        ]
-                                    }
-                                ]
-                            }
+                                                    null
+                                                ]}
+                                            ]}
+                                        ]}
+                                    ]}
+                                ]}
+                            ]}
                         }
                     ]
                 }

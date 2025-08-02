@@ -3,15 +3,13 @@
     "name": "pacs.008 to MT103 Remittance Information Mapping",
     "description": "Maps remittance information to Field 70 (Remittance Information) with EndToEndId handling per specification",
     "priority": 9,
-    "condition": {
-        "and": [
-            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.008.001.08"]},
-            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
-            {"==": [{"var": "progress.workflow_id"}, "pacs008-to-mt103-agent-fields"]},
-            {"==": [{"var": "progress.task_id"}, "map_account_with_institution"]},
-            {"==": [{"var": "progress.status_code"}, 200]}
-        ]
-    },
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.008.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs008-to-mt103-agent-fields"]},
+        {"==": [{"var": "progress.task_id"}, "map_account_with_institution"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
     "tasks": [
         {
             "id": "map_remittance_information",
@@ -24,32 +22,30 @@
                         {
                             "path": "data.SwiftMT.fields.#70",
                             "logic": {
-                                "lines": {
-                                    "if": [
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.RmtInf.Ustrd"},
+                                "lines": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.RmtInf.Ustrd"},
+                                    { "if": [
+                                        { "and": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"},
+                                            {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"}, "NOTPROVIDED"]},
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.RmtInf.Ustrd"}
+                                        ]},
                                         {
-                                            "if": [
-                                                {"and": [
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"},
-                                                    {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"}, "NOTPROVIDED"]},
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.RmtInf.Ustrd"}
-                                                ]},
-                                                {"merge": [
-                                                    {"cat": ["/ROC/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"}]},
-                                                    {"split": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.RmtInf.Ustrd"}, "\n"]}
-                                                ]},
+                                            "merge": [
+                                                {"cat": ["/ROC/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"}]},
                                                 {"split": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.RmtInf.Ustrd"}, "\n"]}
                                             ]
                                         },
-                                        {
-                                            "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"},
-                                                [{"cat": ["/ROC/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"}]}],
-                                                null
-                                            ]
-                                        }
-                                    ]
-                                }
+                                        {"split": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.RmtInf.Ustrd"}, "\n"]}
+                                    ]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"},
+                                        [
+                                            {"cat": ["/ROC/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"}]}
+                                        ],
+                                        null
+                                    ]}
+                                ]}
                             }
                         }
                     ]

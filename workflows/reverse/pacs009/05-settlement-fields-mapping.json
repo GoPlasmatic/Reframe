@@ -3,15 +3,13 @@
     "name": "pacs.009 to MT202 Settlement Fields Mapping",
     "description": "Maps settlement fields from pacs.009 to MT202 according to CBPR+ specification (Field 53) - TR003",
     "priority": 5,
-    "condition": {
-        "and": [
-            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.009.001.08"]},
-            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
-            {"==": [{"var": "progress.workflow_id"}, "pacs009-to-mt202-mandatory-fields"]},
-            {"==": [{"var": "progress.task_id"}, "map_field_32a"]},
-            {"==": [{"var": "progress.status_code"}, 200]}
-        ]
-    },
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.009.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs009-to-mt202-mandatory-fields"]},
+        {"==": [{"var": "progress.task_id"}, "map_field_32a"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
     "tasks": [
         {
             "id": "map_field_53_adv",
@@ -23,71 +21,78 @@
                     "mappings": [
                         {
                             "path": "data.SwiftMT.fields.#53A",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"},
-                                    {
-                                        "bic": {
-                                            "raw": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"}
-                                        },
-                                        "party_identifier": {
-                                            "if": [
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"},
-                                                {"cat": ["/", {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"}]},
-                                                ""
-                                            ]
-                                        }
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"},
+                                {
+                                    "bic": {
+                                        "raw": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"}
                                     },
-                                    null
-                                ]
-                            }
+                                    "party_identifier": { "if": [
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"},
+                                        {
+                                            "cat": [
+                                                "/",
+                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"}
+                                            ]
+                                        },
+                                        ""
+                                    ]}
+                                },
+                                null
+                            ]}
                         },
                         {
                             "path": "data.SwiftMT.fields.#53B",
-                            "logic": {
-                                "if": [
-                                    {"and": [
-                                        {"!": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"}]},
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.PstlAdr.TwnNm"}
-                                    ]},
-                                    {
-                                        "location": {
-                                            "if": [
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.PstlAdr.TwnNm"},
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.PstlAdr.TwnNm"},
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.PstlAdr.Ctry"}
+                            "logic": { "if": [
+                                {
+                                    "and": [
+                                        {
+                                            "!": [
+                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"}
                                             ]
-                                        }
-                                    },
-                                    null
-                                ]
-                            }
+                                        },
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.PstlAdr.TwnNm"}
+                                    ]
+                                },
+                                {
+                                    "location": { "if": [
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.PstlAdr.TwnNm"},
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.PstlAdr.TwnNm"},
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.PstlAdr.Ctry"}
+                                    ]}
+                                },
+                                null
+                            ]}
                         },
                         {
                             "path": "data.SwiftMT.fields.53D",
-                            "logic": {
-                                "if": [
-                                    {"and": [
-                                        {"!": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"}]},
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.Nm"}
-                                    ]},
-                                    {
-                                        "name_and_address": {
-                                            "merge": [
-                                                [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.Nm"}],
-                                                {
-                                                    "if": [
-                                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.PstlAdr.AdrLine"},
-                                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.PstlAdr.AdrLine"},
-                                                        ["NOTPROVIDED"]
-                                                    ]
-                                                }
+                            "logic": { "if": [
+                                {
+                                    "and": [
+                                        {
+                                            "!": [
+                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"}
                                             ]
-                                        }
-                                    },
-                                    null
-                                ]
-                            }
+                                        },
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.Nm"}
+                                    ]
+                                },
+                                {
+                                    "name_and_address": {
+                                        "merge": [
+                                            [
+                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.Nm"}
+                                            ],
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.PstlAdr.AdrLine"},
+                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.PstlAdr.AdrLine"},
+                                                ["NOTPROVIDED"]
+                                            ]}
+                                        ]
+                                    }
+                                },
+                                null
+                            ]}
                         }
                     ]
                 }
@@ -103,101 +108,87 @@
                     "mappings": [
                         {
                             "path": "temp_data.SettlementMethod",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"},
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"},
-                                    null
-                                ]
-                            }
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"},
+                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"},
+                                null
+                            ]}
                         },
                         {
                             "path": "temp_data.InstructionForNextAgent",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForNxtAgt"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForNxtAgt"},
-                                    null
-                                ]
-                            }
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForNxtAgt"},
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForNxtAgt"},
+                                null
+                            ]}
                         },
                         {
                             "path": "temp_data.MT53BIC",
-                            "logic": {
-                                "if": [
-                                    {
-                                        "and": [
-                                            {
-                                                "or": [
-                                                    {"==": [{"var": "temp_data.SettlementMethod"}, "INGA"]},
-                                                    {"==": [{"var": "temp_data.SettlementMethod"}, "INDA"]}
-                                                ]
-                                            },
-                                            {"var": "temp_data.InstructionForNextAgent"}
-                                        ]
-                                    },
-                                    {
-                                        "extract_bic_from_instruction": {"var": "temp_data.InstructionForNextAgent"}
-                                    },
-                                    null
-                                ]
-                            }
+                            "logic": { "if": [
+                                {
+                                    "and": [
+                                        {
+                                            "or": [
+                                                {"==": [{"var": "temp_data.SettlementMethod"}, "INGA"]},
+                                                {"==": [{"var": "temp_data.SettlementMethod"}, "INDA"]}
+                                            ]
+                                        },
+                                        {"var": "temp_data.InstructionForNextAgent"}
+                                    ]
+                                },
+                                {"extract_bic_from_instruction": {"var": "temp_data.InstructionForNextAgent"}},
+                                null
+                            ]}
                         },
                         {
                             "path": "data.SwiftMT.fields.#53A",
-                            "logic": {
-                                "if": [
-                                    {
-                                        "and": [
-                                            {
-                                                "or": [
-                                                    {"==": [{"var": "temp_data.SettlementMethod"}, "INGA"]},
-                                                    {"==": [{"var": "temp_data.SettlementMethod"}, "INDA"]}
-                                                ]
-                                            },
-                                            {"var": "temp_data.MT53BIC"}
-                                        ]
-                                    },
-                                    {
-                                        "identifier_code": {"var": "temp_data.MT53BIC"},
-                                        "party_identifier": {
-                                            "settlement_account": {
-                                                "method": {"var": "temp_data.SettlementMethod"},
-                                                "account": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}
-                                            }
+                            "logic": { "if": [
+                                {
+                                    "and": [
+                                        {
+                                            "or": [
+                                                {"==": [{"var": "temp_data.SettlementMethod"}, "INGA"]},
+                                                {"==": [{"var": "temp_data.SettlementMethod"}, "INDA"]}
+                                            ]
+                                        },
+                                        {"var": "temp_data.MT53BIC"}
+                                    ]
+                                },
+                                {
+                                    "identifier_code": {"var": "temp_data.MT53BIC"},
+                                    "party_identifier": {
+                                        "settlement_account": {
+                                            "method": {"var": "temp_data.SettlementMethod"},
+                                            "account": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}
                                         }
-                                    },
-                                    null
-                                ]
-                            }
+                                    }
+                                },
+                                null
+                            ]}
                         },
                         {
                             "path": "data.SwiftMT.fields.#53B",
-                            "logic": {
-                                "if": [
+                            "logic": { "if": [
+                                { "and": [
                                     {
-                                        "and": [
-                                            {
-                                                "or": [
-                                                    {"==": [{"var": "temp_data.SettlementMethod"}, "INGA"]},
-                                                    {"==": [{"var": "temp_data.SettlementMethod"}, "INDA"]}
-                                                ]
-                                            },
-                                            {"!": {"var": "temp_data.MT53BIC"}},
-                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}
+                                        "or": [
+                                            {"==": [{"var": "temp_data.SettlementMethod"}, "INGA"]},
+                                            {"==": [{"var": "temp_data.SettlementMethod"}, "INDA"]}
                                         ]
                                     },
-                                    {
-                                        "party_identifier": {
-                                            "settlement_account": {
-                                                "method": {"var": "temp_data.SettlementMethod"},
-                                                "account": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}
-                                            }
+                                    {"!": {"var": "temp_data.MT53BIC"}},
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}
+                                ]},
+                                {
+                                    "party_identifier": {
+                                        "settlement_account": {
+                                            "method": {"var": "temp_data.SettlementMethod"},
+                                            "account": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}
                                         }
-                                    },
-                                    null
-                                ]
-                            }
+                                    }
+                                },
+                                null
+                            ]}
                         }
                     ]
                 }

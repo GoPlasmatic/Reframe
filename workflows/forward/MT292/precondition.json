@@ -3,16 +3,90 @@
     "name": "MT292 Message Precondition",
     "description": "Precondition checks for MT292 request for cancellation message",
     "priority": 3,
-    "condition": {
-        "and": [
-            {"==": [{"var": "SwiftMT.message_type"}, "292"]},
-            {"==": [{"var": "SwiftMT.method"}, "normal"]},
-            {"==": [{"var": "progress.workflow_id"}, "mt292-bah-mapper"]},
-            {"==": [{"var": "progress.task_id"}, "publish_header_xml"]},
-            {"==": [{"var": "progress.status_code"}, 200]}
-        ]
-    },
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "292"]},
+        {"==": [{"var": "SwiftMT.method"}, "normal"]},
+        {"==": [{"var": "progress.workflow_id"}, "mt292-bah-mapper"]},
+        {"==": [{"var": "progress.task_id"}, "publish_header_xml"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
     "tasks": [
+        {
+            "id": "PREC001_validate_uetr_presence",
+            "name": "PREC001: Validate UETR Presence",
+            "description": "Check if UETR is present in Block3 or Field 79 pattern",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.prec001_uetr_check",
+                            "logic": {
+                                "or": [
+                                    {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                    {
+                                        "and": [
+                                            {"var": "data.SwiftMT.fields.79.information"},
+                                            {
+                                                "some": [{"var": "data.SwiftMT.fields.79.information"}, {"in": ["/UETR/", {"var": ""}]}]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC002_validate_field_32a",
+            "name": "PREC002: Validate Field 32A Presence",
+            "description": "Check if Field 32A is present (optional based on specification)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field_32a_present",
+                            "logic": {"if": [{"var": "data.SwiftMT.fields.32A"}, true, false]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC004_validate_field_11s",
+            "name": "PREC004: Validate Field 11S Message Type",
+            "description": "Validate that Field 11S message type is 10n or 20n (n=0-9)",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {
+                                "or": [
+                                    {
+                                        "and": [
+                                            {">=": [{"var": "data.SwiftMT.fields.11S.message_type"}, "100"]},
+                                            {"<=": [{"var": "data.SwiftMT.fields.11S.message_type"}, "109"]}
+                                        ]
+                                    },
+                                    {
+                                        "and": [
+                                            {">=": [{"var": "data.SwiftMT.fields.11S.message_type"}, "200"]},
+                                            {"<=": [{"var": "data.SwiftMT.fields.11S.message_type"}, "209"]}
+                                        ]
+                                    }
+                                ]
+                            },
+                            "message": "T20278: Field 11S message type must be 10n or 20n (n=0-9)"
+                        }
+                    ]
+                }
+            }
+        },
         {
             "id": "extract_mt_type_from_field_11s",
             "name": "Extract MT Type from Field 11S",
@@ -23,13 +97,11 @@
                     "mappings": [
                         {
                             "path": "temp_data.original_mt_type",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.11S.message_type" },
-                                    { "var": "data.SwiftMT.fields.11S.message_type" },
-                                    "202"
-                                ]
-                            }
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.11S.message_type"},
+                                {"var": "data.SwiftMT.fields.11S.message_type"},
+                                "202"
+                            ]}
                         }
                     ]
                 }
@@ -45,29 +117,27 @@
                     "mappings": [
                         {
                             "path": "temp_data.original_mx_type",
-                            "logic": {
-                                "if": [
-                                    { "==": [{ "var": "temp_data.original_mt_type" }, "103"] },
-                                    "pacs.008",
+                            "logic": { "if": [
+                                {"==": [{"var": "temp_data.original_mt_type"}, "103"]},
+                                "pacs.008",
+                                { "if": [
+                                    {"==": [{"var": "temp_data.original_mt_type"}, "104"]},
+                                    "pacs.003",
                                     { "if": [
-                                        { "==": [{ "var": "temp_data.original_mt_type" }, "104"] },
-                                        "pacs.003",
+                                        {"==": [{"var": "temp_data.original_mt_type"}, "202"]},
+                                        "pacs.009",
                                         { "if": [
-                                            { "==": [{ "var": "temp_data.original_mt_type" }, "202"] },
+                                            {"==": [{"var": "temp_data.original_mt_type"}, "205"]},
                                             "pacs.009",
                                             { "if": [
-                                                { "==": [{ "var": "temp_data.original_mt_type" }, "205"] },
-                                                "pacs.009",
-                                                { "if": [
-                                                    { "==": [{ "var": "temp_data.original_mt_type" }, "204"] },
-                                                    "pacs.010",
-                                                    { "cat": ["MT", { "var": "temp_data.original_mt_type" }] }
-                                                ]}
+                                                {"==": [{"var": "temp_data.original_mt_type"}, "204"]},
+                                                "pacs.010",
+                                                {"cat": ["MT", {"var": "temp_data.original_mt_type"}]}
                                             ]}
                                         ]}
                                     ]}
-                                ]
-                            }
+                                ]}
+                            ]}
                         }
                     ]
                 }
@@ -83,44 +153,56 @@
                     "mappings": [
                         {
                             "path": "temp_data.field_79_narrative",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.79.information" },
-                                    { "var": "data.SwiftMT.fields.79.information" },
-                                    []
-                                ]
-                            }
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.79.information"},
+                                {"var": "data.SwiftMT.fields.79.information"},
+                                []
+                            ]}
                         },
                         {
                             "path": "temp_data.field_79_concat",
-                            "logic": {
-                                "if": [
-                                    { "var": "temp_data.field_79_narrative" },
-                                    {
-                                        "reduce": [
-                                            { "var": "temp_data.field_79_narrative" },
-                                            { "cat": [{ "var": "accumulator" }, " ", { "var": "current" }] },
-                                            ""
-                                        ]
-                                    },
-                                    ""
-                                ]
-                            }
+                            "logic": { "if": [
+                                {"var": "temp_data.field_79_narrative"},
+                                {
+                                    "reduce": [
+                                        {"var": "temp_data.field_79_narrative"},
+                                        {"cat": [{"var": "accumulator"}, " ", {"var": "current"}]},
+                                        ""
+                                    ]
+                                },
+                                ""
+                            ]}
                         },
                         {
                             "path": "temp_data.has_uetr_in_field_79",
-                            "logic": {
-                                "if": [
-                                    { "var": "temp_data.field_79_concat" },
-                                    { 
-                                        "and": [
-                                            { ">": [{ "length": { "var": "temp_data.field_79_concat" }}, 0] },
-                                            { "in": ["/UETR/", { "var": "temp_data.field_79_concat" }] }
-                                        ]
-                                    },
-                                    false
-                                ]
-                            }
+                            "logic": { "if": [
+                                {"var": "temp_data.field_79_concat"},
+                                {
+                                    "and": [
+                                        {">": [{"length": {"var": "temp_data.field_79_concat"}}, 0]},
+                                        {"in": ["/UETR/", {"var": "temp_data.field_79_concat"}]}
+                                    ]
+                                },
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.uetr_line_index",
+                            "logic": { "if": [
+                                {"var": "temp_data.has_uetr_in_field_79"},
+                                {
+                                    "reduce": [
+                                        {"var": "data.SwiftMT.fields.79.information"},
+                                        { "if": [
+                                            {"in": ["/UETR/", {"var": "current"}]},
+                                            {"var": "current_index"},
+                                            {"var": "accumulator"}
+                                        ]},
+                                        -1
+                                    ]
+                                },
+                                -1
+                            ]}
                         }
                     ]
                 }
@@ -134,49 +216,27 @@
                 "name": "map",
                 "input": {
                     "mappings": [
-                        {
-                            "path": "temp_data.cancellation_type",
-                            "logic": "FULL"
-                        },
-                        {
-                            "path": "temp_data.request_status",
-                            "logic": "CANC"
-                        },
+                        {"path": "temp_data.cancellation_type", "logic": "FULL"},
+                        {"path": "temp_data.request_status", "logic": "CANC"},
                         {
                             "path": "temp_data.extracted_uetr",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
-                                    { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
-                                    {
-                                        "if": [
-                                            { "var": "temp_data.has_uetr_in_field_79" },
-                                            "EXTRACTED_FROM_FIELD_79",
-                                            ""
-                                        ]
-                                    }
-                                ]
-                            }
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                {"if": [{"var": "temp_data.has_uetr_in_field_79"}, "EXTRACTED_FROM_FIELD_79", ""]}
+                            ]}
                         },
                         {
                             "path": "temp_data.cancellation_reason",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.79" },
-                                    "NARR",
-                                    "NARR"
-                                ]
-                            }
+                            "logic": {"if": [{"var": "data.SwiftMT.fields.79"}, "NARR", "NARR"]}
                         },
                         {
                             "path": "temp_data.cancellation_additional_info",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.79" },
-                                    { "var": "temp_data.field_79_narrative" },
-                                    ["NOTPROVIDED"]
-                                ]
-                            }
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.79"},
+                                {"var": "temp_data.field_79_narrative"},
+                                ["NOTPROVIDED"]
+                            ]}
                         }
                     ]
                 }

@@ -3,15 +3,13 @@
     "name": "MT192 Business Application Header Mapping for CBPR+",
     "description": "Maps MT192 message to ISO 20022 Business Application Header (AppHdr) using head.001.001.02 schema for camt.056 cancellation request",
     "priority": 2,
-    "condition": {
-        "and": [
-            {"==": [{"var": "SwiftMT.message_type"}, "192"]},
-            {"==": [{"var": "SwiftMT.method"}, "normal"]},
-            {"==": [{"var": "progress.workflow_id"}, "parser"]},
-            {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
-            {"==": [{"var": "progress.status_code"}, 200]}
-        ]
-    },
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "192"]},
+        {"==": [{"var": "SwiftMT.method"}, "normal"]},
+        {"==": [{"var": "progress.workflow_id"}, "parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
     "tasks": [
         {
             "id": "prepare_bah_context",
@@ -24,20 +22,16 @@
                         {
                             "path": "temp_data",
                             "logic": {
-                                "Sender": {
-                                    "if": [
-                                        { "var": "data.SwiftMT.basic_header.sender_bic" },
-                                        { "var": "data.SwiftMT.basic_header.sender_bic" },
-                                        "NOTPROVIDED"
-                                    ]
-                                },
-                                "Receiver": {
-                                    "if": [
-                                        { "var": "data.SwiftMT.application_header.receiver_bic" },
-                                        { "var": "data.SwiftMT.application_header.receiver_bic" },
-                                        "NOTPROVIDED"
-                                    ]
-                                }
+                                "Sender": { "if": [
+                                    {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                    {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                    "NOTPROVIDED"
+                                ]},
+                                "Receiver": { "if": [
+                                    {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                    {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                    "NOTPROVIDED"
+                                ]}
                             }
                         }
                     ]
@@ -55,67 +49,47 @@
                         {
                             "path": "data.AppHdr",
                             "logic": {
-                                "Fr": {
-                                    "FIId": {
-                                        "FinInstnId": {
-                                            "BICFI": { "var": "temp_data.Sender" }
-                                        }
-                                    }
-                                },
-                                "To": {
-                                    "FIId": {
-                                        "FinInstnId": {
-                                            "BICFI": { "var": "temp_data.Receiver" }
-                                        }
-                                    }
-                                },
+                                "Fr": {"FIId": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}}},
+                                "To": {"FIId": {"FinInstnId": {"BICFI": {"var": "temp_data.Receiver"}}}},
                                 "BizMsgIdr": {
                                     "cat": [
-                                        { 
-                                            "if": [
-                                                { "var": "data.SwiftMT.fields.20.reference" },
-                                                { "var": "data.SwiftMT.fields.20.reference" },
-                                                "NOTPROVIDED"
-                                            ]
-                                        },
+                                        { "if": [
+                                            {"var": "data.SwiftMT.fields.20.reference"},
+                                            {"var": "data.SwiftMT.fields.20.reference"},
+                                            "NOTPROVIDED"
+                                        ]},
                                         "-camt.056-001"
                                     ]
                                 },
                                 "MsgDefIdr": "camt.056.001.08",
                                 "BizSvc": "swift.cbprplus.02",
-                                "CreDt": {
-                                    "if": [
-                                        { "var": "data.SwiftMT.fields.13C.time_indication" },
-                                        {
-                                            "cat": [
+                                "CreDt": { "if": [
+                                    {"var": "data.SwiftMT.fields.13C.time_indication"},
+                                    {
+                                        "cat": [
+                                            { "if": [
+                                                {"var": "data.SwiftMT.fields.32A.value_date"},
+                                                {"var": "data.SwiftMT.fields.32A.value_date"},
+                                                {"substr": [{"var": "data.SwiftMT.fields.13C.time_indication"}, 0, 6]}
+                                            ]},
+                                            "T",
+                                            { "if": [
+                                                {"var": "data.SwiftMT.fields.13C.time_indication"},
                                                 {
-                                                    "if": [
-                                                        { "var": "data.SwiftMT.fields.32A.value_date" },
-                                                        { "var": "data.SwiftMT.fields.32A.value_date" },
-                                                        { "substr": [{ "var": "data.SwiftMT.fields.13C.time_indication" }, 0, 6] }
+                                                    "cat": [
+                                                        {"substr": [{"var": "data.SwiftMT.fields.13C.time_indication"}, 6, 2]},
+                                                        ":",
+                                                        {"substr": [{"var": "data.SwiftMT.fields.13C.time_indication"}, 8, 2]},
+                                                        ":00"
                                                     ]
                                                 },
-                                                "T",
-                                                {
-                                                    "if": [
-                                                        { "var": "data.SwiftMT.fields.13C.time_indication" },
-                                                        {
-                                                            "cat": [
-                                                                { "substr": [{ "var": "data.SwiftMT.fields.13C.time_indication" }, 6, 2] },
-                                                                ":",
-                                                                { "substr": [{ "var": "data.SwiftMT.fields.13C.time_indication" }, 8, 2] },
-                                                                ":00"
-                                                            ]
-                                                        },
-                                                        "00:00:00"
-                                                    ]
-                                                },
-                                                "+00:00"
-                                            ]
-                                        },
-                                        "9999-12-31T00:00:00+00:00"
-                                    ]
-                                },
+                                                "00:00:00"
+                                            ]},
+                                            "+00:00"
+                                        ]
+                                    },
+                                    "9999-12-31T00:00:00+00:00"
+                                ]},
                                 "CpyDplct": "CODU",
                                 "PssblDplct": false,
                                 "Prty": "NORM"
@@ -139,4 +113,4 @@
             }
         }
     ]
-} 
+}

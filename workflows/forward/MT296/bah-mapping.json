@@ -3,15 +3,13 @@
     "name": "MT296 Business Application Header Mapping for CBPR+",
     "description": "Maps MT296 message to ISO 20022 Business Application Header (AppHdr) using head.001.001.02 schema for camt.029 resolution of investigation",
     "priority": 2,
-    "condition": {
-        "and": [
-            {"==": [{"var": "SwiftMT.message_type"}, "296"]},
-            {"==": [{"var": "SwiftMT.method"}, "normal"]},
-            {"==": [{"var": "progress.workflow_id"}, "parser"]},
-            {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
-            {"==": [{"var": "progress.status_code"}, 200]}
-        ]
-    },
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "296"]},
+        {"==": [{"var": "SwiftMT.method"}, "normal"]},
+        {"==": [{"var": "progress.workflow_id"}, "parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
     "tasks": [
         {
             "id": "TR002_define_temp_variables",
@@ -23,35 +21,27 @@
                     "mappings": [
                         {
                             "path": "temp_data.Sender",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.AppHdr.Fr.FIId.FinInstnId.BICFI" },
-                                    { "var": "data.AppHdr.Fr.FIId.FinInstnId.BICFI" },
-                                    {
-                                        "if": [
-                                            { "var": "data.SwiftMT.basic_header.sender_bic" },
-                                            { "var": "data.SwiftMT.basic_header.sender_bic" },
-                                            "NOTPROVIDED"
-                                        ]
-                                    }
-                                ]
-                            }
+                            "logic": { "if": [
+                                {"var": "data.AppHdr.Fr.FIId.FinInstnId.BICFI"},
+                                {"var": "data.AppHdr.Fr.FIId.FinInstnId.BICFI"},
+                                { "if": [
+                                    {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                    {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                    "NOTPROVIDED"
+                                ]}
+                            ]}
                         },
                         {
                             "path": "temp_data.Receiver",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.AppHdr.To.FIId.FinInstnId.BICFI" },
-                                    { "var": "data.AppHdr.To.FIId.FinInstnId.BICFI" },
-                                    {
-                                        "if": [
-                                            { "var": "data.SwiftMT.application_header.receiver_bic" },
-                                            { "var": "data.SwiftMT.application_header.receiver_bic" },
-                                            "NOTPROVIDED"
-                                        ]
-                                    }
-                                ]
-                            }
+                            "logic": { "if": [
+                                {"var": "data.AppHdr.To.FIId.FinInstnId.BICFI"},
+                                {"var": "data.AppHdr.To.FIId.FinInstnId.BICFI"},
+                                { "if": [
+                                    {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                    {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                    "NOTPROVIDED"
+                                ]}
+                            ]}
                         }
                     ]
                 }
@@ -66,51 +56,31 @@
                     "mappings": [
                         {
                             "path": "data.AppHdr.Fr.FIId.FinInstnId.BICFI",
-                            "logic": { "var": "temp_data.Sender" }
+                            "logic": {"var": "temp_data.Sender"}
                         },
                         {
                             "path": "data.AppHdr.To.FIId.FinInstnId.BICFI",
-                            "logic": { "var": "temp_data.Receiver" }
+                            "logic": {"var": "temp_data.Receiver"}
                         },
                         {
                             "path": "data.AppHdr.BizMsgIdr",
                             "logic": {
                                 "cat": [
-                                    {
-                                        "if": [
-                                            { "var": "data.SwiftMT.fields.20.reference" },
-                                            { "var": "data.SwiftMT.fields.20.reference" },
-                                            "NOTPROVIDED"
-                                        ]
-                                    },
+                                    { "if": [
+                                        {"var": "data.SwiftMT.fields.20.reference"},
+                                        {"var": "data.SwiftMT.fields.20.reference"},
+                                        "NOTPROVIDED"
+                                    ]},
                                     "-camt.029-001"
                                 ]
                             }
                         },
-                        {
-                            "path": "data.AppHdr.MsgDefIdr",
-                            "logic": "camt.029.001.09"
-                        },
-                        {
-                            "path": "data.AppHdr.BizSvc",
-                            "logic": "swift.cbprplus.02"
-                        },
-                        {
-                            "path": "data.AppHdr.CreDt",
-                            "logic": "9999-12-31T00:00:00+00:00"
-                        },
-                        {
-                            "path": "data.AppHdr.CpyDplct",
-                            "logic": "CODU"
-                        },
-                        {
-                            "path": "data.AppHdr.PssblDplct",
-                            "logic": false
-                        },
-                        {
-                            "path": "data.AppHdr.Prty",
-                            "logic": "NORM"
-                        }
+                        {"path": "data.AppHdr.MsgDefIdr", "logic": "camt.029.001.09"},
+                        {"path": "data.AppHdr.BizSvc", "logic": "swift.cbprplus.02"},
+                        {"path": "data.AppHdr.CreDt", "logic": "9999-12-31T00:00:00+00:00"},
+                        {"path": "data.AppHdr.CpyDplct", "logic": "CODU"},
+                        {"path": "data.AppHdr.PssblDplct", "logic": false},
+                        {"path": "data.AppHdr.Prty", "logic": "NORM"}
                     ]
                 }
             }
@@ -124,30 +94,22 @@
                     "mappings": [
                         {
                             "path": "data.AppHdr.Rltd.Fr.FIId.FinInstnId.BICFI",
-                            "logic": { "var": "temp_data.Sender" }
+                            "logic": {"var": "temp_data.Sender"}
                         },
                         {
                             "path": "data.AppHdr.Rltd.To.FIId.FinInstnId.BICFI",
-                            "logic": { "var": "temp_data.Receiver" }
+                            "logic": {"var": "temp_data.Receiver"}
                         },
-                        {
-                            "path": "data.AppHdr.Rltd.MsgDefIdr",
-                            "logic": "camt.029.001.09"
-                        },
+                        {"path": "data.AppHdr.Rltd.MsgDefIdr", "logic": "camt.029.001.09"},
                         {
                             "path": "data.AppHdr.Rltd.BizMsgIdr",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.20.reference" },
-                                    { "var": "data.SwiftMT.fields.20.reference" },
-                                    "NOTPROVIDED"
-                                ]
-                            }
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.20.reference"},
+                                {"var": "data.SwiftMT.fields.20.reference"},
+                                "NOTPROVIDED"
+                            ]}
                         },
-                        {
-                            "path": "data.AppHdr.Rltd.CreDt",
-                            "logic": "9999-12-31T00:00:00+00:00"
-                        }
+                        {"path": "data.AppHdr.Rltd.CreDt", "logic": "9999-12-31T00:00:00+00:00"}
                     ]
                 }
             }
@@ -166,4 +128,4 @@
             }
         }
     ]
-} 
+}

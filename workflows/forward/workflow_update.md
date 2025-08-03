@@ -1,11 +1,12 @@
-# Workflow Update Guide
+# Forward Mapping Workflow Update Guide (MT → ISO 20022)
 
-This document outlines the process for updating mapping workflows when new SWIFT specifications are released.
-The input to this steps are
+This document outlines the process for updating forward mapping workflows when new SWIFT specifications are released.
+
+## Prerequisites
 - Location to new specification from Swift
-- Location to existing mapping workflow
+- Location to existing mapping workflow in `workflows/forward/[MESSAGE_TYPE]/`
 
-## 1. Forward Mapping Workflow (MT → ISO 20022)
+## Workflow Update Process
 
 ### a. Pick a MT Message Type for which the mapping is going to be updated
 
@@ -293,8 +294,6 @@ Output:
 }
 ```
 
-*Note: The debug_info.audit_trail and data sections have been truncated for documentation purposes. In actual responses, these sections contain detailed workflow execution steps and complete data structures.*
-
 **Key Output Structure Elements:**
 - `success`: Indicates if transformation was successful
 - `transformed_message`: The resulting ISO 20022 XML message
@@ -309,7 +308,7 @@ Output:
 If transformation errors occur, refer to:
 - MT message structure implementation files
 - MT field implementation files
-- See reference links in section 3 and 4 below
+- See reference links in sections 2 and 3 below
 
 ### h. Apply Fixes and Retest
 - Fix any mapping issues identified during testing
@@ -319,11 +318,7 @@ curl -X POST http://localhost:3000/admin/reload-workflows
 ```
 - Retest transformation until successful
 
-## 2. Reverse Mapping Workflow (ISO 20022 → MT)
-
-*To be updated later*
-
-## 3. MT Message Structure References
+## 2. MT Message Structure References
 
 All MT message structures supported in the swift-mt-message library:
 
@@ -354,7 +349,7 @@ All MT message structures supported in the swift-mt-message library:
 | MT942 | Interim Transaction Report | ../SwiftMTMessage/swift-mt-message/src/messages/mt942.rs |
 | MT950 | Statement Message | ../SwiftMTMessage/swift-mt-message/src/messages/mt950.rs |
 
-## 4. MT Field Implementation References
+## 3. MT Field Implementation References
 
 All MT fields supported in the swift-mt-message library:
 
@@ -401,7 +396,7 @@ All MT fields supported in the swift-mt-message library:
 | Field 86 | Information to Account Owner | ../SwiftMTMessage/swift-mt-message/src/fields/field86.rs |
 | Field 90 | Number and Sum of Entries | ../SwiftMTMessage/swift-mt-message/src/fields/field90.rs |
 
-## 5. Important Workflow Development Guidelines
+## 4. Important Workflow Development Guidelines
 
 ### Avoiding Task Overwriting Issues
 
@@ -467,7 +462,7 @@ Instead of mapping to parent objects, map each field to its specific sub-path:
 4. Review audit trails to identify overwriting issues
 5. Test transformations with debug output to verify all fields are preserved
 
-## 6. Troubleshooting Common JSONLogic Issues
+## 5. Troubleshooting Common JSONLogic Issues
 
 When updating workflows, you may encounter "Invalid arguments error" messages. Here are common causes and solutions:
 

@@ -4,6 +4,14 @@ use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+// Message category enum for routing
+#[derive(Debug, Clone, PartialEq)]
+pub enum MessageCategory {
+    MT,
+    MX,
+    Unknown,
+}
+
 // Request/Response structures for transformation API
 #[derive(Debug, Deserialize)]
 pub struct TransformationRequest {

@@ -133,38 +133,46 @@ This feature enables:
 4. Use the reload API to apply changes: `POST /admin/reload-workflows`
 5. Test with sample messages in `test/data/` directory
 
-### Sample Generation (Updated for swift-mt-message v3)
+### Sample Generation (Unified MT and MX Support)
 
-The sample generation now uses scenario-based templates from the swift-mt-message library. The library provides pre-defined test scenarios for realistic message generation:
+The sample generation API now supports both SWIFT MT and ISO 20022 MX message generation using scenario-based templates. Both libraries provide pre-defined test scenarios for realistic message generation:
 
 ```bash
 # Generate MT103 with default scenario
-curl -X POST http://localhost:3000/generate/mt-sample \
+curl -X POST http://localhost:3000/generate/sample \
   -H "Content-Type: application/json" \
   -d '{
     "message_type": "MT103",
-    "config": {}
+    "config": {
+      "scenario": "standard"
+    }
   }'
 
-# Generate MT103 with specific scenario
-curl -X POST http://localhost:3000/generate/mt-sample \
+# Generate pacs.008 (ISO 20022) with specific scenario
+curl -X POST http://localhost:3000/generate/sample \
   -H "Content-Type: application/json" \
   -d '{
-    "message_type": "MT103",
+    "message_type": "pacs.008",
     "config": {
       "scenario": "high_value"
     }
   }'
 ```
 
-**Important Note**: The v3 library uses JSON scenario files with datafake-rs for dynamic data generation. The old `MessageConfig` format with `field_configs` is no longer supported.
+**Supported Message Types**:
+- **MT Messages**: MT101, MT103, MT104, MT107, MT110, MT111, MT112, MT192, MT196, MT199, MT202, MT205, MT210, MT292, MT296, MT299, MT900, MT910, MT920, MT935, MT940, MT941, MT942, MT950
+- **MX Messages**: pacs.002, pacs.003, pacs.004, pacs.008, pacs.009, camt.025, camt.029, camt.052, camt.053, camt.054, camt.056, camt.057, camt.060, pain.001, pain.002, pain.008
 
-**Available Scenarios**: Located in `test_scenarios/[message_type]/`. Common scenarios include:
-- `standard` - Default scenario with typical values
-- `high_value` - High-value payment scenario  
-- `remittance_enhanced` - Enhanced remittance information
-- `cbpr_*` - Cross-Border Payments Regulation compliant scenarios
-- `regulatory_compliant` - Regulatory compliance focused
+**Important Notes**: 
+- The unified endpoint `/generate/sample` automatically detects MT vs MX message types
+- MT messages are returned as SWIFT MT format strings
+- MX messages are returned as JSON (XML serialization coming soon)
+- Both libraries use JSON scenario files with datafake-rs for dynamic data generation
+
+**Available Scenarios**: 
+- MT scenarios located in `scenarios/SwiftMTMessage/[message_type]/`
+- MX scenarios located in `scenarios/MXMessage/[message_type]/`
+- Common scenarios include: `standard`, `high_value`, `cbpr_*` variants, `regulatory_compliant`
 - See the full list in each message type's scenario directory
 
 ### Environment Variables

@@ -9,17 +9,20 @@ use tracing_subscriber::EnvFilter;
 mod engine;
 mod handlers;
 mod helper;
+mod mx_sample_generator;
 mod parse_mt;
 mod parse_mx;
 mod publish_mt;
 mod publish_mx;
 mod sample_generator;
+mod scenario_manager;
 mod types;
+mod workflow;
 
 // Import public items from modules
 use engine::initialize_engines;
 use handlers::{
-    generate_mt_sample, health_check, reload_workflows, transform_mt_to_mx, transform_mx_to_mt,
+    generate_sample, health_check, reload_workflows, transform_mt_to_mx, transform_mx_to_mt,
     validate_mt,
 };
 
@@ -27,6 +30,9 @@ use handlers::{
 async fn main() {
     // Initialize logging
     initialize_logging();
+    
+    // Initialize scenario paths for sample generation
+    initialize_scenario_paths();
 
     info!("🚀 Starting Reframe Bidirectional Transformation Service");
 
@@ -38,7 +44,7 @@ async fn main() {
         .route("/health", get(health_check))
         .route("/transform/mt-to-mx", post(transform_mt_to_mx))
         .route("/transform/mx-to-mt", post(transform_mx_to_mt))
-        .route("/generate/mt-sample", post(generate_mt_sample))
+        .route("/generate/sample", post(generate_sample))
         .route("/validate/mt", post(validate_mt))
         .route("/admin/reload-workflows", post(reload_workflows))
         .with_state(app_state);
@@ -47,7 +53,7 @@ async fn main() {
     info!("🌐 Server running on http://0.0.0.0:3000");
     info!("📡 Forward endpoint: POST /transform/mt-to-mx");
     info!("📡 Reverse endpoint: POST /transform/mx-to-mt");
-    info!("🔧 Sample generation: POST /generate/mt-sample");
+    info!("🔧 Sample generation: POST /generate/sample (supports MT and MX)");
     info!("🔍 MT validation: POST /validate/mt");
     info!("🔄 Workflow reload: POST /admin/reload-workflows");
     info!("🏥 Health check: GET /health");
@@ -71,4 +77,16 @@ fn initialize_logging() {
         .with_env_filter(EnvFilter::from_default_env())
         .try_init()
         .ok(); // Ignore errors if already initialized
+}
+
+fn initialize_scenario_paths() {
+    // Set environment variables for scenario paths
+    // These will be used by swift-mt-message and mx-message libraries
+    unsafe {
+        std::env::set_var("SWIFT_SCENARIO_PATH", "scenarios/SwiftMTMessage");
+        std::env::set_var("MX_SCENARIO_PATH", "scenarios/MXMessage");
+    }
+    info!("📁 Scenario paths configured:");
+    info!("   SWIFT: scenarios/SwiftMTMessage");
+    info!("   MX: scenarios/MXMessage");
 }

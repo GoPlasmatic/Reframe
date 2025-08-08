@@ -7,11 +7,12 @@ use swift_mt_message::SwiftParser;
 use tracing::{debug, error, info, instrument};
 
 use crate::engine::reload_engines;
+use crate::mx_sample_generator::{generate_mx_from_config, is_supported_mx_type};
 use crate::sample_generator::{generate_mt_from_config, is_supported_message_type};
 use crate::types::{
-    AppState, DebugInfo, EngineStatus, HealthResponse, ReloadResponse, SampleGenerationRequest,
-    TransformationRequest, TransformationResponse, ValidationError, ValidationRequest,
-    ValidationResponse,
+    AppState, DebugInfo, EngineStatus, HealthResponse, MessageCategory, ReloadResponse,
+    SampleGenerationRequest, TransformationRequest, TransformationResponse, ValidationError,
+    ValidationRequest, ValidationResponse,
 };
 
 /// Validates that the given string is well-formed XML
@@ -571,6 +572,123 @@ pub async fn generate_mt_sample(
         }
         Err(e) => {
             error!("❌ MT sample generation failed: {}", e);
+            Ok(Json(TransformationResponse {
+                success: false,
+                transformed_message: None,
+                debug_info: if request.options.include_debug {
+                    Some(DebugInfo {
+                        engine_state: "sample_generation".to_string(),
+                        workflow_execution: vec![format!("Failed - Generation error: {}", e)],
+                        intermediate_data: request.config,
+                    })
+                } else {
+                    None
+                },
+                errors: vec![e.to_string()],
+                warnings: Vec::new(),
+            }))
+        }
+    }
+}
+
+// Helper function to detect message category
+fn detect_message_category(message_type: &str) -> MessageCategory {
+    if message_type.starts_with("MT") {
+        MessageCategory::MT
+    } else if message_type.starts_with("pacs") 
+        || message_type.starts_with("camt") 
+        || message_type.starts_with("pain") {
+        MessageCategory::MX
+    } else {
+        MessageCategory::Unknown
+    }
+}
+
+// Unified sample generation endpoint
+#[instrument(skip(request), fields(message_type = request.message_type.as_str()))]
+pub async fn generate_sample(
+    Json(request): Json<SampleGenerationRequest>,
+) -> Result<Json<TransformationResponse>, StatusCode> {
+    let start_time = Instant::now();
+    
+    info!(
+        "🔄 Processing sample generation request for {}",
+        request.message_type
+    );
+    debug!("Request options: {:?}", request.options);
+    
+    // Detect message category and route to appropriate generator
+    let result = match detect_message_category(&request.message_type) {
+        MessageCategory::MT => {
+            if !is_supported_message_type(&request.message_type) {
+                error!("❌ Unsupported MT message type: {}", request.message_type);
+                return Ok(Json(TransformationResponse {
+                    success: false,
+                    transformed_message: None,
+                    debug_info: None,
+                    errors: vec![format!(
+                        "Unsupported MT message type: {}",
+                        request.message_type
+                    )],
+                    warnings: Vec::new(),
+                }));
+            }
+            generate_mt_from_config(&request.config, &request.message_type, &request.options).await
+        }
+        MessageCategory::MX => {
+            if !is_supported_mx_type(&request.message_type) {
+                error!("❌ Unsupported MX message type: {}", request.message_type);
+                return Ok(Json(TransformationResponse {
+                    success: false,
+                    transformed_message: None,
+                    debug_info: None,
+                    errors: vec![format!(
+                        "Unsupported MX message type: {}",
+                        request.message_type
+                    )],
+                    warnings: Vec::new(),
+                }));
+            }
+            generate_mx_from_config(&request.config, &request.message_type, &request.options).await
+        }
+        MessageCategory::Unknown => {
+            error!("❌ Unknown message type format: {}", request.message_type);
+            return Ok(Json(TransformationResponse {
+                success: false,
+                transformed_message: None,
+                debug_info: None,
+                errors: vec![format!(
+                    "Unknown message type format: {}. Expected MT* or pacs*/camt*/pain*",
+                    request.message_type
+                )],
+                warnings: Vec::new(),
+            }));
+        }
+    };
+    
+    match result {
+        Ok(message) => {
+            let processing_time = start_time.elapsed().as_millis() as u64;
+            info!("✅ Sample generation completed in {}ms", processing_time);
+            
+            Ok(Json(TransformationResponse {
+                success: true,
+                transformed_message: Some(Value::String(message)),
+                debug_info: if request.options.include_debug {
+                    Some(DebugInfo {
+                        engine_state: "sample_generation".to_string(),
+                        workflow_execution: vec!["Sample generated from scenario".to_string()],
+                        intermediate_data: request.config,
+                    })
+                } else {
+                    None
+                },
+                errors: Vec::new(),
+                warnings: Vec::new(),
+            }))
+        }
+        Err(e) => {
+            error!("❌ Sample generation failed: {}", e);
             Ok(Json(TransformationResponse {
                 success: false,
                 transformed_message: None,

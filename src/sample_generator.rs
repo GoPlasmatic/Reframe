@@ -52,15 +52,16 @@ where
     let scenario_name = config.get("scenario").and_then(|s| s.as_str());
 
     // If config has custom fields, log warning as v3 uses scenario files
-    if config.is_object() && !config.as_object().unwrap().is_empty() {
-        if config.get("field_configs").is_some() || config.get("include_optional").is_some() {
-            info!(
-                "Note: swift-mt-message v3 uses scenario files. Custom field configs in request will be ignored. \n\
+    if config.is_object()
+        && !config.as_object().unwrap().is_empty()
+        && (config.get("field_configs").is_some() || config.get("include_optional").is_some())
+    {
+        info!(
+            "Note: swift-mt-message v3 uses scenario files. Custom field configs in request will be ignored. \n\
                  Using scenario: {:?} for {}",
-                scenario_name.unwrap_or("standard"),
-                message_type
-            );
-        }
+            scenario_name.unwrap_or("standard"),
+            message_type
+        );
     }
 
     debug!(
@@ -77,8 +78,7 @@ where
                 message_type, scenario_name, e
             );
             Err(format!(
-                "Sample generation failed for {} with scenario {:?}: {}",
-                message_type, scenario_name, e
+                "Sample generation failed for {message_type} with scenario {scenario_name:?}: {e}"
             )
             .into())
         }

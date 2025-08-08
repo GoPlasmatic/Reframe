@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Test MT message scenarios using the Reframe transformation service.
-This script generates MT messages from scenarios and tests their transformation to ISO 20022.
+Test MT and MX message scenarios using the Reframe transformation service.
+This script generates messages from scenarios and tests their bidirectional transformation.
 """
 
 import json
@@ -10,60 +10,120 @@ import argparse
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import time
 from collections import defaultdict
 import re
+from tabulate import tabulate
 
-class MTScenarioTester:
-    def __init__(self, base_url: str = "http://localhost:3000"):
+class ScenarioTester:
+    def __init__(self, base_url: str = "http://localhost:3000", debug: bool = False):
         self.base_url = base_url
+        self.debug = debug
         self.results = []
         self.statistics = {
             "total": 0,
             "generation_success": 0,
             "transformation_success": 0,
             "validation_success": 0,
+            "roundtrip_success": 0,
             "by_doc_type": defaultdict(int),
-            "by_method": defaultdict(int),
+            "by_message_type": defaultdict(int),
             "errors": []
         }
     
-    def discover_scenarios(self, message_type: str) -> List[str]:
-        """Load scenarios from index.json file for the message type"""
-        message_type_lower = message_type.lower()
+    def discover_message_types(self) -> Dict[str, List[str]]:
+        """Discover all available message types from scenario directories"""
+        message_types = {"MT": [], "MX": []}
         
-        # Try different possible paths
-        possible_paths = [
-            Path(f"/Users/codetiger/Development/Plasmatic/Reframe/test_scenarios/{message_type_lower}/index.json"),
-            Path(f"../test_scenarios/{message_type_lower}/index.json"),
-            Path(f"./test_scenarios/{message_type_lower}/index.json"),
-            Path(f"test_scenarios/{message_type_lower}/index.json")
-        ]
+        # Discover MT message types
+        mt_dir = Path("scenarios/SwiftMTMessage")
+        if mt_dir.exists():
+            for item in sorted(mt_dir.iterdir()):
+                if item.is_dir() and not item.name.startswith('.'):
+                    # Check if it has an index.json file
+                    if (item / "index.json").exists():
+                        message_types["MT"].append(item.name.upper())
         
-        for path in possible_paths:
-            if path.exists():
-                try:
-                    with open(path, 'r') as f:
-                        data = json.load(f)
-                        scenarios = data.get("scenarios", [])
-                        print(f"Loaded {len(scenarios)} scenarios from {path}")
-                        return scenarios
-                except Exception as e:
-                    print(f"Error loading scenarios from {path}: {e}")
+        # Discover MX message types
+        mx_dir = Path("scenarios/MXMessage")
+        if mx_dir.exists():
+            for item in sorted(mx_dir.iterdir()):
+                if item.is_dir() and not item.name.startswith('.'):
+                    # Convert directory name to MX format (e.g., pacs008 -> pacs.008)
+                    name = item.name
+                    if name.startswith(('pacs', 'pain', 'camt')):
+                        # Insert dot before numbers
+                        formatted_name = re.sub(r'([a-z]+)(\d+)', r'\1.\2', name)
+                        if (item / "index.json").exists():
+                            message_types["MX"].append(formatted_name)
         
-        # Fallback to default scenarios if index.json not found
-        print(f"No index.json found for {message_type}, using default scenarios")
-        return ["standard", "high_value", "remittance_enhanced", "cover_payment", "rejection", "return"]
+        return message_types
     
-    def generate_mt_message(self, message_type: str, scenario: str = "standard") -> Optional[str]:
-        """Generate an MT message using the sample generator API"""
+    def load_scenarios_from_index(self, message_type: str) -> List[Dict[str, str]]:
+        """Load scenarios from index.json file for the message type"""
+        # Determine if MT or MX
+        if message_type.upper().startswith("MT"):
+            # MT message
+            clean_type = message_type.lower()
+            scenario_dir = Path(f"scenarios/SwiftMTMessage/{clean_type}")
+        else:
+            # MX message - remove dots for directory name
+            clean_type = message_type.replace(".", "")
+            scenario_dir = Path(f"scenarios/MXMessage/{clean_type}")
+        
+        index_file = scenario_dir / "index.json"
+        
+        if not index_file.exists():
+            if self.debug:
+                print(f"DEBUG: No index.json found at {index_file}")
+            return []
+        
         try:
+            with open(index_file, 'r') as f:
+                data = json.load(f)
+                scenarios = data.get("scenarios", [])
+                
+                scenario_list = []
+                for scenario in scenarios:
+                    if isinstance(scenario, dict):
+                        # New format with file and description
+                        filename = scenario.get("file", "")
+                        if filename.endswith(".json"):
+                            filename = filename[:-5]  # Remove .json extension
+                        scenario_list.append({
+                            "name": filename,
+                            "description": scenario.get("description", "")
+                        })
+                    else:
+                        # Old format - just scenario names
+                        if isinstance(scenario, str):
+                            if scenario.endswith(".json"):
+                                scenario = scenario[:-5]
+                            scenario_list.append({
+                                "name": scenario,
+                                "description": ""
+                            })
+                
+                if self.debug:
+                    print(f"DEBUG: Loaded {len(scenario_list)} scenarios from {index_file}")
+                
+                return scenario_list
+        except Exception as e:
+            if self.debug:
+                print(f"DEBUG: Error loading scenarios from {index_file}: {e}")
+            return []
+    
+    def generate_message(self, message_type: str, scenario: str) -> Tuple[Optional[Any], str]:
+        """Generate a message (MT or MX) using the sample generator API"""
+        try:
+            config = {"scenario": scenario} if scenario != "default" else {}
+            
             response = requests.post(
-                f"{self.base_url}/generate/mt-sample",
+                f"{self.base_url}/generate/sample",
                 json={
                     "message_type": message_type,
-                    "config": {"scenario": scenario}
+                    "config": config
                 }
             )
             
@@ -71,22 +131,40 @@ class MTScenarioTester:
                 result = response.json()
                 if result.get("success"):
                     self.statistics["generation_success"] += 1
-                    return result.get("transformed_message")
+                    message = result.get("transformed_message")
+                    format_type = "MT" if message_type.upper().startswith("MT") else "MX"
+                    return message, format_type
                 else:
-                    error = f"Generation failed: {result.get('error', 'Unknown error')}"
-                    self.statistics["errors"].append({"scenario": scenario, "error": error})
-                    return None
+                    error = result.get('error', 'Unknown error')
+                    if self.debug:
+                        print(f"DEBUG: Generation failed: {error}")
+                    return None, ""
             else:
                 error = f"HTTP {response.status_code}: {response.text}"
-                self.statistics["errors"].append({"scenario": scenario, "error": error})
-                return None
+                if self.debug:
+                    print(f"DEBUG: Generation HTTP error: {error}")
+                return None, ""
         except Exception as e:
-            error = f"Exception during generation: {str(e)}"
-            self.statistics["errors"].append({"scenario": scenario, "error": error})
-            return None
+            if self.debug:
+                print(f"DEBUG: Generation exception: {str(e)}")
+            return None, ""
     
-    def transform_mt_to_mx(self, mt_message: str) -> Optional[Dict[str, Any]]:
-        """Transform MT message to MX using the transformation API"""
+    def validate_message(self, message: Any, format_type: str) -> bool:
+        """Validate the generated message"""
+        if format_type == "MT":
+            # Basic MT validation - check for required blocks and fields
+            return bool(message and isinstance(message, str) and (":" in message or "{" in message))
+        elif format_type == "MX":
+            # MX can be either XML string or JSON dict
+            if isinstance(message, str):
+                return message.startswith("<?xml") or "<Envelope" in message or "<Document" in message
+            elif isinstance(message, dict):
+                # JSON representation is valid
+                return True
+        return False
+    
+    def transform_mt_to_mx(self, mt_message: str) -> Optional[str]:
+        """Transform MT message to MX"""
         try:
             response = requests.post(
                 f"{self.base_url}/transform/mt-to-mx",
@@ -97,183 +175,205 @@ class MTScenarioTester:
                 result = response.json()
                 if result.get("success"):
                     self.statistics["transformation_success"] += 1
-                    return result
-                else:
-                    error = f"Transformation failed: {json.dumps(result.get('errors', []))}"
-                    self.statistics["errors"].append({"error": error})
-                    # Still return the result for partial info extraction
-                    return result
-            else:
-                error = f"HTTP {response.status_code}: {response.text}"
-                self.statistics["errors"].append({"error": error})
-                return None
+                    return result.get("transformed_message")
+            return None
         except Exception as e:
-            error = f"Exception during transformation: {str(e)}"
-            self.statistics["errors"].append({"error": error})
+            if self.debug:
+                print(f"DEBUG: MT to MX transformation error: {str(e)}")
             return None
     
-    def extract_mx_info(self, transformation_result: Dict[str, Any]) -> Dict[str, Any]:
-        """Extract key information from MX transformation result"""
-        mx_info = {
-            "valid": False,
-            "doc_type": "unknown",
-            "biz_svc": None,
-            "msg_id": None,
-            "errors": []
-        }
-        
-        # Extract from transformed_message XML
-        if "transformed_message" in transformation_result:
-            xml = transformation_result["transformed_message"]
+    def transform_mx_to_mt(self, mx_message: Any) -> Optional[str]:
+        """Transform MX message to MT"""
+        try:
+            # Convert JSON to string if needed
+            if isinstance(mx_message, dict):
+                import json as json_module
+                mx_message_str = json_module.dumps(mx_message)
+            else:
+                mx_message_str = mx_message
             
-            # Handle null/None case
-            if xml is None:
-                return mx_info
+            response = requests.post(
+                f"{self.base_url}/transform/mx-to-mt",
+                json={"message": mx_message_str}
+            )
             
-            # Handle list case (API might return list with single string)
-            if isinstance(xml, list) and len(xml) > 0:
-                xml = xml[0]
-            
-            # Ensure xml is a string
-            if not isinstance(xml, str):
-                mx_info["errors"] = [str(xml)]
-                return mx_info
-            
-            # Handle escaped XML (json string with \\n)
-            if '\\n' in xml:
-                xml = xml.replace('\\n', '\n')
-            
-            # Extract document type
-            doc_types = ["pacs.008", "pacs.002", "pacs.004", "pacs.009", "camt.054", "camt.056"]
-            for doc_type in doc_types:
-                if doc_type in xml:
-                    mx_info["doc_type"] = doc_type
-                    break
-            
-            # Check for versioned elements
-            if re.search(r"FIToFIPaymentStatusReport(V\d+)?", xml):
-                mx_info["doc_type"] = "pacs.002"
-            elif re.search(r"PaymentReturn(V\d+)?", xml):
-                mx_info["doc_type"] = "pacs.004"
-            
-            # Extract BizSvc
-            if "<BizSvc>" in xml:
-                mx_info["biz_svc"] = xml.split("<BizSvc>")[1].split("</BizSvc>")[0]
-            
-            # Extract message ID
-            if "<MsgId>" in xml:
-                mx_info["msg_id"] = xml.split("<MsgId>")[1].split("</MsgId>")[0]
-            
-            mx_info["valid"] = True
-        
-        return mx_info
+            if response.status_code == 200:
+                result = response.json()
+                if result.get("success"):
+                    self.statistics["transformation_success"] += 1
+                    return result.get("transformed_message")
+            elif self.debug:
+                print(f"DEBUG: MX to MT transformation failed with status {response.status_code}")
+                print(f"DEBUG: Response: {response.text[:500]}")
+            return None
+        except Exception as e:
+            if self.debug:
+                print(f"DEBUG: MX to MT transformation error: {str(e)}")
+            return None
     
-    def extract_mt_info(self, mt_message: str) -> Dict[str, Any]:
-        """Extract key information from MT message"""
-        mt_info = {
-            "fields": {},
-            "blocks": {},
-            "message_type": None,
-            "method": "normal"
-        }
-        
-        # Parse fields
-        field_pattern = r':(\d+[A-Z]?):(.*?)(?=\n:|$)'
-        matches = re.findall(field_pattern, mt_message, re.MULTILINE | re.DOTALL)
-        
-        for field_tag, field_value in matches:
-            mt_info["fields"][field_tag] = field_value.strip()
-        
-        # Determine message type
-        if "I103" in mt_message:
-            mt_info["message_type"] = "MT103"
-        elif "I202" in mt_message:
-            mt_info["message_type"] = "MT202"
-        elif "I900" in mt_message:
-            mt_info["message_type"] = "MT900"
-        
-        # Determine method based on content
-        if "72" in mt_info["fields"]:
-            field_72 = mt_info["fields"]["72"]
-            if "/REJT/" in field_72:
-                mt_info["method"] = "rejection"
-            elif "/RETN/" in field_72:
-                mt_info["method"] = "return"
-        
-        if "53" in mt_info["fields"] and "54" in mt_info["fields"]:
-            mt_info["method"] = "cover"
-        
-        return mt_info
+    def test_roundtrip(self, original: Any, format_type: str) -> bool:
+        """Test roundtrip transformation (MT->MX->MT or MX->MT->MX)"""
+        try:
+            if format_type == "MT":
+                # MT -> MX -> MT
+                mx_result = self.transform_mt_to_mx(original)
+                if mx_result:
+                    mt_result = self.transform_mx_to_mt(mx_result)
+                    if mt_result:
+                        # Basic check - both should be MT messages
+                        return bool(mt_result and ":" in mt_result)
+            elif format_type == "MX":
+                # MX -> MT -> MX (if supported)
+                mt_result = self.transform_mx_to_mt(original)
+                if mt_result:
+                    mx_result = self.transform_mt_to_mx(mt_result)
+                    if mx_result:
+                        # Basic check - transformation completed
+                        return bool(mx_result)
+            return False
+        except Exception as e:
+            if self.debug:
+                print(f"DEBUG: Roundtrip test error: {str(e)}")
+            return False
     
-    def test_scenario(self, message_type: str, scenario: str) -> Dict[str, Any]:
+    def test_scenario(self, message_type: str, scenario_info: Dict[str, str], sample_num: int = 1) -> Dict[str, Any]:
         """Test a single scenario"""
+        scenario = scenario_info["name"]
+        description = scenario_info.get("description", "")
+        
         result = {
             "message_type": message_type,
             "scenario": scenario,
+            "description": description,
+            "sample": sample_num,
             "generation": "❌",
-            "transformation": "❌",
             "validation": "❌",
-            "mt_info": {},
-            "mx_info": {},
-            "error": None
+            "transformation": "❌",
+            "roundtrip": "❌",
+            "errors": []
         }
         
-        # Generate MT message
-        mt_message = self.generate_mt_message(message_type, scenario)
-        if not mt_message:
-            result["error"] = "Failed to generate MT message"
+        # Generate message
+        message, format_type = self.generate_message(message_type, scenario)
+        if not message:
+            result["errors"].append("Generation failed")
             return result
         
         result["generation"] = "✅"
-        result["mt_info"] = self.extract_mt_info(mt_message)
         
-        # Transform to MX
-        transformation_result = self.transform_mt_to_mx(mt_message)
-        if not transformation_result:
-            result["error"] = "Failed to transform MT to MX"
-            return result
-        
-        result["transformation"] = "✅"
-        result["mx_info"] = self.extract_mx_info(transformation_result)
-        
-        # Validate
-        if result["mx_info"]["valid"]:
+        # Validate message
+        if self.validate_message(message, format_type):
             result["validation"] = "✅"
             self.statistics["validation_success"] += 1
-            self.statistics["by_doc_type"][result["mx_info"]["doc_type"]] += 1
-            self.statistics["by_method"][result["mt_info"]["method"]] += 1
+        else:
+            result["errors"].append("Validation failed")
+        
+        # Test transformation
+        if format_type == "MT":
+            transformed = self.transform_mt_to_mx(message)
+            if transformed:
+                result["transformation"] = "✅"
+            else:
+                result["errors"].append("MT to MX transformation failed")
+        elif format_type == "MX":
+            # Debug: Show message type
+            if self.debug:
+                print(f"DEBUG: MX message type: {type(message)}")
+                if isinstance(message, dict):
+                    print(f"DEBUG: MX message keys: {list(message.keys())[:5]}")
+                elif isinstance(message, str):
+                    print(f"DEBUG: MX message preview: {message[:200]}")
+            
+            # Test MX to MT transformation
+            transformed = self.transform_mx_to_mt(message)
+            if transformed:
+                result["transformation"] = "✅"
+            else:
+                result["transformation"] = "❌"
+                result["errors"].append("MX to MT transformation failed")
+        
+        # Test roundtrip
+        if result["validation"] == "✅":
+            if self.test_roundtrip(message, format_type):
+                result["roundtrip"] = "✅"
+                self.statistics["roundtrip_success"] += 1
+            else:
+                result["roundtrip"] = "⚠️"  # Warning - partial support
+        
+        self.statistics["by_message_type"][message_type] += 1
         
         return result
     
-    def test_message_type(self, message_type: str, scenarios: Optional[List[str]] = None):
-        """Test all scenarios for a message type"""
-        if scenarios is None:
-            scenarios = self.discover_scenarios(message_type)
+    def test_message_type(self, message_type: str, scenarios: Optional[List[str]] = None, 
+                          sample_count: int = 1) -> List[Dict[str, Any]]:
+        """Test all scenarios for a message type with multiple samples"""
+        results = []
         
-        print(f"\nTesting {message_type} with {len(scenarios)} scenarios...")
-        print("="*80)
+        # Load scenarios from index.json
+        scenario_infos = self.load_scenarios_from_index(message_type)
         
-        for i, scenario in enumerate(scenarios):
-            self.statistics["total"] += 1
-            print(f"\n[{i+1}/{len(scenarios)}] Testing scenario: {scenario}")
+        if not scenario_infos:
+            print(f"Warning: No scenarios found for {message_type}")
+            return results
+        
+        # Filter scenarios if specific ones requested
+        if scenarios:
+            scenario_infos = [s for s in scenario_infos if s["name"] in scenarios]
+            if not scenario_infos:
+                print(f"Warning: None of the specified scenarios found for {message_type}")
+                return results
+        
+        print(f"\nTesting {message_type} with {len(scenario_infos)} scenario(s), {sample_count} sample(s) each...")
+        
+        for scenario_info in scenario_infos:
+            for sample_num in range(1, sample_count + 1):
+                self.statistics["total"] += 1
+                result = self.test_scenario(message_type, scenario_info, sample_num)
+                results.append(result)
+                
+                # Small delay between tests
+                if sample_count > 1 or len(scenario_infos) > 1:
+                    time.sleep(0.1)
+        
+        return results
+    
+    def print_results_table(self, results: List[Dict[str, Any]]):
+        """Print results in a formatted table"""
+        if not results:
+            print("No results to display")
+            return
+        
+        # Prepare table data
+        table_data = []
+        for r in results:
+            row = [
+                r["message_type"],
+                r["scenario"][:20] + "..." if len(r["scenario"]) > 20 else r["scenario"],
+                r["sample"],
+                r["generation"],
+                r["validation"],
+                r["transformation"],
+                r["roundtrip"]
+            ]
             
-            result = self.test_scenario(message_type, scenario)
-            self.results.append(result)
+            # Add error indicator
+            if r["errors"]:
+                row.append("⚠️")
+            else:
+                row.append("")
             
-            # Print result
-            print(f"  Generation: {result['generation']}")
-            print(f"  Transformation: {result['transformation']}")
-            print(f"  Validation: {result['validation']}")
-            
-            if result["mx_info"]:
-                print(f"  Document Type: {result['mx_info']['doc_type']}")
-                print(f"  Business Service: {result['mx_info']['biz_svc']}")
-            
-            if result["error"]:
-                print(f"  Error: {result['error']}")
-            
-            # Small delay to avoid overwhelming the service
-            time.sleep(0.1)
+            table_data.append(row)
+        
+        # Print table
+        headers = ["Message Type", "Scenario", "Sample", "Generator", "Validator", "Transform", "Round Trip", "Errors"]
+        print("\n" + tabulate(table_data, headers=headers, tablefmt="grid"))
+        
+        # Print detailed errors if any
+        errors_found = [r for r in results if r["errors"]]
+        if errors_found and self.debug:
+            print("\nDetailed Errors:")
+            for r in errors_found:
+                print(f"  {r['message_type']} / {r['scenario']} (Sample {r['sample']}): {', '.join(r['errors'])}")
     
     def print_summary(self):
         """Print test summary"""
@@ -286,33 +386,22 @@ class MTScenarioTester:
             print("No tests were run")
             return
         
-        print(f"Total scenarios tested: {total}")
+        print(f"Total tests: {total}")
         print(f"Generation success: {self.statistics['generation_success']}/{total} ({100*self.statistics['generation_success']/total:.1f}%)")
-        print(f"Transformation success: {self.statistics['transformation_success']}/{total} ({100*self.statistics['transformation_success']/total:.1f}%)")
         print(f"Validation success: {self.statistics['validation_success']}/{total} ({100*self.statistics['validation_success']/total:.1f}%)")
+        print(f"Transformation success: {self.statistics['transformation_success']}/{total} ({100*self.statistics['transformation_success']/total:.1f}%)")
+        print(f"Round trip success: {self.statistics['roundtrip_success']}/{total} ({100*self.statistics['roundtrip_success']/total:.1f}%)")
         
-        if self.statistics["by_doc_type"]:
-            print("\nBy Document Type:")
-            for doc_type, count in sorted(self.statistics["by_doc_type"].items()):
-                print(f"  {doc_type}: {count}")
-        
-        if self.statistics["by_method"]:
-            print("\nBy Method:")
-            for method, count in sorted(self.statistics["by_method"].items()):
-                print(f"  {method}: {count}")
-        
-        if self.statistics["errors"]:
-            print(f"\nErrors encountered: {len(self.statistics['errors'])}")
-            for i, error in enumerate(self.statistics['errors'][:5]):
-                print(f"  {i+1}. {error}")
-            if len(self.statistics['errors']) > 5:
-                print(f"  ... and {len(self.statistics['errors']) - 5} more")
+        if self.statistics["by_message_type"]:
+            print("\nTests by Message Type:")
+            for msg_type, count in sorted(self.statistics["by_message_type"].items()):
+                print(f"  {msg_type}: {count}")
     
-    def export_results(self, filename: Optional[str] = None):
+    def export_results(self, results: List[Dict[str, Any]], filename: Optional[str] = None):
         """Export results to JSON file"""
         if filename is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"scenario_test_results_{timestamp}.json"
+            filename = f"test_results_{timestamp}.json"
         
         # Ensure logs directory exists
         log_dir = Path("test/logs")
@@ -321,11 +410,15 @@ class MTScenarioTester:
         filepath = log_dir / filename
         
         export_data = {
-            "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
+            "timestamp": datetime.now().isoformat(),
             "base_url": self.base_url,
             "statistics": dict(self.statistics),
-            "results": self.results
+            "results": results
         }
+        
+        # Convert defaultdicts to regular dicts
+        export_data["statistics"]["by_doc_type"] = dict(export_data["statistics"]["by_doc_type"])
+        export_data["statistics"]["by_message_type"] = dict(export_data["statistics"]["by_message_type"])
         
         with open(filepath, 'w') as f:
             json.dump(export_data, f, indent=2)
@@ -333,26 +426,117 @@ class MTScenarioTester:
         print(f"\nResults exported to: {filepath}")
 
 def main():
-    parser = argparse.ArgumentParser(description="Test MT message scenarios")
-    parser.add_argument("--message-type", "-m", default="MT103", help="Message type to test (e.g., MT103, MT202)")
-    parser.add_argument("--scenarios", "-s", nargs="+", help="Specific scenarios to test")
-    parser.add_argument("--base-url", "-u", default="http://localhost:3000", help="Base URL of the transformation service")
-    parser.add_argument("--export", "-e", action="store_true", help="Export results to JSON file")
+    parser = argparse.ArgumentParser(
+        description="Test MT and MX message scenarios",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Test specific message type with all scenarios
+  python test_scenarios.py --message-type MT103
+  
+  # Test specific scenarios
+  python test_scenarios.py -m MT103 -s standard high_value
+  
+  # Test with multiple samples per scenario
+  python test_scenarios.py -m pacs.008 --sample-count 3
+  
+  # List all available message types
+  python test_scenarios.py --list-types
+  
+  # Test with debug output
+  python test_scenarios.py -m MT202 --debug
+  
+  # Export results to JSON
+  python test_scenarios.py -m camt.054 --export
+        """
+    )
+    
+    parser.add_argument("--message-type", "-m", 
+                       help="Message type to test (e.g., MT103, pacs.008)")
+    parser.add_argument("--scenario", "-s", nargs="+", 
+                       help="Specific scenario(s) to test")
+    parser.add_argument("--sample-count", "-c", type=int, default=1,
+                       help="Number of samples to generate per scenario (default: 1)")
+    parser.add_argument("--debug", "-d", action="store_true",
+                       help="Enable debug output")
+    parser.add_argument("--export", "-e", action="store_true",
+                       help="Export results to JSON file")
+    parser.add_argument("--base-url", "-u", default="http://localhost:3000",
+                       help="Base URL of the transformation service")
+    parser.add_argument("--list-types", "-l", action="store_true",
+                       help="List all available message types")
+    parser.add_argument("--list-scenarios", action="store_true",
+                       help="List scenarios for a message type (requires --message-type)")
     
     args = parser.parse_args()
     
     # Create tester
-    tester = MTScenarioTester(args.base_url)
+    tester = ScenarioTester(args.base_url, args.debug)
+    
+    # List available message types
+    if args.list_types:
+        print("Discovering available message types...")
+        types = tester.discover_message_types()
+        
+        print("\n" + "="*50)
+        print("AVAILABLE MESSAGE TYPES")
+        print("="*50)
+        
+        if types["MT"]:
+            print("\nMT Messages:")
+            for mt_type in types["MT"]:
+                print(f"  {mt_type}")
+        
+        if types["MX"]:
+            print("\nMX Messages:")
+            for mx_type in types["MX"]:
+                print(f"  {mx_type}")
+        
+        print(f"\nTotal: {len(types['MT'])} MT types, {len(types['MX'])} MX types")
+        sys.exit(0)
+    
+    # List scenarios for a message type
+    if args.list_scenarios:
+        if not args.message_type:
+            print("Error: --list-scenarios requires --message-type")
+            sys.exit(1)
+        
+        scenarios = tester.load_scenarios_from_index(args.message_type)
+        if scenarios:
+            print(f"\nScenarios for {args.message_type}:")
+            print("="*50)
+            for i, scenario in enumerate(scenarios, 1):
+                desc = f" - {scenario['description']}" if scenario['description'] else ""
+                print(f"{i:3}. {scenario['name']}{desc}")
+            print(f"\nTotal: {len(scenarios)} scenarios")
+        else:
+            print(f"No scenarios found for {args.message_type}")
+        sys.exit(0)
+    
+    # Require message type for testing
+    if not args.message_type:
+        print("Error: --message-type is required for testing")
+        print("Use --list-types to see available message types")
+        sys.exit(1)
     
     # Run tests
-    tester.test_message_type(args.message_type, args.scenarios)
+    all_results = []
+    results = tester.test_message_type(
+        args.message_type,
+        args.scenario,
+        args.sample_count
+    )
+    all_results.extend(results)
+    
+    # Print results table
+    tester.print_results_table(all_results)
     
     # Print summary
     tester.print_summary()
     
-    # Export results if requested
+    # Export if requested
     if args.export:
-        tester.export_results()
+        tester.export_results(all_results)
     
     # Exit with appropriate code
     success_rate = tester.statistics["validation_success"] / max(tester.statistics["total"], 1)

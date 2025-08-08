@@ -15,9 +15,7 @@ mod parse_mx;
 mod publish_mt;
 mod publish_mx;
 mod sample_generator;
-mod scenario_manager;
 mod types;
-mod workflow;
 
 // Import public items from modules
 use engine::initialize_engines;
@@ -30,7 +28,7 @@ use handlers::{
 async fn main() {
     // Initialize logging
     initialize_logging();
-    
+
     // Initialize scenario paths for sample generation
     initialize_scenario_paths();
 

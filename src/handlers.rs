@@ -520,84 +520,14 @@ pub async fn transform_mx_to_mt(
     }
 }
 
-// Sample generation endpoint
-#[instrument(skip(request), fields(message_type = request.message_type.as_str()))]
-pub async fn generate_mt_sample(
-    Json(request): Json<SampleGenerationRequest>,
-) -> Result<Json<TransformationResponse>, StatusCode> {
-    let start_time = Instant::now();
-
-    info!(
-        "🔄 Processing MT sample generation request for {}",
-        request.message_type
-    );
-    debug!("Request options: {:?}", request.options);
-
-    // Validate message type
-    if !is_supported_message_type(&request.message_type) {
-        error!("❌ Unsupported message type: {}", request.message_type);
-        return Ok(Json(TransformationResponse {
-            success: false,
-            transformed_message: None,
-            debug_info: None,
-            errors: vec![format!(
-                "Unsupported message type: {}",
-                request.message_type
-            )],
-            warnings: Vec::new(),
-        }));
-    }
-
-    // Generate MT message from JSON config
-    match generate_mt_from_config(&request.config, &request.message_type, &request.options).await {
-        Ok(mt_message) => {
-            let processing_time = start_time.elapsed().as_millis() as u64;
-            info!("✅ MT sample generation completed in {}ms", processing_time);
-
-            Ok(Json(TransformationResponse {
-                success: true,
-                transformed_message: Some(Value::String(mt_message.clone())),
-                debug_info: if request.options.include_debug {
-                    Some(DebugInfo {
-                        engine_state: "sample_generation".to_string(),
-                        workflow_execution: vec!["Sample generated from JSON config".to_string()],
-                        intermediate_data: request.config,
-                    })
-                } else {
-                    None
-                },
-                errors: Vec::new(),
-                warnings: Vec::new(),
-            }))
-        }
-        Err(e) => {
-            error!("❌ MT sample generation failed: {}", e);
-            Ok(Json(TransformationResponse {
-                success: false,
-                transformed_message: None,
-                debug_info: if request.options.include_debug {
-                    Some(DebugInfo {
-                        engine_state: "sample_generation".to_string(),
-                        workflow_execution: vec![format!("Failed - Generation error: {}", e)],
-                        intermediate_data: request.config,
-                    })
-                } else {
-                    None
-                },
-                errors: vec![e.to_string()],
-                warnings: Vec::new(),
-            }))
-        }
-    }
-}
-
 // Helper function to detect message category
 fn detect_message_category(message_type: &str) -> MessageCategory {
     if message_type.starts_with("MT") {
         MessageCategory::MT
-    } else if message_type.starts_with("pacs") 
-        || message_type.starts_with("camt") 
-        || message_type.starts_with("pain") {
+    } else if message_type.starts_with("pacs")
+        || message_type.starts_with("camt")
+        || message_type.starts_with("pain")
+    {
         MessageCategory::MX
     } else {
         MessageCategory::Unknown
@@ -610,13 +540,13 @@ pub async fn generate_sample(
     Json(request): Json<SampleGenerationRequest>,
 ) -> Result<Json<TransformationResponse>, StatusCode> {
     let start_time = Instant::now();
-    
+
     info!(
         "🔄 Processing sample generation request for {}",
         request.message_type
     );
     debug!("Request options: {:?}", request.options);
-    
+
     // Detect message category and route to appropriate generator
     let result = match detect_message_category(&request.message_type) {
         MessageCategory::MT => {
@@ -665,12 +595,12 @@ pub async fn generate_sample(
             }));
         }
     };
-    
+
     match result {
         Ok(message) => {
             let processing_time = start_time.elapsed().as_millis() as u64;
             info!("✅ Sample generation completed in {}ms", processing_time);
-            
+
             Ok(Json(TransformationResponse {
                 success: true,
                 transformed_message: Some(Value::String(message)),
@@ -855,30 +785,39 @@ pub async fn validate_mt(
             if request.options.include_business_validation {
                 // Use the built-in validate() method for business validation
                 let validation_result = parsed_message.validate();
-                
+
                 // Check if there are any validation errors
                 if !validation_result.is_valid {
                     // Extract errors from the validation result
                     for error in validation_result.errors {
                         let (code, field, message) = match error {
-                            swift_mt_message::ValidationError::FormatValidation { field_tag, message } => {
-                                (format!("MT_{}_FORMAT", field_tag), Some(field_tag), message)
-                            }
-                            swift_mt_message::ValidationError::LengthValidation { field_tag, expected, actual } => {
-                                (format!("MT_{}_LENGTH", field_tag), Some(field_tag), 
-                                 format!("Expected length {}, got {}", expected, actual))
-                            }
-                            swift_mt_message::ValidationError::PatternValidation { field_tag, message } => {
-                                (format!("MT_{}_PATTERN", field_tag), Some(field_tag), message)
-                            }
-                            swift_mt_message::ValidationError::ValueValidation { field_tag, message } => {
-                                (format!("MT_{}_VALUE", field_tag), Some(field_tag), message)
-                            }
-                            swift_mt_message::ValidationError::BusinessRuleValidation { rule_name, message } => {
-                                (rule_name, None, message)
-                            }
+                            swift_mt_message::ValidationError::FormatValidation {
+                                field_tag,
+                                message,
+                            } => (format!("MT_{field_tag}_FORMAT"), Some(field_tag), message),
+                            swift_mt_message::ValidationError::LengthValidation {
+                                field_tag,
+                                expected,
+                                actual,
+                            } => (
+                                format!("MT_{field_tag}_LENGTH"),
+                                Some(field_tag),
+                                format!("Expected length {expected}, got {actual}"),
+                            ),
+                            swift_mt_message::ValidationError::PatternValidation {
+                                field_tag,
+                                message,
+                            } => (format!("MT_{field_tag}_PATTERN"), Some(field_tag), message),
+                            swift_mt_message::ValidationError::ValueValidation {
+                                field_tag,
+                                message,
+                            } => (format!("MT_{field_tag}_VALUE"), Some(field_tag), message),
+                            swift_mt_message::ValidationError::BusinessRuleValidation {
+                                rule_name,
+                                message,
+                            } => (rule_name, None, message),
                         };
-                        
+
                         business_errors.push(ValidationError {
                             code,
                             message,
@@ -887,7 +826,7 @@ pub async fn validate_mt(
                         });
                     }
                 }
-                
+
                 // Add any warnings from validation
                 for warning in validation_result.warnings {
                     warnings.push(ValidationError {
@@ -897,7 +836,7 @@ pub async fn validate_mt(
                         location: None,
                     });
                 }
-                
+
                 // Extract additional validation information based on message type
                 match &message_type[..] {
                     "103" => {
@@ -934,7 +873,10 @@ pub async fn validate_mt(
                             if !is_valid_bic(&mt103.basic_header.sender_bic) {
                                 business_errors.push(ValidationError {
                                     code: "MT103_INVALID_SENDER_BIC".to_string(),
-                                    message: format!("Invalid sender BIC in header: {}", mt103.basic_header.sender_bic),
+                                    message: format!(
+                                        "Invalid sender BIC in header: {}",
+                                        mt103.basic_header.sender_bic
+                                    ),
                                     field: Some("basic_header.sender_bic".to_string()),
                                     location: None,
                                 });
@@ -944,7 +886,9 @@ pub async fn validate_mt(
                             if mt103.is_stp_message() {
                                 warnings.push(ValidationError {
                                     code: "MT103_IS_STP".to_string(),
-                                    message: "Message is marked as STP (Straight Through Processing)".to_string(),
+                                    message:
+                                        "Message is marked as STP (Straight Through Processing)"
+                                            .to_string(),
                                     field: None,
                                     location: None,
                                 });
@@ -996,13 +940,13 @@ pub async fn validate_mt(
             // Extract detailed parse errors
             let mut parse_errors = vec![ValidationError {
                 code: "MT_PARSE_ERROR".to_string(),
-                message: format!("{:?}", parse_error),
+                message: format!("{parse_error:?}"),
                 field: None,
                 location: None,
             }];
 
             // Try to extract more specific error information
-            let error_str = format!("{:?}", parse_error);
+            let error_str = format!("{parse_error:?}");
             if error_str.contains("unexpected character") {
                 parse_errors.push(ValidationError {
                     code: "MT_INVALID_CHARACTER".to_string(),

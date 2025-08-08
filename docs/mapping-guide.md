@@ -1,8 +1,9 @@
 # 🗺️ Mapping Guide
 
-Comprehensive guide to field mapping and business rule configuration in Reframe.
+Your comprehensive guide to field mapping and business rule configuration in Reframe.
 
 ## Table of Contents
+
 - [Overview](#overview)
 - [Mapping Concepts](#mapping-concepts)
 - [Forward Mapping (MT → ISO 20022)](#forward-mapping-mt--iso-20022)
@@ -16,21 +17,21 @@ Comprehensive guide to field mapping and business rule configuration in Reframe.
 
 ## Overview
 
-Reframe's mapping system uses [datalogic-rs](https://github.com/GoPlasmatic/datalogic-rs) (a Rust implementation of JSON Logic) for powerful, transparent transformations between SWIFT MT and ISO 20022 formats. All mapping logic is externalized in JSON workflow files powered by the [dataflow-rs](https://github.com/GoPlasmatic/dataflow-rs) workflow engine, making it completely auditable and customizable.
+Reframe's mapping system leverages [datalogic-rs](https://github.com/GoPlasmatic/datalogic-rs) (a Rust implementation of JSON Logic) for flexible transformations between SWIFT MT and ISO 20022 formats. All mapping logic lives in JSON workflow files, powered by the [dataflow-rs](https://github.com/GoPlasmatic/dataflow-rs) workflow engine. This makes everything auditable and customizable.
 
 ### Key Features
 
-- **🔍 Transparent Mapping**: All field mappings visible in JSON workflow files
-- **🔧 JSON Logic**: Powerful conditional and transformation logic via [datalogic-rs](https://github.com/GoPlasmatic/datalogic-rs)
-- **📊 Bidirectional Support**: Dedicated workflows for each transformation direction
-- **✅ Business Rules**: Complex validation and conditional logic
-- **🎯 Message-Specific**: Tailored workflows for each message type
-- **🔗 Task-Based Processing**: Sequential transformation tasks with conditions using [dataflow-rs](https://github.com/GoPlasmatic/dataflow-rs)
+- **🔍 Transparent Mapping**: Field mappings are easy to see in JSON workflow files.
+- **🔧 JSON Logic**: Conditional and transformation logic using [datalogic-rs](https://github.com/GoPlasmatic/datalogic-rs).
+- **📊 Bidirectional Support**: Workflows for both MT to ISO 20022 and vice versa.
+- **✅ Business Rules**: Validation and conditional logic.
+- **🎯 Message-Specific**: Workflows tailored for each message type.
+- **🔗 Task-Based Processing**: Sequential transformation tasks with conditions using [dataflow-rs](https://github.com/GoPlasmatic/dataflow-rs).
 
 ### Technology Stack
 
-- **Workflow Engine**: [dataflow-rs](https://github.com/GoPlasmatic/dataflow-rs) - A powerful Rust-based workflow engine for data processing pipelines
-- **Logic Engine**: [datalogic-rs](https://github.com/GoPlasmatic/datalogic-rs) - Rust implementation of JSON Logic for declarative transformations
+- **Workflow Engine**: [dataflow-rs](https://github.com/GoPlasmatic/dataflow-rs) - A Rust-based workflow engine for data processing pipelines.
+- **Logic Engine**: [datalogic-rs](https://github.com/GoPlasmatic/datalogic-rs) - Rust implementation of JSON Logic for declarative transformations.
 
 ---
 
@@ -38,13 +39,14 @@ Reframe's mapping system uses [datalogic-rs](https://github.com/GoPlasmatic/data
 
 ### Workflow Structure
 
-Each workflow file contains:
-- **id**: Unique workflow identifier
-- **name**: Human-readable workflow name
-- **description**: Workflow purpose and details
-- **priority**: Execution priority
-- **condition**: JSON Logic condition for workflow execution (powered by datalogic-rs)
-- **tasks**: Array of transformation tasks (executed by dataflow-rs)
+Each workflow file includes:
+
+- **id**: Unique identifier.
+- **name**: Human-readable name.
+- **description**: Purpose and details.
+- **priority**: Execution order.
+- **condition**: JSON Logic condition for execution (using datalogic-rs).
+- **tasks**: Array of transformation tasks (executed by dataflow-rs).
 
 ### JSON Logic Notation
 
@@ -52,11 +54,11 @@ Reframe uses [datalogic-rs](https://github.com/GoPlasmatic/datalogic-rs) for con
 
 ```json
 {
-  "var": "data.SwiftMT.fields.20.value"          // Variable access
+  "var": "data.SwiftMT.fields.20.value"          // Access a variable
 }
 
 {
-  "if": [                                        // If-then-else
+  "if": [                                        // If-then-else statement
     {"var": "data.SwiftMT.fields.32A.amount"},
     {"var": "data.SwiftMT.fields.32A.amount"},
     0.0
@@ -1150,5 +1152,3 @@ Then reference throughout workflow:
 3. **[Installation Guide](installation.md)** - Setup and configuration instructions
 
 ---
-
-*Last updated: January 2024*

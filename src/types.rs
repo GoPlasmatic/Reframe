@@ -113,6 +113,8 @@ pub struct ValidationOptions {
     pub include_canonical_json: bool,
     #[serde(default)]
     pub include_business_validation: bool,
+    #[serde(default)]
+    pub strict_validation: bool,
 }
 
 #[derive(Debug, Serialize)]

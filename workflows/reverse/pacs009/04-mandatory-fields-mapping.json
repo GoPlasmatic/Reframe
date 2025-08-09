@@ -42,35 +42,19 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.EndToEndId",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"},
-                                { "if": [
-                                    {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"}}, 16]},
-                                    {
-                                        "cat": [
-                                            {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"}, 0, 15]},
-                                            "+"
-                                        ]
-                                    },
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"}
-                                ]},
-                                null
-                            ]}
-                        },
-                        {
                             "path": "data.SwiftMT.fields.#21",
                             "logic": {
-                                "value": { "if": [
-                                    {"var": "temp_data.EndToEndId"},
+                                "reference": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"},
                                     { "if": [
-                                        { "or": [
-                                            {"startsWith": [{"var": "temp_data.EndToEndId"}, "/"]},
-                                            {"endsWith": [{"var": "temp_data.EndToEndId"}, "/"]},
-                                            {"includes": [{"var": "temp_data.EndToEndId"}, "//"]}
-                                        ]},
-                                        "NOTPROVIDED",
-                                        {"var": "temp_data.EndToEndId"}
+                                        {">": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"}}, 16]},
+                                        {
+                                            "cat": [
+                                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"}, 0, 15]},
+                                                "+"
+                                            ]
+                                        },
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"}
                                     ]},
                                     "NOTPROVIDED"
                                 ]}
@@ -93,38 +77,32 @@
                             "logic": { "if": [
                                 {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"},
                                 {
-                                    "substr": [
-                                        {"format_mt_date": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}},
-                                        2,
-                                        6
+                                    "cat": [
+                                        {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}, 2, 2]},
+                                        {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}, 5, 2]},
+                                        {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}, 8, 2]}
                                     ]
                                 },
                                 null
                             ]}
                         },
                         {
-                            "path": "data.SwiftMT.fields.#32A",
+                            "path": "data.SwiftMT.fields.32A",
                             "logic": {
-                                "value_date": { "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"},
+                                "value": { "if": [
+                                    { "and": [
+                                        {"var": "temp_data.SettlementDate"},
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"}
+                                    ]},
                                     {
-                                        "substr": [
-                                            {"format_mt_date": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}},
-                                            2,
-                                            6
+                                        "cat": [
+                                            {"var": "temp_data.SettlementDate"},
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"}
                                         ]
                                     },
                                     "NOTPROVIDED"
-                                ]},
-                                "currency": { "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
-                                    "USD"
-                                ]},
-                                "amount": { "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"},
-                                    0.0
                                 ]}
                             }
                         }

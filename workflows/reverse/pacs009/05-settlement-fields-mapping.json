@@ -12,183 +12,69 @@
     ]},
     "tasks": [
         {
-            "id": "map_field_53_adv",
-            "name": "Map Field 53 - Sender's Correspondent (ADV variant)",
-            "description": "Map instructing reimbursement agent to Field 53 using MX_To_MTAgentGeneric (TR003 - ADV)",
+            "id": "check_settlement_method",
+            "name": "Check Settlement Method",
+            "description": "Check if settlement method requires Field 53 mapping (TR003)",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#53A",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"},
-                                {
-                                    "bic": {
-                                        "raw": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"}
-                                    },
-                                    "party_identifier": { "if": [
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"},
-                                        {
-                                            "cat": [
-                                                "/",
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"}
-                                            ]
-                                        },
-                                        ""
-                                    ]}
-                                },
-                                null
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.#53B",
-                            "logic": { "if": [
-                                {
-                                    "and": [
-                                        {
-                                            "!": [
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"}
-                                            ]
-                                        },
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.PstlAdr.TwnNm"}
-                                    ]
-                                },
-                                {
-                                    "location": { "if": [
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.PstlAdr.TwnNm"},
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.PstlAdr.TwnNm"},
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.PstlAdr.Ctry"}
-                                    ]}
-                                },
-                                null
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.53D",
-                            "logic": { "if": [
-                                {
-                                    "and": [
-                                        {
-                                            "!": [
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"}
-                                            ]
-                                        },
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.Nm"}
-                                    ]
-                                },
-                                {
-                                    "name_and_address": {
-                                        "merge": [
-                                            [
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.Nm"}
-                                            ],
-                                            { "if": [
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.PstlAdr.AdrLine"},
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.PstlAdr.AdrLine"},
-                                                ["NOTPROVIDED"]
-                                            ]}
-                                        ]
-                                    }
-                                },
-                                null
-                            ]}
+                            "path": "temp_data.use_field_53",
+                            "logic": {
+                                "or": [
+                                    {"==": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"}, "INGA"]},
+                                    {"==": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"}, "INDA"]}
+                                ]
+                            }
                         }
                     ]
                 }
             }
         },
         {
-            "id": "map_field_53_core_cov",
-            "name": "Map Field 53 - Settlement Method Logic (CORE/COV variant)",
-            "description": "Map settlement information using INGA/INDA method logic (TR003 - CORE/COV)",
+            "id": "map_field_53",
+            "name": "Map Field 53 - Sender's Correspondent",
+            "description": "Map settlement information to Field 53 when INGA/INDA (TR003)",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.SettlementMethod",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"},
-                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"},
-                                null
-                            ]}
-                        },
+                            "path": "data.SwiftMT.fields.#53",
+                            "logic": {
+                                "value": { "if": [
+                                    {"var": "temp_data.use_field_53"},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"},
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"},
+                                        null
+                                    ]},
+                                    null
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_54",
+            "name": "Map Field 54 - Receiver's Correspondent",
+            "description": "Map instructed reimbursement agent to Field 54 (TR015)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
                         {
-                            "path": "temp_data.InstructionForNextAgent",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForNxtAgt"},
-                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForNxtAgt"},
-                                null
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.MT53BIC",
-                            "logic": { "if": [
-                                {
-                                    "and": [
-                                        {
-                                            "or": [
-                                                {"==": [{"var": "temp_data.SettlementMethod"}, "INGA"]},
-                                                {"==": [{"var": "temp_data.SettlementMethod"}, "INDA"]}
-                                            ]
-                                        },
-                                        {"var": "temp_data.InstructionForNextAgent"}
-                                    ]
-                                },
-                                {"extract_bic_from_instruction": {"var": "temp_data.InstructionForNextAgent"}},
-                                null
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.#53A",
-                            "logic": { "if": [
-                                {
-                                    "and": [
-                                        {
-                                            "or": [
-                                                {"==": [{"var": "temp_data.SettlementMethod"}, "INGA"]},
-                                                {"==": [{"var": "temp_data.SettlementMethod"}, "INDA"]}
-                                            ]
-                                        },
-                                        {"var": "temp_data.MT53BIC"}
-                                    ]
-                                },
-                                {
-                                    "identifier_code": {"var": "temp_data.MT53BIC"},
-                                    "party_identifier": {
-                                        "settlement_account": {
-                                            "method": {"var": "temp_data.SettlementMethod"},
-                                            "account": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}
-                                        }
-                                    }
-                                },
-                                null
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.#53B",
-                            "logic": { "if": [
-                                { "and": [
-                                    {
-                                        "or": [
-                                            {"==": [{"var": "temp_data.SettlementMethod"}, "INGA"]},
-                                            {"==": [{"var": "temp_data.SettlementMethod"}, "INDA"]}
-                                        ]
-                                    },
-                                    {"!": {"var": "temp_data.MT53BIC"}},
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}
-                                ]},
-                                {
-                                    "party_identifier": {
-                                        "settlement_account": {
-                                            "method": {"var": "temp_data.SettlementMethod"},
-                                            "account": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}
-                                        }
-                                    }
-                                },
-                                null
-                            ]}
+                            "path": "data.SwiftMT.fields.#54",
+                            "logic": {
+                                "value": { "if": [
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"},
+                                    null
+                                ]}
+                            }
                         }
                     ]
                 }

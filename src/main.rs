@@ -21,7 +21,7 @@ mod types;
 use engine::initialize_engines;
 use handlers::{
     generate_sample, health_check, reload_workflows, transform_mt_to_mx, transform_mx_to_mt,
-    validate_mt,
+    validate_mt, validate_mx,
 };
 
 #[tokio::main]
@@ -44,6 +44,7 @@ async fn main() {
         .route("/transform/mx-to-mt", post(transform_mx_to_mt))
         .route("/generate/sample", post(generate_sample))
         .route("/validate/mt", post(validate_mt))
+        .route("/validate/mx", post(validate_mx))
         .route("/admin/reload-workflows", post(reload_workflows))
         .with_state(app_state);
 
@@ -53,6 +54,7 @@ async fn main() {
     info!("📡 Reverse endpoint: POST /transform/mx-to-mt");
     info!("🔧 Sample generation: POST /generate/sample (supports MT and MX)");
     info!("🔍 MT validation: POST /validate/mt");
+    info!("🔍 MX validation: POST /validate/mx");
     info!("🔄 Workflow reload: POST /admin/reload-workflows");
     info!("🏥 Health check: GET /health");
 

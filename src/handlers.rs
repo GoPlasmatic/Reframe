@@ -9,6 +9,7 @@ use tracing::{debug, error, info, instrument};
 use crate::engine::reload_engines;
 use crate::mx_sample_generator::{generate_mx_from_config, is_supported_mx_type};
 use crate::sample_generator::{generate_mt_from_config, is_supported_message_type};
+use crate::parse_mx::ParseMX;
 use crate::types::{
     AppState, DebugInfo, EngineStatus, HealthResponse, MessageCategory, ReloadResponse,
     SampleGenerationRequest, TransformationRequest, TransformationResponse, ValidationError,
@@ -958,6 +959,209 @@ pub async fn validate_mt(
                 parse_errors.push(ValidationError {
                     code: "MT_MISSING_FIELD".to_string(),
                     message: "Required field is missing".to_string(),
+                    field: None,
+                    location: None,
+                });
+            }
+
+            Ok(Json(ValidationResponse {
+                valid: false,
+                message_type: None,
+                canonical_json: None,
+                parse_errors,
+                business_errors: Vec::new(),
+                warnings: Vec::new(),
+            }))
+        }
+    }
+}
+
+// MX validation endpoint
+#[instrument(skip(request), fields(message_length = request.message.len()))]
+pub async fn validate_mx(
+    Json(request): Json<ValidationRequest>,
+) -> Result<Json<ValidationResponse>, StatusCode> {
+    let start_time = Instant::now();
+
+    info!("🔍 Processing MX validation request");
+    debug!("Request options: {:?}", request.options);
+
+    // First validate XML well-formedness
+    if let Err(xml_error) = validate_xml_well_formed(&request.message) {
+        error!("❌ MX validation failed - XML malformed: {}", xml_error);
+        return Ok(Json(ValidationResponse {
+            valid: false,
+            message_type: None,
+            canonical_json: None,
+            parse_errors: vec![ValidationError {
+                code: "MX_XML_MALFORMED".to_string(),
+                message: xml_error,
+                field: None,
+                location: None,
+            }],
+            business_errors: Vec::new(),
+            warnings: Vec::new(),
+        }));
+    }
+
+    // Try to parse the MX message and extract message type
+    let document_xmlns = ParseMX::extract_document_xmlns(&request.message);
+    let app_hdr_content = ParseMX::extract_app_hdr_content(&request.message);
+    let document_content = ParseMX::extract_document_content(&request.message);
+    
+    match ParseMX::extract_message_type(document_xmlns.clone(), app_hdr_content.clone()) {
+        Ok(message_type) => {
+            info!(
+                "✅ MX validation completed in {}ms - Message type: {}",
+                start_time.elapsed().as_millis(),
+                message_type
+            );
+
+            let mut parse_errors = Vec::new();
+            let mut business_errors = Vec::new();
+            let mut warnings = Vec::new();
+
+            // Extract canonical JSON if requested
+            let canonical_json = if request.options.include_canonical_json {
+                // Try to parse the header and document into JSON
+                if let (Some(app_hdr), Some(doc_content)) = (app_hdr_content, document_content) {
+                    match (ParseMX::parse_header(&message_type, &app_hdr), ParseMX::parse_document(&message_type, &doc_content)) {
+                        (Ok(header), Ok(document)) => {
+                            Some(serde_json::json!({
+                                "header": header,
+                                "document": document,
+                                "message_type": message_type
+                            }))
+                        },
+                        _ => None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            // Perform business validation if requested
+            if request.options.include_business_validation {
+
+                // Basic business validations based on parsed JSON
+                if let Some(ref json) = canonical_json {
+                    // Check for required fields based on message type
+                    match &message_type[..] {
+                        "pacs.008.001.08" => {
+                            // Check for UETR in pacs.008
+                            if let Some(doc) = json.get("document") {
+                                if let Some(cdt_trf) = doc.get("FIToFICstmrCdtTrf").or(doc.get("FIToFICustomerCreditTransferV08")) {
+                                    if let Some(cdt_trf_tx_inf) = cdt_trf.get("CdtTrfTxInf") {
+                                        if let Some(tx_array) = cdt_trf_tx_inf.as_array() {
+                                            for tx in tx_array {
+                                                if let Some(pmt_id) = tx.get("PmtId") {
+                                                    if pmt_id.get("UETR").is_none() {
+                                                        warnings.push(ValidationError {
+                                                            code: "PACS008_MISSING_UETR".to_string(),
+                                                            message: "UETR is recommended for payment tracking".to_string(),
+                                                            field: Some("CdtTrfTxInf.PmtId.UETR".to_string()),
+                                                            location: None,
+                                                        });
+                                                    }
+                                                }
+                                                
+                                                // Check BIC codes
+                                                if let Some(dbtr_agt) = tx.get("DbtrAgt") {
+                                                    if let Some(fin_instn_id) = dbtr_agt.get("FinInstnId") {
+                                                        if let Some(bicfi) = fin_instn_id.get("BICFI") {
+                                                            if let Some(bic_str) = bicfi.as_str() {
+                                                                if !is_valid_bic(bic_str) {
+                                                                    business_errors.push(ValidationError {
+                                                                        code: "PACS008_INVALID_DBTR_AGT_BIC".to_string(),
+                                                                        message: format!("Invalid debtor agent BIC: {}", bic_str),
+                                                                        field: Some("CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI".to_string()),
+                                                                        location: None,
+                                                                    });
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                if let Some(cdtr_agt) = tx.get("CdtrAgt") {
+                                                    if let Some(fin_instn_id) = cdtr_agt.get("FinInstnId") {
+                                                        if let Some(bicfi) = fin_instn_id.get("BICFI") {
+                                                            if let Some(bic_str) = bicfi.as_str() {
+                                                                if !is_valid_bic(bic_str) {
+                                                                    business_errors.push(ValidationError {
+                                                                        code: "PACS008_INVALID_CDTR_AGT_BIC".to_string(),
+                                                                        message: format!("Invalid creditor agent BIC: {}", bic_str),
+                                                                        field: Some("CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI".to_string()),
+                                                                        location: None,
+                                                                    });
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        _ => {
+                            // Other message types - basic validation only
+                            info!("Business validation for {} uses basic checks only", message_type);
+                        }
+                    }
+                } else {
+                    warnings.push(ValidationError {
+                        code: "MX_VALIDATION_LIMITED".to_string(),
+                        message: "Business validation requires canonical JSON extraction".to_string(),
+                        field: None,
+                        location: None,
+                    });
+                }
+            }
+
+            Ok(Json(ValidationResponse {
+                valid: parse_errors.is_empty() && business_errors.is_empty(),
+                message_type: Some(message_type),
+                canonical_json,
+                parse_errors,
+                business_errors,
+                warnings,
+            }))
+        }
+        Err(parse_error) => {
+            error!("❌ MX validation failed: {:?}", parse_error);
+
+            // Extract detailed parse errors
+            let error_message = format!("{:?}", parse_error);
+            let mut parse_errors = vec![ValidationError {
+                code: "MX_PARSE_ERROR".to_string(),
+                message: error_message.clone(),
+                field: None,
+                location: None,
+            }];
+
+            // Try to extract more specific error information
+            if error_message.contains("Unknown message type") {
+                parse_errors.push(ValidationError {
+                    code: "MX_UNKNOWN_MESSAGE_TYPE".to_string(),
+                    message: "Message type is not recognized or supported".to_string(),
+                    field: Some("MsgDefIdr".to_string()),
+                    location: None,
+                });
+            } else if error_message.contains("missing field") || error_message.contains("Missing") {
+                parse_errors.push(ValidationError {
+                    code: "MX_MISSING_REQUIRED_FIELD".to_string(),
+                    message: "Required field is missing from the message".to_string(),
+                    field: None,
+                    location: None,
+                });
+            } else if error_message.contains("Invalid") || error_message.contains("invalid") {
+                parse_errors.push(ValidationError {
+                    code: "MX_INVALID_FORMAT".to_string(),
+                    message: "Message format is invalid".to_string(),
                     field: None,
                     location: None,
                 });

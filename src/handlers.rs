@@ -8,12 +8,12 @@ use tracing::{debug, error, info, instrument};
 
 use crate::engine::reload_engines;
 use crate::mx_sample_generator::{generate_mx_from_config, is_supported_mx_type};
-use crate::sample_generator::{generate_mt_from_config, is_supported_message_type};
 use crate::parse_mx::ParseMX;
+use crate::sample_generator::{generate_mt_from_config, is_supported_message_type};
 use crate::types::{
-    AppState, DebugInfo, EngineStatus, HealthResponse, MessageCategory, ReloadResponse,
-    SampleGenerationRequest, TransformationRequest, TransformationResponse, ValidationError,
-    ValidationRequest, ValidationResponse,
+    AppState, DebugInfo, EngineStatus, ErrorType, HealthResponse, MessageCategory, ReframeError,
+    ReloadResponse, SampleDebugInfo, SampleGenerationRequest, SampleGenerationResponse,
+    TransformationRequest, TransformationResponse, ValidationRequest, ValidationResponse,
 };
 
 /// Validates that the given string is well-formed XML
@@ -94,6 +94,17 @@ fn extract_workflow_errors(message: &Message) -> Vec<String> {
 }
 
 // New endpoint handlers
+#[utoipa::path(
+    post,
+    path = "/transform/mt-to-mx",
+    tag = "transformation",
+    request_body = TransformationRequest,
+    responses(
+        (status = 200, description = "Transformation successful", body = TransformationResponse),
+        (status = 400, description = "Invalid MT message", body = TransformationResponse),
+        (status = 500, description = "Internal server error", body = TransformationResponse)
+    )
+)]
 #[instrument(skip(state, request), fields(message_length = request.message.len()))]
 pub async fn transform_mt_to_mx(
     State(state): State<AppState>,
@@ -131,8 +142,8 @@ pub async fn transform_mt_to_mx(
                 );
                 return Ok(Json(TransformationResponse {
                     success: false,
-                    transformed_message: None,
-                    debug_info: if request.options.include_debug {
+                    result: None,
+                    debug_info: if request.options.debug {
                         let message_json = serde_json::to_value(&message).unwrap();
                         Some(DebugInfo {
                             engine_state: "forward".to_string(),
@@ -142,7 +153,10 @@ pub async fn transform_mt_to_mx(
                     } else {
                         None
                     },
-                    errors: workflow_errors,
+                    errors: workflow_errors
+                        .into_iter()
+                        .map(|e| ReframeError::transformation_error("WORKFLOW_ERROR", e))
+                        .collect(),
                     warnings: Vec::new(),
                 }));
             }
@@ -157,8 +171,8 @@ pub async fn transform_mt_to_mx(
                             match validate_xml_well_formed(s) {
                                 Ok(()) => Ok(Json(TransformationResponse {
                                     success: true,
-                                    transformed_message: Some(result.clone()),
-                                    debug_info: if request.options.include_debug {
+                                    result: Some(result.clone()),
+                                    debug_info: if request.options.debug {
                                         let message_json = serde_json::to_value(&message).unwrap();
                                         Some(DebugInfo {
                                             engine_state: "forward".to_string(),
@@ -178,8 +192,8 @@ pub async fn transform_mt_to_mx(
                                     );
                                     Ok(Json(TransformationResponse {
                                         success: false,
-                                        transformed_message: None,
-                                        debug_info: if request.options.include_debug {
+                                        result: None,
+                                        debug_info: if request.options.debug {
                                             let message_json =
                                                 serde_json::to_value(&message).unwrap();
                                             Some(DebugInfo {
@@ -192,9 +206,11 @@ pub async fn transform_mt_to_mx(
                                         } else {
                                             None
                                         },
-                                        errors: vec![format!(
-                                            "Transformation produced malformed XML: {}",
-                                            xml_error
+                                        errors: vec![ReframeError::transformation_error(
+                                            "MALFORMED_XML",
+                                            format!(
+                                                "Transformation produced malformed XML: {xml_error}"
+                                            ),
                                         )],
                                         warnings: Vec::new(),
                                     }))
@@ -217,8 +233,8 @@ pub async fn transform_mt_to_mx(
                             if errors.is_empty() {
                                 Ok(Json(TransformationResponse {
                                     success: true,
-                                    transformed_message: Some(result.clone()),
-                                    debug_info: if request.options.include_debug {
+                                    result: Some(result.clone()),
+                                    debug_info: if request.options.debug {
                                         let message_json = serde_json::to_value(&message).unwrap();
                                         Some(DebugInfo {
                                             engine_state: "forward".to_string(),
@@ -241,8 +257,8 @@ pub async fn transform_mt_to_mx(
                                 );
                                 Ok(Json(TransformationResponse {
                                     success: false,
-                                    transformed_message: None,
-                                    debug_info: if request.options.include_debug {
+                                    result: None,
+                                    debug_info: if request.options.debug {
                                         let message_json = serde_json::to_value(&message).unwrap();
                                         Some(DebugInfo {
                                             engine_state: "forward".to_string(),
@@ -255,7 +271,15 @@ pub async fn transform_mt_to_mx(
                                     } else {
                                         None
                                     },
-                                    errors,
+                                    errors: errors
+                                        .into_iter()
+                                        .map(|e| {
+                                            ReframeError::transformation_error(
+                                                "XML_VALIDATION_ERROR",
+                                                e,
+                                            )
+                                        })
+                                        .collect(),
                                     warnings: Vec::new(),
                                 }))
                             }
@@ -264,8 +288,8 @@ pub async fn transform_mt_to_mx(
                             error!("❌ MT to MX transformation produced empty or invalid result");
                             Ok(Json(TransformationResponse {
                                 success: false,
-                                transformed_message: None,
-                                debug_info: if request.options.include_debug {
+                                result: None,
+                                debug_info: if request.options.debug {
                                     let message_json = serde_json::to_value(message).unwrap();
                                     Some(DebugInfo {
                                         engine_state: "forward".to_string(),
@@ -277,10 +301,11 @@ pub async fn transform_mt_to_mx(
                                 } else {
                                     None
                                 },
-                                errors: vec![
+                                errors: vec![ReframeError::transformation_error(
+                                    "EMPTY_RESULT",
                                     "Transformation completed but produced empty or invalid result"
                                         .to_string(),
-                                ],
+                                )],
                                 warnings: Vec::new(),
                             }))
                         }
@@ -290,8 +315,8 @@ pub async fn transform_mt_to_mx(
                     error!("❌ MT to MX transformation completed but no valid result found");
                     Ok(Json(TransformationResponse {
                         success: false,
-                        transformed_message: None,
-                        debug_info: if request.options.include_debug {
+                        result: None,
+                        debug_info: if request.options.debug {
                             let message_json = serde_json::to_value(message).unwrap();
                             Some(DebugInfo {
                                 engine_state: "forward".to_string(),
@@ -301,9 +326,10 @@ pub async fn transform_mt_to_mx(
                         } else {
                             None
                         },
-                        errors: vec![
+                        errors: vec![ReframeError::transformation_error(
+                            "NO_RESULT",
                             "Transformation completed but no valid result was produced".to_string(),
-                        ],
+                        )],
                         warnings: Vec::new(),
                     }))
                 }
@@ -314,8 +340,8 @@ pub async fn transform_mt_to_mx(
 
             Ok(Json(TransformationResponse {
                 success: false,
-                transformed_message: None,
-                debug_info: if request.options.include_debug {
+                result: None,
+                debug_info: if request.options.debug {
                     let message_json = serde_json::to_value(message).unwrap();
                     Some(DebugInfo {
                         engine_state: "forward".to_string(),
@@ -325,13 +351,24 @@ pub async fn transform_mt_to_mx(
                 } else {
                     None
                 },
-                errors: vec![e.to_string()],
+                errors: vec![ReframeError::internal_error(e.to_string())],
                 warnings: Vec::new(),
             }))
         }
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/transform/mx-to-mt",
+    tag = "transformation",
+    request_body = TransformationRequest,
+    responses(
+        (status = 200, description = "Transformation successful", body = TransformationResponse),
+        (status = 400, description = "Invalid MX message", body = TransformationResponse),
+        (status = 500, description = "Internal server error", body = TransformationResponse)
+    )
+)]
 #[instrument(skip(state, request), fields(message_length = request.message.len()))]
 pub async fn transform_mx_to_mt(
     State(state): State<AppState>,
@@ -369,8 +406,8 @@ pub async fn transform_mx_to_mt(
                 );
                 return Ok(Json(TransformationResponse {
                     success: false,
-                    transformed_message: None,
-                    debug_info: if request.options.include_debug {
+                    result: None,
+                    debug_info: if request.options.debug {
                         let message_json = serde_json::to_value(&message).unwrap();
                         Some(DebugInfo {
                             engine_state: "reverse".to_string(),
@@ -380,7 +417,10 @@ pub async fn transform_mx_to_mt(
                     } else {
                         None
                     },
-                    errors: workflow_errors,
+                    errors: workflow_errors
+                        .into_iter()
+                        .map(|e| ReframeError::transformation_error("WORKFLOW_ERROR", e))
+                        .collect(),
                     warnings: Vec::new(),
                 }));
             }
@@ -402,10 +442,8 @@ pub async fn transform_mx_to_mt(
                             match validate_mt_well_formed(result_str) {
                                 Ok(()) => Ok(Json(TransformationResponse {
                                     success: true,
-                                    transformed_message: Some(Value::String(
-                                        result_str.to_string(),
-                                    )),
-                                    debug_info: if request.options.include_debug {
+                                    result: Some(Value::String(result_str.to_string())),
+                                    debug_info: if request.options.debug {
                                         let message_json = serde_json::to_value(&message).unwrap();
                                         Some(DebugInfo {
                                             engine_state: "reverse".to_string(),
@@ -425,8 +463,8 @@ pub async fn transform_mx_to_mt(
                                     );
                                     Ok(Json(TransformationResponse {
                                         success: false,
-                                        transformed_message: None,
-                                        debug_info: if request.options.include_debug {
+                                        result: None,
+                                        debug_info: if request.options.debug {
                                             let message_json =
                                                 serde_json::to_value(&message).unwrap();
                                             Some(DebugInfo {
@@ -440,9 +478,11 @@ pub async fn transform_mx_to_mt(
                                         } else {
                                             None
                                         },
-                                        errors: vec![format!(
-                                            "Transformation produced malformed SWIFT MT message: {}",
-                                            mt_error
+                                        errors: vec![ReframeError::transformation_error(
+                                            "MALFORMED_MT",
+                                            format!(
+                                                "Transformation produced malformed SWIFT MT message: {mt_error}"
+                                            ),
                                         )],
                                         warnings: Vec::new(),
                                     }))
@@ -453,8 +493,8 @@ pub async fn transform_mx_to_mt(
                             error!("❌ MX to MT transformation produced empty or invalid result");
                             Ok(Json(TransformationResponse {
                                 success: false,
-                                transformed_message: None,
-                                debug_info: if request.options.include_debug {
+                                result: None,
+                                debug_info: if request.options.debug {
                                     let message_json = serde_json::to_value(message).unwrap();
                                     Some(DebugInfo {
                                         engine_state: "reverse".to_string(),
@@ -466,10 +506,11 @@ pub async fn transform_mx_to_mt(
                                 } else {
                                     None
                                 },
-                                errors: vec![
+                                errors: vec![ReframeError::transformation_error(
+                                    "EMPTY_RESULT",
                                     "Transformation completed but produced empty or invalid result"
                                         .to_string(),
-                                ],
+                                )],
                                 warnings: Vec::new(),
                             }))
                         }
@@ -479,8 +520,8 @@ pub async fn transform_mx_to_mt(
                     error!("❌ MX to MT transformation completed but no valid result found");
                     Ok(Json(TransformationResponse {
                         success: false,
-                        transformed_message: None,
-                        debug_info: if request.options.include_debug {
+                        result: None,
+                        debug_info: if request.options.debug {
                             let message_json = serde_json::to_value(message).unwrap();
                             Some(DebugInfo {
                                 engine_state: "reverse".to_string(),
@@ -490,9 +531,10 @@ pub async fn transform_mx_to_mt(
                         } else {
                             None
                         },
-                        errors: vec![
+                        errors: vec![ReframeError::transformation_error(
+                            "NO_RESULT",
                             "Transformation completed but no valid result was produced".to_string(),
-                        ],
+                        )],
                         warnings: Vec::new(),
                     }))
                 }
@@ -503,8 +545,8 @@ pub async fn transform_mx_to_mt(
 
             Ok(Json(TransformationResponse {
                 success: false,
-                transformed_message: None,
-                debug_info: if request.options.include_debug {
+                result: None,
+                debug_info: if request.options.debug {
                     let message_json = serde_json::to_value(message).unwrap();
                     Some(DebugInfo {
                         engine_state: "reverse".to_string(),
@@ -514,7 +556,7 @@ pub async fn transform_mx_to_mt(
                 } else {
                     None
                 },
-                errors: vec![e.to_string()],
+                errors: vec![ReframeError::internal_error(e.to_string())],
                 warnings: Vec::new(),
             }))
         }
@@ -536,10 +578,21 @@ fn detect_message_category(message_type: &str) -> MessageCategory {
 }
 
 // Unified sample generation endpoint
+#[utoipa::path(
+    post,
+    path = "/generate/sample",
+    tag = "generation",
+    request_body = SampleGenerationRequest,
+    responses(
+        (status = 200, description = "Sample generated successfully", body = SampleGenerationResponse),
+        (status = 400, description = "Invalid request", body = SampleGenerationResponse),
+        (status = 500, description = "Internal server error", body = SampleGenerationResponse)
+    )
+)]
 #[instrument(skip(request), fields(message_type = request.message_type.as_str()))]
 pub async fn generate_sample(
     Json(request): Json<SampleGenerationRequest>,
-) -> Result<Json<TransformationResponse>, StatusCode> {
+) -> Result<Json<SampleGenerationResponse>, StatusCode> {
     let start_time = Instant::now();
 
     info!(
@@ -553,15 +606,16 @@ pub async fn generate_sample(
         MessageCategory::MT => {
             if !is_supported_message_type(&request.message_type) {
                 error!("❌ Unsupported MT message type: {}", request.message_type);
-                return Ok(Json(TransformationResponse {
+                return Ok(Json(SampleGenerationResponse {
                     success: false,
-                    transformed_message: None,
-                    debug_info: None,
-                    errors: vec![format!(
-                        "Unsupported MT message type: {}",
-                        request.message_type
+                    message_type: request.message_type.clone(),
+                    result: None,
+                    scenario: None,
+                    errors: vec![ReframeError::generation_error(
+                        "UNSUPPORTED_TYPE",
+                        format!("Unsupported MT message type: {}", request.message_type),
                     )],
-                    warnings: Vec::new(),
+                    debug_info: None,
                 }));
             }
             generate_mt_from_config(&request.config, &request.message_type, &request.options).await
@@ -569,30 +623,35 @@ pub async fn generate_sample(
         MessageCategory::MX => {
             if !is_supported_mx_type(&request.message_type) {
                 error!("❌ Unsupported MX message type: {}", request.message_type);
-                return Ok(Json(TransformationResponse {
+                return Ok(Json(SampleGenerationResponse {
                     success: false,
-                    transformed_message: None,
-                    debug_info: None,
-                    errors: vec![format!(
-                        "Unsupported MX message type: {}",
-                        request.message_type
+                    message_type: request.message_type.clone(),
+                    result: None,
+                    scenario: None,
+                    errors: vec![ReframeError::generation_error(
+                        "UNSUPPORTED_TYPE",
+                        format!("Unsupported MX message type: {}", request.message_type),
                     )],
-                    warnings: Vec::new(),
+                    debug_info: None,
                 }));
             }
             generate_mx_from_config(&request.config, &request.message_type, &request.options).await
         }
         MessageCategory::Unknown => {
             error!("❌ Unknown message type format: {}", request.message_type);
-            return Ok(Json(TransformationResponse {
+            return Ok(Json(SampleGenerationResponse {
                 success: false,
-                transformed_message: None,
-                debug_info: None,
-                errors: vec![format!(
-                    "Unknown message type format: {}. Expected MT* or pacs*/camt*/pain*",
-                    request.message_type
+                message_type: request.message_type.clone(),
+                result: None,
+                scenario: None,
+                errors: vec![ReframeError::generation_error(
+                    "UNSUPPORTED_TYPE",
+                    format!(
+                        "Unknown message type format: {}. Expected MT* or pacs*/camt*/pain*",
+                        request.message_type
+                    ),
                 )],
-                warnings: Vec::new(),
+                debug_info: None,
             }));
         }
     };
@@ -602,44 +661,65 @@ pub async fn generate_sample(
             let processing_time = start_time.elapsed().as_millis() as u64;
             info!("✅ Sample generation completed in {}ms", processing_time);
 
-            Ok(Json(TransformationResponse {
+            // TODO: If validation is enabled, we should validate the generated message
+            // and collect validation errors. For now, we'll return an empty list.
+            let errors = Vec::new();
+
+            Ok(Json(SampleGenerationResponse {
                 success: true,
-                transformed_message: Some(Value::String(message)),
-                debug_info: if request.options.include_debug {
-                    Some(DebugInfo {
-                        engine_state: "sample_generation".to_string(),
-                        workflow_execution: vec!["Sample generated from scenario".to_string()],
-                        intermediate_data: request.config,
+                message_type: request.message_type.clone(),
+                result: Some(message),
+                scenario: request
+                    .config
+                    .get("scenario")
+                    .and_then(|s| s.as_str())
+                    .map(|s| s.to_string()),
+                errors,
+                debug_info: if request.options.debug {
+                    Some(SampleDebugInfo {
+                        scenario_config: request.config,
+                        generation_time_ms: processing_time,
+                        warnings: Vec::new(),
                     })
                 } else {
                     None
                 },
-                errors: Vec::new(),
-                warnings: Vec::new(),
             }))
         }
         Err(e) => {
             error!("❌ Sample generation failed: {}", e);
-            Ok(Json(TransformationResponse {
+            Ok(Json(SampleGenerationResponse {
                 success: false,
-                transformed_message: None,
-                debug_info: if request.options.include_debug {
-                    Some(DebugInfo {
-                        engine_state: "sample_generation".to_string(),
-                        workflow_execution: vec![format!("Failed - Generation error: {}", e)],
-                        intermediate_data: request.config,
+                message_type: request.message_type.clone(),
+                result: None,
+                scenario: None,
+                errors: vec![ReframeError::generation_error(
+                    "GENERATION_FAILED",
+                    e.to_string(),
+                )],
+                debug_info: if request.options.debug {
+                    Some(SampleDebugInfo {
+                        scenario_config: request.config,
+                        generation_time_ms: start_time.elapsed().as_millis() as u64,
+                        warnings: Vec::new(),
                     })
                 } else {
                     None
                 },
-                errors: vec![e.to_string()],
-                warnings: Vec::new(),
             }))
         }
     }
 }
 
 // Health check endpoint
+#[utoipa::path(
+    get,
+    path = "/health",
+    tag = "health",
+    responses(
+        (status = 200, description = "Service is healthy", body = HealthResponse),
+    )
+)]
 pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse> {
     let forward_status = if state.forward_engine.try_lock().is_ok() {
         "healthy"
@@ -669,6 +749,15 @@ pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse>
     })
 }
 
+#[utoipa::path(
+    post,
+    path = "/admin/reload-workflows",
+    tag = "admin",
+    responses(
+        (status = 200, description = "Workflows reloaded successfully", body = ReloadResponse),
+        (status = 500, description = "Failed to reload workflows", body = ReloadResponse)
+    )
+)]
 #[instrument(skip(state))]
 pub async fn reload_workflows(
     State(state): State<AppState>,
@@ -707,6 +796,16 @@ pub async fn reload_workflows(
 }
 
 // MT validation endpoint
+#[utoipa::path(
+    post,
+    path = "/validate/mt",
+    tag = "validation",
+    request_body = ValidationRequest,
+    responses(
+        (status = 200, description = "Validation completed", body = ValidationResponse),
+        (status = 400, description = "Invalid request", body = ValidationResponse)
+    )
+)]
 #[instrument(skip(request), fields(message_length = request.message.len()))]
 pub async fn validate_mt(
     Json(request): Json<ValidationRequest>,
@@ -723,8 +822,19 @@ pub async fn validate_mt(
         request.message.replace('\n', "\r\n")
     };
 
-    // Parse the MT message
-    match SwiftParser::parse_auto(&normalized_content) {
+    // Parse the MT message with config based on fail_fast option
+    let parse_result = if request.options.fail_fast {
+        let config = swift_mt_message::errors::ParserConfig {
+            fail_fast: true,
+            validate_optional_fields: true,
+            collect_all_errors: false,
+        };
+        SwiftParser::with_config(config).parse_message_auto(&normalized_content)
+    } else {
+        SwiftParser::parse_auto(&normalized_content)
+    };
+
+    match parse_result {
         Ok(parsed_message) => {
             let message_type = parsed_message.message_type().to_string();
             info!(
@@ -733,12 +843,10 @@ pub async fn validate_mt(
                 message_type
             );
 
-            let parse_errors = Vec::new();
-            let mut business_errors = Vec::new();
-            let mut warnings = Vec::new();
+            let mut errors = Vec::new();
 
             // Convert to canonical JSON if requested
-            let canonical_json = if request.options.include_canonical_json {
+            let canonical_json = if request.options.canonical {
                 match &message_type[..] {
                     "103" => parsed_message
                         .clone()
@@ -783,7 +891,7 @@ pub async fn validate_mt(
             };
 
             // Perform business validation if requested
-            if request.options.include_business_validation {
+            if request.options.business_validation {
                 // Use the built-in validate() method for business validation
                 let validation_result = parsed_message.validate();
 
@@ -819,22 +927,26 @@ pub async fn validate_mt(
                             } => (rule_name, None, message),
                         };
 
-                        business_errors.push(ValidationError {
+                        errors.push(ReframeError {
+                            error_type: ErrorType::BusinessValidationError,
                             code,
                             message,
                             field,
                             location: None,
+                            details: None,
                         });
                     }
                 }
 
                 // Add any warnings from validation
                 for warning in validation_result.warnings {
-                    warnings.push(ValidationError {
+                    errors.push(ReframeError {
+                        error_type: ErrorType::Warning,
                         code: "MT_VALIDATION_WARNING".to_string(),
                         message: warning,
                         field: None,
                         location: None,
+                        details: None,
                     });
                 }
 
@@ -844,35 +956,42 @@ pub async fn validate_mt(
                         if let Some(mt103) = parsed_message.into_mt103() {
                             // Check for reject/return codes
                             if mt103.has_reject_codes() {
-                                warnings.push(ValidationError {
+                                errors.push(ReframeError {
+                                    error_type: ErrorType::Warning,
                                     code: "MT103_HAS_REJECT".to_string(),
                                     message: "Message contains reject codes".to_string(),
                                     field: None,
                                     location: None,
+                                    details: None,
                                 });
                             }
                             if mt103.has_return_codes() {
-                                warnings.push(ValidationError {
+                                errors.push(ReframeError {
+                                    error_type: ErrorType::Warning,
                                     code: "MT103_HAS_RETURN".to_string(),
                                     message: "Message contains return codes".to_string(),
                                     field: None,
                                     location: None,
+                                    details: None,
                                 });
                             }
 
                             // Validate basic header fields
                             if mt103.basic_header.service_id.is_empty() {
-                                business_errors.push(ValidationError {
+                                errors.push(ReframeError {
+                                    error_type: ErrorType::BusinessValidationError,
                                     code: "MT103_MISSING_SERVICE_ID".to_string(),
                                     message: "Service ID is missing in basic header".to_string(),
                                     field: Some("basic_header.service_id".to_string()),
                                     location: None,
+                                    details: None,
                                 });
                             }
 
                             // Validate sender BIC in basic header
                             if !is_valid_bic(&mt103.basic_header.sender_bic) {
-                                business_errors.push(ValidationError {
+                                errors.push(ReframeError {
+                                    error_type: ErrorType::BusinessValidationError,
                                     code: "MT103_INVALID_SENDER_BIC".to_string(),
                                     message: format!(
                                         "Invalid sender BIC in header: {}",
@@ -880,18 +999,21 @@ pub async fn validate_mt(
                                     ),
                                     field: Some("basic_header.sender_bic".to_string()),
                                     location: None,
+                                    details: None,
                                 });
                             }
 
                             // Check if this is an STP message
                             if mt103.is_stp_message() {
-                                warnings.push(ValidationError {
+                                errors.push(ReframeError {
+                                    error_type: ErrorType::Info,
                                     code: "MT103_IS_STP".to_string(),
                                     message:
                                         "Message is marked as STP (Straight Through Processing)"
                                             .to_string(),
                                     field: None,
                                     location: None,
+                                    details: None,
                                 });
                             }
 
@@ -903,19 +1025,23 @@ pub async fn validate_mt(
                         if let Some(mt202) = parsed_message.into_mt202() {
                             // Similar business validations for MT202
                             if mt202.has_reject_codes() {
-                                warnings.push(ValidationError {
+                                errors.push(ReframeError {
+                                    error_type: ErrorType::Warning,
                                     code: "MT202_HAS_REJECT".to_string(),
                                     message: "Message contains reject codes".to_string(),
                                     field: None,
                                     location: None,
+                                    details: None,
                                 });
                             }
                             if mt202.has_return_codes() {
-                                warnings.push(ValidationError {
+                                errors.push(ReframeError {
+                                    error_type: ErrorType::Warning,
                                     code: "MT202_HAS_RETURN".to_string(),
                                     message: "Message contains return codes".to_string(),
                                     field: None,
                                     location: None,
+                                    details: None,
                                 });
                             }
                         }
@@ -926,57 +1052,77 @@ pub async fn validate_mt(
                 }
             }
 
+            // Determine success based on presence of parser or business validation errors
+            let has_critical_errors = errors.iter().any(|e| {
+                matches!(
+                    e.error_type,
+                    ErrorType::ParserError | ErrorType::BusinessValidationError
+                )
+            });
+
             Ok(Json(ValidationResponse {
-                valid: parse_errors.is_empty() && business_errors.is_empty(),
+                success: !has_critical_errors,
                 message_type: Some(message_type),
                 canonical_json,
-                parse_errors,
-                business_errors,
-                warnings,
+                errors,
             }))
         }
         Err(parse_error) => {
             error!("❌ MT validation failed: {:?}", parse_error);
 
             // Extract detailed parse errors
-            let mut parse_errors = vec![ValidationError {
+            let mut errors = vec![ReframeError {
+                error_type: ErrorType::ParserError,
                 code: "MT_PARSE_ERROR".to_string(),
                 message: format!("{parse_error:?}"),
                 field: None,
                 location: None,
+                details: None,
             }];
 
             // Try to extract more specific error information
             let error_str = format!("{parse_error:?}");
             if error_str.contains("unexpected character") {
-                parse_errors.push(ValidationError {
+                errors.push(ReframeError {
+                    error_type: ErrorType::ParserError,
                     code: "MT_INVALID_CHARACTER".to_string(),
                     message: "Message contains invalid characters".to_string(),
                     field: None,
                     location: None,
+                    details: None,
                 });
             } else if error_str.contains("missing field") {
-                parse_errors.push(ValidationError {
+                errors.push(ReframeError {
+                    error_type: ErrorType::ParserError,
                     code: "MT_MISSING_FIELD".to_string(),
                     message: "Required field is missing".to_string(),
                     field: None,
                     location: None,
+                    details: None,
                 });
             }
 
             Ok(Json(ValidationResponse {
-                valid: false,
+                success: false,
                 message_type: None,
                 canonical_json: None,
-                parse_errors,
-                business_errors: Vec::new(),
-                warnings: Vec::new(),
+                errors,
             }))
         }
     }
 }
 
 // MX validation endpoint
+#[utoipa::path(
+    post,
+    path = "/validate/mx",
+    tag = "validation",
+    request_body = ValidationRequest,
+    responses(
+        (status = 200, description = "Validation completed", body = ValidationResponse),
+        (status = 400, description = "Invalid request", body = ValidationResponse)
+    )
+)]
 #[instrument(skip(request), fields(message_length = request.message.len()))]
 pub async fn validate_mx(
     Json(request): Json<ValidationRequest>,
@@ -990,25 +1136,27 @@ pub async fn validate_mx(
     if let Err(xml_error) = validate_xml_well_formed(&request.message) {
         error!("❌ MX validation failed - XML malformed: {}", xml_error);
         return Ok(Json(ValidationResponse {
-            valid: false,
+            success: false,
             message_type: None,
             canonical_json: None,
-            parse_errors: vec![ValidationError {
+            errors: vec![ReframeError {
+                error_type: ErrorType::ParserError,
                 code: "MX_XML_MALFORMED".to_string(),
                 message: xml_error,
                 field: None,
                 location: None,
+                details: None,
             }],
-            business_errors: Vec::new(),
-            warnings: Vec::new(),
         }));
     }
 
     // Try to parse the MX message and extract message type
+    // NOTE: fail_fast support for MX validation requires updating ParseMX to use mx_message::parse_result::ParserConfig
+    // Currently, MX parsing always collects all errors (fail_fast = false behavior)
     let document_xmlns = ParseMX::extract_document_xmlns(&request.message);
     let app_hdr_content = ParseMX::extract_app_hdr_content(&request.message);
     let document_content = ParseMX::extract_document_content(&request.message);
-    
+
     match ParseMX::extract_message_type(document_xmlns.clone(), app_hdr_content.clone()) {
         Ok(message_type) => {
             info!(
@@ -1017,23 +1165,22 @@ pub async fn validate_mx(
                 message_type
             );
 
-            let mut parse_errors = Vec::new();
-            let mut business_errors = Vec::new();
-            let mut warnings = Vec::new();
+            let mut errors = Vec::new();
 
             // Extract canonical JSON if requested
-            let canonical_json = if request.options.include_canonical_json {
+            let canonical_json = if request.options.canonical {
                 // Try to parse the header and document into JSON
                 if let (Some(app_hdr), Some(doc_content)) = (app_hdr_content, document_content) {
-                    match (ParseMX::parse_header(&message_type, &app_hdr), ParseMX::parse_document(&message_type, &doc_content)) {
-                        (Ok(header), Ok(document)) => {
-                            Some(serde_json::json!({
-                                "header": header,
-                                "document": document,
-                                "message_type": message_type
-                            }))
-                        },
-                        _ => None
+                    match (
+                        ParseMX::parse_header(&message_type, &app_hdr),
+                        ParseMX::parse_document(&message_type, &doc_content),
+                    ) {
+                        (Ok(header), Ok(document)) => Some(serde_json::json!({
+                            "header": header,
+                            "document": document,
+                            "message_type": message_type
+                        })),
+                        _ => None,
                     }
                 } else {
                     None
@@ -1043,8 +1190,7 @@ pub async fn validate_mx(
             };
 
             // Perform business validation if requested
-            if request.options.include_business_validation {
-
+            if request.options.business_validation {
                 // Basic business validations based on parsed JSON
                 if let Some(ref json) = canonical_json {
                     // Check for required fields based on message type
@@ -1052,50 +1198,76 @@ pub async fn validate_mx(
                         "pacs.008.001.08" => {
                             // Check for UETR in pacs.008
                             if let Some(doc) = json.get("document") {
-                                if let Some(cdt_trf) = doc.get("FIToFICstmrCdtTrf").or(doc.get("FIToFICustomerCreditTransferV08")) {
+                                if let Some(cdt_trf) = doc
+                                    .get("FIToFICstmrCdtTrf")
+                                    .or(doc.get("FIToFICustomerCreditTransferV08"))
+                                {
                                     if let Some(cdt_trf_tx_inf) = cdt_trf.get("CdtTrfTxInf") {
                                         if let Some(tx_array) = cdt_trf_tx_inf.as_array() {
                                             for tx in tx_array {
                                                 if let Some(pmt_id) = tx.get("PmtId") {
                                                     if pmt_id.get("UETR").is_none() {
-                                                        warnings.push(ValidationError {
+                                                        errors.push(ReframeError {
+                                                            error_type: ErrorType::Warning,
                                                             code: "PACS008_MISSING_UETR".to_string(),
                                                             message: "UETR is recommended for payment tracking".to_string(),
                                                             field: Some("CdtTrfTxInf.PmtId.UETR".to_string()),
                                                             location: None,
+                            details: None,
                                                         });
+                                                        if request.options.fail_fast {
+                                                            break;
+                                                        }
                                                     }
                                                 }
-                                                
+
                                                 // Check BIC codes
                                                 if let Some(dbtr_agt) = tx.get("DbtrAgt") {
-                                                    if let Some(fin_instn_id) = dbtr_agt.get("FinInstnId") {
-                                                        if let Some(bicfi) = fin_instn_id.get("BICFI") {
+                                                    if let Some(fin_instn_id) =
+                                                        dbtr_agt.get("FinInstnId")
+                                                    {
+                                                        if let Some(bicfi) =
+                                                            fin_instn_id.get("BICFI")
+                                                        {
                                                             if let Some(bic_str) = bicfi.as_str() {
                                                                 if !is_valid_bic(bic_str) {
-                                                                    business_errors.push(ValidationError {
+                                                                    errors.push(ReframeError {
+                                                                        error_type: ErrorType::BusinessValidationError,
                                                                         code: "PACS008_INVALID_DBTR_AGT_BIC".to_string(),
-                                                                        message: format!("Invalid debtor agent BIC: {}", bic_str),
+                                                                        message: format!("Invalid debtor agent BIC: {bic_str}"),
                                                                         field: Some("CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI".to_string()),
                                                                         location: None,
+                            details: None,
                                                                     });
+                                                                    if request.options.fail_fast {
+                                                                        break;
+                                                                    }
                                                                 }
                                                             }
                                                         }
                                                     }
                                                 }
-                                                
+
                                                 if let Some(cdtr_agt) = tx.get("CdtrAgt") {
-                                                    if let Some(fin_instn_id) = cdtr_agt.get("FinInstnId") {
-                                                        if let Some(bicfi) = fin_instn_id.get("BICFI") {
+                                                    if let Some(fin_instn_id) =
+                                                        cdtr_agt.get("FinInstnId")
+                                                    {
+                                                        if let Some(bicfi) =
+                                                            fin_instn_id.get("BICFI")
+                                                        {
                                                             if let Some(bic_str) = bicfi.as_str() {
                                                                 if !is_valid_bic(bic_str) {
-                                                                    business_errors.push(ValidationError {
+                                                                    errors.push(ReframeError {
+                                                                        error_type: ErrorType::BusinessValidationError,
                                                                         code: "PACS008_INVALID_CDTR_AGT_BIC".to_string(),
-                                                                        message: format!("Invalid creditor agent BIC: {}", bic_str),
+                                                                        message: format!("Invalid creditor agent BIC: {bic_str}"),
                                                                         field: Some("CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI".to_string()),
                                                                         location: None,
+                            details: None,
                                                                     });
+                                                                    if request.options.fail_fast {
+                                                                        break;
+                                                                    }
                                                                 }
                                                             }
                                                         }
@@ -1109,71 +1281,89 @@ pub async fn validate_mx(
                         }
                         _ => {
                             // Other message types - basic validation only
-                            info!("Business validation for {} uses basic checks only", message_type);
+                            info!(
+                                "Business validation for {} uses basic checks only",
+                                message_type
+                            );
                         }
                     }
                 } else {
-                    warnings.push(ValidationError {
+                    errors.push(ReframeError {
+                        error_type: ErrorType::Info,
                         code: "MX_VALIDATION_LIMITED".to_string(),
-                        message: "Business validation requires canonical JSON extraction".to_string(),
+                        message: "Business validation requires canonical JSON extraction"
+                            .to_string(),
                         field: None,
                         location: None,
+                        details: None,
                     });
                 }
             }
 
+            // Determine success based on presence of parser or business validation errors
+            let has_critical_errors = errors.iter().any(|e| {
+                matches!(
+                    e.error_type,
+                    ErrorType::ParserError | ErrorType::BusinessValidationError
+                )
+            });
+
             Ok(Json(ValidationResponse {
-                valid: parse_errors.is_empty() && business_errors.is_empty(),
+                success: !has_critical_errors,
                 message_type: Some(message_type),
                 canonical_json,
-                parse_errors,
-                business_errors,
-                warnings,
+                errors,
             }))
         }
         Err(parse_error) => {
             error!("❌ MX validation failed: {:?}", parse_error);
 
             // Extract detailed parse errors
-            let error_message = format!("{:?}", parse_error);
-            let mut parse_errors = vec![ValidationError {
+            let error_message = format!("{parse_error:?}");
+            let mut errors = vec![ReframeError {
+                error_type: ErrorType::ParserError,
                 code: "MX_PARSE_ERROR".to_string(),
                 message: error_message.clone(),
                 field: None,
                 location: None,
+                details: None,
             }];
 
             // Try to extract more specific error information
             if error_message.contains("Unknown message type") {
-                parse_errors.push(ValidationError {
+                errors.push(ReframeError {
+                    error_type: ErrorType::ParserError,
                     code: "MX_UNKNOWN_MESSAGE_TYPE".to_string(),
                     message: "Message type is not recognized or supported".to_string(),
                     field: Some("MsgDefIdr".to_string()),
                     location: None,
+                    details: None,
                 });
             } else if error_message.contains("missing field") || error_message.contains("Missing") {
-                parse_errors.push(ValidationError {
+                errors.push(ReframeError {
+                    error_type: ErrorType::ParserError,
                     code: "MX_MISSING_REQUIRED_FIELD".to_string(),
                     message: "Required field is missing from the message".to_string(),
                     field: None,
                     location: None,
+                    details: None,
                 });
             } else if error_message.contains("Invalid") || error_message.contains("invalid") {
-                parse_errors.push(ValidationError {
+                errors.push(ReframeError {
+                    error_type: ErrorType::ParserError,
                     code: "MX_INVALID_FORMAT".to_string(),
                     message: "Message format is invalid".to_string(),
                     field: None,
                     location: None,
+                    details: None,
                 });
             }
 
             Ok(Json(ValidationResponse {
-                valid: false,
+                success: false,
                 message_type: None,
                 canonical_json: None,
-                parse_errors,
-                business_errors: Vec::new(),
-                warnings: Vec::new(),
+                errors,
             }))
         }
     }

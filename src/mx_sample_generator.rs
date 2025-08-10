@@ -1,6 +1,6 @@
+use mx_message::sample::generate_sample;
 use serde_json::Value;
 use tracing::{debug, error};
-use mx_message::sample::generate_sample;
 
 use crate::types::SampleGenerationOptions;
 

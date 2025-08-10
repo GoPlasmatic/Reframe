@@ -10,6 +10,7 @@ mod engine;
 mod handlers;
 mod helper;
 mod mx_sample_generator;
+mod openapi;
 mod parse_mt;
 mod parse_mx;
 mod publish_mt;
@@ -23,6 +24,7 @@ use handlers::{
     generate_sample, health_check, reload_workflows, transform_mt_to_mx, transform_mx_to_mt,
     validate_mt, validate_mx,
 };
+use openapi::swagger_ui;
 
 #[tokio::main]
 async fn main() {
@@ -46,6 +48,7 @@ async fn main() {
         .route("/validate/mt", post(validate_mt))
         .route("/validate/mx", post(validate_mx))
         .route("/admin/reload-workflows", post(reload_workflows))
+        .merge(swagger_ui())
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
@@ -57,6 +60,8 @@ async fn main() {
     info!("🔍 MX validation: POST /validate/mx");
     info!("🔄 Workflow reload: POST /admin/reload-workflows");
     info!("🏥 Health check: GET /health");
+    info!("📚 API Documentation: GET /swagger-ui");
+    info!("📋 OpenAPI Spec: GET /api-docs/openapi.json");
 
     axum::serve(listener, app).await.unwrap();
 }

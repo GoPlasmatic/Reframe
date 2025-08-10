@@ -2,6 +2,11 @@
 """
 Test MT and MX message scenarios using the Reframe transformation service.
 This script generates messages from scenarios and tests their bidirectional transformation.
+
+Updated to work with the new SampleGenerationResponse structure:
+- Changed from 'transformed_message' and 'generated_message' to 'result' field
+- Changed from 'scenario_used' to 'scenario' field
+- Error handling now uses 'errors' array with ReframeError objects
 """
 
 import json
@@ -131,11 +136,21 @@ class ScenarioTester:
                 result = response.json()
                 if result.get("success"):
                     self.statistics["generation_success"] += 1
-                    message = result.get("transformed_message")
+                    # Updated to use new SampleGenerationResponse structure
+                    message = result.get("result")
                     format_type = "MT" if message_type.upper().startswith("MT") else "MX"
+                    
+                    # Store scenario info if available
+                    if self.debug and result.get("scenario"):
+                        print(f"DEBUG: Used scenario: {result.get('scenario')}")
+                    
                     return message, format_type
                 else:
-                    error = result.get('error', 'Unknown error')
+                    errors = result.get('errors', [])
+                    if errors:
+                        error = errors[0].get('message', 'Unknown error')
+                    else:
+                        error = 'Unknown error'
                     if self.debug:
                         print(f"DEBUG: Generation failed: {error}")
                     return None, ""
@@ -175,7 +190,7 @@ class ScenarioTester:
                 result = response.json()
                 if result.get("success"):
                     self.statistics["transformation_success"] += 1
-                    return result.get("transformed_message")
+                    return result.get("result")
             return None
         except Exception as e:
             if self.debug:
@@ -201,7 +216,7 @@ class ScenarioTester:
                 result = response.json()
                 if result.get("success"):
                     self.statistics["transformation_success"] += 1
-                    return result.get("transformed_message")
+                    return result.get("result")
             elif self.debug:
                 print(f"DEBUG: MX to MT transformation failed with status {response.status_code}")
                 print(f"DEBUG: Response: {response.text[:500]}")

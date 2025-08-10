@@ -15,6 +15,7 @@ use crate::types::{
     ReloadResponse, SampleDebugInfo, SampleGenerationRequest, SampleGenerationResponse,
     TransformationRequest, TransformationResponse, ValidationRequest, ValidationResponse,
 };
+use mx_message::parse_result::ParserConfig as MxParserConfig;
 
 /// Validates that the given string is well-formed XML
 fn validate_xml_well_formed(xml_content: &str) -> Result<(), String> {
@@ -825,9 +826,9 @@ pub async fn validate_mt(
     // Parse the MT message with config based on fail_fast option
     let parse_result = if request.options.fail_fast {
         let config = swift_mt_message::errors::ParserConfig {
-            fail_fast: true,
+            fail_fast: false,
             validate_optional_fields: true,
-            collect_all_errors: false,
+            collect_all_errors: true,
         };
         SwiftParser::with_config(config).parse_message_auto(&normalized_content)
     } else {
@@ -845,46 +846,15 @@ pub async fn validate_mt(
 
             let mut errors = Vec::new();
 
-            // Convert to canonical JSON if requested
+            // Convert to canonical JSON if requested - now supports all MT types
             let canonical_json = if request.options.canonical {
-                match &message_type[..] {
-                    "103" => parsed_message
-                        .clone()
-                        .into_mt103()
-                        .and_then(|msg| serde_json::to_value(msg).ok()),
-                    "202" => parsed_message
-                        .clone()
-                        .into_mt202()
-                        .and_then(|msg| serde_json::to_value(msg).ok()),
-                    "205" => parsed_message
-                        .clone()
-                        .into_mt205()
-                        .and_then(|msg| serde_json::to_value(msg).ok()),
-                    "900" => parsed_message
-                        .clone()
-                        .into_mt900()
-                        .and_then(|msg| serde_json::to_value(msg).ok()),
-                    "910" => parsed_message
-                        .clone()
-                        .into_mt910()
-                        .and_then(|msg| serde_json::to_value(msg).ok()),
-                    "192" => parsed_message
-                        .clone()
-                        .into_mt192()
-                        .and_then(|msg| serde_json::to_value(msg).ok()),
-                    "292" => parsed_message
-                        .clone()
-                        .into_mt292()
-                        .and_then(|msg| serde_json::to_value(msg).ok()),
-                    "196" => parsed_message
-                        .clone()
-                        .into_mt196()
-                        .and_then(|msg| serde_json::to_value(msg).ok()),
-                    "296" => parsed_message
-                        .clone()
-                        .into_mt296()
-                        .and_then(|msg| serde_json::to_value(msg).ok()),
-                    _ => None,
+                // Convert the parsed message to JSON
+                match serde_json::to_value(&parsed_message) {
+                    Ok(json) => Some(json),
+                    Err(e) => {
+                        debug!("Failed to convert MT message to JSON: {}", e);
+                        None
+                    }
                 }
             } else {
                 None
@@ -892,164 +862,10 @@ pub async fn validate_mt(
 
             // Perform business validation if requested
             if request.options.business_validation {
-                // Use the built-in validate() method for business validation
-                let validation_result = parsed_message.validate();
-
-                // Check if there are any validation errors
-                if !validation_result.is_valid {
-                    // Extract errors from the validation result
-                    for error in validation_result.errors {
-                        let (code, field, message) = match error {
-                            swift_mt_message::ValidationError::FormatValidation {
-                                field_tag,
-                                message,
-                            } => (format!("MT_{field_tag}_FORMAT"), Some(field_tag), message),
-                            swift_mt_message::ValidationError::LengthValidation {
-                                field_tag,
-                                expected,
-                                actual,
-                            } => (
-                                format!("MT_{field_tag}_LENGTH"),
-                                Some(field_tag),
-                                format!("Expected length {expected}, got {actual}"),
-                            ),
-                            swift_mt_message::ValidationError::PatternValidation {
-                                field_tag,
-                                message,
-                            } => (format!("MT_{field_tag}_PATTERN"), Some(field_tag), message),
-                            swift_mt_message::ValidationError::ValueValidation {
-                                field_tag,
-                                message,
-                            } => (format!("MT_{field_tag}_VALUE"), Some(field_tag), message),
-                            swift_mt_message::ValidationError::BusinessRuleValidation {
-                                rule_name,
-                                message,
-                            } => (rule_name, None, message),
-                        };
-
-                        errors.push(ReframeError {
-                            error_type: ErrorType::BusinessValidationError,
-                            code,
-                            message,
-                            field,
-                            location: None,
-                            details: None,
-                        });
-                    }
-                }
-
-                // Add any warnings from validation
-                for warning in validation_result.warnings {
-                    errors.push(ReframeError {
-                        error_type: ErrorType::Warning,
-                        code: "MT_VALIDATION_WARNING".to_string(),
-                        message: warning,
-                        field: None,
-                        location: None,
-                        details: None,
-                    });
-                }
-
-                // Extract additional validation information based on message type
-                match &message_type[..] {
-                    "103" => {
-                        if let Some(mt103) = parsed_message.into_mt103() {
-                            // Check for reject/return codes
-                            if mt103.has_reject_codes() {
-                                errors.push(ReframeError {
-                                    error_type: ErrorType::Warning,
-                                    code: "MT103_HAS_REJECT".to_string(),
-                                    message: "Message contains reject codes".to_string(),
-                                    field: None,
-                                    location: None,
-                                    details: None,
-                                });
-                            }
-                            if mt103.has_return_codes() {
-                                errors.push(ReframeError {
-                                    error_type: ErrorType::Warning,
-                                    code: "MT103_HAS_RETURN".to_string(),
-                                    message: "Message contains return codes".to_string(),
-                                    field: None,
-                                    location: None,
-                                    details: None,
-                                });
-                            }
-
-                            // Validate basic header fields
-                            if mt103.basic_header.service_id.is_empty() {
-                                errors.push(ReframeError {
-                                    error_type: ErrorType::BusinessValidationError,
-                                    code: "MT103_MISSING_SERVICE_ID".to_string(),
-                                    message: "Service ID is missing in basic header".to_string(),
-                                    field: Some("basic_header.service_id".to_string()),
-                                    location: None,
-                                    details: None,
-                                });
-                            }
-
-                            // Validate sender BIC in basic header
-                            if !is_valid_bic(&mt103.basic_header.sender_bic) {
-                                errors.push(ReframeError {
-                                    error_type: ErrorType::BusinessValidationError,
-                                    code: "MT103_INVALID_SENDER_BIC".to_string(),
-                                    message: format!(
-                                        "Invalid sender BIC in header: {}",
-                                        mt103.basic_header.sender_bic
-                                    ),
-                                    field: Some("basic_header.sender_bic".to_string()),
-                                    location: None,
-                                    details: None,
-                                });
-                            }
-
-                            // Check if this is an STP message
-                            if mt103.is_stp_message() {
-                                errors.push(ReframeError {
-                                    error_type: ErrorType::Info,
-                                    code: "MT103_IS_STP".to_string(),
-                                    message:
-                                        "Message is marked as STP (Straight Through Processing)"
-                                            .to_string(),
-                                    field: None,
-                                    location: None,
-                                    details: None,
-                                });
-                            }
-
-                            // Additional business validations can be added here based on the
-                            // specific fields exposed by the swift-mt-message library
-                        }
-                    }
-                    "202" => {
-                        if let Some(mt202) = parsed_message.into_mt202() {
-                            // Similar business validations for MT202
-                            if mt202.has_reject_codes() {
-                                errors.push(ReframeError {
-                                    error_type: ErrorType::Warning,
-                                    code: "MT202_HAS_REJECT".to_string(),
-                                    message: "Message contains reject codes".to_string(),
-                                    field: None,
-                                    location: None,
-                                    details: None,
-                                });
-                            }
-                            if mt202.has_return_codes() {
-                                errors.push(ReframeError {
-                                    error_type: ErrorType::Warning,
-                                    code: "MT202_HAS_RETURN".to_string(),
-                                    message: "Message contains return codes".to_string(),
-                                    field: None,
-                                    location: None,
-                                    details: None,
-                                });
-                            }
-                        }
-                    }
-                    _ => {
-                        // Generic validations for other message types
-                    }
-                }
+                crate::validation_helpers::perform_mt_business_validation(
+                    &message_type,
+                    &mut errors,
+                );
             }
 
             // Determine success based on presence of parser or business validation errors
@@ -1071,36 +887,7 @@ pub async fn validate_mt(
             error!("❌ MT validation failed: {:?}", parse_error);
 
             // Extract detailed parse errors
-            let mut errors = vec![ReframeError {
-                error_type: ErrorType::ParserError,
-                code: "MT_PARSE_ERROR".to_string(),
-                message: format!("{parse_error:?}"),
-                field: None,
-                location: None,
-                details: None,
-            }];
-
-            // Try to extract more specific error information
-            let error_str = format!("{parse_error:?}");
-            if error_str.contains("unexpected character") {
-                errors.push(ReframeError {
-                    error_type: ErrorType::ParserError,
-                    code: "MT_INVALID_CHARACTER".to_string(),
-                    message: "Message contains invalid characters".to_string(),
-                    field: None,
-                    location: None,
-                    details: None,
-                });
-            } else if error_str.contains("missing field") {
-                errors.push(ReframeError {
-                    error_type: ErrorType::ParserError,
-                    code: "MT_MISSING_FIELD".to_string(),
-                    message: "Required field is missing".to_string(),
-                    field: None,
-                    location: None,
-                    details: None,
-                });
-            }
+            let errors = extract_mt_parse_errors(parse_error);
 
             Ok(Json(ValidationResponse {
                 success: false,
@@ -1151,8 +938,6 @@ pub async fn validate_mx(
     }
 
     // Try to parse the MX message and extract message type
-    // NOTE: fail_fast support for MX validation requires updating ParseMX to use mx_message::parse_result::ParserConfig
-    // Currently, MX parsing always collects all errors (fail_fast = false behavior)
     let document_xmlns = ParseMX::extract_document_xmlns(&request.message);
     let app_hdr_content = ParseMX::extract_app_hdr_content(&request.message);
     let document_content = ParseMX::extract_document_content(&request.message);
@@ -1169,8 +954,9 @@ pub async fn validate_mx(
 
             // Extract canonical JSON if requested
             let canonical_json = if request.options.canonical {
-                // Try to parse the header and document into JSON
-                if let (Some(app_hdr), Some(doc_content)) = (app_hdr_content, document_content) {
+                if let (Some(app_hdr), Some(doc_content)) =
+                    (app_hdr_content.clone(), document_content.clone())
+                {
                     match (
                         ParseMX::parse_header(&message_type, &app_hdr),
                         ParseMX::parse_document(&message_type, &doc_content),
@@ -1189,115 +975,39 @@ pub async fn validate_mx(
                 None
             };
 
-            // Perform business validation if requested
-            if request.options.business_validation {
-                // Basic business validations based on parsed JSON
-                if let Some(ref json) = canonical_json {
-                    // Check for required fields based on message type
-                    match &message_type[..] {
-                        "pacs.008.001.08" => {
-                            // Check for UETR in pacs.008
-                            if let Some(doc) = json.get("document") {
-                                if let Some(cdt_trf) = doc
-                                    .get("FIToFICstmrCdtTrf")
-                                    .or(doc.get("FIToFICustomerCreditTransferV08"))
-                                {
-                                    if let Some(cdt_trf_tx_inf) = cdt_trf.get("CdtTrfTxInf") {
-                                        if let Some(tx_array) = cdt_trf_tx_inf.as_array() {
-                                            for tx in tx_array {
-                                                if let Some(pmt_id) = tx.get("PmtId") {
-                                                    if pmt_id.get("UETR").is_none() {
-                                                        errors.push(ReframeError {
-                                                            error_type: ErrorType::Warning,
-                                                            code: "PACS008_MISSING_UETR".to_string(),
-                                                            message: "UETR is recommended for payment tracking".to_string(),
-                                                            field: Some("CdtTrfTxInf.PmtId.UETR".to_string()),
-                                                            location: None,
-                            details: None,
-                                                        });
-                                                        if request.options.fail_fast {
-                                                            break;
-                                                        }
-                                                    }
-                                                }
+            // Perform full MX validation
+            if let Some(doc_content) = document_content {
+                debug!(
+                    "MX Validation: Document content available, length: {} bytes",
+                    doc_content.len()
+                );
 
-                                                // Check BIC codes
-                                                if let Some(dbtr_agt) = tx.get("DbtrAgt") {
-                                                    if let Some(fin_instn_id) =
-                                                        dbtr_agt.get("FinInstnId")
-                                                    {
-                                                        if let Some(bicfi) =
-                                                            fin_instn_id.get("BICFI")
-                                                        {
-                                                            if let Some(bic_str) = bicfi.as_str() {
-                                                                if !is_valid_bic(bic_str) {
-                                                                    errors.push(ReframeError {
-                                                                        error_type: ErrorType::BusinessValidationError,
-                                                                        code: "PACS008_INVALID_DBTR_AGT_BIC".to_string(),
-                                                                        message: format!("Invalid debtor agent BIC: {bic_str}"),
-                                                                        field: Some("CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI".to_string()),
-                                                                        location: None,
-                            details: None,
-                                                                    });
-                                                                    if request.options.fail_fast {
-                                                                        break;
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
+                // Create parser config based on request options
+                let mx_config = MxParserConfig {
+                    fail_fast: false,
+                    validate_optional_fields: true,
+                    collect_all_errors: true,
+                };
 
-                                                if let Some(cdtr_agt) = tx.get("CdtrAgt") {
-                                                    if let Some(fin_instn_id) =
-                                                        cdtr_agt.get("FinInstnId")
-                                                    {
-                                                        if let Some(bicfi) =
-                                                            fin_instn_id.get("BICFI")
-                                                        {
-                                                            if let Some(bic_str) = bicfi.as_str() {
-                                                                if !is_valid_bic(bic_str) {
-                                                                    errors.push(ReframeError {
-                                                                        error_type: ErrorType::BusinessValidationError,
-                                                                        code: "PACS008_INVALID_CDTR_AGT_BIC".to_string(),
-                                                                        message: format!("Invalid creditor agent BIC: {bic_str}"),
-                                                                        field: Some("CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI".to_string()),
-                                                                        location: None,
-                            details: None,
-                                                                    });
-                                                                    if request.options.fail_fast {
-                                                                        break;
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        _ => {
-                            // Other message types - basic validation only
-                            info!(
-                                "Business validation for {} uses basic checks only",
-                                message_type
-                            );
-                        }
-                    }
-                } else {
-                    errors.push(ReframeError {
-                        error_type: ErrorType::Info,
-                        code: "MX_VALIDATION_LIMITED".to_string(),
-                        message: "Business validation requires canonical JSON extraction"
-                            .to_string(),
-                        field: None,
-                        location: None,
-                        details: None,
-                    });
-                }
+                // Validate based on message type using the refactored approach
+                validate_mx_by_type(
+                    &message_type,
+                    &app_hdr_content,
+                    &doc_content,
+                    &mx_config,
+                    &mut errors,
+                    request.options.business_validation,
+                );
+            } else {
+                info!("MX Validation: No document content extracted from MX message!");
+                errors.push(ReframeError {
+                    error_type: ErrorType::ParserError,
+                    code: "MX_NO_DOCUMENT_CONTENT".to_string(),
+                    message: "Failed to extract document content from MX message".to_string(),
+                    field: None,
+                    location: None,
+                    details: None,
+                });
             }
 
             // Determine success based on presence of parser or business validation errors
@@ -1318,7 +1028,6 @@ pub async fn validate_mx(
         Err(parse_error) => {
             error!("❌ MX validation failed: {:?}", parse_error);
 
-            // Extract detailed parse errors
             let error_message = format!("{parse_error:?}");
             let mut errors = vec![ReframeError {
                 error_type: ErrorType::ParserError,
@@ -1339,24 +1048,6 @@ pub async fn validate_mx(
                     location: None,
                     details: None,
                 });
-            } else if error_message.contains("missing field") || error_message.contains("Missing") {
-                errors.push(ReframeError {
-                    error_type: ErrorType::ParserError,
-                    code: "MX_MISSING_REQUIRED_FIELD".to_string(),
-                    message: "Required field is missing from the message".to_string(),
-                    field: None,
-                    location: None,
-                    details: None,
-                });
-            } else if error_message.contains("Invalid") || error_message.contains("invalid") {
-                errors.push(ReframeError {
-                    error_type: ErrorType::ParserError,
-                    code: "MX_INVALID_FORMAT".to_string(),
-                    message: "Message format is invalid".to_string(),
-                    field: None,
-                    location: None,
-                    details: None,
-                });
             }
 
             Ok(Json(ValidationResponse {
@@ -1369,9 +1060,336 @@ pub async fn validate_mx(
     }
 }
 
-// Helper function to validate BIC codes
-fn is_valid_bic(bic: &str) -> bool {
-    // Basic BIC validation: 8 or 11 characters, alphanumeric
-    let len = bic.len();
-    (len == 8 || len == 11) && bic.chars().all(|c| c.is_alphanumeric())
+// Centralized MX validation by message type
+fn validate_mx_by_type(
+    message_type: &str,
+    app_hdr_content: &Option<String>,
+    doc_content: &str,
+    mx_config: &MxParserConfig,
+    errors: &mut Vec<ReframeError>,
+    business_validation: bool,
+) {
+    use crate::validate_mx_message;
+    use mx_message::document::*;
+    use mx_message::header::*;
+
+    match message_type {
+        // PACS messages
+        "pacs.008.001.08" => {
+            validate_mx_message!(
+                message_type,
+                app_hdr_content,
+                doc_content,
+                mx_config,
+                errors,
+                {
+                    header: bah_pacs_008_001_08::BusinessApplicationHeaderV02,
+                    document: pacs_008_001_08::FIToFICustomerCreditTransferV08
+                }
+            );
+        }
+        "pacs.009.001.08" => {
+            validate_mx_message!(
+                message_type,
+                app_hdr_content,
+                doc_content,
+                mx_config,
+                errors,
+                {
+                    header: bah_pacs_009_001_08::BusinessApplicationHeaderV02,
+                    document: pacs_009_001_08::FinancialInstitutionCreditTransferV08
+                }
+            );
+        }
+        "pacs.004.001.09" => {
+            validate_mx_message!(
+                message_type,
+                app_hdr_content,
+                doc_content,
+                mx_config,
+                errors,
+                {
+                    header: bah_pacs_004_001_09::BusinessApplicationHeaderV02,
+                    document: pacs_004_001_09::PaymentReturnV09
+                }
+            );
+        }
+        "pacs.002.001.10" => {
+            validate_mx_message!(
+                message_type,
+                app_hdr_content,
+                doc_content,
+                mx_config,
+                errors,
+                {
+                    header: bah_pacs_002_001_10::BusinessApplicationHeaderV02,
+                    document: pacs_002_001_10::FIToFIPaymentStatusReportV10
+                }
+            );
+        }
+        "pacs.003.001.08" => {
+            validate_mx_message!(
+                message_type,
+                app_hdr_content,
+                doc_content,
+                mx_config,
+                errors,
+                {
+                    header: bah_pacs_003_001_08::BusinessApplicationHeaderV02,
+                    document: pacs_003_001_08::FIToFICustomerDirectDebitV08
+                }
+            );
+        }
+
+        // CAMT messages
+        "camt.054.001.08" => {
+            validate_mx_message!(
+                message_type,
+                app_hdr_content,
+                doc_content,
+                mx_config,
+                errors,
+                {
+                    header: bah_camt_054_001::BusinessApplicationHeaderV02,
+                    document: camt_054_001_08::BankToCustomerDebitCreditNotificationV08
+                }
+            );
+        }
+        "camt.052.001.08" => {
+            validate_mx_message!(
+                message_type,
+                app_hdr_content,
+                doc_content,
+                mx_config,
+                errors,
+                {
+                    header: bah_camt_052_001_08::BusinessApplicationHeaderV02,
+                    document: camt_052_001_08::BankToCustomerAccountReportV08
+                }
+            );
+        }
+        "camt.053.001.08" => {
+            validate_mx_message!(
+                message_type,
+                app_hdr_content,
+                doc_content,
+                mx_config,
+                errors,
+                {
+                    header: bah_camt_053_001_08::BusinessApplicationHeaderV02,
+                    document: camt_053_001_08::BankToCustomerStatementV08
+                }
+            );
+        }
+        "camt.056.001.08" => {
+            validate_mx_message!(
+                message_type,
+                app_hdr_content,
+                doc_content,
+                mx_config,
+                errors,
+                {
+                    header: bah_camt_056_001_08::BusinessApplicationHeaderV02,
+                    document: camt_056_001_08::FIToFIPaymentCancellationRequestV08
+                }
+            );
+        }
+        "camt.057.001.06" => {
+            validate_mx_message!(
+                message_type,
+                app_hdr_content,
+                doc_content,
+                mx_config,
+                errors,
+                {
+                    header: bah_camt_057_001_06::BusinessApplicationHeaderV02,
+                    document: camt_057_001_06::NotificationToReceiveV06
+                }
+            );
+        }
+        "camt.025.001.08" => {
+            validate_mx_message!(
+                message_type,
+                app_hdr_content,
+                doc_content,
+                mx_config,
+                errors,
+                {
+                    header: bah_camt_025_001_08::BusinessApplicationHeaderV02,
+                    document: camt_025_001_08::ReceiptV08
+                }
+            );
+        }
+        "camt.029.001.09" => {
+            validate_mx_message!(
+                message_type,
+                app_hdr_content,
+                doc_content,
+                mx_config,
+                errors,
+                {
+                    header: bah_camt_029_001::BusinessApplicationHeaderV02,
+                    document: camt_029_001_09::ResolutionOfInvestigationV09
+                }
+            );
+        }
+        "camt.060.001.05" => {
+            validate_mx_message!(
+                message_type,
+                app_hdr_content,
+                doc_content,
+                mx_config,
+                errors,
+                {
+                    header: bah_camt_060_001_05::BusinessApplicationHeaderV02,
+                    document: camt_060_001_05::AccountReportingRequestV05
+                }
+            );
+        }
+
+        // PAIN messages
+        "pain.001.001.09" => {
+            validate_mx_message!(
+                message_type,
+                app_hdr_content,
+                doc_content,
+                mx_config,
+                errors,
+                {
+                    header: bah_pain_001_001_09::BusinessApplicationHeaderV02,
+                    document: pain_001_001_09::CustomerCreditTransferInitiationV09
+                }
+            );
+        }
+        "pain.002.001.10" => {
+            validate_mx_message!(
+                message_type,
+                app_hdr_content,
+                doc_content,
+                mx_config,
+                errors,
+                {
+                    header: bah_pain_002_001_10::BusinessApplicationHeaderV02,
+                    document: pain_002_001_10::CustomerPaymentStatusReportV10
+                }
+            );
+        }
+        "pain.008.001.08" => {
+            validate_mx_message!(
+                message_type,
+                app_hdr_content,
+                doc_content,
+                mx_config,
+                errors,
+                {
+                    header: bah_pain_008_001_08::BusinessApplicationHeaderV02,
+                    document: pain_008_001_08::CustomerDirectDebitInitiationV08
+                }
+            );
+        }
+
+        _ => {
+            // For unsupported message types
+            if business_validation {
+                errors.push(ReframeError {
+                    error_type: ErrorType::Info,
+                    code: "MX_VALIDATION_LIMITED".to_string(),
+                    message: format!(
+                        "Full validation not yet implemented for message type: {message_type}"
+                    ),
+                    field: None,
+                    location: None,
+                    details: None,
+                });
+            }
+        }
+    }
+}
+
+// Helper function to extract MT parse errors
+fn extract_mt_parse_errors(parse_error: swift_mt_message::errors::ParseError) -> Vec<ReframeError> {
+    let mut errors = Vec::new();
+
+    // Check if it's a MultipleErrors variant containing individual errors
+    match parse_error {
+        swift_mt_message::errors::ParseError::MultipleErrors(individual_errors) => {
+            // Extract each individual error into separate array entries
+            for err in individual_errors {
+                errors.push(convert_mt_parse_error(&err));
+            }
+        }
+        _ => {
+            // Handle single error
+            errors.push(convert_mt_parse_error(&parse_error));
+        }
+    }
+
+    errors
+}
+
+// Helper to convert a single MT parse error to ReframeError
+fn convert_mt_parse_error(err: &swift_mt_message::errors::ParseError) -> ReframeError {
+    let (code, message, field, location) = match err {
+        swift_mt_message::errors::ParseError::FieldParsingFailed {
+            field_tag,
+            field_type,
+            position,
+            original_error,
+        } => (
+            format!("MT_{field_tag}_PARSE_ERROR"),
+            format!("Failed to parse field {field_tag} ({field_type}): {original_error}"),
+            Some(field_tag.clone()),
+            Some(format!("Line {position}")),
+        ),
+        swift_mt_message::errors::ParseError::MissingRequiredField {
+            field_tag,
+            field_name,
+            message_type,
+            ..
+        } => (
+            format!("MT_{field_tag}_MISSING"),
+            format!("Missing required field {field_tag} ({field_name}) in {message_type}"),
+            Some(field_tag.clone()),
+            None,
+        ),
+        swift_mt_message::errors::ParseError::InvalidFieldFormat(err_box) => (
+            format!("MT_{}_FORMAT_ERROR", err_box.field_tag),
+            format!(
+                "Invalid field format - Field: {}, Component: {}, Value: '{}', Expected: {}",
+                err_box.field_tag, err_box.component_name, err_box.value, err_box.format_spec
+            ),
+            Some(err_box.field_tag.clone()),
+            err_box.position.map(|p| format!("Position {p}")),
+        ),
+        swift_mt_message::errors::ParseError::ComponentParseError {
+            field_tag,
+            component_name,
+            component_index,
+            expected_format,
+            actual_value,
+        } => (
+            format!("MT_{field_tag}_COMPONENT_ERROR"),
+            format!(
+                "Component parse error in field {field_tag}: {component_name} (index {component_index}), expected: {expected_format}, got: '{actual_value}'"
+            ),
+            Some(field_tag.clone()),
+            None,
+        ),
+        swift_mt_message::errors::ParseError::InvalidBlockStructure { block, message } => (
+            format!("MT_BLOCK_{block}_ERROR"),
+            format!("Invalid block {block} structure: {message}"),
+            None,
+            None,
+        ),
+        _ => ("MT_PARSE_ERROR".to_string(), format!("{err}"), None, None),
+    };
+
+    ReframeError {
+        error_type: ErrorType::ParserError,
+        code,
+        message,
+        field,
+        location,
+        details: None,
+    }
 }

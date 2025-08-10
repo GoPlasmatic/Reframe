@@ -198,7 +198,6 @@ pub struct ValidationResponse {
 #[serde(rename_all = "snake_case")]
 pub enum ErrorType {
     // Informational
-    Warning,
     Info,
 
     // Validation errors

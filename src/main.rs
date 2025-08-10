@@ -17,6 +17,7 @@ mod publish_mt;
 mod publish_mx;
 mod sample_generator;
 mod types;
+mod validation_helpers;
 
 // Import public items from modules
 use engine::initialize_engines;

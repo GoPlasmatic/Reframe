@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:latest AS builder
+FROM rust:1.89-bookworm AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -10,11 +10,22 @@ RUN apt-get update && apt-get install -y \
 # Create app directory
 WORKDIR /app
 
-# Copy all source files
-COPY . .
+# Copy dependency files first for better caching
+COPY Cargo.toml Cargo.lock ./
 
-# Build for release
-RUN cargo build --release
+# Build dependencies only (for caching)
+RUN mkdir src && \
+    echo "fn main() {}" > src/main.rs && \
+    cargo build --release && \
+    rm -rf src
+
+# Copy source code and other files
+COPY src/ ./src/
+COPY workflows/ ./workflows/
+COPY scenarios/ ./scenarios/
+
+# Build the application
+RUN touch src/main.rs && cargo build --release
 
 # Runtime stage
 FROM debian:bookworm-slim
@@ -35,8 +46,9 @@ WORKDIR /app
 # Copy the binary from builder stage
 COPY --from=builder /app/target/release/Reframe /app/reframe
 
-# Copy workflows directory
-COPY workflows/ /app/workflows/
+# Copy workflows and scenarios directories
+COPY --from=builder /app/workflows/ /app/workflows/
+COPY --from=builder /app/scenarios/ /app/scenarios/
 
 # Change ownership to app user
 RUN chown -R appuser:appuser /app
@@ -46,6 +58,10 @@ USER appuser
 
 # Expose port
 EXPOSE 3000
+
+# Set environment variables
+ENV RUST_LOG=info
+ENV REFRAME_PORT=3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

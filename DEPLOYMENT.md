@@ -1,306 +1,382 @@
-# Automated Azure Deployment Guide
+# Deployment Guide
 
-This guide explains how to deploy the Reframe SWIFT MT to ISO 20022 converter to Azure using the fully automated GitHub Actions CI/CD pipeline.
+This guide explains how to deploy Reframe v3.0, the enterprise-grade SWIFT MT ↔ ISO 20022 transformation service.
 
-## Architecture Overview
+## Overview
 
-The deployment uses **Azure Container Instances (ACI)** as the most cost-effective solution for publicly accessible container services:
+Reframe v3.0 is distributed as a Docker container for maximum portability and ease of deployment. The service can be deployed in any environment that supports Docker.
 
-- **Azure Container Registry (ACR)**: Stores container images
-- **Azure Container Instances (ACI)**: Runs the containerized API
-- **GitHub Actions**: Fully automated CI/CD pipeline with infrastructure provisioning
-- **Cost**: ~$15-30/month for light usage
+## Architecture
 
-**Current Focus**: The system is specialized for comprehensive MT103 message processing, supporting normal, STP, rejection, and return scenarios with full CBPR+ compliance.
+- **Container-based**: Single Docker image with all dependencies
+- **Stateless**: No persistent storage required
+- **REST API**: HTTP-based interface on port 3000
+- **Hot-reload**: Workflow configurations can be updated at runtime
 
-## Prerequisites
+## Quick Start
 
-Before deploying, ensure you have:
-
-1. **Azure subscription** with appropriate permissions
-2. **GitHub repository** with the source code
-3. **Azure service principal** configured for GitHub Actions
-
-## Quick Setup
-
-### 1. Create Azure Service Principal
-
-**Option A: Using the Setup Script (Recommended)**
+### 1. Pull the Docker Image
 
 ```bash
-# Make script executable and run
-chmod +x scripts/setup-github-secrets.sh
-./scripts/setup-github-secrets.sh
+# Pull the latest version
+docker pull ghcr.io/goplasmatic/reframe:latest
+
+# Or pull a specific version
+docker pull ghcr.io/goplasmatic/reframe:v3.0.0
 ```
 
-This script will:
-- Create the Azure service principal with proper permissions
-- Automatically set GitHub secrets (if GitHub CLI is available)
-- Provide manual instructions if GitHub CLI is not installed
-
-**Option B: Manual Creation**
+### 2. Run the Container
 
 ```bash
-# Login to Azure
-az login
+# Basic run
+docker run -p 3000:3000 ghcr.io/goplasmatic/reframe:latest
 
-# Create service principal with Contributor role at subscription level
-az ad sp create-for-rbac \
-  --name "sp-reframe-cicd" \
-  --role "Contributor" \
-  --scopes "/subscriptions/{your-subscription-id}" \
-  --sdk-auth
+# Run with custom workflows directory
+docker run -p 3000:3000 \
+  -v $(pwd)/workflows:/app/workflows \
+  ghcr.io/goplasmatic/reframe:latest
+
+# Run with environment variables
+docker run -p 3000:3000 \
+  -e RUST_LOG=debug \
+  -e REFRAME_PORT=8080 \
+  ghcr.io/goplasmatic/reframe:latest
 ```
 
-Copy the entire JSON output - you'll need it for GitHub secrets.
-
-### 2. Configure GitHub Secrets (if not done by script)
-
-In your GitHub repository, go to **Settings → Secrets and variables → Actions** and add:
-
-- `AZURE_CREDENTIALS`: Paste the complete JSON output from the service principal creation
-
-That's it! The workflow will automatically handle:
-- Azure resource provider registration
-- Resource group creation
-- Azure Container Registry setup
-- Infrastructure deployment
-- Container image building and deployment
-
-### 3. Deploy
-
-Push to main branch to trigger the automated deployment:
+### 3. Verify Deployment
 
 ```bash
-git add .
-git commit -m "Initial deployment setup"
-git push origin main
-```
+# Check health endpoint
+curl http://localhost:3000/health
 
-## Automated Workflow Overview
-
-The GitHub Actions workflow (`.github/workflows/deploy-azure.yml`) provides complete automation:
-
-### 1. Test Stage
-- Rust format checking (`cargo fmt`)
-- Linting with Clippy (`cargo clippy`)
-- Unit tests (`cargo test`)
-
-### 2. Azure Infrastructure Setup
-- **Automatic detection**: Checks if infrastructure already exists
-- **Resource provider registration**: Registers required Azure providers
-- **Resource group creation**: Creates `rg-reframe-prod` in East US
-- **ACR deployment**: Sets up Azure Container Registry
-- **Credential management**: Automatically configures registry access
-
-### 3. Build & Push Stage
-- Multi-architecture Docker build
-- Automatic ACR credential retrieval
-- Push to Azure Container Registry
-- Image tagging with Git SHA
-
-### 4. Staging Deployment
-- Deploy to staging ACI instance
-- Automated API testing
-- Health check validation
-
-### 5. Production Deployment
-- Deploy to production ACI instance
-- Manual approval required (GitHub environment protection)
-- Comprehensive API testing
-- Cleanup staging resources
-
-## Environment Configuration
-
-### Staging Environment
-- **CPU**: 0.5 cores
-- **Memory**: 1 GB
-- **URL**: `reframe-api-staging-{sha}.eastus.azurecontainer.io:3000`
-- **Auto-cleanup**: After successful production deployment
-
-### Production Environment
-- **CPU**: 1 core
-- **Memory**: 2 GB
-- **URL**: `reframe-api-prod.eastus.azurecontainer.io:3000`
-- **High Availability**: Restart policy enabled
-
-## API Endpoints
-
-Once deployed, your API will be available at:
-
-### Health Check
-```bash
-GET http://{your-domain}:3000/health
-```
-
-Response:
-```json
+# Expected response:
 {
   "status": "healthy",
-  "service": "reframe-api",
-  "version": "0.1.0"
-}
-```
-
-
-### Transformation Endpoints
-
-#### Forward Transformation (MT to ISO 20022)
-```bash
-POST http://{your-domain}:3000/transform/mt-to-mx
-Content-Type: application/json
-
-{
-  "message": "{1:F01BNPAFRPPXXX0000000000}{2:O1031234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:\n:20:FT21001234567890\n:23B:CRED\n:32A:240101USD1000,00\n:50K:/1234567890\nACME CORPORATION\n:52A:BNPAFRPPXXX\n:57A:DEUTDEFFXXX\n:59:/DE89370400440532013000\nMUELLER GMBH\n:70:PAYMENT FOR INVOICE 12345\n:71A:OUR\n-}"
-}
-```
-
-#### Reverse Transformation (ISO 20022 to MT)
-```bash
-POST http://{your-domain}:3000/transform/mx-to-mt
-Content-Type: application/json
-
-{
-  "message": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pacs.008.001.10\">...</Document>"
-}
-```
-
-#### Sample Generation
-```bash
-POST http://{your-domain}:3000/generate/mt-sample
-Content-Type: application/json
-
-{
-  "message_type": "MT103",
-  "config": {
-    // JSON configuration for MT message generation
+  "version": "3.0.0",
+  "engines": {
+    "forward": "ready",
+    "reverse": "ready"
   }
 }
 ```
 
-## Workflow Features
+## Building from Source
 
-### Intelligent Infrastructure Management
-- **Idempotent setup**: Only creates resources that don't exist
-- **Automatic detection**: Skips setup if infrastructure is already deployed
-- **Force setup option**: Manual trigger to recreate infrastructure if needed
+### Prerequisites
 
-### Security Best Practices
-- **Dynamic credential retrieval**: No hardcoded secrets in workflow
-- **Masked sensitive data**: Passwords are automatically masked in logs
-- **Scoped permissions**: Service principal limited to necessary resources
+- Docker 20.10 or later
+- Git
 
-### Cost Optimization
-- **Pay-per-second billing**: Azure Container Instances
-- **Automatic cleanup**: Staging environments removed after production deployment
-- **Resource right-sizing**: Optimized CPU/memory allocation
+### Build Steps
 
-## Manual Operations
-
-### Force Infrastructure Rebuild
-If you need to recreate the Azure infrastructure:
-
-1. Go to **Actions** tab in your GitHub repository
-2. Click **Automated Azure Deployment**
-3. Click **Run workflow**
-4. Check **Force Azure infrastructure setup**
-5. Click **Run workflow**
-
-### Deploy to Staging Only
-1. Go to **Actions** tab in your GitHub repository
-2. Click **Automated Azure Deployment**
-3. Click **Run workflow**
-4. Select **staging** environment
-5. Click **Run workflow**
-
-## Monitoring and Maintenance
-
-### View Deployment Status
-- Check the **Actions** tab in your GitHub repository
-- Each deployment shows detailed logs for all stages
-- Failed deployments include error details and troubleshooting information
-
-### View Application Logs
 ```bash
-# Production logs
-az container logs --resource-group rg-reframe-prod --name reframe-api-prod
+# Clone the repository
+git clone https://github.com/GoPlasmatic/Reframe.git
+cd Reframe
 
-# Staging logs (if running)
-az container logs --resource-group rg-reframe-prod --name reframe-api-staging
+# Build the Docker image
+docker build -t reframe:local .
+
+# Run the locally built image
+docker run -p 3000:3000 reframe:local
 ```
 
-### Check Resource Status
-```bash
-# View all containers
-az container list --resource-group rg-reframe-prod --output table
+## Configuration Options
 
-# Check specific container
-az container show --resource-group rg-reframe-prod --name reframe-api-prod
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `RUST_LOG` | Logging level (debug, info, warn, error) | `info` |
+| `REFRAME_PORT` | Port to listen on | `3000` |
+
+### Volume Mounts
+
+| Path | Description |
+|------|-------------|
+| `/app/workflows` | Workflow configuration files |
+| `/app/scenarios` | Sample message generation scenarios |
+
+## Deployment Scenarios
+
+### Local Development
+
+```bash
+# Run with live workflow editing
+docker run -p 3000:3000 \
+  -v $(pwd)/workflows:/app/workflows \
+  -v $(pwd)/scenarios:/app/scenarios \
+  -e RUST_LOG=debug \
+  reframe:local
 ```
 
-## Cost Optimization
+### Docker Compose
 
-The deployment is optimized for cost:
+Create a `docker-compose.yml`:
 
-1. **Azure Container Instances**: Pay-per-second billing
-2. **Basic ACR**: Minimal registry costs
-3. **Auto-cleanup**: Staging environments are automatically removed
-4. **Resource limits**: Right-sized CPU/memory allocation
+```yaml
+version: '3.8'
 
-Estimated monthly cost: **$15-30** for light usage.
+services:
+  reframe:
+    image: ghcr.io/goplasmatic/reframe:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - RUST_LOG=info
+    volumes:
+      - ./workflows:/app/workflows
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+```
+
+Run with:
+```bash
+docker-compose up -d
+```
+
+### Kubernetes
+
+Create a deployment manifest:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reframe
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: reframe
+  template:
+    metadata:
+      labels:
+        app: reframe
+    spec:
+      containers:
+      - name: reframe
+        image: ghcr.io/goplasmatic/reframe:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: RUST_LOG
+          value: "info"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reframe
+spec:
+  selector:
+    app: reframe
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: LoadBalancer
+```
+
+Deploy with:
+```bash
+kubectl apply -f reframe-deployment.yaml
+```
+
+## Production Considerations
+
+### Resource Requirements
+
+**Minimum:**
+- CPU: 0.5 vCPU
+- Memory: 512MB
+- Storage: 100MB
+
+**Recommended:**
+- CPU: 2 vCPU
+- Memory: 2GB
+- Storage: 500MB
+
+### Scaling
+
+Reframe is stateless and can be horizontally scaled:
+
+```bash
+# Docker Swarm
+docker service create --replicas 3 --name reframe -p 3000:3000 ghcr.io/goplasmatic/reframe:latest
+
+# Kubernetes
+kubectl scale deployment reframe --replicas=5
+```
+
+### Load Balancing
+
+Place Reframe behind a load balancer for high availability:
+
+- **nginx**: Use as reverse proxy with round-robin
+- **HAProxy**: Advanced load balancing with health checks
+- **Container orchestration platforms**: Platform-specific load balancers
+
+### Monitoring
+
+Monitor the following endpoints:
+
+- `/health` - Service health and engine status
+- Container metrics - CPU, memory, network I/O
+- Application logs - Via `RUST_LOG` environment variable
+
+### Security
+
+1. **Network Security**
+   - Run behind a firewall/security group
+   - Use HTTPS termination at load balancer
+   - Restrict access to trusted IPs
+
+2. **Container Security**
+   - Run as non-root user (default in image)
+   - Use read-only root filesystem where possible
+   - Scan images for vulnerabilities
+
+3. **API Security**
+   - Implement rate limiting at proxy level
+   - Add authentication if needed (OAuth2, API keys)
+   - Monitor for suspicious patterns
+
+## Workflow Management
+
+### Hot Reload Workflows
+
+Update workflows without restarting:
+
+```bash
+# Modify workflow files
+vi workflows/forward/MT103/document-mapping.json
+
+# Reload workflows via API
+curl -X POST http://localhost:3000/admin/reload-workflows
+
+# Verify reload
+{
+  "success": true,
+  "message": "Workflows reloaded successfully in 44ms"
+}
+```
+
+### Custom Workflows
+
+Mount your custom workflows:
+
+```bash
+docker run -p 3000:3000 \
+  -v /path/to/custom/workflows:/app/workflows \
+  ghcr.io/goplasmatic/reframe:latest
+```
 
 ## Troubleshooting
 
-### Common Issues
-
-1. **Service Principal Permissions**: Ensure the service principal has Contributor role at subscription level
-2. **Resource Provider Registration**: The workflow automatically handles this, but may take 5-15 minutes on first run
-3. **Container Startup**: Check logs if containers fail to start
-4. **Network Connectivity**: Verify container group public IP configuration
-
-### Debug Commands
+### Check Container Logs
 
 ```bash
-# Check deployment status
-az deployment group list --resource-group rg-reframe-prod
+# Docker
+docker logs [container-id]
 
-# View container status
-az container show --resource-group rg-reframe-prod --name reframe-api-prod
+# Docker Compose
+docker-compose logs reframe
 
-# Check service principal permissions
-az role assignment list --assignee {service-principal-id}
+# Kubernetes
+kubectl logs deployment/reframe
 ```
 
-### Workflow Debugging
+### Common Issues
 
-1. **Check Actions logs**: Detailed logs available in GitHub Actions tab
-2. **Review failed steps**: Each step shows specific error messages
-3. **Verify secrets**: Ensure `AZURE_CREDENTIALS` is properly configured
-4. **Check Azure permissions**: Service principal needs Contributor access
+1. **Port Already in Use**
+   ```bash
+   # Use a different port
+   docker run -p 8080:3000 ghcr.io/goplasmatic/reframe:latest
+   ```
 
-## Security Considerations
+2. **Workflow Loading Errors**
+   ```bash
+   # Check workflow syntax
+   docker run --rm -v $(pwd)/workflows:/app/workflows \
+     ghcr.io/goplasmatic/reframe:latest \
+     ./reframe --validate-workflows
+   ```
 
-1. **Service Principal**: Scoped to subscription with Contributor role
-2. **Registry Access**: Credentials dynamically retrieved during deployment
-3. **Container Security**: Non-root user in container
-4. **Network**: Public IP with port 3000 only
-5. **Secrets Management**: No hardcoded credentials in workflow
+3. **Memory Issues**
+   ```bash
+   # Increase container memory
+   docker run -p 3000:3000 -m 4g ghcr.io/goplasmatic/reframe:latest
+   ```
 
-## Scaling and Production Readiness
+### Debug Mode
 
-For production workloads, consider:
+Run with debug logging:
 
-1. **Azure Container Apps**: Better autoscaling and HTTPS termination
-2. **Application Gateway**: SSL termination and WAF
-3. **Azure Monitor**: Comprehensive logging and alerting
-4. **Key Vault**: Secure secret management
-5. **Virtual Network**: Private networking
+```bash
+docker run -p 3000:3000 \
+  -e RUST_LOG=debug \
+  ghcr.io/goplasmatic/reframe:latest
+```
+
+## API Usage Examples
+
+### Transform MT to ISO 20022
+
+```bash
+curl -X POST http://localhost:3000/transform/mt-to-mx \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "{1:F01BNPAFRPPXXX0000000000}..."
+  }'
+```
+
+### Transform ISO 20022 to MT
+
+```bash
+curl -X POST http://localhost:3000/transform/mx-to-mt \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "<?xml version=\"1.0\"?>..."
+  }'
+```
+
+### Generate Sample Messages
+
+```bash
+curl -X POST http://localhost:3000/generate/sample \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message_type": "MT103",
+    "config": {
+      "scenario": "standard"
+    }
+  }'
+```
 
 ## Support
 
-For deployment issues:
+For issues and questions:
 
-1. Check GitHub Actions logs for detailed error information
-2. Review Azure resource status in the Azure portal
-3. Verify service principal permissions
-4. Consult Azure documentation for specific error codes 
+1. Check the [GitHub Issues](https://github.com/GoPlasmatic/Reframe/issues)
+2. Review application logs with `RUST_LOG=debug`
+3. Verify workflow configurations
+4. Test with provided sample messages
+
+## License
+
+Reframe is distributed under the Apache 2.0 License. See LICENSE file for details.

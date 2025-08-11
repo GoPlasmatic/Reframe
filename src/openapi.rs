@@ -1,6 +1,6 @@
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
 use utoipa::openapi::ServerBuilder;
+use utoipa_swagger_ui::SwaggerUi;
 
 use crate::types::{
     DebugInfo, EngineStatus, ErrorType, HealthResponse, ReframeError, ReloadResponse,
@@ -74,24 +74,24 @@ pub struct ApiDoc;
 impl ApiDoc {
     pub fn with_server() -> utoipa::openapi::OpenApi {
         let mut doc = Self::openapi();
-        
+
         // Get server URL from environment variable, default to localhost
-        let server_url = std::env::var("API_SERVER_URL")
-            .unwrap_or_else(|_| "http://localhost:3000".to_string());
-        
+        let server_url =
+            std::env::var("API_SERVER_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
+
         let description = if server_url.contains("localhost") {
             "Local development server"
         } else {
             "API server"
         };
-        
+
         doc.servers = Some(vec![
             ServerBuilder::new()
                 .url(server_url)
                 .description(Some(description.to_string()))
-                .build()
+                .build(),
         ]);
-        
+
         doc
     }
 }

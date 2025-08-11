@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/GoPlasmatic/Reframe/main/docs/plasmatic_logo.png" alt="Plasmatic Logo" width="200" height="200">
+  <img src="https://avatars.githubusercontent.com/u/207296579?s=200&v=4" alt="Plasmatic Logo" width="120" height="120">
   <h1>Reframe</h1>
   <p><strong>An Enterprise-Grade, Bidirectional SWIFT MT ↔ ISO 20022 Transformation Engine</strong></p>
   <p>Reframe is the world's first completely transparent, open-source platform for high-performance SWIFT message transformation.</p>

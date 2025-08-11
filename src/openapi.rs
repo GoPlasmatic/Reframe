@@ -1,5 +1,6 @@
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+use utoipa::openapi::ServerBuilder;
 
 use crate::types::{
     DebugInfo, EngineStatus, ErrorType, HealthResponse, ReframeError, ReloadResponse,
@@ -23,9 +24,6 @@ use crate::types::{
             identifier = "Apache-2.0",
             url = "https://opensource.org/license/apache-2-0"
         )
-    ),
-    servers(
-        (url = "http://localhost:3000", description = "Local development server"),
     ),
     paths(
         crate::handlers::health_check,
@@ -73,6 +71,31 @@ use crate::types::{
 )]
 pub struct ApiDoc;
 
+impl ApiDoc {
+    pub fn with_server() -> utoipa::openapi::OpenApi {
+        let mut doc = Self::openapi();
+        
+        // Get server URL from environment variable, default to localhost
+        let server_url = std::env::var("API_SERVER_URL")
+            .unwrap_or_else(|_| "http://localhost:3000".to_string());
+        
+        let description = if server_url.contains("localhost") {
+            "Local development server"
+        } else {
+            "API server"
+        };
+        
+        doc.servers = Some(vec![
+            ServerBuilder::new()
+                .url(server_url)
+                .description(Some(description.to_string()))
+                .build()
+        ]);
+        
+        doc
+    }
+}
+
 pub fn swagger_ui() -> SwaggerUi {
-    SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi())
+    SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::with_server())
 }

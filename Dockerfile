@@ -35,9 +35,6 @@ WORKDIR /app
 # Copy the binary from builder stage
 COPY --from=builder /app/target/release/Reframe /app/reframe
 
-# Copy static web UI files
-COPY static/ /app/static/
-
 # Copy workflows directory
 COPY workflows/ /app/workflows/
 

@@ -1,0 +1,84 @@
+{
+    "id": "pacs009-to-mt202-settlement-fields",
+    "name": "pacs.009 to MT202 Settlement Fields Mapping",
+    "description": "Maps settlement fields from pacs.009 to MT202 according to CBPR+ specification (Field 53) - TR003",
+    "priority": 5,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.009.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs009-to-mt202-mandatory-fields"]},
+        {"==": [{"var": "progress.task_id"}, "map_field_32a"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "check_settlement_method",
+            "name": "Check Settlement Method",
+            "description": "Check if settlement method requires Field 53 mapping (TR003)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.use_field_53",
+                            "logic": {
+                                "or": [
+                                    {"==": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"}, "INGA"]},
+                                    {"==": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"}, "INDA"]}
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_53",
+            "name": "Map Field 53 - Sender's Correspondent",
+            "description": "Map settlement information to Field 53 when INGA/INDA (TR003)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#53",
+                            "logic": {
+                                "value": { "if": [
+                                    {"var": "temp_data.use_field_53"},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"},
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"},
+                                        null
+                                    ]},
+                                    null
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_54",
+            "name": "Map Field 54 - Receiver's Correspondent",
+            "description": "Map instructed reimbursement agent to Field 54 (TR015)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#54",
+                            "logic": {
+                                "value": { "if": [
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"},
+                                    null
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

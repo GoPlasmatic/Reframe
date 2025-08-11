@@ -1,251 +1,152 @@
 {
     "id": "mt192-precondition",
     "name": "MT192 Message Precondition",
-    "description": "Precondition checks for MT192 request for cancellation message",
+    "description": "Simplified precondition checks for MT192",
     "priority": 3,
-    "condition": {
-        "and": [
-            {"==": [{"var": "SwiftMT.message_type"}, "192"]},
-            {"==": [{"var": "SwiftMT.method"}, "normal"]},
-            {"==": [{"var": "progress.workflow_id"}, "mt192-bah-mapper"]},
-            {"==": [{"var": "progress.task_id"}, "publish_header_xml"]},
-            {"==": [{"var": "progress.status_code"}, 200]}
-        ]
-    },
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "192"]},
+        {"==": [{"var": "SwiftMT.method"}, "normal"]},
+        {"==": [{"var": "progress.workflow_id"}, "mt192-bah-mapper"]},
+        {"==": [{"var": "progress.task_id"}, "publish_header_xml"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
     "tasks": [
         {
-            "id": "PREC001_validate_temp_variables",
-            "name": "PREC001: Validate Temp Variables from TR001",
-            "description": "Ensure Temp~Sender and Temp~Receiver are properly defined from BAH translation",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "temp_data",
-                            "logic": {
-                                "and": [
-                                    { "var": "temp_data.Sender" },
-                                    { "var": "temp_data.Receiver" },
-                                    { "!=": [ { "var": "temp_data.Sender" }, "NOTPROVIDED" ] },
-                                    { "!=": [ { "var": "temp_data.Receiver" }, "NOTPROVIDED" ] }
-                                ]
-                            },
-                            "message": "Translation stopped: TempSender or TempReceiver is not properly provided from TR001"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC002_validate_mandatory_field32A",
-            "name": "PREC002: Validate Mandatory Field 32A Present",
-            "description": "Ensure Field 32A is present as required by specification",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": {
-                                "and": [
-                                    { "exists": [ "data", "SwiftMT", "fields", "32A" ] },
-                                    { "exists": [ "data", "SwiftMT", "fields", "32A", "value_date" ] },
-                                    { "exists": [ "data", "SwiftMT", "fields", "32A", "currency" ] },
-                                    { "exists": [ "data", "SwiftMT", "fields", "32A", "amount" ] }
-                                ]
-                            },
-                            "message": "Translation stopped: Field 32A is mandatory for MT192 (T20088)"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC003_validate_mandatory_fields",
-            "name": "PREC003: Validate Mandatory MT192 Fields",
-            "description": "Ensure mandatory fields for MT192 are present including TR002 temp variables",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": {
-                                "and": [
-                                    { "exists": [ "data", "SwiftMT", "fields", "20", "value" ] },
-                                    { "exists": [ "data", "SwiftMT", "fields", "21", "value" ] },
-                                    { "!=": [ { "var": "data.SwiftMT.fields.20.value" }, "" ] },
-                                    { "!=": [ { "var": "data.SwiftMT.fields.21.value" }, "" ] }
-                                ]
-                            },
-                            "message": "Translation stopped: Mandatory MT192 fields (20, 21) are missing or invalid"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC001_validate_uetr_or_field79",
-            "name": "PREC001: Validate UETR Present or Extract from Field 79",
-            "description": "Ensure UETR is present in Block3 or can be extracted from Field 79 with /UETR/ pattern",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": {
-                                "or": [
-                                    { "exists": ["data", "SwiftMT", "user_header", "unique_end_to_end_reference"] },
-                                    {
-                                        "and": [
-                                            { "var": "data.SwiftMT.fields.79.narrative" },
-                                            { "matches": [{ "var": "data.SwiftMT.fields.79.narrative" }, "/UETR/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}"] }
-                                        ]
-                                    }
-                                ]
-                            },
-                            "message": "Translation stopped: UETR is required either in Block3 or Field 79 with valid /UETR/ pattern (T20087)"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC001_extract_uetr_from_field79",
-            "name": "PREC001: Extract UETR from Field 79 if Block3 Absent",
-            "description": "Extract UETR from Field 79 if not present in Block3 EndToEndReference",
+            "id": "extract_mt_type_from_field_11s",
+            "name": "Extract MT Type from Field 11S",
+            "description": "Extract original MT type from field 11S and convert to MX equivalent",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.extracted_uetr",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
-                                    { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
-                                    {
-                                        "if": [
-                                            {
-                                                "and": [
-                                                    { "var": "data.SwiftMT.fields.79.narrative" },
-                                                    { "matches": [{ "var": "data.SwiftMT.fields.79.narrative" }, "/UETR/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}"] }
-                                                ]
-                                            },
-                                            {
-                                                "substr": [
-                                                    { "var": "data.SwiftMT.fields.79.narrative" },
-                                                    { "+": [{ "indexOf": [{ "var": "data.SwiftMT.fields.79.narrative" }, "/UETR/"] }, 6] },
-                                                    36
-                                                ]
-                                            },
-                                            ""
-                                        ]
-                                    }
-                                ]
-                            }
+                            "path": "temp_data.original_mt_type",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.11S.message_type"},
+                                {"var": "data.SwiftMT.fields.11S.message_type"},
+                                "103"
+                            ]}
                         }
                     ]
                 }
             }
         },
         {
-            "id": "PREC004_validate_mt_type_and_set_target",
-            "name": "PREC004: Validate MT Type and Set Target Message",
-            "description": "Validate 11S MT type is 10n or 20n range and set target as camt.056",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": {
-                                "if": [
-                                    { "or": [
-                                        { "==": [{ "var": "data.SwiftMT.message_type" }, "192"] },
-                                        { "==": [{ "var": "data.SwiftMT.message_type" }, "292"] }
-                                    ]},
-                                    {
-                                        "if": [
-                                            { "var": "data.SwiftMT.fields.11S.message_type" },
-                                            {
-                                                "or": [
-                                                    { "matches": [{ "var": "data.SwiftMT.fields.11S.message_type" }, "^10[0-9]$"] },
-                                                    { "matches": [{ "var": "data.SwiftMT.fields.11S.message_type" }, "^20[0-9]$"] }
-                                                ]
-                                            },
-                                            true
-                                        ]
-                                    },
-                                    true
-                                ]
-                            },
-                            "message": "Translation stopped: MT 192/292 field 11S must contain MT type in range 10n or 20n (T20278)"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC004_set_cancellation_type",
-            "name": "PREC004: Set Cancellation Request Type",
-            "description": "Set cancellation request type for MT192 and implement TR003 message type mapping",
+            "id": "convert_mt_type_to_mx",
+            "name": "Convert MT Type to MX",
+            "description": "Convert MT type to corresponding MX message type according to TR003",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
-                        {
-                            "path": "temp_data.cancellation_type",
-                            "logic": "FULL"
-                        },
-                        {
-                            "path": "temp_data.request_status",
-                            "logic": "CANC"
-                        },
                         {
                             "path": "temp_data.original_mx_type",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.11S.message_type" },
-                                    {
-                                        "if": [
-                                            { "==": [{ "var": "data.SwiftMT.fields.11S.message_type" }, "103"] },
-                                            "pacs.008.001.08",
-                                            {
-                                                "if": [
-                                                    { "==": [{ "var": "data.SwiftMT.fields.11S.message_type" }, "104"] },
-                                                    "pacs.003.001.08",
-                                                    {
-                                                        "if": [
-                                                            { "or": [
-                                                                { "==": [{ "var": "data.SwiftMT.fields.11S.message_type" }, "202"] },
-                                                                { "==": [{ "var": "data.SwiftMT.fields.11S.message_type" }, "205"] }
-                                                            ]},
-                                                            "pacs.009.001.08",
-                                                            {
-                                                                "if": [
-                                                                    { "==": [{ "var": "data.SwiftMT.fields.11S.message_type" }, "204"] },
-                                                                    "pacs.010.001.03",
-                                                                    {
-                                                                        "cat": ["MT", { "var": "data.SwiftMT.fields.11S.message_type" }]
-                                                                    }
-                                                                ]
-                                                            }
-                                                        ]
-                                                    }
-                                                ]
-                                            }
-                                        ]
-                                    },
-                                    "pacs.008.001.08"
-                                ]
-                            }
+                            "logic": { "if": [
+                                {"==": [{"var": "temp_data.original_mt_type"}, "103"]},
+                                "pacs.008",
+                                { "if": [
+                                    {"==": [{"var": "temp_data.original_mt_type"}, "104"]},
+                                    "pacs.003",
+                                    { "if": [
+                                        {"==": [{"var": "temp_data.original_mt_type"}, "202"]},
+                                        "pacs.009",
+                                        { "if": [
+                                            {"==": [{"var": "temp_data.original_mt_type"}, "205"]},
+                                            "pacs.009",
+                                            { "if": [
+                                                {"==": [{"var": "temp_data.original_mt_type"}, "204"]},
+                                                "pacs.010",
+                                                {"cat": ["MT", {"var": "temp_data.original_mt_type"}]}
+                                            ]}
+                                        ]}
+                                    ]}
+                                ]}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "extract_uetr_and_field_79",
+            "name": "Extract UETR and Process Field 79",
+            "description": "Extract UETR from user header or field 79, and process cancellation reason",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field_79_narrative",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.79.information"},
+                                {"var": "data.SwiftMT.fields.79.information"},
+                                []
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field_79_concat",
+                            "logic": { "if": [
+                                {"var": "temp_data.field_79_narrative"},
+                                {
+                                    "reduce": [
+                                        {"var": "temp_data.field_79_narrative"},
+                                        {"cat": [{"var": "accumulator"}, " ", {"var": "current"}]},
+                                        ""
+                                    ]
+                                },
+                                ""
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.has_uetr_in_field_79",
+                            "logic": { "if": [
+                                {"var": "temp_data.field_79_concat"},
+                                {
+                                    "and": [
+                                        {">": [{"length": {"var": "temp_data.field_79_concat"}}, 0]},
+                                        {"in": ["/UETR/", {"var": "temp_data.field_79_concat"}]}
+                                    ]
+                                },
+                                false
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "set_basic_values",
+            "name": "Set Basic Values",
+            "description": "Set basic temp data values including UETR and cancellation info",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {"path": "temp_data.cancellation_type", "logic": "FULL"},
+                        {"path": "temp_data.request_status", "logic": "CANC"},
+                        {
+                            "path": "temp_data.extracted_uetr",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                {"if": [{"var": "temp_data.has_uetr_in_field_79"}, "EXTRACTED_FROM_FIELD_79", ""]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.cancellation_reason",
+                            "logic": {"if": [{"var": "data.SwiftMT.fields.79"}, "NARR", "NARR"]}
+                        },
+                        {
+                            "path": "temp_data.cancellation_additional_info",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.79"},
+                                {"var": "temp_data.field_79_narrative"},
+                                ["NOTPROVIDED"]
+                            ]}
                         }
                     ]
                 }
             }
         }
     ]
-} 
+}

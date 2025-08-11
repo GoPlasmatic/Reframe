@@ -1,8 +1,9 @@
-# 📋 Message Formats
+# 📋 Message Formats: A Guide to SWIFT MT and ISO 20022 Transformations
 
-Complete reference guide for all supported SWIFT MT and ISO 20022 message formats in Reframe.
+Welcome! This document provides a comprehensive guide to the SWIFT MT and ISO 20022 message formats supported by Reframe. Here, you'll find everything you need to understand how Reframe handles message transformations, covering payments, cancellations, investigations, and more.
 
 ## Table of Contents
+
 - [Overview](#overview)
 - [Forward Transformations](#forward-transformations)
 - [Reverse Transformations](#reverse-transformations)
@@ -15,18 +16,28 @@ Complete reference guide for all supported SWIFT MT and ISO 20022 message format
 
 ## Overview
 
-Reframe supports comprehensive bidirectional transformation between SWIFT MT and ISO 20022 message formats, covering the complete lifecycle of financial messaging including payments, cancellations, investigations, cash management, and cheque processing.
+Reframe excels at transforming messages between SWIFT MT and ISO 20022 formats. We handle the entire lifecycle of financial messaging, including:
 
-### Supported Message Families
+- Payments
+- Cancellations
+- Investigations
+- Cash Management
+- Cheque Processing
 
-- **Payment Messages**: Customer and financial institution credit transfers
-- **Cancellation Messages**: Request and response for cancellation
-- **Investigation Messages**: Query and response messages
-- **Cash Management**: Account notifications and statements
-- **Cheque Processing**: Presentment, cancellation, and status messages
-- **Status Reporting**: Payment status and rejection notifications
+In essence, Reframe ensures smooth, bidirectional transformations, so you don't have to worry about the complexities.
 
-### Coverage Statistics
+### What Message Families Do We Support?
+
+- **Payment Messages**: Think customer and financial institution credit transfers.
+- **Cancellation Messages**: Handling requests and responses for cancellations.
+- **Investigation Messages**: Managing queries and responses related to investigations.
+- **Cash Management**: Keeping track of account notifications and statements.
+- **Cheque Processing**: Covering presentment, cancellation, and status updates.
+- **Status Reporting**: Providing payment status and rejection notifications.
+
+### Quick Stats
+
+Here’s a snapshot of our message coverage:
 
 | Category | MT Messages | ISO 20022 Schemas | Total Variants |
 |----------|-------------|-------------------|----------------|
@@ -40,6 +51,8 @@ Reframe supports comprehensive bidirectional transformation between SWIFT MT and
 ---
 
 ## Forward Transformations
+
+Let's dive into how Reframe transforms messages from SWIFT MT to ISO 20022.
 
 ### Payment Messages
 
@@ -201,6 +214,8 @@ Response to cheque stop payment request.
 ---
 
 ## Reverse Transformations
+
+Now, let's explore how Reframe transforms messages from ISO 20022 back to SWIFT MT.
 
 ### Payment Messages
 

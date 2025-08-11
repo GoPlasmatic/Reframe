@@ -1,8 +1,9 @@
-# 📊 Workflow Guide
+# ⚙️ Workflow Guide: Configuring Message Transformations in Reframe
 
-Comprehensive guide to creating and configuring transformation workflows in Reframe.
+Welcome! This guide will walk you through creating and configuring transformation workflows in Reframe. Think of workflows as recipes that tell Reframe how to convert messages between different formats.
 
 ## Table of Contents
+
 - [Overview](#overview)
 - [Workflow Architecture](#workflow-architecture)
 - [Workflow Structure](#workflow-structure)
@@ -14,16 +15,16 @@ Comprehensive guide to creating and configuring transformation workflows in Refr
 
 ## Overview
 
-Reframe's workflow system is built on **[dataflow-rs](https://github.com/GoPlasmatic/dataflow-rs)**, a powerful Rust-based workflow engine for data processing pipelines. All transformation logic is externalized in JSON files using **[datalogic-rs](https://github.com/GoPlasmatic/datalogic-rs)** for conditional logic, making the system completely auditable and customizable.
+Reframe's workflow system is powered by **[dataflow-rs](https://github.com/GoPlasmatic/dataflow-rs)**, a robust Rust-based engine for building data processing pipelines. The cool part? All the transformation logic lives in easy-to-read JSON files, using **[datalogic-rs](https://github.com/GoPlasmatic/datalogic-rs)** for conditional logic. This makes everything auditable and super customizable!
 
 ### Key Features
 
-- **🔍 Complete Transparency**: All transformation logic visible in JSON workflow files
-- **🔧 Runtime Configuration**: Modify workflows without recompilation
-- **📊 Bidirectional Support**: Separate workflow engines for each direction
-- **🎯 Message-Specific**: Dedicated workflows for each message type
-- **🔗 Priority-Based Execution**: Sequential workflow processing based on priority
-- **✅ JSON Logic Integration**: Complex conditional logic via [datalogic-rs](https://github.com/GoPlasmatic/datalogic-rs)
+- **🔍 Complete Transparency**: Transformation logic is right there in JSON files.
+- **🔧 Runtime Configuration**: Tweak workflows without needing to recompile.
+- **📊 Bidirectional Support**: Separate engines for converting messages in both directions.
+- **🎯 Message-Specific**: Workflows tailored for each message type.
+- **🔗 Priority-Based Execution**: Workflows run in a specific order based on priority.
+- **✅ JSON Logic Integration**: Use [datalogic-rs](https://github.com/GoPlasmatic/datalogic-rs) for complex conditional logic.
 
 ### Technology Stack
 
@@ -36,6 +37,7 @@ Reframe's workflow system is built on **[dataflow-rs](https://github.com/GoPlasm
 
 ### Directory Structure
 
+Here's how the workflow files are organized:
 ```
 workflows/
 ├── forward/                    # MT → ISO 20022 transformations
@@ -443,5 +445,3 @@ CBPR+ settlement method determination:
 - **[datalogic-rs](https://github.com/GoPlasmatic/datalogic-rs)** - JSON Logic implementation for conditional logic and transformations
 
 ---
-
-*Last updated: January 2024*

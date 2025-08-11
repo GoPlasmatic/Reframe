@@ -1,0 +1,176 @@
+{
+    "id": "pacs004-mandatory-fields-mapping",
+    "name": "PACS.004 to MT RETN Mandatory Fields Mapping",
+    "description": "Maps mandatory fields for MT RETN messages",
+    "priority": 4,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs004-headers-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "set_message_type"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_field_20",
+            "name": "Map Field 20 - Sender's Reference (TR001)",
+            "description": "Map message identification to field 20 with truncation handling",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#20",
+                            "logic": {
+                                "value": { "if": [
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"},
+                                    { "if": [
+                                        {"in": ["/", {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}]},
+                                        "NOTPROVIDED",
+                                        { "if": [
+                                            {">": [{"length": {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}}, 16]},
+                                            {"cat": [{"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}, 0, 15]}, "+"]},
+                                            {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}
+                                        ]}
+                                    ]},
+                                    "NOTPROVIDED"
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_21",
+            "name": "Map Field 21 - Related Reference (TR006)",
+            "description": "Map original end-to-end identification to field 21 for MT202/205",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#21",
+                            "logic": {
+                                "value": { "if": [
+                                    {
+                                        "and": [
+                                            { "or": [
+                                                {
+                                                    "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.009"]
+                                                },
+                                                {
+                                                    "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT202"]
+                                                },
+                                                {
+                                                    "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT205"]
+                                                },
+                                                { "and": [
+                                                    {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
+                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
+                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
+                                                ]}
+                                            ]},
+                                            {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"}
+                                        ]
+                                    },
+                                    { "if": [
+                                        {"in": ["/", {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"}]},
+                                        "NOTPROVIDED",
+                                        { "if": [
+                                            {">": [{"length": {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"}}, 16]},
+                                            {
+                                                "cat": [
+                                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"}, 0, 15]},
+                                                    "+"
+                                                ]
+                                            },
+                                            {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"}
+                                        ]}
+                                    ]},
+                                    null
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_23b",
+            "name": "Map Field 23B - Bank Operation Code",
+            "description": "Map bank operation code RETN for MT103 RETN",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#23B",
+                            "logic": {
+                                "value": { "if": [
+                                    { "or": [
+                                        {
+                                            "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]
+                                        },
+                                        {
+                                            "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]
+                                        },
+                                        {
+                                            "and": [
+                                                {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
+                                                {
+                                                    "!": [
+                                                        {
+                                                            "and": [
+                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
+                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]},
+                                    "RETN",
+                                    null
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_32a",
+            "name": "Map Field 32A - Value Date/Currency/Amount (TR004)",
+            "description": "Map interbank settlement date and returned amount",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#32A",
+                            "logic": {
+                                "value_date": { "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.IntrBkSttlmDt"},
+                                    {"var": "data.ISO20022_MX.document.TxInf.IntrBkSttlmDt"},
+                                    "NOTPROVIDED"
+                                ]},
+                                "currency": { "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.@Ccy"},
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.@Ccy"},
+                                    "USD"
+                                ]},
+                                "amount": { "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.$value"},
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.$value"},
+                                    0.0
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

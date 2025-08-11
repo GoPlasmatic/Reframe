@@ -1,8 +1,9 @@
-# 🏗️ Technical Architecture
+# 🏗️ Reframe: Technical Architecture Overview
 
-Comprehensive guide to Reframe's technical architecture and design decisions.
+This document provides a high-level overview of Reframe's technical architecture, design principles, and core components. It's designed to give you a solid understanding of how Reframe works under the hood.
 
 ## Table of Contents
+
 - [Overview](#overview)
 - [System Architecture](#system-architecture)
 - [Core Components](#core-components)
@@ -16,22 +17,24 @@ Comprehensive guide to Reframe's technical architecture and design decisions.
 
 ## Overview
 
-Reframe is architected as a high-performance, transparent, and scalable bidirectional message transformation engine. The system is built on modern principles of transparency, configurability, and enterprise-grade reliability.
+Reframe is built to be a **high-performance**, **transparent**, and **scalable** message transformation engine. We've focused on creating a system that's easy to configure, reliable, and adaptable to the demands of modern financial institutions.
 
-### Design Principles
+### Core Design Principles
 
-- **🔍 Complete Transparency**: No black-box processing - all logic externalized
-- **⚡ High Performance**: Rust-powered engine optimized for low latency
-- **🔧 Pluggable Architecture**: Modular components for easy customization
-- **📊 Workflow-Driven**: JSON-based configuration for complete flexibility
-- **🔄 Bidirectional Design**: Specialized engines for each transformation direction
-- **🏢 Enterprise-Ready**: Production-grade error handling and monitoring
+*   **🔍 Complete Transparency**: No "black boxes" here! All transformation logic is externalized and auditable.
+*   **⚡ High Performance**: Powered by Rust for lightning-fast processing and low latency.
+*   **🔧 Pluggable Architecture**: Modular design allows for easy customization and extension.
+*   **📊 Workflow-Driven**: JSON-based configuration provides complete control and flexibility.
+*   **🔄 Bidirectional Design**: Specialized engines handle both forward (MT to MX) and reverse (MX to MT) transformations.
+*   **🏢 Enterprise-Ready**: Robust error handling, monitoring, and observability features.
 
 ---
 
 ## System Architecture
 
 ### High-Level Architecture
+
+Here's a diagram showing the main components of Reframe:
 
 ```mermaid
 graph TB
@@ -40,17 +43,17 @@ graph TB
         API[REST API Clients]
         CLI[CLI Tools]
     end
-    
+
     subgraph "API Gateway"
         HTTP[HTTP Server<br/>Axum Framework]
     end
-    
+
     subgraph "Processing Layer"
         ROUTER[Message Router]
         FWD[Forward Engine<br/>MT → ISO 20022]
         REV[Reverse Engine<br/>ISO 20022 → MT]
     end
-    
+
     subgraph "Data Processing"
         PARSE_MT[MT Parser]
         PARSE_MX[MX Parser]
@@ -58,38 +61,38 @@ graph TB
         PUB_MT[MT Publisher]
         PUB_MX[MX Publisher]
     end
-    
+
     subgraph "Configuration"
         WF_CONFIG[Workflow Configs<br/>JSON Files]
         MAP_CONFIG[Mapping Rules<br/>JSON Files]
     end
-    
+
     subgraph "Observability"
         LOGS[Structured Logging]
         METRICS[Health Metrics]
         TRACE[Request Tracing]
     end
-    
+
     WEB --> HTTP
     API --> HTTP
     CLI --> HTTP
-    
+
     HTTP --> ROUTER
-    
+
     ROUTER --> FWD
     ROUTER --> REV
-    
+
     FWD --> PARSE_MT
     FWD --> WF_ENGINE
     FWD --> PUB_MX
-    
+
     REV --> PARSE_MX
     REV --> WF_ENGINE
     REV --> PUB_MT
-    
+
     WF_ENGINE --> WF_CONFIG
     WF_ENGINE --> MAP_CONFIG
-    
+
     FWD --> LOGS
     REV --> LOGS
     HTTP --> METRICS

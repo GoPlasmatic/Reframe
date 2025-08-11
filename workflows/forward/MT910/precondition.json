@@ -3,15 +3,13 @@
     "name": "MT910 Message Precondition",
     "description": "Precondition checks for MT910 confirmation of credit message",
     "priority": 3,
-    "condition": {
-        "and": [
-            {"==": [{"var": "SwiftMT.message_type"}, "910"]},
-            {"==": [{"var": "SwiftMT.method"}, "normal"]},
-            {"==": [{"var": "progress.workflow_id"}, "mt910-bah-mapper"]},
-            {"==": [{"var": "progress.task_id"}, "publish_header_xml"]},
-            {"==": [{"var": "progress.status_code"}, 200]}
-        ]
-    },
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "910"]},
+        {"==": [{"var": "SwiftMT.method"}, "normal"]},
+        {"==": [{"var": "progress.workflow_id"}, "mt910-bah-mapper"]},
+        {"==": [{"var": "progress.task_id"}, "publish_header_xml"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
     "tasks": [
         {
             "id": "PREC001_validate_temp_variables",
@@ -23,14 +21,12 @@
                     "rules": [
                         {
                             "path": "temp_data",
-                            "logic": {
-                                "and": [
-                                    { "exists": [ "temp_data", "Sender" ] },
-                                    { "exists": [ "temp_data", "Receiver" ] },
-                                    { "!=": [ { "var": "temp_data.Sender" }, "NOTPROVIDED" ] },
-                                    { "!=": [ { "var": "temp_data.Receiver" }, "NOTPROVIDED" ] }
-                                ]
-                            },
+                            "logic": { "and": [
+                                {"var": "temp_data.Sender"},
+                                {"var": "temp_data.Receiver"},
+                                {"!=": [{"var": "temp_data.Sender"}, "NOTPROVIDED"]},
+                                {"!=": [{"var": "temp_data.Receiver"}, "NOTPROVIDED"]}
+                            ]},
                             "message": "Translation stopped: TempSender or TempReceiver is not properly provided from TR001"
                         }
                     ]
@@ -47,14 +43,12 @@
                     "rules": [
                         {
                             "path": "data",
-                            "logic": {
-                                "and": [
-                                    { "exists": [ "data", "SwiftMT", "fields", "20", "value" ] },
-                                    { "exists": [ "data", "SwiftMT", "fields", "32A" ] },
-                                    { "!=": [ { "var": "data.SwiftMT.fields.20.value" }, "" ] },
-                                    { "!=": [ { "var": "data.SwiftMT.fields.32A.amount" }, null ] }
-                                ]
-                            },
+                            "logic": { "and": [
+                                {"var": "data.SwiftMT.fields.20.reference"},
+                                {"var": "data.SwiftMT.fields.32A"},
+                                {"!=": [{"var": "data.SwiftMT.fields.20.reference"}, ""]},
+                                {"!=": [{"var": "data.SwiftMT.fields.32A.amount"}, null]}
+                            ]},
                             "message": "Translation stopped: Mandatory MT910 fields (20, 32A) are missing or invalid"
                         }
                     ]
@@ -69,37 +63,20 @@
                 "name": "map",
                 "input": {
                     "mappings": [
-                        {
-                            "path": "temp_data.notification_type",
-                            "logic": "CRDT"
-                        },
-                        {
-                            "path": "temp_data.entry_status",
-                            "logic": "BOOK"
-                        },
+                        {"path": "temp_data.notification_type", "logic": "CRDT"},
+                        {"path": "temp_data.entry_status", "logic": "BOOK"},
                         {
                             "path": "temp_data.account_currency",
-                            "logic": {
-                                "if": [
-                                    { "var": "data.SwiftMT.fields.32A.currency" },
-                                    { "var": "data.SwiftMT.fields.32A.currency" },
-                                    "USD"
-                                ]
-                            }
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.32A.currency"},
+                                {"var": "data.SwiftMT.fields.32A.currency"},
+                                "USD"
+                            ]}
                         },
-                        {
-                            "path": "temp_data.warning_issued",
-                            "logic": {
-                                "if": [
-                                    { "!": { "var": "data.SwiftMT.fields.32A.currency" } },
-                                    "T20200",
-                                    null
-                                ]
-                            }
-                        }
+                        {"path": "temp_data.warning_issued", "logic": "T20200"}
                     ]
                 }
             }
         }
     ]
-} 
+}

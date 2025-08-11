@@ -1,0 +1,87 @@
+{
+    "id": "pacs009-to-mt202-headers",
+    "name": "pacs.009 to MT202 Headers Construction",
+    "description": "Constructs SWIFT MT202 basic and application headers from pacs.009 BAH information",
+    "priority": 3,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.009.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs009-to-mt202-preconditions"]},
+        {"==": [{"var": "progress.task_id"}, "validate_basic_requirements"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "extract_temp_variables",
+            "name": "Extract Temporary Variables",
+            "description": "Extract sender and receiver BIC codes from header for use in translation rules",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.Sender",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.Receiver",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "construct_swift_headers",
+            "name": "Construct SWIFT Headers",
+            "description": "Build SWIFT MT202 basic and application headers using sender and receiver BICs",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.message_type",
+                            "logic": "202"
+                        },
+                        {
+                            "path": "data.SwiftMT.sender",
+                            "logic": {"var": "temp_data.Sender"}
+                        },
+                        {
+                            "path": "data.SwiftMT.receiver",
+                            "logic": {"var": "temp_data.Receiver"}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_user_header",
+            "name": "Map User Header",
+            "description": "Map Block 3 user header fields (UETR)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.uetr",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.UETR"},
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.UETR"},
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

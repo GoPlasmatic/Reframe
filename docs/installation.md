@@ -1,8 +1,9 @@
 # 🔧 Installation Guide
 
-Complete setup instructions for Reframe across all environments.
+Get Reframe up and running quickly with these comprehensive installation instructions.
 
 ## Table of Contents
+
 - [Quick Start](#quick-start)
 - [Docker Installation](#docker-installation)
 - [From Source](#from-source)
@@ -14,19 +15,23 @@ Complete setup instructions for Reframe across all environments.
 
 ## Quick Start
 
+Ready to dive in? Here's the quickest way to get Reframe working:
+
 ### 🐳 Docker (Recommended)
 
-The fastest way to get Reframe running:
+Docker provides the easiest and fastest setup:
 
 ```bash
-# Pull and run the latest version
+# Pull and run the latest Reframe image
 docker run -p 3000:3000 plasmatic/reframe:latest
 
-# Access the application
+# Open Reframe in your browser
 open http://localhost:3000
 ```
 
 ### 🔍 Verify Installation
+
+To ensure Reframe is working correctly, run these commands:
 
 ```bash
 # Check health status
@@ -43,17 +48,22 @@ curl -X POST http://localhost:3000/transform/mt-to-mx \
 ## Docker Installation
 
 ### Prerequisites
+
+Before installing, ensure your system meets these requirements:
+
 - Docker 20.10+ or Docker Desktop
 - 2GB available RAM
 - 1GB available disk space
 
 ### Standard Installation
 
+For most users, this is the recommended installation method:
+
 ```bash
-# Create a dedicated directory
+# Create a dedicated directory for Reframe
 mkdir ~/reframe && cd ~/reframe
 
-# Download and run
+# Download and run the latest Reframe container
 docker run -d \
   --name reframe \
   -p 3000:3000 \
@@ -63,8 +73,10 @@ docker run -d \
 
 ### Development Installation
 
+If you're developing custom workflows, use this setup:
+
 ```bash
-# Run with custom workflows directory
+# Run Reframe with your local workflows and logs directories
 docker run -d \
   --name reframe-dev \
   -p 3000:3000 \
@@ -75,7 +87,7 @@ docker run -d \
 
 ### Docker Compose
 
-Create `docker-compose.yml`:
+For easier management of your Docker containers, use Docker Compose. First, create a `docker-compose.yml` file:
 
 ```yaml
 version: '3.8'
@@ -100,14 +112,16 @@ services:
       start_period: 40s
 ```
 
+Then, use these commands to manage your Reframe services:
+
 ```bash
-# Start services
+# Start all services defined in docker-compose.yml
 docker-compose up -d
 
-# View logs
+# View real-time logs for the Reframe service
 docker-compose logs -f reframe
 
-# Stop services
+# Stop and remove all services
 docker-compose down
 ```
 
@@ -117,12 +131,16 @@ docker-compose down
 
 ### Prerequisites
 
+For those who want to build Reframe from source, ensure you have the following installed:
+
 - **Rust**: 1.70 or later
 - **Cargo**: Latest version
 - **Node.js**: 18+ (for web UI development)
 - **Git**: For cloning the repository
 
 ### Installation Steps
+
+Follow these steps to install Reframe from source:
 
 1. **Install Rust**:
    ```bash
@@ -137,15 +155,17 @@ docker-compose down
    ```
 
 3. **Build Application**:
+   Choose between a debug or release build:
    ```bash
-   # Debug build (faster compilation)
+   # Debug build (faster compilation, for development)
    cargo build
 
-   # Release build (optimized performance)
+   # Release build (optimized for performance)
    cargo build --release
    ```
 
 4. **Run Application**:
+   Start Reframe in your preferred mode:
    ```bash
    # Debug mode
    cargo run
@@ -156,19 +176,19 @@ docker-compose down
 
 ### Web UI Development
 
-For web UI development:
+To contribute to or develop the web UI, follow these steps:
 
 ```bash
-# Navigate to web UI directory
+# Navigate to the web UI directory
 cd web-ui
 
-# Install dependencies
+# Install necessary Node.js dependencies
 npm install
 
-# Start development server
+# Start the development server with hot reloading
 npm run dev
 
-# Build for production
+# Build the web UI for production deployment
 npm run build
 ```
 
@@ -177,6 +197,8 @@ npm run build
 ## Production Deployment
 
 ### System Requirements
+
+For optimal performance in a production environment, ensure your system meets these requirements:
 
 | Component | Minimum | Recommended |
 |-----------|---------|-------------|
@@ -187,17 +209,19 @@ npm run build
 
 ### Environment Variables
 
+Configure these environment variables for your production setup:
+
 ```bash
-# Logging level
+# Set the logging level (default: info)
 export RUST_LOG=info
 
-# Custom port (default: 3000)
+# Change the default port (default: 3000)
 export PORT=8080
 
-# Custom workflows directory
+# Specify a custom directory for workflows
 export WORKFLOWS_DIR=/opt/reframe/workflows
 
-# Log file location
+# Define the log file location
 export LOG_FILE=/var/log/reframe/application.log
 ```
 
@@ -205,7 +229,7 @@ export LOG_FILE=/var/log/reframe/application.log
 
 ### Workflow Configuration
 
-Reframe uses JSON-based workflow definitions:
+Reframe uses JSON-based workflow definitions. Here's the default directory structure:
 
 ```bash
 # Default workflow locations
@@ -220,6 +244,8 @@ workflows/
 ```
 
 ### Logging Configuration
+
+Reframe offers flexible logging configurations:
 
 ```bash
 # Available log levels
@@ -249,7 +275,7 @@ export RUST_LOG=info,reframe::parse_mt=debug,dataflow_rs=trace
 
 ## Next Steps
 
-After installation, explore:
+After installation, explore these resources to get the most out of Reframe:
 
 1. **[Workflow Guide](workflow-guide.md)** - Learn how to create custom transformation workflows
 2. **[Mapping Guide](mapping-guide.md)** - Configure field mappings and business rules
@@ -257,5 +283,3 @@ After installation, explore:
 4. **[Message Formats](message-formats.md)** - Complete list of supported message types
 
 ---
-
-*Last updated: January 2024*

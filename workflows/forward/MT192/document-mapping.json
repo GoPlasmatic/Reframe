@@ -3,124 +3,33 @@
     "name": "MT192 to camt.056 Document Mapping for CBPR+",
     "description": "Maps MT192 message to ISO 20022 camt.056.001.08 FIToFIPaymentCancellationRequestV08 document structure",
     "priority": 4,
-    "condition": {
-        "and": [
-            {"==": [{"var": "SwiftMT.message_type"}, "192"]},
-            {"==": [{"var": "SwiftMT.method"}, "normal"]},
-            {"==": [{"var": "progress.workflow_id"}, "mt192-precondition"]},
-            {"==": [{"var": "progress.task_id"}, "PREC004_set_cancellation_type"]},
-            {"==": [{"var": "progress.status_code"}, 200]}
-        ]
-    },
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "192"]},
+        {"==": [{"var": "SwiftMT.method"}, "normal"]},
+        {"==": [{"var": "progress.workflow_id"}, "mt192-precondition"]},
+        {"==": [{"var": "progress.task_id"}, "set_basic_values"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
     "tasks": [
         {
-            "id": "construct_cancellation_request_structure",
-            "name": "Construct Payment Cancellation Request Structure",
-            "description": "Builds complete camt.056 structure including assignment, group header, and core cancellation request information using structural output",
+            "id": "construct_assignment_structure",
+            "name": "Construct Assignment Structure",
+            "description": "Builds the Assignment section with identifier, assigner, assignee, and creation date time",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.Document.FIToFIPmtCxlReq",
+                            "path": "data.Document.FIToFIPmtCxlReq.Assgnmt",
                             "logic": {
-                                "Assgnmt": {
-                                    "Id": { "var": "data.SwiftMT.fields.20.value" },
-                                    "Assgnr": {
-                                        "Agt": {
-                                            "FinInstnId": {
-                                                "BICFI": { "var": "temp_data.Sender" }
-                                            }
-                                        }
-                                    },
-                                    "Assgne": {
-                                        "Agt": {
-                                            "FinInstnId": {
-                                                "BICFI": { "var": "temp_data.Receiver" }
-                                            }
-                                        }
-                                    },
-                                    "CreDtTm": {
-                                        "if": [
-                                            { "var": "data.SwiftMT.fields.13C.time" },
-                                            {
-                                                "cat": [
-                                                    {
-                                                        "if": [
-                                                            { "var": "data.SwiftMT.fields.32A.value_date" },
-                                                            { "var": "data.SwiftMT.fields.32A.value_date" },
-                                                            { "substr": [{ "var": "data.SwiftMT.fields.13C.time" }, 0, 6] }
-                                                        ]
-                                                    },
-                                                    "T",
-                                                    {
-                                                        "if": [
-                                                            { "var": "data.SwiftMT.fields.13C.time" },
-                                                            {
-                                                                "cat": [
-                                                                    { "substr": [{ "var": "data.SwiftMT.fields.13C.time" }, 6, 2] },
-                                                                    ":",
-                                                                    { "substr": [{ "var": "data.SwiftMT.fields.13C.time" }, 8, 2] },
-                                                                    ":00"
-                                                                ]
-                                                            },
-                                                            "00:00:00"
-                                                        ]
-                                                    },
-                                                    "+00:00"
-                                                ]
-                                            },
-                                            "9999-12-31T00:00:00+00:00"
-                                        ]
-                                    }
-                                },
-                                "GrpHdr": {
-                                    "MsgId": { "var": "data.SwiftMT.fields.20.value" },
-                                    "CreDtTm": {
-                                        "if": [
-                                            { "var": "data.SwiftMT.fields.13C.time" },
-                                            {
-                                                "cat": [
-                                                    {
-                                                        "if": [
-                                                            { "var": "data.SwiftMT.fields.32A.value_date" },
-                                                            { "var": "data.SwiftMT.fields.32A.value_date" },
-                                                            { "substr": [{ "var": "data.SwiftMT.fields.13C.time" }, 0, 6] }
-                                                        ]
-                                                    },
-                                                    "T",
-                                                    {
-                                                        "if": [
-                                                            { "var": "data.SwiftMT.fields.13C.time" },
-                                                            {
-                                                                "cat": [
-                                                                    { "substr": [{ "var": "data.SwiftMT.fields.13C.time" }, 6, 2] },
-                                                                    ":",
-                                                                    { "substr": [{ "var": "data.SwiftMT.fields.13C.time" }, 8, 2] },
-                                                                    ":00"
-                                                                ]
-                                                            },
-                                                            "00:00:00"
-                                                        ]
-                                                    },
-                                                    "+00:00"
-                                                ]
-                                            },
-                                            "9999-12-31T00:00:00+00:00"
-                                        ]
-                                    },
-                                    "NbOfTxs": "1",
-                                    "InstgAgt": {
-                                        "FinInstnId": {
-                                            "BICFI": { "var": "temp_data.Sender" }
-                                        }
-                                    },
-                                    "InstdAgt": {
-                                        "FinInstnId": {
-                                            "BICFI": { "var": "temp_data.Receiver" }
-                                        }
-                                    }
-                                }
+                                "Id": { "if": [
+                                    {"var": "data.SwiftMT.fields.20.reference"},
+                                    {"var": "data.SwiftMT.fields.20.reference"},
+                                    "NOTPROVIDED"
+                                ]},
+                                "Assgnr": {"Agt": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}}},
+                                "Assgne": {"Agt": {"FinInstnId": {"BICFI": {"var": "temp_data.Receiver"}}}},
+                                "CreDtTm": "9999-12-31T00:00:00+00:00"
                             }
                         }
                     ]
@@ -128,273 +37,66 @@
             }
         },
         {
-            "id": "map_original_group_and_transaction_information",
-            "name": "Map Original Group and Transaction Information",
-            "description": "Constructs original group information and transaction details including cancellation reason, original references, and UETR using structural output",
+            "id": "construct_underlying_transaction_information",
+            "name": "Construct Underlying Transaction Information",
+            "description": "Builds the Underlying/TransactionInformation section including original transaction details and cancellation reasons",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
-                        {
-                            "path": "data.Document.FIToFIPmtCxlReq.OrgnlGrpInfAndCxl",
-                            "logic": {
-                                "OrgnlMsgId": { "var": "data.SwiftMT.fields.21.value" },
-                                "OrgnlMsgNmId": {
-                                    "if": [
-                                        { "var": "data.SwiftMT.fields.11R.message_type" },
-                                        { "var": "data.SwiftMT.fields.11R.message_type" },
-                                        "pacs.008.001.08"
-                                    ]
-                                },
-                                "OrgnlCreDtTm": {
-                                    "if": [
-                                        { "var": "data.SwiftMT.fields.11R.date_time" },
-                                        { "var": "data.SwiftMT.fields.11R.date_time" },
-                                        "9999-12-31T00:00:00+00:00"
-                                    ]
-                                },
-                                "CxlRsnInf": {
-                                    "Rsn": {
-                                        "Cd": {
-                                            "if": [
-                                                { "var": "data.SwiftMT.fields.11S.reason_code" },
-                                                { "var": "data.SwiftMT.fields.11S.reason_code" },
-                                                "CUST"
-                                            ]
-                                        }
-                                    },
-                                    "AddtlInf": {
-                                        "if": [
-                                            { "var": "data.SwiftMT.fields.79.narrative" },
-                                            {
-                                                "if": [
-                                                    { "matches": [{ "var": "data.SwiftMT.fields.79.narrative" }, "/UETR/"] },
-                                                    {
-                                                        "filter": [
-                                                            { "split": [{ "var": "data.SwiftMT.fields.79.narrative" }, "\n"] },
-                                                            { "!": { "matches": [{ "var": "" }, "/UETR/"] } }
-                                                        ]
-                                                    },
-                                                    [{ "var": "data.SwiftMT.fields.79.narrative" }]
-                                                ]
-                                            },
-                                            ["Request for cancellation"]
-                                        ]
-                                    }
-                                }
-                            }
-                        },
-                        {
-                            "path": "data.Document.FIToFIPmtCxlReq.TxInfAndCxl",
-                            "logic": {
-                                "CxlId": { "var": "data.SwiftMT.fields.20.value" },
-                                "OrgnlGrpInf": {
-                                    "OrgnlMsgId": { "var": "data.SwiftMT.fields.21.value" },
-                                    "OrgnlMsgNmId": {
-                                        "if": [
-                                            { "var": "data.SwiftMT.fields.11R.message_type" },
-                                            { "var": "data.SwiftMT.fields.11R.message_type" },
-                                            "pacs.008.001.08"
-                                        ]
-                                    }
-                                },
-                                "OrgnlInstrId": {
-                                    "if": [
-                                        { "var": "data.SwiftMT.fields.21.value" },
-                                        { "var": "data.SwiftMT.fields.21.value" },
-                                        "NOTPROVIDED"
-                                    ]
-                                },
-                                "OrgnlEndToEndId": {
-                                    "if": [
-                                        { "var": "data.SwiftMT.fields.11T.end_to_end_id" },
-                                        { "var": "data.SwiftMT.fields.11T.end_to_end_id" },
-                                        "NOTPROVIDED"
-                                    ]
-                                },
-                                "OrgnlUETR": { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
-                                "CxlRsnInf": {
-                                    "Rsn": {
-                                        "Cd": {
-                                            "if": [
-                                                { "var": "data.SwiftMT.fields.11S.reason_code" },
-                                                { "var": "data.SwiftMT.fields.11S.reason_code" },
-                                                "CUST"
-                                            ]
-                                        }
-                                    },
-                                    "Orgtr": {
-                                        "Nm": "ORIGINATING_CUSTOMER",
-                                        "Id": {
-                                            "OrgId": {
-                                                "AnyBIC": { "var": "temp_data.Sender" }
-                                            }
-                                        }
-                                    },
-                                    "AddtlInf": {
-                                        "if": [
-                                            { "var": "data.SwiftMT.fields.79.narrative" },
-                                            [{ "var": "data.SwiftMT.fields.79.narrative" }],
-                                            ["Request for cancellation as per customer instruction"]
-                                        ]
-                                    }
-                                }
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_original_transaction_reference_and_underlying",
-            "name": "Map Original Transaction Reference and Underlying Information",
-            "description": "Constructs complete original transaction reference and underlying transaction information including settlement amounts, dates, agents, and case details using structural output",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.Document.FIToFIPmtCxlReq.TxInfAndCxl.OrgnlTxRef",
-                            "logic": {
-                                "IntrBkSttlmAmt": {
-                                    "@Ccy": {
-                                        "if": [
-                                            { "var": "data.SwiftMT.fields.32A.currency" },
-                                            { "var": "data.SwiftMT.fields.32A.currency" },
-                                            "USD"
-                                        ]
-                                    },
-                                    "$value": {
-                                        "if": [
-                                            { "var": "data.SwiftMT.fields.32A.amount" },
-                                            { "var": "data.SwiftMT.fields.32A.amount" },
-                                            0.0
-                                        ]
-                                    }
-                                },
-                                "ReqdExctnDt": {
-                                    "Dt": {
-                                        "if": [
-                                            { "var": "data.SwiftMT.fields.32A.value_date" },
-                                            {
-                                                "cat": [
-                                                    { "var": "data.SwiftMT.fields.32A.value_date" },
-                                                    "T00:00:00+00:00"
-                                                ]
-                                            },
-                                            "9999-12-31T00:00:00+00:00"
-                                        ]
-                                    }
-                                },
-                                "DbtrAgt": {
-                                    "FinInstnId": {
-                                        "BICFI": {
-                                            "if": [
-                                                { "var": "data.SwiftMT.fields.52A.bic.raw" },
-                                                { "var": "data.SwiftMT.fields.52A.bic.raw" },
-                                                { "var": "temp_data.Sender" }
-                                            ]
-                                        }
-                                    }
-                                },
-                                "CdtrAgt": {
-                                    "FinInstnId": {
-                                        "BICFI": {
-                                            "if": [
-                                                { "var": "data.SwiftMT.fields.57A.bic.raw" },
-                                                { "var": "data.SwiftMT.fields.57A.bic.raw" },
-                                                { "var": "temp_data.Receiver" }
-                                            ]
-                                        }
-                                    }
-                                }
-                            }
-                        },
                         {
                             "path": "data.Document.FIToFIPmtCxlReq.Undrlyg.TxInf",
                             "logic": {
                                 "OrgnlGrpInf": {
-                                    "OrgnlMsgId": { "var": "data.SwiftMT.fields.21.value" },
-                                    "OrgnlMsgNmId": {
-                                        "if": [
-                                            { "var": "data.SwiftMT.fields.11R.message_type" },
-                                            { "var": "data.SwiftMT.fields.11R.message_type" },
-                                            "pacs.008.001.08"
-                                        ]
-                                    }
-                                },
-                                "OrgnlInstrId": { "var": "data.SwiftMT.fields.21.value" },
-                                "OrgnlEndToEndId": {
-                                    "if": [
-                                        { "var": "data.SwiftMT.fields.11T.end_to_end_id" },
-                                        { "var": "data.SwiftMT.fields.11T.end_to_end_id" },
+                                    "OrgnlMsgId": { "if": [
+                                        {"var": "data.SwiftMT.fields.21.reference"},
+                                        {"var": "data.SwiftMT.fields.21.reference"},
                                         "NOTPROVIDED"
-                                    ]
-                                },
-                                "OrgnlUETR": { "var": "data.SwiftMT.user_header.unique_end_to_end_reference" },
-                                "Case": {
-                                    "Id": { "var": "data.SwiftMT.fields.20.value" },
-                                    "Cretr": {
-                                        "Agt": {
-                                            "FinInstnId": {
-                                                "BICFI": { "var": "temp_data.Sender" }
-                                            }
-                                        }
-                                    }
-                                },
-                                "OrgnlIntrBkSttlmAmt": {
-                                    "@Ccy": {
-                                        "if": [
-                                            { "var": "data.SwiftMT.fields.32A.currency" },
-                                            { "var": "data.SwiftMT.fields.32A.currency" },
-                                            "USD"
-                                        ]
-                                    },
-                                    "$value": {
-                                        "if": [
-                                            { "var": "data.SwiftMT.fields.32A.amount" },
-                                            { "var": "data.SwiftMT.fields.32A.amount" },
-                                            0.0
-                                        ]
-                                    }
-                                },
-                                "OrgnlIntrBkSttlmDt": {
-                                    "if": [
-                                        { "var": "data.SwiftMT.fields.32A.value_date" },
-                                        {
-                                            "cat": [
-                                                { "var": "data.SwiftMT.fields.32A.value_date" },
-                                                "T00:00:00+00:00"
-                                            ]
-                                        },
+                                    ]},
+                                    "OrgnlMsgNmId": {"var": "temp_data.original_mx_type"},
+                                    "OrgnlCreDtTm": { "if": [
+                                        {"var": "data.SwiftMT.fields.11S.date"},
+                                        {"cat": [{"var": "data.SwiftMT.fields.11S.date"}, "T00:00:00+00:00"]},
                                         "9999-12-31T00:00:00+00:00"
-                                    ]
+                                    ]}
+                                },
+                                "OrgnlInstrId": { "if": [
+                                    {"var": "data.SwiftMT.fields.21.reference"},
+                                    {"var": "data.SwiftMT.fields.21.reference"},
+                                    "NOTPROVIDED"
+                                ]},
+                                "OrgnlEndToEndId": "NOTPROVIDED",
+                                "OrgnlUETR": {"var": "temp_data.extracted_uetr"},
+                                "OrgnlIntrBkSttlmAmt": {
+                                    "@Ccy": { "if": [
+                                        {"var": "data.SwiftMT.fields.32A.currency"},
+                                        {"var": "data.SwiftMT.fields.32A.currency"},
+                                        "USD"
+                                    ]},
+                                    "$value": { "if": [
+                                        {"var": "data.SwiftMT.fields.32A.amount"},
+                                        {"var": "data.SwiftMT.fields.32A.amount"},
+                                        0.0
+                                    ]}
+                                },
+                                "OrgnlIntrBkSttlmDt": { "if": [
+                                    {"var": "data.SwiftMT.fields.32A.value_date"},
+                                    {"var": "data.SwiftMT.fields.32A.value_date"},
+                                    "9999-12-31"
+                                ]},
+                                "Case": {
+                                    "Id": { "if": [
+                                        {"var": "data.SwiftMT.fields.20.reference"},
+                                        {"var": "data.SwiftMT.fields.20.reference"},
+                                        "NOTPROVIDED"
+                                    ]},
+                                    "Cretr": {
+                                        "Agt": {"FinInstnId": {"Nm": "NOTPROVIDED", "PstlAdr": {"AdrLine": ["NOTPROVIDED"]}}}
+                                    }
                                 },
                                 "CxlRsnInf": {
-                                    "Rsn": {
-                                        "Cd": {
-                                            "if": [
-                                                { "var": "data.SwiftMT.fields.11S.reason_code" },
-                                                { "var": "data.SwiftMT.fields.11S.reason_code" },
-                                                "CUST"
-                                            ]
-                                        }
-                                    },
-                                    "Orgtr": {
-                                        "Nm": "ORIGINATING_CUSTOMER",
-                                        "Id": {
-                                            "OrgId": {
-                                                "AnyBIC": { "var": "temp_data.Sender" }
-                                            }
-                                        }
-                                    },
-                                    "AddtlInf": {
-                                        "if": [
-                                            { "var": "data.SwiftMT.fields.79.narrative" },
-                                            [{ "var": "data.SwiftMT.fields.79.narrative" }],
-                                            ["Request for cancellation as per customer instruction"]
-                                        ]
-                                    }
+                                    "Rsn": {"Cd": {"var": "temp_data.cancellation_reason"}},
+                                    "AddtlInf": {"var": "temp_data.cancellation_additional_info"}
                                 }
                             }
                         }
@@ -416,4 +118,4 @@
             }
         }
     ]
-} 
+}

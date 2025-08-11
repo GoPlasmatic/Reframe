@@ -3,20 +3,18 @@
     "name": "MT103 Business Application Header Mapping for CBPR+",
     "description": "Maps MT103 message to ISO 20022 Business Application Header (AppHdr) using head.001.001.02 schema",
     "priority": 2,
-    "condition": {
-        "and": [
-            {"==": [{"var": "SwiftMT.message_type"}, "103"]},
-            {"in": [{"var": "SwiftMT.method"}, ["normal", "stp"]]},
-            {"==": [{"var": "progress.workflow_id"}, "parser"]},
-            {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
-            {"==": [{"var": "progress.status_code"}, 200]}
-        ]
-    },
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "103"]},
+        {"in": [{"var": "SwiftMT.method"}, ["normal", "stp"]]},
+        {"==": [{"var": "progress.workflow_id"}, "parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
     "tasks": [
         {
             "id": "prepare_bah_context",
             "name": "Prepare BAH Context",
-            "description": "Extracts sender and receiver BIC codes from MT103 headers with fallback logic for normal vs STP processing to establish business application header context",
+            "description": "Extracts sender and receiver BIC codes from MT103 headers considering input/output block types per head.001.001.02 specification",
             "function": {
                 "name": "map",
                 "input": {
@@ -24,32 +22,33 @@
                         {
                             "path": "temp_data",
                             "logic": {
-                                "Sender": {
-                                    "if": [
-                                        { "var": "data.SwiftMT.basic_header.sender_bic.raw" },
-                                        { "var": "data.SwiftMT.basic_header.sender_bic.raw" },
-                                        {
-                                            "if": [
-                                                { "==": [{"var": "SwiftMT.method"}, "stp"] },
-                                                "",
-                                                "NOTPROVIDED"
-                                            ]
-                                        }
-                                    ]
-                                },
-                                "Receiver": {
-                                    "if": [
-                                        { "var": "data.SwiftMT.application_header.receiver_bic.raw" },
-                                        { "var": "data.SwiftMT.application_header.receiver_bic.raw" },
-                                        {
-                                            "if": [
-                                                { "==": [{"var": "SwiftMT.method"}, "stp"] },
-                                                "",
-                                                "NOTPROVIDED"
-                                            ]
-                                        }
-                                    ]
-                                }
+                                "Sender": { "if": [
+                                    {"==": [{"var": "data.SwiftMT.application_header.direction"}, "I"]},
+                                    { "if": [
+                                        {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                        {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                        "NOTPROVIDED"
+                                    ]},
+                                    { "if": [
+                                        {"var": "data.SwiftMT.application_header.mir_sender_bic"},
+                                        {"var": "data.SwiftMT.application_header.mir_sender_bic"},
+                                        "NOTPROVIDED"
+                                    ]}
+                                ]},
+                                "Receiver": { "if": [
+                                    {"==": [{"var": "data.SwiftMT.application_header.direction"}, "I"]},
+                                    { "if": [
+                                        {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                        {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                        "NOTPROVIDED"
+                                    ]},
+                                    { "if": [
+                                        {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                        {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                        "NOTPROVIDED"
+                                    ]}
+                                ]},
+                                "PossibleDuplicateIndicator": {"if": [{"var": "data.SwiftMT.trailer.PDE"}, true, false]}
                             }
                         }
                     ]
@@ -59,7 +58,7 @@
         {
             "id": "construct_business_application_header",
             "name": "Construct Business Application Header",
-            "description": "Builds CBPR+ business application header (AppHdr) with sender/receiver BIC, message identification, priority mapping, and creation timestamp based on MT103 field 32A date",
+            "description": "Builds CBPR+ business application header (AppHdr) per head.001.001.02 specification with enhanced field mappings",
             "function": {
                 "name": "map",
                 "input": {
@@ -67,56 +66,56 @@
                         {
                             "path": "data.AppHdr",
                             "logic": {
-                                "Fr": {
-                                    "FIId": {
-                                        "FinInstnId": {
-                                            "BICFI": { "var": "temp_data.Sender" }
-                                        }
-                                    }
-                                },
-                                "To": {
-                                    "FIId": {
-                                        "FinInstnId": {
-                                            "BICFI": { "var": "temp_data.Receiver" }
-                                        }
-                                    }
-                                },
-                                "BizMsgIdr": {
-                                    "cat": [
-                                        { "var": "data.SwiftMT.fields.20.value" },
-                                        "-pacs.008-001"
-                                    ]
-                                },
+                                "CharSet": { "if": [
+                                    {"var": "parameters.CharacterSet"},
+                                    {"var": "parameters.CharacterSet"},
+                                    null
+                                ]},
+                                "Fr": {"FIId": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}}},
+                                "To": {"FIId": {"FinInstnId": {"BICFI": {"var": "temp_data.Receiver"}}}},
+                                "BizMsgIdr": { "if": [
+                                    {"var": "data.SwiftMT.fields.20.reference"},
+                                    {"var": "data.SwiftMT.fields.20.reference"},
+                                    "NOTPROVIDED"
+                                ]},
                                 "MsgDefIdr": "pacs.008.001.08",
-                                "BizSvc": "swift.cbprplus.02",
-                                "CreDt": {
-                                    "if": [
-                                        { "var": "data.SwiftMT.fields.32A.value_date" },
+                                "BizSvc": "swift.cbprplus.01",
+                                "MktPrctc": { "if": [
+                                    {"var": "parameters.MarketPractice"},
+                                    {"var": "parameters.MarketPractice"},
+                                    null
+                                ]},
+                                "CreDt": { "if": [
+                                    {"var": "parameters.CreationDate"},
+                                    {"var": "parameters.CreationDate"},
+                                    { "if": [
+                                        {"var": "data.SwiftMT.fields.32A.value_date"},
                                         {
                                             "cat": [
-                                                { "var": "data.SwiftMT.fields.32A.value_date" },
+                                                {"var": "data.SwiftMT.fields.32A.value_date"},
                                                 "T",
-                                                {
-                                                    "format_date": [
-                                                        { "now": [] },
-                                                        "HH:mm:ss"
-                                                    ]
-                                                },
+                                                {"format_date": [{"now": []}, "HH:mm:ss"]},
                                                 "+00:00"
                                             ]
                                         },
                                         "9999-12-31T00:00:00+00:00"
-                                    ]
-                                },
-                                "CpyDplct": "CODU",
-                                "PssblDplct": false,
-                                "Prty": {
-                                    "if": [
-                                        { "==": [{ "var": "data.SwiftMT.fields.23B.value" }, "URGP"] },
-                                        "URGT",
-                                        "NORM"
-                                    ]
-                                }
+                                    ]}
+                                ]},
+                                "CpyDplct": { "if": [
+                                    {"var": "parameters.CopyDuplicate"},
+                                    {"var": "parameters.CopyDuplicate"},
+                                    null
+                                ]},
+                                "PssblDplct": {"var": "temp_data.PossibleDuplicateIndicator"},
+                                "Prty": { "if": [
+                                    {"var": "parameters.Priority"},
+                                    {"var": "parameters.Priority"},
+                                    { "if": [
+                                        {"var": "data.SwiftMT.user_header.113"},
+                                        {"if": [{"==": [{"var": "data.SwiftMT.user_header.113"}, "HIGH"]}, "HIGH", "NORM"]},
+                                        null
+                                    ]}
+                                ]}
                             }
                         }
                     ]
@@ -134,41 +133,26 @@
                         {
                             "path": "data.AppHdr.Rltd",
                             "logic": {
-                                "Fr": {
-                                    "FIId": {
-                                        "FinInstnId": {
-                                            "BICFI": { "var": "temp_data.Sender" }
-                                        }
-                                    }
-                                },
-                                "To": {
-                                    "FIId": {
-                                        "FinInstnId": {
-                                            "BICFI": { "var": "temp_data.Receiver" }
-                                        }
-                                    }
-                                },
+                                "Fr": {"FIId": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}}},
+                                "To": {"FIId": {"FinInstnId": {"BICFI": {"var": "temp_data.Receiver"}}}},
                                 "MsgDefIdr": "pacs.008.001.08",
-                                "BizMsgIdr": { "var": "data.SwiftMT.fields.20.value" },
-                                "CreDt": {
-                                    "if": [
-                                        { "var": "data.SwiftMT.fields.32A.value_date" },
-                                        {
-                                            "cat": [
-                                                { "var": "data.SwiftMT.fields.32A.value_date" },
-                                                "T",
-                                                {
-                                                    "format_date": [
-                                                        { "now": [] },
-                                                        "HH:mm:ss"
-                                                    ]
-                                                },
-                                                "+00:00"
-                                            ]
-                                        },
-                                        "9999-12-31T00:00:00+00:00"
-                                    ]
-                                }
+                                "BizMsgIdr": { "if": [
+                                    {"var": "data.SwiftMT.fields.20.reference"},
+                                    {"var": "data.SwiftMT.fields.20.reference"},
+                                    "NOTPROVIDED"
+                                ]},
+                                "CreDt": { "if": [
+                                    {"var": "data.SwiftMT.fields.32A.value_date"},
+                                    {
+                                        "cat": [
+                                            {"var": "data.SwiftMT.fields.32A.value_date"},
+                                            "T",
+                                            {"format_date": [{"now": []}, "HH:mm:ss"]},
+                                            "+00:00"
+                                        ]
+                                    },
+                                    "9999-12-31T00:00:00+00:00"
+                                ]}
                             }
                         }
                     ]
@@ -179,7 +163,7 @@
             "id": "generate_header_xml",
             "name": "Generate Header XML",
             "description": "Generates the business application header XML output for normal MT103 processing using the PublishMX function",
-            "condition": { "==": [{"var": "SwiftMT.method"}, "normal"] },
+            "condition": {"==": [{"var": "SwiftMT.method"}, "normal"]},
             "function": {
                 "name": "PublishMX",
                 "input": {
@@ -193,7 +177,7 @@
             "id": "generate_stp_header_xml",
             "name": "Generate STP Header XML",
             "description": "Generates the business application header XML output for STP MT103 processing using the PublishMX function",
-            "condition": { "==": [{"var": "SwiftMT.method"}, "stp"] },
+            "condition": {"==": [{"var": "SwiftMT.method"}, "stp"]},
             "function": {
                 "name": "PublishMX",
                 "input": {
@@ -204,4 +188,4 @@
             }
         }
     ]
-} 
+}

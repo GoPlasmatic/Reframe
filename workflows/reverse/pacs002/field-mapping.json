@@ -3,15 +3,13 @@
     "name": "pacs.002 to MT199/MT299 REJT Field Mapping",
     "description": "Maps ISO 20022 pacs.002 FIToFIPaymentStatusReport fields to SWIFT MT199/MT299 rejection message structure according to CBPR+ reverse transformation specification",
     "priority": 2,
-    "condition": {
-        "and": [
-            {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.002.001.10"]},
-            {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
-            {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
-            {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
-            {"==": [{"var": "progress.status_code"}, 200]}
-        ]
-    },
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.002.001.10"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
     "tasks": [
         {
             "id": "extract_temp_variables",
@@ -23,39 +21,33 @@
                     "mappings": [
                         {
                             "path": "temp_data.Sender",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
-                                    null
-                                ]
-                            }
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                null
+                            ]}
                         },
                         {
                             "path": "temp_data.Receiver",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
-                                    null
-                                ]
-                            }
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                null
+                            ]}
                         },
                         {
                             "path": "temp_data.target_message_type",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"},
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"},
+                                { "if": [
                                     {
-                                        "if": [
-                                            {"starts_with": [{"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"}, "2"]},
-                                            "299",
-                                            "199"
-                                        ]
+                                        "starts_with": [{"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"}, "2"]
                                     },
+                                    "299",
                                     "199"
-                                ]
-                            }
+                                ]},
+                                "199"
+                            ]}
                         }
                     ]
                 }
@@ -77,21 +69,17 @@
                                     "application_id": "F",
                                     "service_id": "01",
                                     "sender_bic": {
-                                        "raw": {
-                                            "if": [
-                                                {"var": "temp_data.Sender"},
-                                                {"substr": [{"var": "temp_data.Sender"}, 0, 8]},
-                                                null
-                                            ]
-                                        }
-                                    },
-                                    "logical_terminal": {
-                                        "if": [
+                                        "raw": { "if": [
                                             {"var": "temp_data.Sender"},
-                                            {"cat": [{"var": "temp_data.Sender"}, "AXXX"]},
+                                            {"substr": [{"var": "temp_data.Sender"}, 0, 8]},
                                             null
-                                        ]
+                                        ]}
                                     },
+                                    "logical_terminal": { "if": [
+                                        {"var": "temp_data.Sender"},
+                                        {"cat": [{"var": "temp_data.Sender"}, "AXXX"]},
+                                        null
+                                    ]},
                                     "session_number": "0000",
                                     "sequence_number": "000000"
                                 },
@@ -100,21 +88,17 @@
                                     "message_type": {"var": "temp_data.target_message_type"},
                                     "priority": "N",
                                     "receiver_bic": {
-                                        "raw": {
-                                            "if": [
-                                                {"var": "temp_data.Receiver"},
-                                                {"substr": [{"var": "temp_data.Receiver"}, 0, 8]},
-                                                null
-                                            ]
-                                        }
-                                    },
-                                    "destination_address": {
-                                        "if": [
+                                        "raw": { "if": [
                                             {"var": "temp_data.Receiver"},
-                                            {"cat": [{"var": "temp_data.Receiver"}, "XXXX"]},
+                                            {"substr": [{"var": "temp_data.Receiver"}, 0, 8]},
                                             null
-                                        ]
-                                    }
+                                        ]}
+                                    },
+                                    "destination_address": { "if": [
+                                        {"var": "temp_data.Receiver"},
+                                        {"cat": [{"var": "temp_data.Receiver"}, "XXXX"]},
+                                        null
+                                    ]}
                                 }
                             }
                         }
@@ -133,13 +117,11 @@
                         {
                             "path": "data.SwiftMT.user_header",
                             "logic": {
-                                "unique_end_to_end_reference": {
-                                    "if": [
-                                        {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"},
-                                        {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"},
-                                        null
-                                    ]
-                                }
+                                "unique_end_to_end_reference": { "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"},
+                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"},
+                                    null
+                                ]}
                             }
                         }
                     ]
@@ -158,28 +140,22 @@
                             "path": "data.SwiftMT.fields",
                             "logic": {
                                 "20": {
-                                    "value": {
-                                        "if": [
-                                            {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"},
-                                            {
-                                                "if": [
-                                                    {">": [{"length": {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}}, 16]},
-                                                    {"cat": [{"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}, 0, 15]}, "+"]},
-                                                    {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}
-                                                ]
-                                            },
-                                            "NOTPROVIDED"
-                                        ]
-                                    }
+                                    "value": { "if": [
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"},
+                                        { "if": [
+                                            {">": [{"length": {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}}, 16]},
+                                            {"cat": [{"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}, 0, 15]}, "+"]},
+                                            {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}
+                                        ]},
+                                        "NOTPROVIDED"
+                                    ]}
                                 },
                                 "21": {
-                                    "value": {
-                                        "if": [
-                                            {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"},
-                                            {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"},
-                                            "NOTPROVIDED"
-                                        ]
-                                    }
+                                    "value": { "if": [
+                                        {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"},
+                                        {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"},
+                                        "NOTPROVIDED"
+                                    ]}
                                 }
                             }
                         }
@@ -201,46 +177,47 @@
                                 "lines": {
                                     "merge": [
                                         ["/REJT/"],
-                                        {
-                                            "if": [
-                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgId"},
-                                                [{"cat": ["/MREF/", {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgId"}]}],
-                                                []
-                                            ]
-                                        },
-                                        {
-                                            "if": [
-                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlEndToEndId"},
-                                                [{"cat": ["/TREF/", {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlEndToEndId"}]}],
-                                                []
-                                            ]
-                                        },
-                                        {
-                                            "if": [
-                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.Rsn.Cd"},
-                                                [{"cat": ["/RJCT/", {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.Rsn.Cd"}]}],
-                                                []
-                                            ]
-                                        },
-                                        {
-                                            "if": [
-                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"},
-                                                [{"cat": ["/UETR/", {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"}]}],
-                                                []
-                                            ]
-                                        },
-                                        {
-                                            "if": [
-                                                {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.AddtlInf"},
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgId"},
+                                            [
                                                 {
-                                                    "map": [
-                                                        {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.AddtlInf"},
-                                                        {"cat": ["/TEXT/", {"var": ""}]}
+                                                    "cat": [
+                                                        "/MREF/",
+                                                        {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgId"}
                                                     ]
-                                                },
-                                                []
-                                            ]
-                                        }
+                                                }
+                                            ],
+                                            []
+                                        ]},
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlEndToEndId"},
+                                            [
+                                                {"cat": ["/TREF/", {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlEndToEndId"}]}
+                                            ],
+                                            []
+                                        ]},
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.Rsn.Cd"},
+                                            [
+                                                {"cat": ["/RJCT/", {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.Rsn.Cd"}]}
+                                            ],
+                                            []
+                                        ]},
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"},
+                                            [{"cat": ["/UETR/", {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"}]}],
+                                            []
+                                        ]},
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.AddtlInf"},
+                                            {
+                                                "map": [
+                                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.AddtlInf"},
+                                                    {"cat": ["/TEXT/", {"var": ""}]}
+                                                ]
+                                            },
+                                            []
+                                        ]}
                                     ]
                                 }
                             }
@@ -255,18 +232,7 @@
             "description": "Generate the field order array for MT199/MT299",
             "function": {
                 "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.SwiftMT.field_order",
-                            "logic": [
-                                "20",
-                                "21", 
-                                "79"
-                            ]
-                        }
-                    ]
-                }
+                "input": {"mappings": [{"path": "data.SwiftMT.field_order", "logic": ["20", "21", "79"]}]}
             }
         },
         {

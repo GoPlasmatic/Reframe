@@ -1,0 +1,114 @@
+{
+    "id": "pacs009-to-mt202-mandatory-fields",
+    "name": "pacs.009 to MT202 Mandatory Fields Mapping",
+    "description": "Maps mandatory fields from pacs.009 to MT202 message according to CBPR+ specification",
+    "priority": 4,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.009.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs009-to-mt202-headers"]},
+        {"==": [{"var": "progress.task_id"}, "map_user_header"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_field_20",
+            "name": "Map Field 20 - Sender's Reference",
+            "description": "Map instruction identification to Field 20 (Copy)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#20",
+                            "logic": {
+                                "value": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId"},
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId"},
+                                    "NOTPROVIDED"
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_21",
+            "name": "Map Field 21 - Related Reference",
+            "description": "Map end-to-end identification to Field 21 with validation (TR005)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#21",
+                            "logic": {
+                                "reference": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"},
+                                    { "if": [
+                                        {">": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"}}, 16]},
+                                        {
+                                            "cat": [
+                                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"}, 0, 15]},
+                                                "+"
+                                            ]
+                                        },
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.EndToEndId"}
+                                    ]},
+                                    "NOTPROVIDED"
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_32a",
+            "name": "Map Field 32A - Value Date/Currency/Amount",
+            "description": "Map interbank settlement date, currency and amount to Field 32A (TR002)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.SettlementDate",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"},
+                                {
+                                    "cat": [
+                                        {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}, 2, 2]},
+                                        {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}, 5, 2]},
+                                        {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}, 8, 2]}
+                                    ]
+                                },
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.32A",
+                            "logic": {
+                                "value": { "if": [
+                                    { "and": [
+                                        {"var": "temp_data.SettlementDate"},
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"}
+                                    ]},
+                                    {
+                                        "cat": [
+                                            {"var": "temp_data.SettlementDate"},
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"}
+                                        ]
+                                    },
+                                    "NOTPROVIDED"
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

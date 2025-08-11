@@ -1,0 +1,198 @@
+{
+    "id": "pacs004-remittance-fields-mapping",
+    "name": "PACS.004 to MT RETN Remittance Fields Mapping",
+    "description": "Maps remittance information fields for ultimate debtor and creditor",
+    "priority": 9,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs004-agent-fields-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_field_57"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_ultimate_debtor",
+            "name": "Map Ultimate Debtor to Field 70",
+            "description": "Map ultimate debtor information to remittance field 70 with /ULTD/ tag",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.ultimate_debtor_info",
+                            "logic": { "if": [
+                                {
+                                    "and": [
+                                        { "or": [
+                                            {
+                                                "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]
+                                            },
+                                            {
+                                                "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]
+                                            },
+                                            {
+                                                "and": [
+                                                    {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
+                                                    {
+                                                        "!": [
+                                                            {
+                                                                "and": [
+                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
+                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtDbtr"}
+                                    ]
+                                },
+                                {
+                                    "merge": [
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtDbtr.Nm"},
+                                            [
+                                                {"cat": ["/ULTD/", {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtDbtr.Nm"}]}
+                                            ],
+                                            []
+                                        ]},
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtDbtr.PstlAdr.AdrLine"},
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtDbtr.PstlAdr.AdrLine"},
+                                            []
+                                        ]}
+                                    ]
+                                },
+                                []
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_ultimate_creditor",
+            "name": "Map Ultimate Creditor to Field 70",
+            "description": "Map ultimate creditor information to remittance field 70 with /ULTB/ tag",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.ultimate_creditor_info",
+                            "logic": { "if": [
+                                {
+                                    "and": [
+                                        { "or": [
+                                            {
+                                                "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]
+                                            },
+                                            {
+                                                "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]
+                                            },
+                                            {
+                                                "and": [
+                                                    {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
+                                                    {
+                                                        "!": [
+                                                            {
+                                                                "and": [
+                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
+                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtCdtr"}
+                                    ]
+                                },
+                                {
+                                    "merge": [
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtCdtr.Nm"},
+                                            [
+                                                {"cat": ["/ULTB/", {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtCdtr.Nm"}]}
+                                            ],
+                                            []
+                                        ]},
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtCdtr.PstlAdr.AdrLine"},
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.UltmtCdtr.PstlAdr.AdrLine"},
+                                            []
+                                        ]}
+                                    ]
+                                },
+                                []
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "combine_field_70",
+            "name": "Combine Field 70 - Remittance Information",
+            "description": "Combine ultimate debtor and creditor information for field 70",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#70",
+                            "logic": { "if": [
+                                {
+                                    "and": [
+                                        { "or": [
+                                            {
+                                                "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]
+                                            },
+                                            {
+                                                "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]
+                                            },
+                                            {
+                                                "and": [
+                                                    {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
+                                                    {
+                                                        "!": [
+                                                            {
+                                                                "and": [
+                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
+                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]},
+                                        {
+                                            "or": [
+                                                {"var": "temp_data.ultimate_debtor_info"},
+                                                {"var": "temp_data.ultimate_creditor_info"}
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "lines": {
+                                        "merge": [
+                                            {"var": "temp_data.ultimate_debtor_info"},
+                                            {"var": "temp_data.ultimate_creditor_info"}
+                                        ]
+                                    }
+                                },
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

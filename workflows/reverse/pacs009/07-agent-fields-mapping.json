@@ -1,0 +1,103 @@
+{
+    "id": "pacs009-to-mt202-agent-fields",
+    "name": "pacs.009 to MT202 Agent Fields Mapping",
+    "description": "Maps agent fields from pacs.009 to MT202 (Fields 52, 56, 57, 58) according to CBPR+ specification",
+    "priority": 7,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.009.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs009-to-mt202-time-indication"]},
+        {"==": [{"var": "progress.task_id"}, "map_field_13c"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_field_52",
+            "name": "Map Field 52 - Ordering Institution",
+            "description": "Map debtor to Field 52 (TR009)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#52",
+                            "logic": {
+                                "value": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.FinInstnId.BICFI"},
+                                    null
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_56",
+            "name": "Map Field 56 - Intermediary Institution",
+            "description": "Map intermediary agent 1 to Field 56 (TR007)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#56",
+                            "logic": {
+                                "value": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"},
+                                    null
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_57",
+            "name": "Map Field 57 - Account With Institution",
+            "description": "Map creditor agent to Field 57 (TR011)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#57",
+                            "logic": {
+                                "value": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
+                                    null
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_58",
+            "name": "Map Field 58 - Beneficiary Institution",
+            "description": "Map creditor to Field 58 (TR013)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#58",
+                            "logic": {
+                                "value": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.FinInstnId.BICFI"},
+                                    null
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

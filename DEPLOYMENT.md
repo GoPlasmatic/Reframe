@@ -86,33 +86,28 @@ The GitHub Actions workflow (`.github/workflows/deploy-azure.yml`) provides comp
 - Linting with Clippy (`cargo clippy`)
 - Unit tests (`cargo test`)
 
-### 2. Web UI Build
-- Node.js setup and dependency installation
-- React application build
-- Static file preparation
-
-### 3. Azure Infrastructure Setup
+### 2. Azure Infrastructure Setup
 - **Automatic detection**: Checks if infrastructure already exists
 - **Resource provider registration**: Registers required Azure providers
 - **Resource group creation**: Creates `rg-reframe-prod` in East US
 - **ACR deployment**: Sets up Azure Container Registry
 - **Credential management**: Automatically configures registry access
 
-### 4. Build & Push Stage
+### 3. Build & Push Stage
 - Multi-architecture Docker build
 - Automatic ACR credential retrieval
 - Push to Azure Container Registry
 - Image tagging with Git SHA
 
-### 5. Staging Deployment
+### 4. Staging Deployment
 - Deploy to staging ACI instance
-- Automated MT103 API testing
+- Automated API testing
 - Health check validation
 
-### 6. Production Deployment
+### 5. Production Deployment
 - Deploy to production ACI instance
 - Manual approval required (GitHub environment protection)
-- Comprehensive MT103 testing
+- Comprehensive API testing
 - Cleanup staging resources
 
 ## Environment Configuration
@@ -147,78 +142,40 @@ Response:
 }
 ```
 
-### Web UI
+
+### Transformation Endpoints
+
+#### Forward Transformation (MT to ISO 20022)
 ```bash
-GET http://{your-domain}:3000/
+POST http://{your-domain}:3000/transform/mt-to-mx
+Content-Type: application/json
+
+{
+  "message": "{1:F01BNPAFRPPXXX0000000000}{2:O1031234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:\n:20:FT21001234567890\n:23B:CRED\n:32A:240101USD1000,00\n:50K:/1234567890\nACME CORPORATION\n:52A:BNPAFRPPXXX\n:57A:DEUTDEFFXXX\n:59:/DE89370400440532013000\nMUELLER GMBH\n:70:PAYMENT FOR INVOICE 12345\n:71A:OUR\n-}"
+}
 ```
 
-### MT103 Message Conversion
-
-The API supports all MT103 variants with automatic method detection:
-
-#### MT103 Normal Processing
+#### Reverse Transformation (ISO 20022 to MT)
 ```bash
-POST http://{your-domain}:3000/reframe
-Content-Type: text/plain
+POST http://{your-domain}:3000/transform/mx-to-mt
+Content-Type: application/json
 
-{1:F01BNPAFRPPXXX0000000000}{2:O1031234240101DEUTDEFFXXXX12345678952401011234N}{3:{103:EBA}}{4:
-:20:FT21001234567890
-:23B:CRED
-:32A:240101USD1000,00
-:50K:/1234567890
-ACME CORPORATION
-:52A:BNPAFRPPXXX
-:57A:DEUTDEFFXXX
-:59:/DE89370400440532013000
-MUELLER GMBH
-:70:PAYMENT FOR INVOICE 12345
-:71A:OUR
--}
+{
+  "message": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pacs.008.001.10\">...</Document>"
+}
 ```
 
-#### MT103 STP Processing
+#### Sample Generation
 ```bash
-POST http://{your-domain}:3000/reframe
-Content-Type: text/plain
+POST http://{your-domain}:3000/generate/mt-sample
+Content-Type: application/json
 
-{1:F01CHASUS33AXXX0000000000}{2:I103DEUTDEFFAXXXN}{3:{113:SEPA}{121:180f1e65-90e0-44d5-a49a-92b55eb3025f}}{4:
-:20:STP2024123456
-:23B:CRED
-:32A:241231USD1500000,00
-:50K:/1234567890
-GLOBAL TECH CORPORATION
-:52A:CHASUS33
-:57A:DEUTDEFF
-:59A:/DE89370400440532013000
-DEUTDEFF
-:70:/INV/INVOICE-2024-Q4-789
-:71A:SHA
--}
-```
-
-#### MT103 Rejection Processing
-```bash
-POST http://{your-domain}:3000/reframe
-Content-Type: text/plain
-
-{1:F01DEUTDEFFAXXX0000000000}{2:I103CHASUS33XXXXN}{3:{108:MT103REJT001}{121:12345678-1234-4123-8123-123456789012}}{4:
-:20:FT23001234567890
-:23B:CRED
-:32A:231201USD1000000,00
-:50K:/1234567890
-ACME CORPORATION
-:52A:DEUTDEFFXXX
-:57A:CHASUS33XXX
-:59:/9876543210
-BENEFICIARY COMPANY INC
-:70:INVOICE PAYMENT REF 2023-INV-001
-:71A:OUR
-:72:/REJT/
-/MREF/FT23001234567890
-/TREF/E2E-REF-2023-001
-/ReasonCode/AC01
-/TEXT/ACCOUNT IDENTIFIER INCORRECT
--}
+{
+  "message_type": "MT103",
+  "config": {
+    // JSON configuration for MT message generation
+  }
+}
 ```
 
 ## Workflow Features

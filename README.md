@@ -1,138 +1,150 @@
 <div align="center">
-  <img src="static/plasmatic_logo.png" alt="Plasmatic Logo" width="200" height="200">
+  <img src="https://raw.githubusercontent.com/GoPlasmatic/Reframe/main/docs/plasmatic_logo.png" alt="Plasmatic Logo" width="200" height="200">
   <h1>Reframe</h1>
-  <p><strong>Enterprise-Grade Bidirectional SWIFT MT ↔ ISO 20022 Transformation Engine</strong></p>
-  <p>The world's first completely transparent, open-source, bidirectional SWIFT message transformation platform</p>
+  <p><strong>An Enterprise-Grade, Bidirectional SWIFT MT ↔ ISO 20022 Transformation Engine</strong></p>
+  <p>Reframe is the world's first completely transparent, open-source platform for high-performance SWIFT message transformation.</p>
   <br>
   
-  [![CI/CD Pipeline](https://github.com/GoPlasmatic/Reframe/actions/workflows/deploy-azure.yml/badge.svg?branch=main)](https://github.com/GoPlasmatic/Reframe/actions/workflows/deploy-azure.yml)
   [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
   [![Rust](https://img.shields.io/badge/Rust-1.70+-orange)](https://rust-lang.org)
+  [![Swift CBPR+](https://img.shields.io/badge/Swift-CBPR%2B%20SR2025-green.svg)](https://www.swift.com)
   
-  [🚀 Live Demo](http://reframe-api-prod.eastus.azurecontainer.io:3000) | [📚 Documentation](docs/) | [🔧 Installation Guide](docs/installation.md) | [💡 Architecture](docs/architecture.md)
+  [📚 **Read the Docs**](docs/) | [🔧 **Installation Guide**](docs/installation.md) | [💡 **Explore the Architecture**](docs/architecture.md)
 </div>
 
 ---
 
 ## 🌟 Why Reframe?
 
-In the rapidly evolving landscape of financial messaging, **Reframe** stands as the definitive solution for SWIFT MT ↔ ISO 20022 transformation. Unlike traditional black-box solutions, Reframe delivers **complete transparency**, **enterprise-grade performance**, and **bidirectional capabilities** that set the standard for financial message processing.
+In the evolving world of financial messaging, clarity and control are non-negotiable. **Reframe** was built to provide a powerful, open-source alternative to proprietary, black-box solutions for SWIFT MT and ISO 20022 transformation. It's designed for financial institutions that demand **auditable logic**, **elite performance**, and **complete control** over their messaging workflows.
 
-### 🎯 Built for Financial Institutions Who Value:
-
-- **🔍 Complete Transparency**: Zero black-box processing - every transformation rule is auditable
-- **⚡ High Performance**: Rust-powered engine delivering sub-millisecond processing
-- **🔧 Configurable Logic**: JSON-based workflow definitions for complete control
-- **🔌 Pluggable Architecture**: Modular design enabling easy customization and extension
-- **📊 Workflow-Driven**: Sophisticated dataflow engine with visual workflow capabilities
+-   **🔍 Full Transparency**: Say goodbye to black boxes. Every transformation rule is defined in human-readable JSON and is fully auditable.
+-   **⚡ Blazing-Fast Performance**: Built in Rust, Reframe delivers sub-millisecond processing speeds, ensuring your operations are never bottlenecked.
+-   **🔧 Total Configurability**: Define your own business logic and mappings with a simple yet powerful JSON-based configuration system.
+-   **🔌 Extensible by Design**: A modular, pluggable architecture makes it easy to customize or extend Reframe to meet your specific needs.
 
 ---
 
 ## 🚀 Key Features
 
-### 🔄 **Bidirectional Transformation Engine**
-- **Forward**: SWIFT MT → ISO 20022 (9 message families, 30+ variants)
-- **Reverse**: ISO 20022 → SWIFT MT (9 message families, 30+ variants)
-- **Automatic Detection**: Automatic message type recognition and routing
-- **Real-time Processing**: Immediate transformation with comprehensive validation
+### 🔄 **Core Transformation Engine**
 
-### 🏗️ **Enterprise Architecture**
-- **High Availability**: Stateless architecture enabling horizontal scaling
-- **Production-Ready**: Comprehensive error handling, monitoring, and observability
-- **Container-Native**: Single Docker image for seamless deployment
+-   **True Bidirectional Processing**: Seamlessly transform messages both ways:
+    -   **Forward**: SWIFT MT → ISO 20022 (MX)
+    -   **Reverse**: ISO 20022 (MX) → SWIFT MT
+-   **Broad Message Support**: Extensive coverage for over 30 message variants across payments, cash management, and status reporting families.
+-   **Intelligent Routing**: Automatic message type detection and routing to the correct transformation workflow.
 
-### 🌐 **Comprehensive Message Coverage**
-- **Payment Messages**: MT103, MT202, MT205 with all variants (normal, cover, rejection, return)
-- **Cancellation Workflows**: MT192, MT292, MT196, MT296 with UETR support
-- **Cash Management**: MT900, MT910, MT940, MT942 account reporting
-- **Cheque Processing**: Complete MT110, MT111, MT112 lifecycle support
-- **Status Reporting**: MT199, MT299 rejection and status notifications
+### 🏗️ **Built for the Enterprise**
 
-### 📋 **Transparent Workflow System**
-- **JSON-Based Rules**: All transformation logic externalized in auditable JSON files
-- **No Hidden Logic**: Every mapping rule visible and modifiable
-- **Workflow Engine**: Powered by [dataflow-rs](https://github.com/GoPlasmatic/dataflow-rs) for sophisticated processing pipelines
-- **Logic Engine**: [datalogic-rs](https://github.com/GoPlasmatic/datalogic-rs) enables declarative JSON Logic transformations
-- **Visual Configuration**: Clear, hierarchical workflow organization
+-   **High Availability**: A stateless, container-native architecture allows for effortless horizontal scaling.
+-   **Zero-Downtime Updates**: Hot-reload configurations and workflows on the fly via an API endpoint, no service restarts required.
+-   **Production-Ready**: Comes with comprehensive error handling, monitoring, and observability baked in.
+-   **Simple Deployment**: Ships as a single, lightweight Docker image for easy deployment in any environment.
+
+### 📋 **Unmatched Transparency & Control**
+
+-   **Externalized JSON Rules**: All transformation logic is stored in clear, auditable JSON files—no hidden or compiled logic.
+-   **Powerful Workflow Engine**: Backed by a sophisticated dataflow engine ([dataflow-rs](https://github.com/GoPlasmatic/dataflow-rs)) to model complex processing pipelines.
+-   **Declarative Logic**: Utilizes [datalogic-rs](https://github.com/GoPlasmatic/datalogic-rs) to enable powerful and clear declarative logic for complex field mappings.
 
 ---
 
-## 🏆 What Makes Reframe Different
+## 🏆 How Reframe Compares
 
-| Feature | Reframe | Traditional Solutions |
-|---------|---------|----------------------|
-| **Transparency** | ✅ Complete source code + JSON workflows | ❌ Proprietary black boxes |
-| **Bidirectional** | ✅ Full MT ↔ ISO 20022 support | ❌ Usually one-way only |
-| **Performance** | ✅ Rust-powered, sub-millisecond | ❌ Often JVM-based, slower |
-| **Configurability** | ✅ JSON-based, runtime configurable | ❌ Requires recompilation |
-| **Open Source** | ✅ Apache 2.0 licensed | ❌ Proprietary licensing |
-| **Message Coverage** | ✅ 30+ message variants | ❌ Limited message support |
+| Feature              | Reframe                                       | Traditional Solutions                 |
+| -------------------- | --------------------------------------------- | ------------------------------------- |
+| **Transparency** | ✅ Open source with 100% auditable JSON rules | ❌ Proprietary, black-box logic       |
+| **Transformation** | ✅ Fully bidirectional (MT ↔ MX)              | ❌ Often one-way or limited reverse   |
+| **Performance** | ✅ Rust-powered (sub-millisecond)             | ❌ Slower, often JVM-based            |
+| **Configuration** | ✅ Hot-reloadable JSON, no downtime           | ❌ Requires vendor intervention       |
+| **License** | ✅ Apache 2.0 (Free to use and modify)        | ❌ Expensive, restrictive licensing   |
+| **Deployment** | ✅ Lightweight, single Docker container       | ❌ Heavy, complex infrastructure      |
 
 ---
 
-## 🎮 Quick Start
+## 🎮 Get Started in Minutes
 
-### 🐳 **Docker (Recommended)**
+### 🐳 **With Docker (Recommended)**
+
+The fastest way to get Reframe running.
+
 ```bash
-# Pull and run the latest version
+# Pull the latest image from Docker Hub
+docker pull plasmatic/reframe:latest
+
+# Run the container and expose the API on port 3000
 docker run -p 3000:3000 plasmatic/reframe:latest
 
-# Access the web interface
-open http://localhost:3000
+# The API is now live and waiting for requests at http://localhost:3000
 ```
 
 ### 🔧 **From Source**
+For developers who want to build from the ground up.
+
 ```bash
-# Clone and build
+# 1. Clone the repository
 git clone https://github.com/GoPlasmatic/Reframe.git
 cd Reframe
+
+# 2. Build the project in release mode (optimized for performance)
 cargo build --release
 
-# Run the application
+# 3. Run the application
 ./target/release/reframe
 ```
 
 ### 🌐 **Try It Now**
-Transform your first message instantly:
+Use curl to send your first transformation request.
 
 ```bash
-# Forward transformation (MT103 → pacs.008)
+# Example: Transform an MT103 to a pacs.008
 curl -X POST http://localhost:3000/transform/mt-to-mx \
-  -H "Content-Type: text/plain" \
-  -d "{1:F01BNPAFRPPXXX0000000000}...{-}"
+  -H "Content-Type: application/json" \
+  -d '{"message": "{1:F01BNPAFRPPXXX0000000000}{...}"}'
 
-# Reverse transformation (pacs.008 → MT103)  
+# Example: Transform a pacs.008 back to an MT103
 curl -X POST http://localhost:3000/transform/mx-to-mt \
-  -H "Content-Type: application/xml" \
-  -d "<?xml version=\"1.0\"?>..."
+  -H "Content-Type: application/json" \
+  -d '{"message": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Document>...</Document>"}'
+
+# Example: Hot-reload workflows after a configuration change
+curl -X POST http://localhost:3000/admin/reload-workflows
 ```
 
 ---
 
 ## 🗺️ Roadmap
 
-### 🎯 **Currently Available (v2.2)**
-- ✅ Complete bidirectional MT ↔ ISO 20022 transformation
-- ✅ 30+ message variants with full lifecycle support
-- ✅ Production-ready container deployment
-- ✅ Comprehensive Web UI with testing capabilities
-- ✅ AI-powered message mapping generation
+Our vision is to make Reframe the undisputed backbone for financial messaging.
 
-### 🌟 **Future Vision**
-- 🌐 Cloud-native SaaS offering
-- 🚧 Advanced workflow visual editor
-- 🚧 Multi-tenant architecture support
-- 🚧 Enhanced monitoring and analytics dashboard
-- 🚧 Additional message format support (RTP, FedNow)
-- 🔗 Blockchain settlement integration
+### 🎯 **What's New (v3.0)**
+
+-   ✅ **Full Swift CBPR+ SR2025 specification support** - Complete compliance with the latest SWIFT standards.
+-   ✅ Full bidirectional transformation for 30+ message variants.
+-   ✅ Production-ready Docker deployment model.
+-   ✅ Hot-reload API for dynamic configuration updates.
+-   ✅ AI-powered tooling for generating message mapping suggestions.
+
+### 🌟 **On the Horizon**
+
+-   🌐 A fully-managed, cloud-native SaaS offering.
+-   🏢 Multi-tenant support for service providers.
+-   📊 Enhanced monitoring and analytics dashboard.
+-   🔌 Support for additional message formats (e.g., RTP, FedNow).
+-   🔗 Integrations for blockchain-based settlement.
 
 ---
 
 ### 🗣️ **Get Involved**
-- **💬 [Discussions](https://github.com/GoPlasmatic/Reframe/discussions)** - Ask questions and share ideas
-- **🐛 [Issues](https://github.com/GoPlasmatic/Reframe/issues)** - Report bugs and request features
-- **📖 [Documentation](docs/)** - Comprehensive guides and references
-- **🔧 [Contributing](CONTRIBUTING.md)** - Help improve Reframe
+
+This project thrives on community input. We welcome you to:
+
+-   **💬 [Start a Discussion](https://github.com/GoPlasmatic/Reframe/discussions)**: Ask questions, share ideas, and connect with other users.
+-   **🐛 [Report an Issue](https://github.com/GoPlasmatic/Reframe/issues)**: Found a bug or have a feature request? Let us know.
+-   **📖 [Read the Docs](docs/)**: Dive deep into the architecture, guides, and API references.
+-   **🔧 [Contribute](CONTRIBUTING.md)**: Help us improve Reframe by contributing your code and expertise.
+
 ---
 
 ## 📚 Documentation
@@ -149,20 +161,22 @@ curl -X POST http://localhost:3000/transform/mx-to-mt \
 
 ## 🔒 Security & Compliance
 
-- **🔐 Security-First**: Built with security best practices from the ground up
-- **📋 Compliance Ready**: Designed for regulatory environments (PCI, SOX, Basel III)
-- **🔍 Audit Trail**: Complete transformation logging and traceability
-- **🛡️ Vulnerability Management**: Regular security updates and monitoring
+We built Reframe with the stringent requirements of financial institutions in mind.
+
+-   **🔐 Secure by Design**: Follows security best practices from the ground up.
+-   **📋 Compliance-Ready**: Architected to support environments requiring PCI, SOX, and Basel III compliance.
+-   **🔍 Full Audit Trail**: Provides complete logging and traceability for every transformation.
+-   **🛡️ Proactive Security**: We actively monitor for vulnerabilities and provide regular security updates.
 
 ---
 
 ## 📄 License
 
-Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
+Reframe is licensed under the Apache License, Version 2.0. You are free to use, modify, and distribute it. See [LICENSE](LICENSE) for more details.
 
 ---
 
 <div align="center">
   <p><strong>Built with ❤️ by Plasmatic</strong></p>
-  <p>Making financial messaging transformation transparent, fast, and reliable</p>
+  <p>Making financial messaging transparent, fast, and reliable.</p>
 </div>

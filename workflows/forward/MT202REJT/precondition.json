@@ -3,15 +3,13 @@
     "name": "MT202 REJT Message Precondition",
     "description": "Precondition checks for MT202 REJT message including validation of rejection format",
     "priority": 3,
-    "condition": {
-        "and": [
-            {"==": [{"var": "SwiftMT.message_type"}, "202"]},
-            {"==": [{"var": "SwiftMT.method"}, "reject"]},
-            {"==": [{"var": "progress.workflow_id"}, "mt202-rejt-bah-mapper"]},
-            {"==": [{"var": "progress.task_id"}, "publish_header_xml"]},
-            {"==": [{"var": "progress.status_code"}, 200]}
-        ]
-    },
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "202"]},
+        {"==": [{"var": "SwiftMT.method"}, "reject"]},
+        {"==": [{"var": "progress.workflow_id"}, "mt202-rejt-bah-mapper"]},
+        {"==": [{"var": "progress.task_id"}, "publish_header_xml"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
     "tasks": [
         {
             "id": "PREC001_validate_temp_variables",
@@ -23,14 +21,12 @@
                     "rules": [
                         {
                             "path": "temp_data",
-                            "logic": {
-                                "and": [
-                                    { "var": "temp_data.Sender" },
-                                    { "var": "temp_data.Receiver" },
-                                    { "!=": [ { "var": "temp_data.Sender" }, "NOTPROVIDED" ] },
-                                    { "!=": [ { "var": "temp_data.Receiver" }, "NOTPROVIDED" ] }
-                                ]
-                            },
+                            "logic": { "and": [
+                                {"var": "temp_data.Sender"},
+                                {"var": "temp_data.Receiver"},
+                                {"!=": [{"var": "temp_data.Sender"}, "NOTPROVIDED"]},
+                                {"!=": [{"var": "temp_data.Receiver"}, "NOTPROVIDED"]}
+                            ]},
                             "message": "Translation stopped: TempSender or TempReceiver is not properly provided from TR001"
                         }
                     ]
@@ -49,8 +45,8 @@
                             "path": "data",
                             "logic": {
                                 "and": [
-                                    { "var": "data.SwiftMT.fields.72.lines.0" },
-                                    { "starts_with": [ { "var": "data.SwiftMT.fields.72.lines.0" }, "/REJT/" ] }
+                                    {"var": "data.SwiftMT.fields.72.information.0"},
+                                    {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/REJT/"]}
                                 ]
                             },
                             "message": "Invalid MT202 REJT: Field 72 line 1 must start with /REJT/"
@@ -70,7 +66,10 @@
                         {
                             "path": "data",
                             "logic": {
-                                "exists": ["data", "SwiftMT", "user_header", "unique_end_to_end_reference"]
+                                "and": [
+                                    {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                    {"!=": [{"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}, ""]}
+                                ]
                             },
                             "message": "Translation stopped: UETR is required for MT202 REJT messages"
                         }
@@ -79,4 +78,4 @@
             }
         }
     ]
-} 
+}

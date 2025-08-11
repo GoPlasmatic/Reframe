@@ -50,18 +50,20 @@ class ScenarioTester:
                     if (item / "index.json").exists():
                         message_types["MT"].append(item.name.upper())
         
-        # Discover MX message types
-        mx_dir = Path("scenarios/MXMessage")
-        if mx_dir.exists():
-            for item in sorted(mx_dir.iterdir()):
-                if item.is_dir() and not item.name.startswith('.'):
-                    # Convert directory name to MX format (e.g., pacs008 -> pacs.008)
-                    name = item.name
-                    if name.startswith(('pacs', 'pain', 'camt')):
-                        # Insert dot before numbers
-                        formatted_name = re.sub(r'([a-z]+)(\d+)', r'\1.\2', name)
-                        if (item / "index.json").exists():
-                            message_types["MX"].append(formatted_name)
+        # Discover MX message types - try both local and parent directory
+        mx_dirs = [Path("scenarios/MXMessage"), Path("../scenarios/MXMessage")]
+        for mx_dir in mx_dirs:
+            if mx_dir.exists():
+                for item in sorted(mx_dir.iterdir()):
+                    if item.is_dir() and not item.name.startswith('.'):
+                        # Convert directory name to MX format (e.g., pacs008 -> pacs.008)
+                        name = item.name
+                        if name.startswith(('pacs', 'pain', 'camt')):
+                            # Insert dot before numbers
+                            formatted_name = name[:4] + '.' + name[4:]
+                            if (item / "index.json").exists():
+                                message_types["MX"].append(formatted_name)
+                break  # Use first existing directory
         
         return message_types
     
@@ -71,11 +73,27 @@ class ScenarioTester:
         if message_type.upper().startswith("MT"):
             # MT message
             clean_type = message_type.lower()
-            scenario_dir = Path(f"scenarios/SwiftMTMessage/{clean_type}")
+            scenario_dirs = [Path(f"scenarios/SwiftMTMessage/{clean_type}")]
         else:
             # MX message - remove dots for directory name
             clean_type = message_type.replace(".", "")
-            scenario_dir = Path(f"scenarios/MXMessage/{clean_type}")
+            # Try both local and parent directory
+            scenario_dirs = [
+                Path(f"scenarios/MXMessage/{clean_type}"),
+                Path(f"../scenarios/MXMessage/{clean_type}")
+            ]
+        
+        # Find the first existing directory
+        scenario_dir = None
+        for dir_path in scenario_dirs:
+            if dir_path.exists():
+                scenario_dir = dir_path
+                break
+        
+        if not scenario_dir:
+            if self.debug:
+                print(f"DEBUG: No scenario directory found for {message_type}")
+            return []
         
         index_file = scenario_dir / "index.json"
         
@@ -100,15 +118,14 @@ class ScenarioTester:
                             "name": filename,
                             "description": scenario.get("description", "")
                         })
-                    else:
-                        # Old format - just scenario names
-                        if isinstance(scenario, str):
-                            if scenario.endswith(".json"):
-                                scenario = scenario[:-5]
-                            scenario_list.append({
-                                "name": scenario,
-                                "description": ""
-                            })
+                    elif isinstance(scenario, str):
+                        # Old format - just scenario names (string)
+                        if scenario.endswith(".json"):
+                            scenario = scenario[:-5]
+                        scenario_list.append({
+                            "name": scenario,
+                            "description": ""
+                        })
                 
                 if self.debug:
                     print(f"DEBUG: Loaded {len(scenario_list)} scenarios from {index_file}")
@@ -164,19 +181,53 @@ class ScenarioTester:
                 print(f"DEBUG: Generation exception: {str(e)}")
             return None, ""
     
-    def validate_message(self, message: Any, format_type: str) -> bool:
-        """Validate the generated message"""
+    def validate_message(self, message: Any, format_type: str) -> Tuple[bool, List[str]]:
+        """Validate the generated message using the validation API"""
+        errors = []
+        
         if format_type == "MT":
-            # Basic MT validation - check for required blocks and fields
-            return bool(message and isinstance(message, str) and (":" in message or "{" in message))
+            # Call MT validation endpoint
+            try:
+                response = requests.post(
+                    f"{self.base_url}/validate/mt",
+                    json={"message": message}
+                )
+                if response.status_code == 200:
+                    result = response.json()
+                    if not result.get("success"):
+                        api_errors = result.get("errors", [])
+                        for err in api_errors:
+                            errors.append(f"{err.get('code', 'UNKNOWN')}: {err.get('message', 'Unknown error')}")
+                    return result.get("success", False), errors
+            except Exception as e:
+                errors.append(f"Validation API error: {str(e)}")
+                return False, errors
+                
         elif format_type == "MX":
-            # MX can be either XML string or JSON dict
-            if isinstance(message, str):
-                return message.startswith("<?xml") or "<Envelope" in message or "<Document" in message
-            elif isinstance(message, dict):
-                # JSON representation is valid
-                return True
-        return False
+            # Call MX validation endpoint
+            try:
+                # Convert to string if needed
+                message_str = message
+                if isinstance(message, dict):
+                    import json as json_module
+                    message_str = json_module.dumps(message)
+                    
+                response = requests.post(
+                    f"{self.base_url}/validate/mx",
+                    json={"message": message_str}
+                )
+                if response.status_code == 200:
+                    result = response.json()
+                    if not result.get("success"):
+                        api_errors = result.get("errors", [])
+                        for err in api_errors:
+                            errors.append(f"{err.get('code', 'UNKNOWN')}: {err.get('message', 'Unknown error')}")
+                    return result.get("success", False), errors
+            except Exception as e:
+                errors.append(f"Validation API error: {str(e)}")
+                return False, errors
+                
+        return False, ["Unknown format type"]
     
     def transform_mt_to_mx(self, mt_message: str) -> Optional[str]:
         """Transform MT message to MX"""
@@ -277,11 +328,13 @@ class ScenarioTester:
         result["generation"] = "✅"
         
         # Validate message
-        if self.validate_message(message, format_type):
+        is_valid, validation_errors = self.validate_message(message, format_type)
+        if is_valid:
             result["validation"] = "✅"
             self.statistics["validation_success"] += 1
         else:
-            result["errors"].append("Validation failed")
+            result["validation"] = "❌"
+            result["errors"].extend(validation_errors)
         
         # Test transformation
         if format_type == "MT":
@@ -307,13 +360,15 @@ class ScenarioTester:
                 result["transformation"] = "❌"
                 result["errors"].append("MX to MT transformation failed")
         
-        # Test roundtrip
+        # Test roundtrip only if validation passed
         if result["validation"] == "✅":
             if self.test_roundtrip(message, format_type):
                 result["roundtrip"] = "✅"
                 self.statistics["roundtrip_success"] += 1
             else:
                 result["roundtrip"] = "⚠️"  # Warning - partial support
+        else:
+            result["roundtrip"] = "—"  # Skip roundtrip if validation failed
         
         self.statistics["by_message_type"][message_type] += 1
         
@@ -358,26 +413,38 @@ class ScenarioTester:
             print("No results to display")
             return
         
+        # Group results by message type for better readability
+        grouped_results = defaultdict(list)
+        for r in results:
+            grouped_results[r["message_type"]].append(r)
+        
         # Prepare table data
         table_data = []
-        for r in results:
-            row = [
-                r["message_type"],
-                r["scenario"][:20] + "..." if len(r["scenario"]) > 20 else r["scenario"],
-                r["sample"],
-                r["generation"],
-                r["validation"],
-                r["transformation"],
-                r["roundtrip"]
-            ]
-            
-            # Add error indicator
-            if r["errors"]:
-                row.append("⚠️")
-            else:
-                row.append("")
-            
-            table_data.append(row)
+        for msg_type in sorted(grouped_results.keys()):
+            for r in grouped_results[msg_type]:
+                scenario_display = r["scenario"]
+                if len(scenario_display) > 30:
+                    scenario_display = scenario_display[:27] + "..."
+                
+                row = [
+                    r["message_type"],
+                    scenario_display,
+                    r["sample"],
+                    r["generation"],
+                    r["validation"],
+                    r["transformation"],
+                    r["roundtrip"]
+                ]
+                
+                # Add error summary
+                if r["errors"]:
+                    # Show first error code if available
+                    error_summary = r["errors"][0][:20] if r["errors"] else "Error"
+                    row.append(error_summary)
+                else:
+                    row.append("")
+                
+                table_data.append(row)
         
         # Print table
         headers = ["Message Type", "Scenario", "Sample", "Generator", "Validator", "Transform", "Round Trip", "Errors"]
@@ -409,8 +476,19 @@ class ScenarioTester:
         
         if self.statistics["by_message_type"]:
             print("\nTests by Message Type:")
-            for msg_type, count in sorted(self.statistics["by_message_type"].items()):
-                print(f"  {msg_type}: {count}")
+            # Separate MT and MX for clarity
+            mt_types = {k: v for k, v in self.statistics["by_message_type"].items() if k.startswith("MT")}
+            mx_types = {k: v for k, v in self.statistics["by_message_type"].items() if not k.startswith("MT")}
+            
+            if mt_types:
+                print("  MT Messages:")
+                for msg_type, count in sorted(mt_types.items()):
+                    print(f"    {msg_type}: {count}")
+            
+            if mx_types:
+                print("  MX Messages:")
+                for msg_type, count in sorted(mx_types.items()):
+                    print(f"    {msg_type}: {count}")
     
     def export_results(self, results: List[Dict[str, Any]], filename: Optional[str] = None):
         """Export results to JSON file"""
@@ -446,11 +524,17 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  # Test all MX message types (default)
+  python test_scenarios.py
+  
+  # Test all MX message types with all scenarios
+  python test_scenarios.py --all-mx
+  
   # Test specific message type with all scenarios
-  python test_scenarios.py --message-type MT103
+  python test_scenarios.py --message-type pacs.008
   
   # Test specific scenarios
-  python test_scenarios.py -m MT103 -s standard high_value
+  python test_scenarios.py -m pacs.008 -s standard high_value
   
   # Test with multiple samples per scenario
   python test_scenarios.py -m pacs.008 --sample-count 3
@@ -459,7 +543,7 @@ Examples:
   python test_scenarios.py --list-types
   
   # Test with debug output
-  python test_scenarios.py -m MT202 --debug
+  python test_scenarios.py -m pacs.009 --debug
   
   # Export results to JSON
   python test_scenarios.py -m camt.054 --export
@@ -472,6 +556,10 @@ Examples:
                        help="Specific scenario(s) to test")
     parser.add_argument("--sample-count", "-c", type=int, default=1,
                        help="Number of samples to generate per scenario (default: 1)")
+    parser.add_argument("--all-mx", action="store_true",
+                       help="Test all MX message types with all their scenarios")
+    parser.add_argument("--all-mt", action="store_true",
+                       help="Test all MT message types with all their scenarios")
     parser.add_argument("--debug", "-d", action="store_true",
                        help="Enable debug output")
     parser.add_argument("--export", "-e", action="store_true",
@@ -528,20 +616,47 @@ Examples:
             print(f"No scenarios found for {args.message_type}")
         sys.exit(0)
     
-    # Require message type for testing
-    if not args.message_type:
-        print("Error: --message-type is required for testing")
-        print("Use --list-types to see available message types")
-        sys.exit(1)
+    # Determine what to test
+    message_types_to_test = []
     
-    # Run tests
+    if args.message_type:
+        # Test specific message type
+        message_types_to_test = [args.message_type]
+    elif args.all_mx:
+        # Test all MX types
+        types = tester.discover_message_types()
+        message_types_to_test = types["MX"]
+        if not message_types_to_test:
+            print("No MX message types found")
+            sys.exit(1)
+        print(f"Testing all {len(message_types_to_test)} MX message types...")
+    elif args.all_mt:
+        # Test all MT types
+        types = tester.discover_message_types()
+        message_types_to_test = types["MT"]
+        if not message_types_to_test:
+            print("No MT message types found")
+            sys.exit(1)
+        print(f"Testing all {len(message_types_to_test)} MT message types...")
+    else:
+        # Default: test all MX types
+        types = tester.discover_message_types()
+        message_types_to_test = types["MX"]
+        if not message_types_to_test:
+            print("No MX message types found. Use --message-type to specify a type.")
+            sys.exit(1)
+        print(f"Testing all {len(message_types_to_test)} MX message types (default behavior)...")
+        print("Use --message-type to test a specific type, or --list-types to see all available types.\n")
+    
+    # Run tests for all selected message types
     all_results = []
-    results = tester.test_message_type(
-        args.message_type,
-        args.scenario,
-        args.sample_count
-    )
-    all_results.extend(results)
+    for msg_type in message_types_to_test:
+        results = tester.test_message_type(
+            msg_type,
+            args.scenario,
+            args.sample_count
+        )
+        all_results.extend(results)
     
     # Print results table
     tester.print_results_table(all_results)

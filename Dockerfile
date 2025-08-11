@@ -5,6 +5,7 @@ FROM rust:1.89-bookworm AS builder
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
@@ -22,7 +23,14 @@ RUN mkdir src && \
 # Copy source code and other files
 COPY src/ ./src/
 COPY workflows/ ./workflows/
-COPY scenarios/ ./scenarios/
+
+# Clone scenario repositories from GitHub
+RUN mkdir -p scenarios && \
+    git clone --depth 1 https://github.com/GoPlasmatic/SwiftMTMessage.git /tmp/SwiftMTMessage && \
+    git clone --depth 1 https://github.com/GoPlasmatic/MXMessage.git /tmp/MXMessage && \
+    cp -r /tmp/SwiftMTMessage/test_scenarios scenarios/SwiftMTMessage && \
+    cp -r /tmp/MXMessage/test_scenarios scenarios/MXMessage && \
+    rm -rf /tmp/SwiftMTMessage /tmp/MXMessage
 
 # Build the application
 RUN touch src/main.rs && cargo build --release

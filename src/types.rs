@@ -5,18 +5,6 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use utoipa::ToSchema;
 
-// Generic API Response wrapper
-#[derive(Debug, Serialize, ToSchema)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<T>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub errors: Vec<ReframeError>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<ResponseMetadata>,
-}
-
 #[derive(Debug, Serialize, Clone, ToSchema)]
 pub struct ResponseMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]

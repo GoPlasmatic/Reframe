@@ -156,12 +156,10 @@ impl ParseMX {
                 let doc_tag = &xml[start..start + end + 1];
 
                 // Look for xmlns attribute
-                if let Some(xmlns_start) = doc_tag.find("xmlns=\"") {
-                    if let Some(xmlns_end) = doc_tag[xmlns_start + 7..].find("\"") {
-                        return Some(
-                            doc_tag[xmlns_start + 7..xmlns_start + 7 + xmlns_end].to_string(),
-                        );
-                    }
+                if let Some(xmlns_start) = doc_tag.find("xmlns=\"")
+                    && let Some(xmlns_end) = doc_tag[xmlns_start + 7..].find("\"")
+                {
+                    return Some(doc_tag[xmlns_start + 7..xmlns_start + 7 + xmlns_end].to_string());
                 }
             }
         }
@@ -170,11 +168,11 @@ impl ParseMX {
 
     /// Extract AppHdr content including the wrapper element
     pub fn extract_app_hdr_content(xml: &str) -> Option<String> {
-        if let Some(start) = xml.find("<AppHdr") {
-            if let Some(end) = xml.find("</AppHdr>") {
-                let end_pos = end + "</AppHdr>".len();
-                return Some(xml[start..end_pos].to_string());
-            }
+        if let Some(start) = xml.find("<AppHdr")
+            && let Some(end) = xml.find("</AppHdr>")
+        {
+            let end_pos = end + "</AppHdr>".len();
+            return Some(xml[start..end_pos].to_string());
         }
         None
     }
@@ -627,21 +625,20 @@ impl ParseMX {
         let mut analysis = format!("Error in {message_type}: {error_msg}");
 
         // Check for missing field errors
-        if error_msg.contains("missing field") {
-            if let Some(field_start) = error_msg.find("missing field `") {
-                if let Some(field_end) = error_msg[field_start + 15..].find("`") {
-                    let missing_field = &error_msg[field_start + 15..field_start + 15 + field_end];
-                    analysis.push_str(&format!(
-                        "\n\nMissing field analysis for '{missing_field}':"
-                    ));
+        if error_msg.contains("missing field")
+            && let Some(field_start) = error_msg.find("missing field `")
+            && let Some(field_end) = error_msg[field_start + 15..].find("`")
+        {
+            let missing_field = &error_msg[field_start + 15..field_start + 15 + field_end];
+            analysis.push_str(&format!(
+                "\n\nMissing field analysis for '{missing_field}':"
+            ));
 
-                    // Search for structural context where this field should be
-                    analysis.push_str(&Self::find_missing_field_context(
-                        missing_field,
-                        xml_content,
-                    ));
-                }
-            }
+            // Search for structural context where this field should be
+            analysis.push_str(&Self::find_missing_field_context(
+                missing_field,
+                xml_content,
+            ));
         }
 
         // Check for XML structure issues

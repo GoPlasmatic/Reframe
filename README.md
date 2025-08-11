@@ -5,9 +5,9 @@
   <p>Reframe is the world's first completely transparent, open-source platform for high-performance SWIFT message transformation.</p>
   <br>
   
-  [![CI/CD Pipeline](https://github.com/GoPlasmatic/Reframe/actions/workflows/deploy-azure.yml/badge.svg?branch=main)](https://github.com/GoPlasmatic/Reframe/actions/workflows/deploy-azure.yml)
   [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
   [![Rust](https://img.shields.io/badge/Rust-1.70+-orange)](https://rust-lang.org)
+  [![Swift CBPR+](https://img.shields.io/badge/Swift-CBPR%2B%20SR2025-green.svg)](https://www.swift.com)
   
   [📚 **Read the Docs**](docs/) | [🔧 **Installation Guide**](docs/installation.md) | [💡 **Explore the Architecture**](docs/architecture.md)
 </div>
@@ -118,8 +118,9 @@ curl -X POST http://localhost:3000/admin/reload-workflows
 
 Our vision is to make Reframe the undisputed backbone for financial messaging.
 
-### 🎯 **What's New (v2.8)**
+### 🎯 **What's New (v3.0)**
 
+-   ✅ **Full Swift CBPR+ SR2025 specification support** - Complete compliance with the latest SWIFT standards.
 -   ✅ Full bidirectional transformation for 30+ message variants.
 -   ✅ Production-ready Docker deployment model.
 -   ✅ Hot-reload API for dynamic configuration updates.

@@ -1,3 +1,5 @@
+use mx_message::ScenarioConfig;
+use mx_message::sample::generate_sample_xml as generate_mx_sample;
 use serde_json::Value;
 use swift_mt_message::{
     generate_sample as generate_mt_sample,
@@ -6,8 +8,6 @@ use swift_mt_message::{
         MT292, MT296, MT299, MT900, MT910, MT920, MT935, MT940, MT941, MT942, MT950,
     },
 };
-use mx_message::sample::generate_sample_xml as generate_mx_sample;
-use mx_message::ScenarioConfig;
 use tracing::{debug, error, info};
 
 use crate::types::SampleGenerationOptions;

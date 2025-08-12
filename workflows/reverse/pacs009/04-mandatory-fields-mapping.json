@@ -2,7 +2,7 @@
     "id": "pacs009-to-mt202-mandatory-fields",
     "name": "pacs.009 to MT202 Mandatory Fields Mapping",
     "description": "Maps mandatory fields from pacs.009 to MT202 message according to CBPR+ specification",
-    "priority": 4,
+    "priority": 5,
     "condition": { "and": [
         {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.009.001.08"]},
         {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
@@ -22,7 +22,7 @@
                         {
                             "path": "data.SwiftMT.fields.#20",
                             "logic": {
-                                "value": { "if": [
+                                "reference": { "if": [
                                     {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId"},
                                     {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId"},
                                     "NOTPROVIDED"
@@ -73,38 +73,28 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.SettlementDate",
+                            "path": "data.SwiftMT.fields.32A.value_date",
                             "logic": { "if": [
                                 {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"},
-                                {
-                                    "cat": [
-                                        {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}, 2, 2]},
-                                        {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}, 5, 2]},
-                                        {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}, 8, 2]}
-                                    ]
-                                },
+                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmDt"}, 0, 10]},
                                 null
                             ]}
                         },
                         {
-                            "path": "data.SwiftMT.fields.32A",
-                            "logic": {
-                                "value": { "if": [
-                                    { "and": [
-                                        {"var": "temp_data.SettlementDate"},
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"}
-                                    ]},
-                                    {
-                                        "cat": [
-                                            {"var": "temp_data.SettlementDate"},
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"}
-                                        ]
-                                    },
-                                    "NOTPROVIDED"
-                                ]}
-                            }
+                            "path": "data.SwiftMT.fields.32A.currency",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.32A.amount",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"},
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"},
+                                null
+                            ]}
                         }
                     ]
                 }

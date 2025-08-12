@@ -220,3 +220,4 @@ curl -X POST http://localhost:3000/generate/sample \
 - `workflows/`: JSON-based transformation workflows (forward and reverse)
 - `test/data/`: Sample SWIFT MT and ISO 20022 messages for testing
 - `specification/`: Message format specifications and mapping tables
+- When there is a pure number compoennt in path, we need to use # in front other wise the path is taken as array notation.

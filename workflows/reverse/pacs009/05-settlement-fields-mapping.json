@@ -1,8 +1,8 @@
 {
     "id": "pacs009-to-mt202-settlement-fields",
     "name": "pacs.009 to MT202 Settlement Fields Mapping",
-    "description": "Maps settlement fields from pacs.009 to MT202 according to CBPR+ specification (Field 53) - TR003",
-    "priority": 5,
+    "description": "Maps settlement fields from pacs.009 to MT202 according to CBPR+ specification (Fields 53 and 54) for CORE/COVE/ADV variants - TR003, TR015",
+    "priority": 6,
     "condition": { "and": [
         {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.009.001.08"]},
         {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
@@ -14,13 +14,13 @@
         {
             "id": "check_settlement_method",
             "name": "Check Settlement Method",
-            "description": "Check if settlement method requires Field 53 mapping (TR003)",
+            "description": "Check if settlement method requires Field 53 mapping and determine variant-specific handling",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.use_field_53",
+                            "path": "temp_data.use_clearing_codes",
                             "logic": {
                                 "or": [
                                     {"==": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"}, "INGA"]},
@@ -35,24 +35,44 @@
         {
             "id": "map_field_53",
             "name": "Map Field 53 - Sender's Correspondent",
-            "description": "Map settlement information to Field 53 when INGA/INDA (TR003)",
+            "description": "Map settlement information to Field 53 based on variant (TR003 for CORE/COVE, direct mapping for ADV)",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#53",
-                            "logic": {
-                                "value": { "if": [
-                                    {"var": "temp_data.use_field_53"},
-                                    { "if": [
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"},
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"},
-                                        null
+                            "path": "data.SwiftMT.fields.#53.A.bic",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"var": "temp_data.use_clearing_codes"},
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct"}
+                                ]},
+                                { "if": [
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"},
+                                    null
+                                ]},
+                                { "if": [
+                                    {"and": [
+                                        {"==": [{"var": "temp_data.pacs009_variant"}, "ADV"]},
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"}
                                     ]},
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"},
                                     null
                                 ]}
-                            }
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#53.B.party_identifier",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"var": "temp_data.use_clearing_codes"},
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct"},
+                                    {"!": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"}}
+                                ]},
+                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"},
+                                null
+                            ]}
                         }
                     ]
                 }
@@ -61,20 +81,21 @@
         {
             "id": "map_field_54",
             "name": "Map Field 54 - Receiver's Correspondent",
-            "description": "Map instructed reimbursement agent to Field 54 (TR015)",
+            "description": "Map instructed reimbursement agent to Field 54 for ADV variant only (not present in CORE/COVE)",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#54",
-                            "logic": {
-                                "value": { "if": [
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"},
-                                    null
-                                ]}
-                            }
+                            "path": "data.SwiftMT.fields.#54.A.bic",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"==": [{"var": "temp_data.pacs009_variant"}, "ADV"]},
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"}
+                                ]},
+                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"},
+                                null
+                            ]}
                         }
                     ]
                 }

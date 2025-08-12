@@ -64,6 +64,19 @@ curl -X POST http://localhost:3000/validate/mx \
 - Review Preconditions (PREC001, PREC002) for validation requirements
 - Check Postconditions (POSTC001-POSTC010) for output formatting rules
 
+#### MX_To_MT Function Reference Documentation
+- **Complete function reference**: `xxx-specification/reverse/MX_To_MT_Functions_Details.json`
+- Contains detailed documentation for all 61 MX_To_MT transformation functions
+- Each function entry includes:
+  - **name**: Function identifier (e.g., MX_To_MTAnyBIC, MX_To_MTAgentGeneric)
+  - **business_description**: What the function does and when to use it
+  - **format**: Function signature and parameters
+  - **input**: Detailed input parameter descriptions with types
+  - **output**: Output format and structure
+  - **preconditions**: Required conditions for function execution
+  - **formal_description**: Complete algorithmic implementation details
+- **Quick reference table**: `xxx-specification/reverse/MX_To_MT_Functions_Table.md`
+
 ### e. Update Mapping Workflow
 
 #### 1. Adopt Modular Structure (Recommended Approach)
@@ -151,6 +164,24 @@ workflows/reverse/[MESSAGE_TYPE]/
     }
 }
 ```
+
+#### Commonly Used MX_To_MT Functions
+
+Refer to `xxx-specification/reverse/MX_To_MT_Functions_Details.json` for complete documentation of these functions:
+
+| Function | Usage | Common Fields |
+|----------|-------|---------------|
+| **MX_To_MTAgentGeneric** | Financial institution fields | 52, 53, 54, 56, 57, 58 |
+| **MX_To_MTDebtorGeneric** | Ordering customer | 50 (all options) |
+| **MX_To_MTCreditorGeneric** | Beneficiary customer | 59 (all options) |
+| **MX_To_MTCurrencyAmount** | Amount fields | 32A, 33B |
+| **MX_To_MTDate** | Date conversions | Value dates, creation dates |
+| **MX_To_MTRemittanceInformation** | Remittance info | 70 |
+| **MX_To_MT72FullField** | Instructions | 72 |
+| **MX_To_MTBICFI** | BIC extraction | All option A fields |
+| **MX_To_MTAccount** | Account identification | Account subfields |
+| **MX_To_MTFATFIdentification** | FATF compliance | 50F subfield 1 |
+| **MX_To_MTFATFNameAndAddress** | FATF name/address | 50F subfield 2 |
 
 #### 3. Module Development Best Practices
 
@@ -354,7 +385,152 @@ curl -X POST http://localhost:3000/admin/reload-workflows
 "data.SwiftMT.fields.71A"     // Details of Charges
 ```
 
-## 8. Performance Considerations
+## 8. Critical Implementation Guidelines (MUST READ)
+
+### Workflow Priority Management
+**Issue**: Multiple workflows with same priority can cause execution order issues.
+
+**Solution**: Ensure proper priority sequencing:
+```json
+// Example priority chain for pacs.009:
+Priority 1: parse-mx.json (global parser)
+Priority 2: 01-variant-detection.json (message-specific)
+Priority 3: 02-preconditions.json
+Priority 4: 03-headers-mapping.json
+Priority 5-10: Field mappings
+Priority 11: Postconditions
+```
+
+**Rules**:
+1. Global parsers (parse-mx.json) should have lowest priority (1)
+2. Message-specific workflows start from priority 2+
+3. Each workflow should depend on previous via `progress.workflow_id` checks
+4. Never have two workflows with same priority in same message type
+
+### SWIFT Block 2 (Application Header) Requirements
+**Issue**: "Block 2 too short: expected at least 18 characters, got 16"
+
+**Root Cause**: Missing required fields in application header.
+
+**Solution**: Include all required Block 2 fields:
+```json
+{
+    "path": "data.SwiftMT.application_header.direction",
+    "logic": "I"  // or "O" for output
+},
+{
+    "path": "data.SwiftMT.application_header.message_type",
+    "logic": "202"
+},
+{
+    "path": "data.SwiftMT.application_header.receiver_bic",
+    "logic": {"var": "temp_data.Receiver"}
+},
+{
+    "path": "data.SwiftMT.application_header.priority",
+    "logic": "N"  // Normal priority
+},
+{
+    "path": "data.SwiftMT.application_header.delivery_monitoring",
+    "logic": "2"  // Required for proper Block 2 length
+},
+{
+    "path": "data.SwiftMT.application_header.obsolescence_period",
+    "logic": "003"  // Required for proper Block 2 length
+}
+```
+
+### Field Structure Requirements for PublishMT
+**Issue**: PublishMT expects specific field structures, not nested objects.
+
+**Wrong**:
+```json
+{
+    "path": "data.SwiftMT.fields.#20",
+    "logic": {
+        "value": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId"}
+    }
+}
+```
+
+**Correct**:
+```json
+{
+    "path": "data.SwiftMT.fields.#20",
+    "logic": {
+        "reference": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.InstrId"}
+    }
+}
+```
+
+For fields with subfields (like option fields), use proper structure:
+```json
+{
+    "path": "data.SwiftMT.fields.#52.A.bic",
+    "logic": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"}
+}
+```
+
+### Variant Detection Pattern
+For messages with multiple variants (e.g., pacs.009 CORE/COVE/ADV):
+
+1. **Create variant detection workflow** (priority 2):
+```json
+{
+    "id": "pacs009-variant-detection",
+    "priority": 2,
+    "tasks": [{
+        "id": "detect_variant",
+        "function": {
+            "name": "map",
+            "input": {
+                "mappings": [{
+                    "path": "temp_data.pacs009_variant",
+                    "logic": { "if": [
+                        {"var": "temp_data.has_underlying_customer"},
+                        "COVE",
+                        { "if": [
+                            {"var": "temp_data.has_reimbursement_agents"},
+                            "ADV",
+                            "CORE"
+                        ]}
+                    ]}
+                }]
+            }
+        }
+    }]
+}
+```
+
+2. **Use variant in conditional workflows**:
+```json
+"condition": { "and": [
+    {"==": [{"var": "temp_data.pacs009_variant"}, "COVE"]},
+    // other conditions
+]}
+```
+
+### Testing Transformation with Debug Output
+```bash
+# Generate sample with specific scenario
+curl -X POST http://localhost:3000/generate/sample \
+  -H "Content-Type: application/json" \
+  -d '{"message_type": "pacs.009", "config": {"scenario": "standard"}}' \
+  | jq -r '.result' > /tmp/test.xml
+
+# Create JSON request
+cat /tmp/test.xml | jq -Rs '{"message": .}' > /tmp/request.json
+
+# Transform with full response
+curl -X POST http://localhost:3000/transform/mx-to-mt \
+  -H "Content-Type: application/json" \
+  -d @/tmp/request.json
+
+# Run with debug logging for detailed errors
+RUST_LOG=debug cargo run
+```
+
+## 9. Performance Considerations
 
 ### Optimization Tips
 1. Use `temp_data` for intermediate calculations
@@ -362,9 +538,14 @@ curl -X POST http://localhost:3000/admin/reload-workflows
 3. Cache frequently accessed paths
 4. Use MX_To_MTAgentGeneric for all agent fields
 5. Batch related field mappings
+6. Set proper workflow priorities to avoid unnecessary condition checks
 
 ### Hot Reload Best Practices
-- Test changes incrementally
+- Test changes incrementally with reload API
 - Keep backup of working workflows
 - Document changes in status.md
 - Use version control for workflow files
+- Always reload workflows after making changes:
+  ```bash
+  curl -X POST http://localhost:3000/admin/reload-workflows
+  ```

@@ -1,0 +1,66 @@
+{
+    "id": "pacs009-variant-detection",
+    "name": "pacs.009 Variant Detection",
+    "description": "Detects whether pacs.009 is CORE, COVE, or ADV variant based on message content",
+    "priority": 2,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.009.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "detect_pacs009_variant",
+            "name": "Detect pacs.009 Variant",
+            "description": "Determine if message is CORE, COVE, or ADV variant based on presence of specific elements",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.has_underlying_customer",
+                            "logic": { "or": [
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.UndrlygCstmrCdtTrf"},
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.UltmtDbtr"},
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.UltmtCdtr"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.has_reimbursement_agents",
+                            "logic": { "or": [
+                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt"},
+                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.has_settlement_account",
+                            "logic": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct"}
+                        },
+                        {
+                            "path": "temp_data.pacs009_variant",
+                            "logic": { "if": [
+                                {"var": "temp_data.has_underlying_customer"},
+                                "COVE",
+                                { "if": [
+                                    {"var": "temp_data.has_reimbursement_agents"},
+                                    "ADV",
+                                    "CORE"
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.target_mt_type",
+                            "logic": { "if": [
+                                {"==": [{"var": "temp_data.pacs009_variant"}, "COVE"]},
+                                "202COV",
+                                "202"
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

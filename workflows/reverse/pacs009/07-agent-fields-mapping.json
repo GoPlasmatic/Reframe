@@ -2,7 +2,7 @@
     "id": "pacs009-to-mt202-agent-fields",
     "name": "pacs.009 to MT202 Agent Fields Mapping",
     "description": "Maps agent fields from pacs.009 to MT202 (Fields 52, 56, 57, 58) according to CBPR+ specification",
-    "priority": 7,
+    "priority": 8,
     "condition": { "and": [
         {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.009.001.08"]},
         {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
@@ -14,20 +14,29 @@
         {
             "id": "map_field_52",
             "name": "Map Field 52 - Ordering Institution",
-            "description": "Map debtor to Field 52 (TR009)",
+            "description": "Map debtor to Field 52 using MX_To_MTAgentGeneric (TR009)",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#52",
-                            "logic": {
-                                "value": { "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.FinInstnId.BICFI"},
-                                    null
-                                ]}
-                            }
+                            "path": "data.SwiftMT.fields.#52.A.bic",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.FinInstnId.BICFI"},
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.FinInstnId.BICFI"},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#52.D.name_and_address",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"!": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.FinInstnId.BICFI"}},
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.FinInstnId.Nm"}
+                                ]},
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.FinInstnId.Nm"},
+                                null
+                            ]}
                         }
                     ]
                 }
@@ -36,20 +45,35 @@
         {
             "id": "map_field_56",
             "name": "Map Field 56 - Intermediary Institution",
-            "description": "Map intermediary agent 1 to Field 56 (TR007)",
+            "description": "Map intermediary agent 1 to Field 56 using MX_To_MTAgentGeneric (TR007)",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#56",
-                            "logic": {
-                                "value": { "if": [
+                            "path": "data.SwiftMT.fields.#56.A.bic",
+                            "logic": { "if": [
+                                {"and": [
                                     {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"},
-                                    null
-                                ]}
-                            }
+                                    {"or": [
+                                        {"!": {"var": "temp_data.use_clearing_codes"}},
+                                        {"!": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.ClrChanl"}}
+                                    ]}
+                                ]},
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#56.D.name_and_address",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"!": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"}},
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.Nm"}
+                                ]},
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.Nm"},
+                                null
+                            ]}
                         }
                     ]
                 }
@@ -58,20 +82,47 @@
         {
             "id": "map_field_57",
             "name": "Map Field 57 - Account With Institution",
-            "description": "Map creditor agent to Field 57 (TR011)",
+            "description": "Map creditor agent to Field 57 using MX_To_MTAgentGeneric with option B allowed (TR011)",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#57",
-                            "logic": {
-                                "value": { "if": [
+                            "path": "data.SwiftMT.fields.#57.A.bic",
+                            "logic": { "if": [
+                                {"and": [
                                     {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
-                                    null
-                                ]}
-                            }
+                                    {"or": [
+                                        {"!": {"var": "temp_data.use_clearing_codes"}},
+                                        {"!": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.ClrChanl"}}
+                                    ]}
+                                ]},
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#57.B.party_identifier",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"!": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}},
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgtAcct.Id.IBAN"}
+                                ]},
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgtAcct.Id.IBAN"},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#57.D.name_and_address",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"!": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}},
+                                    {"!": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgtAcct.Id.IBAN"}},
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.Nm"}
+                                ]},
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.Nm"},
+                                null
+                            ]}
                         }
                     ]
                 }
@@ -80,20 +131,35 @@
         {
             "id": "map_field_58",
             "name": "Map Field 58 - Beneficiary Institution",
-            "description": "Map creditor to Field 58 (TR013)",
+            "description": "Map creditor to Field 58 using MX_To_MTAgentGeneric (TR013)",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#58",
-                            "logic": {
-                                "value": { "if": [
+                            "path": "data.SwiftMT.fields.#58.A.bic",
+                            "logic": { "if": [
+                                {"and": [
                                     {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.FinInstnId.BICFI"},
-                                    null
-                                ]}
-                            }
+                                    {"or": [
+                                        {"!": {"var": "temp_data.use_clearing_codes"}},
+                                        {"!": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.ClrChanl"}}
+                                    ]}
+                                ]},
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.FinInstnId.BICFI"},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#58.D.name_and_address",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"!": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.FinInstnId.BICFI"}},
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.FinInstnId.Nm"}
+                                ]},
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.FinInstnId.Nm"},
+                                null
+                            ]}
                         }
                     ]
                 }

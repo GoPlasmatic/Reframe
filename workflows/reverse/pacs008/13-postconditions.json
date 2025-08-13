@@ -1,8 +1,8 @@
 {
     "id": "pacs008-to-mt103-postconditions",
     "name": "pacs.008 to MT103 Post-conditions Validation",
-    "description": "Validates post-conditions for pacs.008 to MT103 transformation including POSTC001-POSTC008 validations",
-    "priority": 13,
+    "description": "Validates post-conditions for pacs.008 to MT103 transformation per CBPR+ specification POSTC001-POSTC008",
+    "priority": 14,
     "condition": { "and": [
         {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.008.001.08"]},
         {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
@@ -12,26 +12,161 @@
     ]},
     "tasks": [
         {
-            "id": "validate_postconditions",
-            "name": "Validate Post-conditions",
-            "description": "Validate key post-conditions that can be checked with JSON Logic",
+            "id": "check_instruction_code_combinations",
+            "name": "Check Instruction Code Combinations",
+            "description": "Validate instruction code combinations per POSTC001, POSTC002, POSTC010",
             "function": {
-                "name": "validate",
+                "name": "map",
                 "input": {
-                    "rules": [
+                    "mappings": [
+                        {
+                            "path": "temp_data.has_sdva",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"var": "data.SwiftMT.fields.#23E"},
+                                    {"some": [
+                                        {"var": "data.SwiftMT.fields.#23E"},
+                                        {"==": [{"var": "instruction_code"}, "SDVA"]}
+                                    ]}
+                                ]},
+                                true,
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.has_intc_cort",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"var": "data.SwiftMT.fields.#23E"},
+                                    {"some": [
+                                        {"var": "data.SwiftMT.fields.#23E"},
+                                        {"or": [
+                                            {"==": [{"var": "instruction_code"}, "INTC"]},
+                                            {"==": [{"var": "instruction_code"}, "CORT"]}
+                                        ]}
+                                    ]}
+                                ]},
+                                true,
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.has_hold_chqb",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"var": "data.SwiftMT.fields.#23E"},
+                                    {"some": [
+                                        {"var": "data.SwiftMT.fields.#23E"},
+                                        {"or": [
+                                            {"==": [{"var": ""}, "HOLD"]},
+                                            {"==": [{"var": ""}, "CHQB"]}
+                                        ]}
+                                    ]}
+                                ]},
+                                true,
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.has_phob_telb",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"var": "data.SwiftMT.fields.#23E"},
+                                    {"some": [
+                                        {"var": "data.SwiftMT.fields.#23E"},
+                                        {"or": [
+                                            {"==": [{"var": ""}, "PHOB"]},
+                                            {"==": [{"var": ""}, "TELB"]}
+                                        ]}
+                                    ]}
+                                ]},
+                                true,
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#23E",
+                            "logic": { "if": [
+                                {"or": [
+                                    {"and": [
+                                        {"var": "temp_data.has_sdva"},
+                                        {"var": "temp_data.has_hold_chqb"}
+                                    ]},
+                                    {"and": [
+                                        {"var": "temp_data.has_intc_cort"},
+                                        {"var": "temp_data.has_hold_chqb"}
+                                    ]},
+                                    {"and": [
+                                        {"var": "temp_data.has_hold_chqb"},
+                                        {"var": "temp_data.has_phob_telb"}
+                                    ]}
+                                ]},
+                                {"filter": [
+                                    {"var": "data.SwiftMT.fields.#23E"},
+                                    {"!": {"in": [{"var": ""}, ["HOLD", "CHQB", "TELB"]]}}
+                                ]},
+                                {"var": "data.SwiftMT.fields.#23E"}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "sort_instruction_codes",
+            "name": "Sort Instruction Codes",
+            "description": "Sort instruction codes in proper order per POSTC005: SDVA, INTC, CORT, HOLD, CHQB, PHOB, TELB",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.code_order",
+                            "logic": ["SDVA", "INTC", "CORT", "HOLD", "CHQB", "PHOB", "TELB"]
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#23E",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.#23E"},
+                                {"map": [
+                                    {"filter": [
+                                        {"var": "temp_data.code_order"},
+                                        {"some": [
+                                            {"var": "data.SwiftMT.fields.#23E"},
+                                            {"==": [{"var": "instruction_code"}, {"var": ""}]}
+                                        ]}
+                                    ]},
+                                    {"instruction_code": {"var": ""}}
+                                ]},
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_field_71G_currency",
+            "name": "Validate Field 71G Currency",
+            "description": "Validate Field 71G currency matches Field 32A currency per POSTC006",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
                         {
                             "path": "data.SwiftMT.fields.71G",
                             "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.71G.currency"},
-                                {
-                                    "==": [
+                                {"and": [
+                                    {"var": "data.SwiftMT.fields.71G.currency"},
+                                    {"var": "data.SwiftMT.fields.32A.currency"},
+                                    {"!=": [
                                         {"var": "data.SwiftMT.fields.71G.currency"},
                                         {"var": "data.SwiftMT.fields.32A.currency"}
-                                    ]
-                                },
-                                true
-                            ]},
-                            "message": "POSTC006: T20042/T13004: Field 71G currency must match Field 32A currency, otherwise Field 71G must be removed"
+                                    ]}
+                                ]},
+                                null,
+                                {"var": "data.SwiftMT.fields.71G"}
+                            ]}
                         }
                     ]
                 }

@@ -22,7 +22,7 @@
                         {
                             "path": "data.SwiftMT.fields.#26T",
                             "logic": {
-                                "value": { "if": [
+                                "type_code": { "if": [
                                     {
                                         "and": [
                                             {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Purp.Cd"},
@@ -47,73 +47,157 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#13C",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"},
-                                {
-                                    "time_code": "/SNDTIME/",
-                                    "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, 11, 5]},
-                                    "utc_offset": { "if": [
-                                        {
-                                            "==": [
-                                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -1, 1]},
-                                                "Z"
-                                            ]
-                                        },
-                                        "+0000",
-                                        {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -5, 5]}
-                                    ]}
-                                },
-                                { "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"},
-                                    {
-                                        "time_code": "/RNCTIME/",
-                                        "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, 11, 5]},
-                                        "utc_offset": { "if": [
-                                            {
-                                                "==": [
-                                                    {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -1, 1]},
-                                                    "Z"
-                                                ]
-                                            },
-                                            "+0000",
-                                            {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -5, 5]}
-                                        ]}
-                                    },
+                            "path": "data.SwiftMT.fields.13C",
+                            "logic": { "filter": [
+                                [
                                     { "if": [
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.CLSTm"},
+                                        {"and": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"},
+                                            {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}}, 16]}
+                                        ]},
                                         {
-                                            "time_code": "/CLSTIME/",
-                                            "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.CLSTm"}, 0, 5]},
-                                            "utc_offset": "+0000"
-                                        },
-                                        { "if": [
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.TillTm"},
-                                            {
-                                                "time_code": "/TILTIME/",
-                                                "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.TillTm"}, 0, 5]},
-                                                "utc_offset": "+0000"
-                                            },
-                                            { "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.FrTm"},
-                                                {
-                                                    "time_code": "/FROTIME/",
-                                                    "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.FrTm"}, 0, 5]},
-                                                    "utc_offset": "+0000"
-                                                },
+                                            "code": "/SNDTIME/",
+                                            "time": {"cat": [
+                                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, 11, 2]},
+                                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, 14, 2]}
+                                            ]},
+                                            "sign": { "if": [
+                                                {"and": [
+                                                    {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}}, 20]},
+                                                    {"==": [{"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -1, 1]}, "Z"]}
+                                                ]},
+                                                "+",
                                                 { "if": [
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.RjctTm"},
-                                                    {
-                                                        "time_code": "/REJTIME/",
-                                                        "time": {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.RjctTm"}, 0, 5]},
-                                                        "utc_offset": "+0000"
-                                                    },
-                                                    null
+                                                    {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}}, 25]},
+                                                    {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -6, 1]},
+                                                    "+"
+                                                ]}
+                                            ]},
+                                            "offset": { "if": [
+                                                {"and": [
+                                                    {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}}, 20]},
+                                                    {"==": [{"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -1, 1]}, "Z"]}
+                                                ]},
+                                                "0000",
+                                                { "if": [
+                                                    {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}}, 25]},
+                                                    {"cat": [
+                                                        {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -5, 2]},
+                                                        {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -2, 2]}
+                                                    ]},
+                                                    "0000"
                                                 ]}
                                             ]}
-                                        ]}
+                                        },
+                                        null
+                                    ]},
+                                    { "if": [
+                                        {"and": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"},
+                                            {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}}, 16]}
+                                        ]},
+                                        {
+                                            "code": "/RNCTIME/",
+                                            "time": {"cat": [
+                                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, 11, 2]},
+                                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, 14, 2]}
+                                            ]},
+                                            "sign": { "if": [
+                                                {"and": [
+                                                    {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}}, 20]},
+                                                    {"==": [{"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -1, 1]}, "Z"]}
+                                                ]},
+                                                "+",
+                                                { "if": [
+                                                    {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}}, 25]},
+                                                    {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -6, 1]},
+                                                    "+"
+                                                ]}
+                                            ]},
+                                            "offset": { "if": [
+                                                {"and": [
+                                                    {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}}, 20]},
+                                                    {"==": [{"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -1, 1]}, "Z"]}
+                                                ]},
+                                                "0000",
+                                                { "if": [
+                                                    {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}}, 25]},
+                                                    {"cat": [
+                                                        {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -5, 2]},
+                                                        {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -2, 2]}
+                                                    ]},
+                                                    "0000"
+                                                ]}
+                                            ]}
+                                        },
+                                        null
+                                    ]},
+                                    { "if": [
+                                        {"and": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.CLSTm"},
+                                            {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.CLSTm"}}, 5]}
+                                        ]},
+                                        {
+                                            "code": "/CLSTIME/",
+                                            "time": {"cat": [
+                                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.CLSTm"}, 0, 2]},
+                                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.CLSTm"}, 3, 2]}
+                                            ]},
+                                            "sign": "+",
+                                            "offset": "0000"
+                                        },
+                                        null
+                                    ]},
+                                    { "if": [
+                                        {"and": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.TillTm"},
+                                            {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.TillTm"}}, 5]}
+                                        ]},
+                                        {
+                                            "code": "/TILTIME/",
+                                            "time": {"cat": [
+                                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.TillTm"}, 0, 2]},
+                                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.TillTm"}, 3, 2]}
+                                            ]},
+                                            "sign": "+",
+                                            "offset": "0000"
+                                        },
+                                        null
+                                    ]},
+                                    { "if": [
+                                        {"and": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.FrTm"},
+                                            {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.FrTm"}}, 5]}
+                                        ]},
+                                        {
+                                            "code": "/FROTIME/",
+                                            "time": {"cat": [
+                                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.FrTm"}, 0, 2]},
+                                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.FrTm"}, 3, 2]}
+                                            ]},
+                                            "sign": "+",
+                                            "offset": "0000"
+                                        },
+                                        null
+                                    ]},
+                                    { "if": [
+                                        {"and": [
+                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.RjctTm"},
+                                            {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.RjctTm"}}, 5]}
+                                        ]},
+                                        {
+                                            "code": "/REJTIME/",
+                                            "time": {"cat": [
+                                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.RjctTm"}, 0, 2]},
+                                                {"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.RjctTm"}, 3, 2]}
+                                            ]},
+                                            "sign": "+",
+                                            "offset": "0000"
+                                        },
+                                        null
                                     ]}
-                                ]}
+                                ],
+                                {"!!": {"var": ""}}
                             ]}
                         }
                     ]

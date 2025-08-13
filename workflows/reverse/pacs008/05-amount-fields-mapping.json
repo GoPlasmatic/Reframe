@@ -2,7 +2,7 @@
     "id": "pacs008-to-mt103-amount-fields",
     "name": "pacs.008 to MT103 Amount Fields Mapping",
     "description": "Maps amount-related fields including Field 33B (Instructed Amount - TR013/TR015) and Field 36 (Exchange Rate)",
-    "priority": 5,
+    "priority": 6,
     "condition": { "and": [
         {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.008.001.08"]},
         {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
@@ -14,129 +14,34 @@
         {
             "id": "map_instructed_amount",
             "name": "Map Instructed Amount",
-            "description": "Map optional Field 33B (InstructedAmount - TR013/TR015) based on presence of instructed amount",
+            "description": "Map optional Field 33B per TR013/TR015 - TR013 for EU countries when InstructedAmount is absent, TR015 when InstructedAmount is present",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.33B",
+                            "path": "data.SwiftMT.fields.#33B",
                             "logic": { "if": [
-                                {
-                                    "and": [
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstdAmt"},
-                                        {
-                                            "or": [
-                                                {
-                                                    "and": [
-                                                        {
-                                                            "in": [
-                                                                {"substr": [{"var": "temp_data.Sender"}, 4, 2]},
-                                                                [
-                                                                    "AD",
-                                                                    "AT",
-                                                                    "BE",
-                                                                    "BG",
-                                                                    "BV",
-                                                                    "CH",
-                                                                    "CY",
-                                                                    "CZ",
-                                                                    "DE",
-                                                                    "DK",
-                                                                    "ES",
-                                                                    "EE",
-                                                                    "FI",
-                                                                    "FR",
-                                                                    "GB",
-                                                                    "GI",
-                                                                    "GR",
-                                                                    "HR",
-                                                                    "HU",
-                                                                    "IE",
-                                                                    "IS",
-                                                                    "IT",
-                                                                    "LI",
-                                                                    "LT",
-                                                                    "LU",
-                                                                    "LV",
-                                                                    "MC",
-                                                                    "MT",
-                                                                    "NL",
-                                                                    "NO",
-                                                                    "PL",
-                                                                    "PT",
-                                                                    "RO",
-                                                                    "SE",
-                                                                    "SI",
-                                                                    "SK",
-                                                                    "SM",
-                                                                    "VA"
-                                                                ]
-                                                            ]
-                                                        },
-                                                        {
-                                                            "in": [
-                                                                {"substr": [{"var": "temp_data.Receiver"}, 4, 2]},
-                                                                [
-                                                                    "AD",
-                                                                    "AT",
-                                                                    "BE",
-                                                                    "BG",
-                                                                    "BV",
-                                                                    "CH",
-                                                                    "CY",
-                                                                    "CZ",
-                                                                    "DE",
-                                                                    "DK",
-                                                                    "ES",
-                                                                    "EE",
-                                                                    "FI",
-                                                                    "FR",
-                                                                    "GB",
-                                                                    "GI",
-                                                                    "GR",
-                                                                    "HR",
-                                                                    "HU",
-                                                                    "IE",
-                                                                    "IS",
-                                                                    "IT",
-                                                                    "LI",
-                                                                    "LT",
-                                                                    "LU",
-                                                                    "LV",
-                                                                    "MC",
-                                                                    "MT",
-                                                                    "NL",
-                                                                    "NO",
-                                                                    "PL",
-                                                                    "PT",
-                                                                    "RO",
-                                                                    "SE",
-                                                                    "SI",
-                                                                    "SK",
-                                                                    "SM",
-                                                                    "VA"
-                                                                ]
-                                                            ]
-                                                        }
-                                                    ]
-                                                },
-                                                true
-                                            ]
-                                        }
-                                    ]
-                                },
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstdAmt"},
                                 {
                                     "currency": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstdAmt.@Ccy"},
-                                    "amount": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstdAmt.$value"},
-                                    "validation": "TR013_EU_countries"
+                                    "amount": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstdAmt.$value"}
                                 },
                                 { "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstdAmt"},
+                                    {"and": [
+                                        {"!": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstdAmt"}},
+                                        {"in": [{"substr": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, 4, 2]}, 
+                                               ["AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", 
+                                                "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", 
+                                                "PL", "PT", "RO", "SK", "SI", "ES", "SE"]]},
+                                        {"in": [{"substr": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, 4, 2]}, 
+                                               ["AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", 
+                                                "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", 
+                                                "PL", "PT", "RO", "SK", "SI", "ES", "SE"]]}
+                                    ]},
                                     {
-                                        "currency": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstdAmt.@Ccy"},
-                                        "amount": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstdAmt.$value"},
-                                        "validation": "TR015_optional"
+                                        "currency": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
+                                        "amount": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrBkSttlmAmt.$value"}
                                     },
                                     null
                                 ]}
@@ -156,13 +61,13 @@
                     "mappings": [
                         {
                             "path": "data.SwiftMT.fields.#36",
-                            "logic": {
-                                "rate": { "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.XchgRate"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.XchgRate"},
-                                    null
-                                ]}
-                            }
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.XchgRate"},
+                                {
+                                    "rate": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.XchgRate"}
+                                },
+                                null
+                            ]}
                         }
                     ]
                 }

@@ -12,6 +12,29 @@
     ]},
     "tasks": [
         {
+            "id": "map_instruction_codes",
+            "name": "Map Instruction Codes",
+            "description": "Map Field 23E (Instruction Code) from ServiceLevel, CategoryPurpose, and InstructionForCreditorAgent",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#23E",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"},
+                                    {"in": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, ["INTC", "CORT"]]}
+                                ]},
+                                [{"instruction_code": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}}],
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
             "id": "map_creditor_agent_instructions",
             "name": "Map Creditor Agent Instructions",
             "description": "Map Field 72 from InstructionForCreditorAgent codes (HOLD, CHQB, PHOB, TELB)",
@@ -20,43 +43,35 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#72",
-                            "logic": {
-                                "lines": { "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForCdtrAgt.0.Cd"},
-                                    {
-                                        "merge": [
-                                            {"var": "data.SwiftMT.fields.72.lines"},
-                                            [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForCdtrAgt.0.Cd"}]
-                                        ]
-                                    },
-                                    {"var": "data.SwiftMT.fields.72.lines"}
-                                ]}
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_sender_to_receiver_information",
-            "name": "Map Sender to Receiver Information",
-            "description": "Map Field 72 (Sender to Receiver Information) from InstructionForNextAgent information",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
+                            "path": "temp_data.field_72_info",
+                            "logic": { "filter": [
+                                [
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SvcLvl.0.Cd"},
+                                        {"cat": ["/ACC/CBPR+ COMPLIANT"]},
+                                        null
+                                    ]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForCdtrAgt.0.InstrInf"},
+                                        {"cat": ["/INS/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForCdtrAgt.0.InstrInf"}]},
+                                        null
+                                    ]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForCdtrAgt.1.InstrInf"},
+                                        {"cat": ["/INS/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForCdtrAgt.1.InstrInf"}]},
+                                        null
+                                    ]}
+                                ],
+                                {"!=": [{"var": ""}, null]}
+                            ]}
+                        },
                         {
                             "path": "data.SwiftMT.fields.#72",
-                            "logic": {
-                                "lines": { "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForNxtAgt.0.InstrInf"},
-                                    {
-                                        "split": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForNxtAgt.0.InstrInf"}, "\n"]
-                                    },
-                                    null
-                                ]}
-                            }
+                            "logic": { "if": [
+                                {"var": "temp_data.field_72_info"},
+                                {"information": {"var": "temp_data.field_72_info"}},
+                                null
+                            ]}
                         }
                     ]
                 }

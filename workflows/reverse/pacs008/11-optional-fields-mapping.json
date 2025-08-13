@@ -7,7 +7,7 @@
         {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.008.001.08"]},
         {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "pacs008-to-mt103-instruction-fields"]},
-        {"==": [{"var": "progress.task_id"}, "map_sender_to_receiver_information"]},
+        {"==": [{"var": "progress.task_id"}, "map_creditor_agent_instructions"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
@@ -20,54 +20,38 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.77B",
-                            "logic": {
-                                "lines": { "if": [
-                                    { "or": [
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.RgltryRptg.0.Dtls.0"},
+                            "path": "temp_data.field_77b_narrative",
+                            "logic": { "filter": [
+                                [
+                                    { "if": [
                                         {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.CtryOfRes"},
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.CtryOfRes"}
+                                        {"cat": ["/DEBTORRES/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.CtryOfRes"}]},
+                                        null
                                     ]},
-                                    {
-                                        "merge": [
-                                            { "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.RgltryRptg.0.Dtls.0.Tp"},
-                                                [
-                                                    {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.RgltryRptg.0.Dtls.0.Tp"}, "/"]}
-                                                ],
-                                                []
-                                            ]},
-                                            { "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.RgltryRptg.0.Dtls.0.Cd"},
-                                                [
-                                                    {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.RgltryRptg.0.Dtls.0.Cd"}, "/"]}
-                                                ],
-                                                []
-                                            ]},
-                                            { "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.RgltryRptg.0.Dtls.0.Inf"},
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.RgltryRptg.0.Dtls.0.Inf"},
-                                                []
-                                            ]},
-                                            { "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.CtryOfRes"},
-                                                [
-                                                    {"cat": ["/DEBTORRES/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.CtryOfRes"}]}
-                                                ],
-                                                []
-                                            ]},
-                                            { "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.CtryOfRes"},
-                                                [
-                                                    {"cat": ["/CREDITORRES/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.CtryOfRes"}]}
-                                                ],
-                                                []
-                                            ]}
-                                        ]
-                                    },
-                                    null
-                                ]}
-                            }
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.CtryOfRes"},
+                                        {"cat": ["/CREDITORRES/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.CtryOfRes"}]},
+                                        null
+                                    ]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.RgltryRptg.Dtls.Ctry"},
+                                        {"cat": ["/REGCOUNTRY/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.RgltryRptg.Dtls.Ctry"}]},
+                                        null
+                                    ]},
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.RgltryRptg.Dtls.Inf"}
+                                ],
+                                {"!=": [{"var": ""}, null]}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#77B",
+                            "logic": { "if": [
+                                {"var": "temp_data.field_77b_narrative"},
+                                {
+                                    "narrative": {"var": "temp_data.field_77b_narrative"}
+                                },
+                                null
+                            ]}
                         }
                     ]
                 }

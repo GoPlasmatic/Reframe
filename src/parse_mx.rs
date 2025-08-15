@@ -72,6 +72,7 @@ impl AsyncFunctionHandler for ParseMX {
         let parsed_result = json!({
             "header": header,
             "document": document,
+            "message_type": message_type.clone(),
         });
 
         // Store the parsed result in message data
@@ -114,29 +115,60 @@ impl ParseMX {
         document_xmlns: Option<String>,
         app_hdr_content: Option<String>,
     ) -> Result<String> {
-        let message_type = if let Some(xmlns) = document_xmlns {
+        // First try to get the message type from the AppHdr MsgDefIdr (more specific)
+        let message_type = if let Some(app_hdr_content) = app_hdr_content {
+            match Self::parse_header("", &app_hdr_content) {
+                Ok(header) => match header.get("MsgDefIdr") {
+                    Some(value) => {
+                        let msg_def_string = value.to_string();
+                        let msg_def = value.as_str().unwrap_or(&msg_def_string);
+                        // Remove quotes if present
+                        let msg_def = msg_def.trim_matches('"');
+                        Helper::manual_unescape(msg_def)
+                    },
+                    None => {
+                        // Fall back to xmlns if MsgDefIdr not found
+                        if let Some(xmlns) = document_xmlns {
+                            match xmlns.split(":").last() {
+                                Some(message_type) => message_type.to_string(),
+                                None => {
+                                    return Err(DataflowError::Validation(
+                                        "Message type not found".to_string(),
+                                    ));
+                                }
+                            }
+                        } else {
+                            return Err(DataflowError::Validation(
+                                "MsgDefIdr not found in header and no xmlns available".to_string(),
+                            ));
+                        }
+                    }
+                },
+                Err(_) => {
+                    // If header parsing fails, try xmlns
+                    if let Some(xmlns) = document_xmlns {
+                        match xmlns.split(":").last() {
+                            Some(message_type) => message_type.to_string(),
+                            None => {
+                                return Err(DataflowError::Validation(
+                                    "Message type not found".to_string(),
+                                ));
+                            }
+                        }
+                    } else {
+                        return Err(DataflowError::Validation(
+                            "Failed to parse header and no xmlns available".to_string(),
+                        ));
+                    }
+                }
+            }
+        } else if let Some(xmlns) = document_xmlns {
             match xmlns.split(":").last() {
                 Some(message_type) => message_type.to_string(),
                 None => {
                     return Err(DataflowError::Validation(
                         "Message type not found".to_string(),
                     ));
-                }
-            }
-        } else if let Some(app_hdr_content) = app_hdr_content {
-            match Self::parse_header("", &app_hdr_content) {
-                Ok(header) => match header.get("MsgDefIdr") {
-                    Some(value) => Helper::manual_unescape(value.to_string().as_str()),
-                    None => {
-                        return Err(DataflowError::Validation(
-                            "MsgDefIdr not found in header".to_string(),
-                        ));
-                    }
-                },
-                Err(e) => {
-                    return Err(DataflowError::Validation(format!(
-                        "Failed to parse header: {e}"
-                    )));
                 }
             }
         } else {

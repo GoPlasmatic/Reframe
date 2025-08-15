@@ -1,0 +1,100 @@
+{
+    "id": "camt109-to-mt112-reason-fields",
+    "name": "camt.109 to MT112 Reason Fields Mapping",
+    "description": "Maps field 76 (Status) for cheque cancellation or stop status",
+    "priority": 7,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.109.001.01"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt109-to-mt112-party-fields"]},
+        {"==": [{"var": "progress.task_id"}, "map_payee_field"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_status_field",
+            "name": "Map Status Field 76",
+            "description": "Map cheque cancellation or stop status to field 76 using MX_To_MT76CANC",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#76",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopSts.Sts.Cd"},
+                                {
+                                    "information": [
+                                        {"cat": [
+                                            "STATUS: ",
+                                            {"if": [
+                                                {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopSts.Sts.Cd"}, "RQST"]},
+                                                "REQUESTED",
+                                                {"if": [
+                                                    {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopSts.Sts.Cd"}, "ACPT"]},
+                                                    "ACCEPTED",
+                                                    {"if": [
+                                                        {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopSts.Sts.Cd"}, "RJCT"]},
+                                                        "REJECTED",
+                                                        {"if": [
+                                                            {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopSts.Sts.Cd"}, "PEND"]},
+                                                            "PENDING",
+                                                            {"if": [
+                                                                {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopSts.Sts.Cd"}, "CANC"]},
+                                                                "CANCELLED",
+                                                                {"if": [
+                                                                    {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopSts.Sts.Cd"}, "STOP"]},
+                                                                    "STOPPED",
+                                                                    {"if": [
+                                                                        {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopSts.Sts.Cd"}, "ACCR"]},
+                                                                        "ACCEPTED",
+                                                                        {"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopSts.Sts.Cd"}
+                                                                    ]}
+                                                                ]}
+                                                            ]}
+                                                        ]}
+                                                    ]}
+                                                ]}
+                                            ]}
+                                        ]},
+                                        {"if": [
+                                            {"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopSts.AddtlInf"},
+                                            {"if": [
+                                                {">": [{"length": {"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopSts.AddtlInf"}}, 35]},
+                                                {"substr": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopSts.AddtlInf"}, 0, 35]},
+                                                {"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopSts.AddtlInf"}
+                                            ]},
+                                            "Stop payment processed"
+                                        ]}
+                                    ]
+                                },
+                                {
+                                    "information": [
+                                        "STATUS: NOTPROVIDED",
+                                        "No status information available"
+                                    ]
+                                }
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "generate_field_order",
+            "name": "Generate Field Order",
+            "description": "Generates the order of fields for the MT112 message",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field_order",
+                            "logic": ["20", "21", "30", "32", "52", "59", "76"]
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

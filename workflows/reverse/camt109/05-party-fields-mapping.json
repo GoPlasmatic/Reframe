@@ -1,0 +1,96 @@
+{
+    "id": "camt109-to-mt112-party-fields",
+    "name": "camt.109 to MT112 Party Fields Mapping",
+    "description": "Maps party fields: 52 (Drawer Agent) and 59 (Payee) according to TR003 and TR004",
+    "priority": 6,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.109.001.01"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt109-to-mt112-mandatory-fields"]},
+        {"==": [{"var": "progress.task_id"}, "map_amount_field"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_drawer_agent",
+            "name": "Map Drawer Agent Field 52",
+            "description": "Map drawer agent to field 52A/52B/52D per TR003",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#52",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"var": "temp_data.has_drawer_agent"},
+                                    {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.BICFI"}
+                                ]},
+                                {
+                                    "A": {
+                                        "bic": {"substr": [{"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.BICFI"}, 0, 8]}
+                                    }
+                                },
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_payee_field",
+            "name": "Map Payee Field 59",
+            "description": "Map payee to field 59 (no letter option) per TR004",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#59",
+                            "logic": { "if": [
+                                {"var": "temp_data.has_payee"},
+                                {
+                                    "name_and_address": [
+                                        {"if": [
+                                            {"var": "data.ISO20022_MX.document.Chq.Pyee.Nm"},
+                                            {"var": "data.ISO20022_MX.document.Chq.Pyee.Nm"},
+                                            "NOTPROVIDED"
+                                        ]},
+                                        {"if": [
+                                            {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.AdrLine"},
+                                            {"reduce": [
+                                                {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.AdrLine"},
+                                                {"var": "current"},
+                                                ""
+                                            ]},
+                                            {"if": [
+                                                {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.StrtNm"},
+                                                {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.StrtNm"},
+                                                ""
+                                            ]}
+                                        ]},
+                                        {"if": [
+                                            {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.Ctry"},
+                                            {"cat": [
+                                                {"if": [
+                                                    {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.TwnNm"},
+                                                    {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.TwnNm"},
+                                                    ""
+                                                ]},
+                                                ", ",
+                                                {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.Ctry"}
+                                            ]},
+                                            ""
+                                        ]}
+                                    ]
+                                },
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

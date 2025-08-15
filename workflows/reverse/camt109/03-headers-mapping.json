@@ -1,0 +1,78 @@
+{
+    "id": "camt109-to-mt112-headers",
+    "name": "camt.109 to MT112 Headers Mapping",
+    "description": "Constructs SWIFT headers (Block 1 and Block 2) for MT112 message",
+    "priority": 4,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.109.001.01"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt109-to-mt112-preconditions"]},
+        {"==": [{"var": "progress.task_id"}, "set_target_message_type"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "build_swift_headers",
+            "name": "Build SWIFT Headers",
+            "description": "Build SWIFT Block 1 (Basic Header) and Block 2 (Application Header) for MT112",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.basic_header",
+                            "logic": {
+                                "application_id": "F",
+                                "service_id": "01",
+                                "sender_bic": {"substr": [{"var": "temp_data.Sender"}, 0, 8]},
+                                "logical_terminal": {"if": [
+                                    {"==": [{"length": {"var": "temp_data.Sender"}}, 8]},
+                                    {"cat": [{"substr": [{"var": "temp_data.Sender"}, 0, 8]}, "AXXX"]},
+                                    {"if": [
+                                        {"==": [{"length": {"var": "temp_data.Sender"}}, 11]},
+                                        {"cat": [
+                                            {"substr": [{"var": "temp_data.Sender"}, 0, 8]},
+                                            "A",
+                                            {"substr": [{"var": "temp_data.Sender"}, 8, 3]}
+                                        ]},
+                                        {"cat": [{"substr": [{"var": "temp_data.Sender"}, 0, 8]}, "AXXX"]}
+                                    ]}
+                                ]},
+                                "session_number": "0000",
+                                "sequence_number": "000000"
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header",
+                            "logic": {
+                                "direction": "I",
+                                "message_type": "112",
+                                "receiver_bic": {"substr": [{"var": "temp_data.Receiver"}, 0, 8]},
+                                "destination_address": {"if": [
+                                    {"==": [{"length": {"var": "temp_data.Receiver"}}, 8]},
+                                    {"cat": [{"substr": [{"var": "temp_data.Receiver"}, 0, 8]}, "AXXX"]},
+                                    {"if": [
+                                        {"==": [{"length": {"var": "temp_data.Receiver"}}, 11]},
+                                        {"cat": [
+                                            {"substr": [{"var": "temp_data.Receiver"}, 0, 8]},
+                                            "A",
+                                            {"substr": [{"var": "temp_data.Receiver"}, 8, 3]}
+                                        ]},
+                                        {"cat": [{"substr": [{"var": "temp_data.Receiver"}, 0, 8]}, "AXXX"]}
+                                    ]}
+                                ]},
+                                "priority": "N",
+                                "delivery_monitoring": "2",
+                                "obsolescence_period": "003"
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.message_type",
+                            "logic": "112"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

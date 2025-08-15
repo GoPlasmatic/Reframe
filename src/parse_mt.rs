@@ -68,7 +68,22 @@ impl ParseMT {
 
         let method: String;
 
-        let parsed_data = if message_type == "103" {
+        let parsed_data = if message_type == "101" {
+            let Some(mt101_message) = parsed_message.into_mt101() else {
+                error!("Failed to convert SwiftMessage to MT101");
+                return Err(DataflowError::Validation(
+                    "MT101 message not found in SwiftMT message".to_string(),
+                ));
+            };
+
+            method = "normal".to_string();
+            debug!(method = %method, "Determined MT101 processing method");
+
+            serde_json::to_value(&mt101_message).map_err(|e| {
+                error!(error = ?e, "MT101 JSON conversion failed");
+                DataflowError::Validation(format!("MT101 JSON conversion failed: {e}"))
+            })?
+        } else if message_type == "103" {
             let Some(mt103_message) = parsed_message.into_mt103() else {
                 error!("Failed to convert SwiftMessage to MT103");
                 return Err(DataflowError::Validation(

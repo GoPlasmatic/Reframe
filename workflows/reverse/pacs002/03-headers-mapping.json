@@ -1,0 +1,115 @@
+{
+    "id": "pacs002-to-mt-headers-mapping",
+    "name": "pacs.002 to MT199/MT299 Headers Mapping",
+    "description": "Maps pacs.002 header information to SWIFT MT199/MT299 headers (blocks 1, 2, and 3)",
+    "priority": 3,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.002.001.10"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs002-to-mt-preconditions"]},
+        {"==": [{"var": "progress.task_id"}, "validate_basic_requirements"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "construct_basic_header",
+            "name": "Construct Basic Header (Block 1)",
+            "description": "Build SWIFT MT basic header using sender BIC",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.message_type",
+                            "logic": {"var": "temp_data.target_message_type"}
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.application_id",
+                            "logic": "F"
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.service_id",
+                            "logic": "01"
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.sender_bic",
+                            "logic": {"substr": [{"var": "temp_data.Sender"}, 0, 8]}
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.logical_terminal",
+                            "logic": {"cat": [{"var": "temp_data.Sender"}, "AXXX"]}
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.session_number",
+                            "logic": "0000"
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.sequence_number",
+                            "logic": "000000"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "construct_application_header",
+            "name": "Construct Application Header (Block 2)",
+            "description": "Build SWIFT MT application header using receiver BIC and message type",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.application_header.direction",
+                            "logic": "I"
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.message_type",
+                            "logic": {"var": "temp_data.target_message_type"}
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.receiver_bic",
+                            "logic": {"substr": [{"var": "temp_data.Receiver"}, 0, 8]}
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.priority",
+                            "logic": "N"
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.delivery_monitoring",
+                            "logic": "2"
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.obsolescence_period",
+                            "logic": "003"
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.destination_address",
+                            "logic": {"cat": [{"var": "temp_data.Receiver"}, "XXXX"]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "construct_user_header",
+            "name": "Construct User Header (Block 3)",
+            "description": "Build SWIFT MT user header with UETR from original transaction",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.user_header.unique_end_to_end_reference",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"},
+                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"},
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

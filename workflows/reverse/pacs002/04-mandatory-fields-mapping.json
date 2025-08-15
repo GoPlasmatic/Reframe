@@ -1,0 +1,75 @@
+{
+    "id": "pacs002-to-mt-mandatory-fields-mapping",
+    "name": "pacs.002 to MT199/MT299 Mandatory Fields Mapping",
+    "description": "Maps mandatory fields: Field 20 (Transaction Reference) and Field 21 (Related Reference)",
+    "priority": 4,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.002.001.10"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs002-to-mt-headers-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "construct_user_header"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_field_20",
+            "name": "Map Field 20 - Transaction Reference Number",
+            "description": "Map MessageIdentification to Field 20 with truncation if needed (TR001)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field20_raw",
+                            "logic": {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}
+                        },
+                        {
+                            "path": "temp_data.field20_truncated",
+                            "logic": { "if": [
+                                {">": [{"length": {"var": "temp_data.field20_raw"}}, 16]},
+                                {"cat": [{"substr": [{"var": "temp_data.field20_raw"}, 0, 15]}, "+"]},
+                                {"var": "temp_data.field20_raw"}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#20",
+                            "logic": {
+                                "reference": { "if": [
+                                    { "and": [
+                                        {"!=": [{"substr": [{"var": "temp_data.field20_truncated"}, 0, 1]}, "/"]},
+                                        {"!=": [{"substr": [{"var": "temp_data.field20_truncated"}, -1, 1]}, "/"]},
+                                        {"==": [{"in": ["//", {"var": "temp_data.field20_truncated"}]}, false]}
+                                    ]},
+                                    {"var": "temp_data.field20_truncated"},
+                                    "NOTPROVIDED"
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_21",
+            "name": "Map Field 21 - Related Reference",
+            "description": "Map OriginalInstructionIdentification to Field 21",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#21",
+                            "logic": {
+                                "reference": { "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"},
+                                    {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"},
+                                    "NOTPROVIDED"
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

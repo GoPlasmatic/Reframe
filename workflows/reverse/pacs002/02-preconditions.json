@@ -1,0 +1,114 @@
+{
+    "id": "pacs002-to-mt-preconditions",
+    "name": "pacs.002 to MT199/MT299 Preconditions Validation",
+    "description": "Validates preconditions for pacs.002 to MT199/MT299 REJT transformation according to CBPR+ specification",
+    "priority": 2,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.002.001.10"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "validate_status_report_type",
+            "name": "Validate Status Report Type",
+            "description": "Validate that this is a REJT status report",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.TxInfAndSts.TxSts",
+                            "logic": {
+                                "==": [{"var": "data.ISO20022_MX.document.TxInfAndSts.TxSts"}, "RJCT"]
+                            },
+                            "message": "Only REJT status is supported for MT199/MT299 transformation"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "extract_temp_variables",
+            "name": "Extract Temporary Variables",
+            "description": "Extract sender, receiver BIC codes and determine MT message type",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.Sender",
+                            "logic": {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}
+                        },
+                        {
+                            "path": "temp_data.Receiver",
+                            "logic": {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}
+                        },
+                        {
+                            "path": "temp_data.target_message_type",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"},
+                                { "if": [
+                                    {"starts_with": [{"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlInstrId"}, "2"]},
+                                    "299",
+                                    "199"
+                                ]},
+                                "199"
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_basic_requirements",
+            "name": "Validate Basic Requirements",
+            "description": "Validate basic requirements for pacs.002 to MT199/MT299 transformation",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.GrpHdr.MsgId",
+                            "logic": { "and": [
+                                {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"},
+                                {"!=": [{"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}, ""]},
+                                {"!=": [{"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}, null]}
+                            ]},
+                            "message": "MessageIdentification is mandatory for Field 20 construction"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI",
+                            "logic": { "and": [
+                                {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                {"!=": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, ""]},
+                                {"!=": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, null]}
+                            ]},
+                            "message": "BAH From/Sender BICFI is required for SWIFT headers construction"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI",
+                            "logic": { "and": [
+                                {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                {"!=": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, ""]},
+                                {"!=": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, null]}
+                            ]},
+                            "message": "BAH To/Receiver BICFI is required for SWIFT headers construction"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.Rsn.Cd",
+                            "logic": { "and": [
+                                {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.Rsn.Cd"},
+                                {"!=": [{"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.Rsn.Cd"}, ""]},
+                                {"!=": [{"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.Rsn.Cd"}, null]}
+                            ]},
+                            "message": "Status Reason Code is required for MT199/MT299 REJT message"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

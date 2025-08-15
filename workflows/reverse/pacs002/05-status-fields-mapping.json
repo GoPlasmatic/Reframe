@@ -1,0 +1,120 @@
+{
+    "id": "pacs002-to-mt-status-fields-mapping",
+    "name": "pacs.002 to MT199/MT299 Status Fields Mapping",
+    "description": "Maps rejection status and details to Field 79 using structured format",
+    "priority": 5,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.002.001.10"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs002-to-mt-mandatory-fields-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_field_21"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "prepare_field_79_components",
+            "name": "Prepare Field 79 Components",
+            "description": "Prepare individual components for Field 79 construction",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field79_line1",
+                            "logic": "/REJT/"
+                        },
+                        {
+                            "path": "temp_data.field79_line2",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.Rsn.Cd"},
+                                {"cat": ["/RJCT/", {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.Rsn.Cd"}]},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field79_line3",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgId"},
+                                {"cat": ["/MREF/", {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgId"}]},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field79_line4",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlEndToEndId"},
+                                {"cat": ["/TREF/", {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlEndToEndId"}]},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field79_line5",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"},
+                                {"cat": ["/UETR/", {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlUETR"}]},
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "prepare_additional_info",
+            "name": "Prepare Additional Information",
+            "description": "Prepare additional information lines for Field 79",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field79_additional_info",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.AddtlInf"},
+                                {
+                                    "map": [
+                                        {"var": "data.ISO20022_MX.document.TxInfAndSts.StsRsnInf.AddtlInf"},
+                                        {"cat": ["/TEXT/", {"var": ""}]}
+                                    ]
+                                },
+                                []
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "construct_field_79",
+            "name": "Construct Field 79",
+            "description": "Combine all components into Field 79 array format",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#79",
+                            "logic": {
+                                "information": {
+                                    "filter": [
+                                        {
+                                            "merge": [
+                                                [{"var": "temp_data.field79_line1"}],
+                                                { "if": [{"var": "temp_data.field79_line2"}, [{"var": "temp_data.field79_line2"}], []]},
+                                                { "if": [{"var": "temp_data.field79_line3"}, [{"var": "temp_data.field79_line3"}], []]},
+                                                { "if": [{"var": "temp_data.field79_line4"}, [{"var": "temp_data.field79_line4"}], []]},
+                                                { "if": [{"var": "temp_data.field79_line5"}, [{"var": "temp_data.field79_line5"}], []]},
+                                                {"var": "temp_data.field79_additional_info"}
+                                            ]
+                                        },
+                                        {"!=": [{"var": ""}, null]}
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,130 @@
+{
+    "id": "camt107-party-fields",
+    "name": "camt.107 to MT110 Party Fields Mapping",
+    "description": "Maps party fields (50, 52, 53, 59) for MT110 message",
+    "priority": 6,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.107.001.01"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt107-mandatory-fields"]},
+        {"==": [{"var": "progress.task_id"}, "map_mandatory_fields"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_party_fields",
+            "name": "Map Party Fields",
+            "description": "Map payer, drawer agent, and payee fields",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#50",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.Chq.Pyer"},
+                                {"K": {
+                                    "account": { "if": [
+                                        {"var": "data.ISO20022_MX.document.Chq.PyerAcct.Id.IBAN"},
+                                        {"cat": ["/", {"var": "data.ISO20022_MX.document.Chq.PyerAcct.Id.IBAN"}]},
+                                        {"if": [
+                                            {"var": "data.ISO20022_MX.document.Chq.PyerAcct.Id.Othr.Id"},
+                                            {"cat": ["/", {"var": "data.ISO20022_MX.document.Chq.PyerAcct.Id.Othr.Id"}]},
+                                            ""
+                                        ]}
+                                    ]},
+                                    "name_and_address": [
+                                        {"if": [
+                                            {"var": "data.ISO20022_MX.document.Chq.Pyer.Nm"},
+                                            {"var": "data.ISO20022_MX.document.Chq.Pyer.Nm"},
+                                            ""
+                                        ]},
+                                        {"if": [
+                                            {"var": "data.ISO20022_MX.document.Chq.Pyer.PstlAdr.Ctry"},
+                                            {"var": "data.ISO20022_MX.document.Chq.Pyer.PstlAdr.Ctry"},
+                                            ""
+                                        ]}
+                                    ]
+                                }},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#52",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"var": "temp_data.has_drawer_agent"},
+                                    {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.BICFI"}
+                                ]},
+                                {"A": {
+                                    "bic": {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.BICFI"}
+                                }},
+                                {"if": [
+                                    {"and": [
+                                        {"var": "temp_data.has_drawer_agent"},
+                                        {"!": {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.BICFI"}},
+                                        {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct"}
+                                    ]},
+                                    {"B": {
+                                        "party_identifier": { "if": [
+                                            {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.IBAN"},
+                                            {"cat": ["/", {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.IBAN"}]},
+                                            {"if": [
+                                                {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.Othr.Id"},
+                                                {"cat": ["/", {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.Othr.Id"}]},
+                                                null
+                                            ]}
+                                        ]}
+                                    }},
+                                    null
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#53",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"var": "temp_data.has_drawer_agent"},
+                                    {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct"}
+                                ]},
+                                {"B": {
+                                    "party_identifier": { "if": [
+                                        {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.IBAN"},
+                                        {"cat": ["/", {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.IBAN"}]},
+                                        {"if": [
+                                            {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.Othr.Id"},
+                                            {"cat": ["/", {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.Othr.Id"}]},
+                                            null
+                                        ]}
+                                    ]}
+                                }},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#59",
+                            "logic": { "if": [
+                                {"var": "temp_data.has_payee"},
+                                {"NoOption": {
+                                    "lines": [
+                                        {"if": [
+                                            {"var": "data.ISO20022_MX.document.Chq.Pyee.Nm"},
+                                            {"var": "data.ISO20022_MX.document.Chq.Pyee.Nm"},
+                                            ""
+                                        ]},
+                                        {"if": [
+                                            {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.Ctry"},
+                                            {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.Ctry"},
+                                            ""
+                                        ]}
+                                    ]
+                                }},
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

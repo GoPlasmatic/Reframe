@@ -1,0 +1,62 @@
+{
+    "id": "camt107-variant-detection",
+    "name": "camt.107 Variant Detection",
+    "description": "Detects camt.107 variant and prepares for MT110 transformation",
+    "priority": 2,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.107.001.01"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "detect_camt107_variant",
+            "name": "Detect camt.107 Variant",
+            "description": "Extract sender/receiver and determine if field 32A or 32B should be used",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.Sender",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                "TESTBIC8XXX"
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.Receiver",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                "TESTBIC8XXX"
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.has_value_date",
+                            "logic": {"!!": {"var": "data.ISO20022_MX.document.Chq.ValDt.Dt"}}
+                        },
+                        {
+                            "path": "temp_data.has_drawer_agent",
+                            "logic": {"or": [
+                                {"var": "data.ISO20022_MX.document.Chq.DrwrAgt"},
+                                {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.has_payee",
+                            "logic": {"!!": {"var": "data.ISO20022_MX.document.Chq.Pyee"}}
+                        },
+                        {
+                            "path": "temp_data.camt107_variant",
+                            "logic": "CORE"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

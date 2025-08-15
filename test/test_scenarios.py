@@ -7,6 +7,8 @@ Updated to work with the new SampleGenerationResponse structure:
 - Changed from 'transformed_message' and 'generated_message' to 'result' field
 - Changed from 'scenario_used' to 'scenario' field
 - Error handling now uses 'errors' array with ReframeError objects
+
+Enhanced with debug mode that shows full API request/response details for troubleshooting.
 """
 
 import json
@@ -141,13 +143,34 @@ class ScenarioTester:
         try:
             config = {"scenario": scenario} if scenario != "default" else {}
             
+            request_data = {
+                "message_type": message_type,
+                "config": config
+            }
+            
+            if self.debug:
+                print(f"\nDEBUG: Generate API Request:")
+                print(f"  URL: {self.base_url}/generate/sample")
+                print(f"  Method: POST")
+                print(f"  Body: {json.dumps(request_data, indent=2)}")
+            
             response = requests.post(
                 f"{self.base_url}/generate/sample",
-                json={
-                    "message_type": message_type,
-                    "config": config
-                }
+                json=request_data
             )
+            
+            if self.debug:
+                print(f"\nDEBUG: Generate API Response:")
+                print(f"  Status: {response.status_code}")
+                if response.status_code == 200:
+                    result = response.json()
+                    # Show response but truncate long messages
+                    if result.get("result") and len(str(result.get("result"))) > 500:
+                        print(f"  Body: {json.dumps({**result, 'result': str(result['result'])[:500] + '...'}, indent=2)}")
+                    else:
+                        print(f"  Body: {json.dumps(result, indent=2)}")
+                else:
+                    print(f"  Body: {response.text[:500]}")
             
             if response.status_code == 200:
                 result = response.json()
@@ -188,10 +211,24 @@ class ScenarioTester:
         if format_type == "MT":
             # Call MT validation endpoint
             try:
+                request_data = {"message": message, "options": {"canonical": True}}
+                
+                if self.debug:
+                    print(f"\nDEBUG: Validate MT API Request:")
+                    print(f"  URL: {self.base_url}/validate/mt")
+                    print(f"  Method: POST")
+                    print(f"  Body: {json.dumps(request_data, indent=2)}")
+                
                 response = requests.post(
                     f"{self.base_url}/validate/mt",
-                    json={"message": message}
+                    json=request_data
                 )
+                
+                if self.debug:
+                    print(f"\nDEBUG: Validate MT API Response:")
+                    print(f"  Status: {response.status_code}")
+                    print(f"  Body: {response.text[:500]}")
+                
                 if response.status_code == 200:
                     result = response.json()
                     if not result.get("success"):
@@ -211,11 +248,25 @@ class ScenarioTester:
                 if isinstance(message, dict):
                     import json as json_module
                     message_str = json_module.dumps(message)
+                
+                request_data = {"message": message_str, "options": {"canonical": True}}
+                
+                if self.debug:
+                    print(f"\nDEBUG: Validate MX API Request:")
+                    print(f"  URL: {self.base_url}/validate/mx")
+                    print(f"  Method: POST")
+                    print(f"  Body: {json.dumps(request_data, indent=2)}")
                     
                 response = requests.post(
                     f"{self.base_url}/validate/mx",
-                    json={"message": message_str}
+                    json=request_data
                 )
+                
+                if self.debug:
+                    print(f"\nDEBUG: Validate MX API Response:")
+                    print(f"  Status: {response.status_code}")
+                    print(f"  Body: {response.text}")
+                
                 if response.status_code == 200:
                     result = response.json()
                     if not result.get("success"):
@@ -232,15 +283,40 @@ class ScenarioTester:
     def transform_mt_to_mx(self, mt_message: str) -> Optional[str]:
         """Transform MT message to MX"""
         try:
+            request_data = {"message": mt_message, "options": {"debug": True}}
+            
+            if self.debug:
+                print(f"\nDEBUG: Transform MT->MX API Request:")
+                print(f"  URL: {self.base_url}/transform/mt-to-mx")
+                print(f"  Method: POST")
+                # Truncate long messages
+                if len(mt_message) > 500:
+                    print(f"  Body: {json.dumps({'message': mt_message[:500] + '...'}, indent=2)}")
+                else:
+                    print(f"  Body: {json.dumps(request_data, indent=2)}")
+            
             response = requests.post(
                 f"{self.base_url}/transform/mt-to-mx",
-                json={"message": mt_message}
+                json=request_data
             )
+            
+            if self.debug:
+                print(f"\nDEBUG: Transform MT->MX API Response:")
+                print(f"  Status: {response.status_code}")
+                if response.status_code == 200:
+                    result = response.json()
+                    # Truncate long results
+                    if result.get("result") and len(str(result.get("result"))) > 500:
+                        print(f"  Body: {json.dumps({**result, 'result': str(result['result'])[:500] + '...'}, indent=2)}")
+                    else:
+                        print(f"  Body: {json.dumps(result, indent=2)}")
+                else:
+                    print(f"  Body: {response.text[:500]}")
             
             if response.status_code == 200:
                 result = response.json()
                 if result.get("success"):
-                    self.statistics["transformation_success"] += 1
+                    # Don't increment here, it's done in test_scenario
                     return result.get("result")
             return None
         except Exception as e:
@@ -258,19 +334,36 @@ class ScenarioTester:
             else:
                 mx_message_str = mx_message
             
+            request_data = {"message": mx_message_str, "options": {"debug": True}}
+            
+            if self.debug:
+                print(f"\nDEBUG: Transform MX->MT API Request:")
+                print(f"  URL: {self.base_url}/transform/mx-to-mt")
+                print(f"  Method: POST")
+                print(f"  Body: {json.dumps(request_data, indent=2)}")
+            
             response = requests.post(
                 f"{self.base_url}/transform/mx-to-mt",
-                json={"message": mx_message_str}
+                json=request_data
             )
             
+            if self.debug:
+                print(f"\nDEBUG: Transform MX->MT API Response:")
+                print(f"  Status: {response.status_code}")
+                if response.status_code == 200:
+                    result = response.json()
+                    print(f"  Body: {json.dumps(result, indent=2)}")
+                else:
+                    print(f"  Body: {response.text}")
+
             if response.status_code == 200:
                 result = response.json()
                 if result.get("success"):
-                    self.statistics["transformation_success"] += 1
+                    # Don't increment here, it's done in test_scenario
                     return result.get("result")
             elif self.debug:
                 print(f"DEBUG: MX to MT transformation failed with status {response.status_code}")
-                print(f"DEBUG: Response: {response.text[:500]}")
+                print(f"DEBUG: Response: {response.text}")
             return None
         except Exception as e:
             if self.debug:
@@ -341,21 +434,20 @@ class ScenarioTester:
             transformed = self.transform_mt_to_mx(message)
             if transformed:
                 result["transformation"] = "✅"
+                self.statistics["transformation_success"] += 1
             else:
                 result["errors"].append("MT to MX transformation failed")
         elif format_type == "MX":
             # Debug: Show message type
             if self.debug:
                 print(f"DEBUG: MX message type: {type(message)}")
-                if isinstance(message, dict):
-                    print(f"DEBUG: MX message keys: {list(message.keys())[:5]}")
-                elif isinstance(message, str):
-                    print(f"DEBUG: MX message preview: {message[:200]}")
+                print(f"DEBUG: MX message preview: {message}")
             
             # Test MX to MT transformation
             transformed = self.transform_mx_to_mt(message)
             if transformed:
                 result["transformation"] = "✅"
+                self.statistics["transformation_success"] += 1
             else:
                 result["transformation"] = "❌"
                 result["errors"].append("MX to MT transformation failed")

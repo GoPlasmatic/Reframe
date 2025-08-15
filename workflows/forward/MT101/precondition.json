@@ -1,0 +1,109 @@
+{
+    "id": "mt101-precondition",
+    "name": "MT101 Precondition Checks for CBPR+",
+    "description": "Validates MT101 message before transformation to pain.001 according to CBPR+ translation rules",
+    "priority": 3,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "101"]},
+        {"==": [{"var": "progress.workflow_id"}, "mt101-bah-mapper"]},
+        {"==": [{"var": "progress.task_id"}, "construct_business_application_header"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "validate_required_fields",
+            "name": "Validate Required Fields",
+            "description": "Validates mandatory fields in MT101 message",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.validation",
+                            "logic": {
+                                "has_sender_reference": {"var": "data.SwiftMT.fields.20"},
+                                "has_execution_date": {"var": "data.SwiftMT.fields.30"},
+                                "has_transactions": { "and": [
+                                    {"var": "data.SwiftMT.blocks.B"},
+                                    {">": [{"length": {"var": "data.SwiftMT.blocks.B"}}, 0]}
+                                ]},
+                                "errors": []
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_transaction_blocks",
+            "name": "Validate Transaction Blocks",
+            "description": "Validates each transaction in sequence B has required fields",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.transaction_validation",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.blocks.B"},
+                                {
+                                    "map": [
+                                        {"var": "data.SwiftMT.blocks.B"},
+                                        {
+                                            "and": [
+                                                {"var": "21"},
+                                                {"var": "32B"},
+                                                {"var": "59"},
+                                                {"var": "71A"}
+                                            ]
+                                        }
+                                    ]
+                                },
+                                []
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "check_precondition_errors",
+            "name": "Check Precondition Errors",
+            "description": "Consolidates and reports any validation errors",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.precondition_result",
+                            "logic": {
+                                "valid": { "and": [
+                                    {"var": "temp_data.validation.has_sender_reference"},
+                                    {"var": "temp_data.validation.has_execution_date"},
+                                    {"var": "temp_data.validation.has_transactions"},
+                                    {
+                                        "all": [
+                                            {"var": "temp_data.transaction_validation"},
+                                            {"var": ""}
+                                        ]
+                                    }
+                                ]},
+                                "errors": { "if": [
+                                    {
+                                        "!": { "and": [
+                                            {"var": "temp_data.validation.has_sender_reference"},
+                                            {"var": "temp_data.validation.has_execution_date"},
+                                            {"var": "temp_data.validation.has_transactions"}
+                                        ]}
+                                    },
+                                    ["Missing required fields in MT101"],
+                                    []
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

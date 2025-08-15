@@ -100,7 +100,7 @@
         {
             "id": "map_field_33b",
             "name": "Map Field 33B - Currency/Instructed Amount (TR006/TR007)",
-            "description": "Map instructed amount for MT103 or when EU rules apply",
+            "description": "Map instructed amount for MT103 RETN or when EU rules apply",
             "function": {
                 "name": "map",
                 "input": {
@@ -108,70 +108,23 @@
                         {
                             "path": "data.SwiftMT.fields.33B",
                             "logic": { "if": [
-                                { "or": [
-                                    {
-                                        "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]
-                                    },
-                                    {
-                                        "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]
-                                    },
-                                    {
-                                        "and": [
-                                            {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
-                                            {
-                                                "!": [
-                                                    {
-                                                        "and": [
-                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
-                                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
-                                                        ]
-                                                    }
-                                                ]
-                                            }
-                                        ]
-                                    }
-                                ]},
-                                {
-                                    "currency": { "if": [
-                                        {"var": "data.ISO20022_MX.document.TxInf.RtrdInstdAmt.@Ccy"},
-                                        {"var": "data.ISO20022_MX.document.TxInf.RtrdInstdAmt.@Ccy"},
-                                        { "if": [
-                                            {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.@Ccy"},
-                                            {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.@Ccy"},
-                                            "USD"
-                                        ]}
-                                    ]},
-                                    "amount": { "if": [
-                                        {"var": "data.ISO20022_MX.document.TxInf.RtrdInstdAmt.$value"},
-                                        {"var": "data.ISO20022_MX.document.TxInf.RtrdInstdAmt.$value"},
-                                        { "if": [
-                                            {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.$value"},
-                                            {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.$value"},
-                                            0.0
-                                        ]}
-                                    ]}
-                                },
+                                {"==": [{"var": "temp_data.target_message_type"}, "103"]},
                                 { "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrdInstdAmt"},
                                     {
-                                        "and": [
-                                            {"!": [{"var": "data.ISO20022_MX.document.TxInf.RtrdInstdAmt"}]},
-                                            {"var": "temp_data.field_33b_required"}
-                                        ]
+                                        "currency": {"var": "data.ISO20022_MX.document.TxInf.RtrdInstdAmt.@Ccy"},
+                                        "amount": {"var": "data.ISO20022_MX.document.TxInf.RtrdInstdAmt.$value"}
                                     },
-                                    {
-                                        "currency": { "if": [
-                                            {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.@Ccy"},
-                                            {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.@Ccy"},
-                                            "USD"
-                                        ]},
-                                        "amount": { "if": [
-                                            {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.$value"},
-                                            {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.$value"},
-                                            0.0
-                                        ]}
-                                    },
-                                    null
-                                ]}
+                                    { "if": [
+                                        {"var": "temp_data.field_33b_required"},
+                                        {
+                                            "currency": {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.@Ccy"},
+                                            "amount": {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.$value"}
+                                        },
+                                        null
+                                    ]}
+                                ]},
+                                null
                             ]}
                         }
                     ]
@@ -181,7 +134,7 @@
         {
             "id": "map_field_36",
             "name": "Map Field 36 - Exchange Rate",
-            "description": "Map exchange rate between instructed and settlement amounts",
+            "description": "Map exchange rate for MT103 RETN only",
             "function": {
                 "name": "map",
                 "input": {
@@ -191,33 +144,13 @@
                             "logic": { "if": [
                                 {
                                     "and": [
-                                        { "or": [
-                                            {
-                                                "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]
-                                            },
-                                            {
-                                                "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]
-                                            },
-                                            {
-                                                "and": [
-                                                    {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
-                                                    {
-                                                        "!": [
-                                                            {
-                                                                "and": [
-                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
-                                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
-                                                                ]
-                                                            }
-                                                        ]
-                                                    }
-                                                ]
-                                            }
-                                        ]},
+                                        {"==": [{"var": "temp_data.target_message_type"}, "103"]},
                                         {"var": "data.ISO20022_MX.document.TxInf.XchgRate"}
                                     ]
                                 },
-                                {"rate": {"var": "data.ISO20022_MX.document.TxInf.XchgRate"}},
+                                {
+                                    "rate": {"var": "data.ISO20022_MX.document.TxInf.XchgRate"}
+                                },
                                 null
                             ]}
                         }
@@ -234,33 +167,47 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#13C",
+                            "path": "temp_data.debit_time",
                             "logic": { "if": [
                                 {"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.DbtDtTm"},
                                 {
-                                    "time_code": "/SNDTIME/",
-                                    "time": {
-                                        "cat": [
-                                            {"substr": [{"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.DbtDtTm"}, 11, 2]},
-                                            {"substr": [{"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.DbtDtTm"}, 14, 2]}
-                                        ]
-                                    },
-                                    "utc_offset": "+0000"
+                                    "code": "/SNDTIME/",
+                                    "time": {"cat": [
+                                        {"substr": [{"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.DbtDtTm"}, 11, 2]},
+                                        {"substr": [{"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.DbtDtTm"}, 14, 2]}
+                                    ]},
+                                    "offset": "+0000"
                                 },
-                                { "if": [
-                                    {"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.CdtDtTm"},
-                                    {
-                                        "time_code": "/RNCTIME/",
-                                        "time": {
-                                            "cat": [
-                                                {"substr": [{"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.CdtDtTm"}, 11, 2]},
-                                                {"substr": [{"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.CdtDtTm"}, 14, 2]}
-                                            ]
-                                        },
-                                        "utc_offset": "+0000"
-                                    },
-                                    null
-                                ]}
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.credit_time",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.CdtDtTm"},
+                                {
+                                    "code": "/RNCTIME/",
+                                    "time": {"cat": [
+                                        {"substr": [{"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.CdtDtTm"}, 11, 2]},
+                                        {"substr": [{"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.CdtDtTm"}, 14, 2]}
+                                    ]},
+                                    "offset": "+0000"
+                                },
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.13C",
+                            "logic": { "if": [
+                                {"or": [
+                                    {"var": "temp_data.debit_time"},
+                                    {"var": "temp_data.credit_time"}
+                                ]},
+                                {"filter": [
+                                    [{"var": "temp_data.debit_time"}, {"var": "temp_data.credit_time"}],
+                                    {"!!": {"var": ""}}
+                                ]},
+                                null
                             ]}
                         }
                     ]
@@ -280,9 +227,9 @@
                             "logic": { "if": [
                                 {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct"},
                                 {
-                                    "account": { "if": [
+                                    "party_identifier": { "if": [
                                         {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"},
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"},
+                                        {"cat": ["/", {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"}]},
                                         { "if": [
                                             {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"},
                                             {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"},
@@ -290,8 +237,8 @@
                                         ]}
                                     ]},
                                     "location": { "if": [
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Tp.Cd"},
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Tp.Cd"},
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Prxy"},
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Prxy.Id"},
                                         null
                                     ]}
                                 },

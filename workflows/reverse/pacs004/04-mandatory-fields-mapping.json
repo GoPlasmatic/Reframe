@@ -13,19 +13,27 @@
     "tasks": [
         {
             "id": "map_field_20",
-            "name": "Map Field 20 - Sender's Reference (TR001)",
+            "name": "Map Field 20 - Sender's/Transaction Reference (TR001)",
             "description": "Map message identification to field 20 with truncation handling",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
+                            "path": "temp_data.mandatory_fields_executed",
+                            "logic": true
+                        },
+                        {
                             "path": "data.SwiftMT.fields.#20",
                             "logic": {
-                                "value": { "if": [
+                                "reference": { "if": [
                                     {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"},
                                     { "if": [
-                                        {"in": ["/", {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}]},
+                                        { "or": [
+                                            {"in": ["/", {"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}, 0, 1]}]},
+                                            {"in": ["/", {"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}, -1, 1]}]},
+                                            {"in": ["//", {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}]}
+                                        ]},
                                         "NOTPROVIDED",
                                         { "if": [
                                             {">": [{"length": {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}}, 16]},
@@ -44,53 +52,28 @@
         {
             "id": "map_field_21",
             "name": "Map Field 21 - Related Reference (TR006)",
-            "description": "Map original end-to-end identification to field 21 for MT202/205",
+            "description": "Map original end-to-end identification to field 21 for MT202/205 RETN",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
                             "path": "data.SwiftMT.fields.#21",
-                            "logic": {
-                                "value": { "if": [
-                                    {
-                                        "and": [
-                                            { "or": [
-                                                {
-                                                    "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.009"]
-                                                },
-                                                {
-                                                    "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT202"]
-                                                },
-                                                {
-                                                    "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT205"]
-                                                },
-                                                { "and": [
-                                                    {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
-                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
-                                                ]}
-                                            ]},
-                                            {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"}
-                                        ]
-                                    },
-                                    { "if": [
-                                        {"in": ["/", {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"}]},
-                                        "NOTPROVIDED",
+                            "logic": { "if": [
+                                {"!=": [{"var": "temp_data.target_message_type"}, "103"]},
+                                {
+                                    "reference": { "if": [
+                                        {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"},
                                         { "if": [
                                             {">": [{"length": {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"}}, 16]},
-                                            {
-                                                "cat": [
-                                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"}, 0, 15]},
-                                                    "+"
-                                                ]
-                                            },
+                                            {"cat": [{"substr": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"}, 0, 15]}, "+"]},
                                             {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"}
-                                        ]}
-                                    ]},
-                                    null
-                                ]}
-                            }
+                                        ]},
+                                        "NOTPROVIDED"
+                                    ]}
+                                },
+                                null
+                            ]}
                         }
                     ]
                 }
@@ -99,42 +82,20 @@
         {
             "id": "map_field_23b",
             "name": "Map Field 23B - Bank Operation Code",
-            "description": "Map bank operation code RETN for MT103 RETN",
+            "description": "Map bank operation code RETN for MT103 RETN only",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
                             "path": "data.SwiftMT.fields.#23B",
-                            "logic": {
-                                "value": { "if": [
-                                    { "or": [
-                                        {
-                                            "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]
-                                        },
-                                        {
-                                            "startsWith": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]
-                                        },
-                                        {
-                                            "and": [
-                                                {"!": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}]},
-                                                {
-                                                    "!": [
-                                                        {
-                                                            "and": [
-                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
-                                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
-                                                            ]
-                                                        }
-                                                    ]
-                                                }
-                                            ]
-                                        }
-                                    ]},
-                                    "RETN",
-                                    null
-                                ]}
-                            }
+                            "logic": { "if": [
+                                {"==": [{"var": "temp_data.target_message_type"}, "103"]},
+                                {
+                                    "instruction_code": "RETN"
+                                },
+                                null
+                            ]}
                         }
                     ]
                 }
@@ -151,21 +112,9 @@
                         {
                             "path": "data.SwiftMT.fields.#32A",
                             "logic": {
-                                "value_date": { "if": [
-                                    {"var": "data.ISO20022_MX.document.TxInf.IntrBkSttlmDt"},
-                                    {"var": "data.ISO20022_MX.document.TxInf.IntrBkSttlmDt"},
-                                    "NOTPROVIDED"
-                                ]},
-                                "currency": { "if": [
-                                    {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.@Ccy"},
-                                    {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.@Ccy"},
-                                    "USD"
-                                ]},
-                                "amount": { "if": [
-                                    {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.$value"},
-                                    {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.$value"},
-                                    0.0
-                                ]}
+                                "value_date": {"var": "data.ISO20022_MX.document.TxInf.IntrBkSttlmDt"},
+                                "currency": {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.@Ccy"},
+                                "amount": {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.$value"}
                             }
                         }
                     ]

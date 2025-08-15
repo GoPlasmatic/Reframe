@@ -1,0 +1,128 @@
+{
+    "id": "camt053-to-mt940-transaction-fields",
+    "name": "camt.053 to MT940 Transaction Fields Mapping",
+    "description": "Maps transaction entries (61, 86) per TR005-TR007 and TR012",
+    "priority": 7,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.053.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt053-to-mt940-balance-fields"]},
+        {"==": [{"var": "progress.task_id"}, "map_balance_fields"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_transaction_fields",
+            "name": "Map Transaction Fields",
+            "description": "Map statement entries to fields 61 and 86",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#61",
+                            "logic": {"if": [
+                                {"var": "data.ISO20022_MX.document.Stmt.Ntry"},
+                                {"map": [
+                                    {"var": "data.ISO20022_MX.document.Stmt.Ntry"},
+                                    {"NoOption": {
+                                        "value_date": {"if": [
+                                            {"var": "ValDt.Dt"},
+                                            {"substr": [{"replace": [{"var": "ValDt.Dt"}, "-", ""]}, 2, 6]},
+                                            {"if": [
+                                                {"var": "ValDt.DtTm"},
+                                                {"substr": [{"replace": [{"var": "ValDt.DtTm"}, "-", ""]}, 2, 6]},
+                                                {"substr": [{"replace": [{"var": "BookgDt.Dt"}, "-", ""]}, 2, 6]}
+                                            ]}
+                                        ]},
+                                        "entry_date": {"if": [
+                                            {"var": "BookgDt.Dt"},
+                                            {"substr": [{"replace": [{"var": "BookgDt.Dt"}, "-", ""]}, 4, 4]},
+                                            null
+                                        ]},
+                                        "debit_credit_mark": {"if": [
+                                            {"==": [{"var": "CdtDbtInd"}, "CRDT"]},
+                                            {"if": [{"var": "RvslInd"}, "RC", "C"]},
+                                            {"if": [{"var": "RvslInd"}, "RD", "D"]}
+                                        ]},
+                                        "funds_code": null,
+                                        "amount": {"var": "Amt.$value"},
+                                        "transaction_type": {"if": [
+                                            {"var": "BkTxCd.Domn.Fmly.Cd"},
+                                            {"substr": [{"var": "BkTxCd.Domn.Fmly.Cd"}, 0, 1]},
+                                            "N"
+                                        ]},
+                                        "identification_code": {"if": [
+                                            {"var": "BkTxCd.Prtry.Cd"},
+                                            {"substr": [{"var": "BkTxCd.Prtry.Cd"}, 0, 3]},
+                                            "MSC"
+                                        ]},
+                                        "reference_account_owner": {"if": [
+                                            {"var": "NtryDtls.0.TxDtls.0.Refs.EndToEndId"},
+                                            {"substr": [{"var": "NtryDtls.0.TxDtls.0.Refs.EndToEndId"}, 0, 16]},
+                                            null
+                                        ]},
+                                        "reference_account_institution": {"if": [
+                                            {"var": "AcctSvcrRef"},
+                                            {"cat": ["//", {"substr": [{"var": "AcctSvcrRef"}, 0, 16]}]},
+                                            null
+                                        ]},
+                                        "supplementary_details": {"if": [
+                                            {"var": "NtryDtls.0.TxDtls.0.AddtlTxInf"},
+                                            {"substr": [{"var": "NtryDtls.0.TxDtls.0.AddtlTxInf"}, 0, 34]},
+                                            null
+                                        ]}
+                                    }}
+                                ]},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#86",
+                            "logic": {"if": [
+                                {"var": "data.ISO20022_MX.document.Stmt.Ntry"},
+                                {"map": [
+                                    {"var": "data.ISO20022_MX.document.Stmt.Ntry"},
+                                    {"if": [
+                                        {"var": "AddtlNtryInf"},
+                                        {"NoOption": {
+                                            "information": {"var": "AddtlNtryInf"}
+                                        }},
+                                        null
+                                    ]}
+                                ]},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#86_statement",
+                            "logic": {"if": [
+                                {"var": "data.ISO20022_MX.document.Stmt.AddtlStmtInf"},
+                                {"NoOption": {
+                                    "information": {"var": "data.ISO20022_MX.document.Stmt.AddtlStmtInf"}
+                                }},
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "set_field_order",
+            "name": "Set Field Order",
+            "description": "Define the order of fields in the MT940 message",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.field_order",
+                            "logic": ["20", "25", "28C", "60", "61", "86", "62", "64", "65", "86_statement"]
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

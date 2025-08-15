@@ -1,0 +1,79 @@
+{
+    "id": "camt053-variant-detection",
+    "name": "camt.053 Variant Detection",
+    "description": "Detects camt.053 variant and prepares for MT940 transformation",
+    "priority": 2,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.053.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "detect_camt053_variant",
+            "name": "Detect camt.053 Variant",
+            "description": "Extract sender/receiver and check for required balances",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.Sender",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                "TESTBIC8XXX"
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.Receiver",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                "TESTBIC8XXX"
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.page_number",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.Stmt.StmtPgntn.PgNb"},
+                                {"var": "data.ISO20022_MX.document.Stmt.StmtPgntn.PgNb"},
+                                1
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.last_page_indicator",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.Stmt.StmtPgntn.LastPgInd"},
+                                {"var": "data.ISO20022_MX.document.Stmt.StmtPgntn.LastPgInd"},
+                                true
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.account_id",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.Stmt.Acct.Id.IBAN"},
+                                {"var": "data.ISO20022_MX.document.Stmt.Acct.Id.IBAN"},
+                                { "if": [
+                                    {"var": "data.ISO20022_MX.document.Stmt.Acct.Id.Othr.Id"},
+                                    {"var": "data.ISO20022_MX.document.Stmt.Acct.Id.Othr.Id"},
+                                    ""
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.account_owner_bic",
+                            "logic": {"var": "data.ISO20022_MX.document.Stmt.Acct.Ownr.Id.OrgId.AnyBIC"}
+                        },
+                        {
+                            "path": "temp_data.camt053_variant",
+                            "logic": "CORE"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

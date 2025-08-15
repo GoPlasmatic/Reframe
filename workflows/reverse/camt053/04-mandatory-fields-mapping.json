@@ -1,0 +1,77 @@
+{
+    "id": "camt053-to-mt940-mandatory-fields",
+    "name": "camt.053 to MT940 Mandatory Fields Mapping",
+    "description": "Maps mandatory fields for MT940 message (20, 25, 28C) per TR001-TR003",
+    "priority": 5,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.053.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt053-to-mt940-headers-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_swift_headers"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_mandatory_fields",
+            "name": "Map Mandatory Fields",
+            "description": "Map mandatory MT940 fields (20, 25, 28C)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#20",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.Stmt.Id"},
+                                {"reference": {"if": [
+                                    {"<=": [{"length": {"var": "data.ISO20022_MX.document.Stmt.Id"}}, 16]},
+                                    {"var": "data.ISO20022_MX.document.Stmt.Id"},
+                                    {"cat": [
+                                        {"substr": [{"var": "data.ISO20022_MX.document.Stmt.Id"}, 0, 15]},
+                                        "+"
+                                    ]}
+                                ]}},
+                                {"reference": "NOTPROVIDED"}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#25",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"var": "temp_data.account_owner_bic"},
+                                    {"!=": [
+                                        {"var": "temp_data.account_owner_bic"},
+                                        {"var": "temp_data.Receiver"}
+                                    ]}
+                                ]},
+                                {"P": {
+                                    "account": {"var": "temp_data.account_id"},
+                                    "identifier_code": {"var": "temp_data.account_owner_bic"}
+                                }},
+                                {"NoOption": {
+                                    "account": {"var": "temp_data.account_id"}
+                                }}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.28C",
+                            "logic": {"cat": [
+                                {"if": [
+                                    {"var": "data.ISO20022_MX.document.Stmt.LglSeqNb"},
+                                    {"var": "data.ISO20022_MX.document.Stmt.LglSeqNb"},
+                                    {"if": [
+                                        {"var": "data.ISO20022_MX.document.Stmt.ElctrncSeqNb"},
+                                        {"var": "data.ISO20022_MX.document.Stmt.ElctrncSeqNb"},
+                                        "1"
+                                    ]}
+                                ]},
+                                "/",
+                                {"var": "temp_data.page_number"}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

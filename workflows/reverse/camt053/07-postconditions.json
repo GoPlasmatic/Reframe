@@ -1,0 +1,28 @@
+{
+    "id": "camt053-to-mt940-postconditions",
+    "name": "camt.053 to MT940 Postconditions and Generation",
+    "description": "Validates postconditions and generates MT940 message",
+    "priority": 8,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.053.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt053-to-mt940-transaction-fields"]},
+        {"==": [{"var": "progress.task_id"}, "set_field_order"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "generate_mt940",
+            "name": "Generate MT940",
+            "description": "Generate the final MT940 message",
+            "function": {
+                "name": "PublishMT",
+                "input": {
+                    "input_field_name": "SwiftMT",
+                    "output_field_name": "result",
+                    "source_format": "camt.053.001.08"
+                }
+            }
+        }
+    ]
+}

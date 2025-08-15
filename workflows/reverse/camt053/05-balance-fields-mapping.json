@@ -1,0 +1,205 @@
+{
+    "id": "camt053-to-mt940-balance-fields",
+    "name": "camt.053 to MT940 Balance Fields Mapping",
+    "description": "Maps balance fields (60F, 60M, 62M, 62F, 64, 65) per TR008-TR011",
+    "priority": 6,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.053.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt053-to-mt940-mandatory-fields"]},
+        {"==": [{"var": "progress.task_id"}, "map_mandatory_fields"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "extract_balances",
+            "name": "Extract Balances",
+            "description": "Extract opening, closing, available and forward balances from statement",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.opening_balance",
+                            "logic": {"filter": [
+                                {"var": "data.ISO20022_MX.document.Stmt.Bal"},
+                                {"==": [{"var": "Tp.CdOrPrtry.Cd"}, "OPBD"]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.closing_balance",
+                            "logic": {"filter": [
+                                {"var": "data.ISO20022_MX.document.Stmt.Bal"},
+                                {"==": [{"var": "Tp.CdOrPrtry.Cd"}, "CLBD"]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.available_balance",
+                            "logic": {"filter": [
+                                {"var": "data.ISO20022_MX.document.Stmt.Bal"},
+                                {"==": [{"var": "Tp.CdOrPrtry.Cd"}, "CLAV"]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.forward_balance",
+                            "logic": {"filter": [
+                                {"var": "data.ISO20022_MX.document.Stmt.Bal"},
+                                {"==": [{"var": "Tp.CdOrPrtry.Cd"}, "FWAV"]}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_balance_fields",
+            "name": "Map Balance Fields",
+            "description": "Map balance fields to MT940 format",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#60",
+                            "logic": { "if": [
+                                {"var": "temp_data.opening_balance.0"},
+                                {"if": [
+                                    {"and": [
+                                        {"==": [{"var": "temp_data.page_number"}, 1]},
+                                        {"or": [
+                                            {"!": {"var": "temp_data.opening_balance.0.Tp.SubTp.Cd"}},
+                                            {"!=": [{"var": "temp_data.opening_balance.0.Tp.SubTp.Cd"}, "INTM"]}
+                                        ]}
+                                    ]},
+                                    {"F": {
+                                        "debit_credit_mark": {"if": [
+                                            {"==": [{"var": "temp_data.opening_balance.0.CdtDbtInd"}, "CRDT"]},
+                                            "C",
+                                            "D"
+                                        ]},
+                                        "date": {"if": [
+                                            {"var": "temp_data.opening_balance.0.Dt.Dt"},
+                                            {"substr": [{"replace": [{"var": "temp_data.opening_balance.0.Dt.Dt"}, "-", ""]}, 2, 6]},
+                                            {"substr": [{"replace": [{"var": "temp_data.opening_balance.0.Dt.DtTm"}, "-", ""]}, 2, 6]}
+                                        ]},
+                                        "currency": {"var": "temp_data.opening_balance.0.Amt.@Ccy"},
+                                        "amount": {"var": "temp_data.opening_balance.0.Amt.$value"}
+                                    }},
+                                    {"if": [
+                                        {"==": [{"var": "temp_data.opening_balance.0.Tp.SubTp.Cd"}, "INTM"]},
+                                        {"M": {
+                                            "debit_credit_mark": {"if": [
+                                                {"==": [{"var": "temp_data.opening_balance.0.CdtDbtInd"}, "CRDT"]},
+                                                "C",
+                                                "D"
+                                            ]},
+                                            "date": {"if": [
+                                                {"var": "temp_data.opening_balance.0.Dt.Dt"},
+                                                {"substr": [{"replace": [{"var": "temp_data.opening_balance.0.Dt.Dt"}, "-", ""]}, 2, 6]},
+                                                {"substr": [{"replace": [{"var": "temp_data.opening_balance.0.Dt.DtTm"}, "-", ""]}, 2, 6]}
+                                            ]},
+                                            "currency": {"var": "temp_data.opening_balance.0.Amt.@Ccy"},
+                                            "amount": {"var": "temp_data.opening_balance.0.Amt.$value"}
+                                        }},
+                                        null
+                                    ]}
+                                ]},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#62",
+                            "logic": { "if": [
+                                {"var": "temp_data.closing_balance.0"},
+                                {"if": [
+                                    {"and": [
+                                        {"==": [{"var": "temp_data.last_page_indicator"}, true]},
+                                        {"or": [
+                                            {"!": {"var": "temp_data.closing_balance.0.Tp.SubTp.Cd"}},
+                                            {"!=": [{"var": "temp_data.closing_balance.0.Tp.SubTp.Cd"}, "INTM"]}
+                                        ]}
+                                    ]},
+                                    {"F": {
+                                        "debit_credit_mark": {"if": [
+                                            {"==": [{"var": "temp_data.closing_balance.0.CdtDbtInd"}, "CRDT"]},
+                                            "C",
+                                            "D"
+                                        ]},
+                                        "date": {"if": [
+                                            {"var": "temp_data.closing_balance.0.Dt.Dt"},
+                                            {"substr": [{"replace": [{"var": "temp_data.closing_balance.0.Dt.Dt"}, "-", ""]}, 2, 6]},
+                                            {"substr": [{"replace": [{"var": "temp_data.closing_balance.0.Dt.DtTm"}, "-", ""]}, 2, 6]}
+                                        ]},
+                                        "currency": {"var": "temp_data.closing_balance.0.Amt.@Ccy"},
+                                        "amount": {"var": "temp_data.closing_balance.0.Amt.$value"}
+                                    }},
+                                    {"if": [
+                                        {"==": [{"var": "temp_data.closing_balance.0.Tp.SubTp.Cd"}, "INTM"]},
+                                        {"M": {
+                                            "debit_credit_mark": {"if": [
+                                                {"==": [{"var": "temp_data.closing_balance.0.CdtDbtInd"}, "CRDT"]},
+                                                "C",
+                                                "D"
+                                            ]},
+                                            "date": {"if": [
+                                                {"var": "temp_data.closing_balance.0.Dt.Dt"},
+                                                {"substr": [{"replace": [{"var": "temp_data.closing_balance.0.Dt.Dt"}, "-", ""]}, 2, 6]},
+                                                {"substr": [{"replace": [{"var": "temp_data.closing_balance.0.Dt.DtTm"}, "-", ""]}, 2, 6]}
+                                            ]},
+                                            "currency": {"var": "temp_data.closing_balance.0.Amt.@Ccy"},
+                                            "amount": {"var": "temp_data.closing_balance.0.Amt.$value"}
+                                        }},
+                                        null
+                                    ]}
+                                ]},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#64",
+                            "logic": { "if": [
+                                {"var": "temp_data.available_balance.0"},
+                                {"NoOption": {
+                                    "debit_credit_mark": {"if": [
+                                        {"==": [{"var": "temp_data.available_balance.0.CdtDbtInd"}, "CRDT"]},
+                                        "C",
+                                        "D"
+                                    ]},
+                                    "date": {"if": [
+                                        {"var": "temp_data.available_balance.0.Dt.Dt"},
+                                        {"substr": [{"replace": [{"var": "temp_data.available_balance.0.Dt.Dt"}, "-", ""]}, 2, 6]},
+                                        {"substr": [{"replace": [{"var": "temp_data.available_balance.0.Dt.DtTm"}, "-", ""]}, 2, 6]}
+                                    ]},
+                                    "currency": {"var": "temp_data.available_balance.0.Amt.@Ccy"},
+                                    "amount": {"var": "temp_data.available_balance.0.Amt.$value"}
+                                }},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#65",
+                            "logic": { "if": [
+                                {"var": "temp_data.forward_balance.0"},
+                                {"NoOption": {
+                                    "debit_credit_mark": {"if": [
+                                        {"==": [{"var": "temp_data.forward_balance.0.CdtDbtInd"}, "CRDT"]},
+                                        "C",
+                                        "D"
+                                    ]},
+                                    "date": {"if": [
+                                        {"var": "temp_data.forward_balance.0.Dt.Dt"},
+                                        {"substr": [{"replace": [{"var": "temp_data.forward_balance.0.Dt.Dt"}, "-", ""]}, 2, 6]},
+                                        {"substr": [{"replace": [{"var": "temp_data.forward_balance.0.Dt.DtTm"}, "-", ""]}, 2, 6]}
+                                    ]},
+                                    "currency": {"var": "temp_data.forward_balance.0.Amt.@Ccy"},
+                                    "amount": {"var": "temp_data.forward_balance.0.Amt.$value"}
+                                }},
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

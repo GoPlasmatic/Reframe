@@ -1,0 +1,65 @@
+{
+    "id": "camt053-to-mt940-preconditions",
+    "name": "camt.053 to MT940 Preconditions Validation",
+    "description": "Validates preconditions for camt.053 to MT940 transformation according to CBPR+ specification PREC001-PREC009",
+    "priority": 3,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.053.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt053-variant-detection"]},
+        {"==": [{"var": "progress.task_id"}, "detect_camt053_variant"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "validate_sequence_numbers",
+            "name": "Validate Sequence Numbers PREC001",
+            "description": "Validate that either LegalSequenceNumber or ElectronicSequenceNumber is present and valid",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.Stmt",
+                            "logic": {
+                                "or": [
+                                    {"and": [
+                                        {"var": "data.ISO20022_MX.document.Stmt.LglSeqNb"},
+                                        {"<=": [{"length": {"var": "data.ISO20022_MX.document.Stmt.LglSeqNb"}}, 5]}
+                                    ]},
+                                    {"and": [
+                                        {"var": "data.ISO20022_MX.document.Stmt.ElctrncSeqNb"},
+                                        {"<=": [{"length": {"var": "data.ISO20022_MX.document.Stmt.ElctrncSeqNb"}}, 5]}
+                                    ]}
+                                ]
+                            },
+                            "message": "PREC001: T20103 T20150 - Either LegalSequenceNumber or ElectronicSequenceNumber must be present and not exceed 5 digits"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_entry_count",
+            "name": "Validate Entry Count PREC007",
+            "description": "Validate maximum number of entries",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.Stmt.Ntry",
+                            "logic": {
+                                "or": [
+                                    {"!": {"var": "data.ISO20022_MX.document.Stmt.Ntry"}},
+                                    {"<=": [{"length": {"var": "data.ISO20022_MX.document.Stmt.Ntry"}}, 190]}
+                                ]
+                            },
+                            "message": "PREC007: T20110 T20157 - Maximum 190 entries allowed based on 10K envelope/payload limit"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

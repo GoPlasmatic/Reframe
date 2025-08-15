@@ -1,0 +1,99 @@
+{
+    "id": "camt108-headers-mapping",
+    "name": "camt.108 to MT111 Headers Mapping",
+    "description": "Maps header information for MT111 message",
+    "priority": 4,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.108.001.01"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt108-preconditions"]},
+        {"==": [{"var": "progress.task_id"}, "validate_preconditions"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_headers",
+            "name": "Map Headers",
+            "description": "Build MT111 basic and application headers",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.basic_header.sender_bic",
+                            "logic": {"if": [
+                                {"var": "temp_data.Sender"},
+                                {"substr": [{"var": "temp_data.Sender"}, 0, 8]},
+                                "TESTBIC8"
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.logical_terminal",
+                            "logic": {"if": [
+                                {"var": "temp_data.Sender"},
+                                {"cat": [{"substr": [{"var": "temp_data.Sender"}, 0, 8]}, "AXXX"]},
+                                "TESTBIC8AXXX"
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.application_id",
+                            "logic": "F"
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.service_id",
+                            "logic": "01"
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.session_number",
+                            "logic": "0000"
+                        },
+                        {
+                            "path": "data.SwiftMT.basic_header.sequence_number",
+                            "logic": "000000"
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.direction",
+                            "logic": "I"
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.message_type",
+                            "logic": "111"
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.receiver_bic",
+                            "logic": {"if": [
+                                {"var": "temp_data.Receiver"},
+                                {"substr": [{"var": "temp_data.Receiver"}, 0, 8]},
+                                "TESTBIC8"
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.destination_address",
+                            "logic": {"if": [
+                                {"var": "temp_data.Receiver"},
+                                {"cat": [{"substr": [{"var": "temp_data.Receiver"}, 0, 8]}, "XXXX"]},
+                                "TESTBIC8XXXX"
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.priority",
+                            "logic": "N"
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.delivery_monitoring",
+                            "logic": "2"
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header.obsolescence_period",
+                            "logic": "003"
+                        },
+                        {
+                            "path": "data.SwiftMT.message_type",
+                            "logic": "111"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

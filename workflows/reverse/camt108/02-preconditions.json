@@ -1,0 +1,52 @@
+{
+    "id": "camt108-preconditions",
+    "name": "camt.108 Preconditions Validation",
+    "description": "Validates preconditions for camt.108 to MT111 transformation",
+    "priority": 3,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.108.001.01"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt108-variant-detection"]},
+        {"==": [{"var": "progress.task_id"}, "detect_camt108_variant"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "validate_preconditions",
+            "name": "Validate Preconditions",
+            "description": "Validate message structure and mandatory fields",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.GrpHdr.MsgId",
+                            "logic": {"!!": {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}},
+                            "message": "PREC: Message identification is mandatory"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.Chq.ChqNb",
+                            "logic": {"!!": {"var": "data.ISO20022_MX.document.Chq.ChqNb"}},
+                            "message": "PREC: Cheque number is mandatory"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.Chq.IsseDt",
+                            "logic": {"!!": {"var": "data.ISO20022_MX.document.Chq.IsseDt"}},
+                            "message": "PREC: Issue date is mandatory"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.Chq.Amt",
+                            "logic": {"!!": {"var": "data.ISO20022_MX.document.Chq.Amt"}},
+                            "message": "PREC: Cheque amount is mandatory"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn",
+                            "logic": {"!!": {"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn"}},
+                            "message": "PREC: Cancellation or stop reason is mandatory"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

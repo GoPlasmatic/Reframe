@@ -1,0 +1,65 @@
+{
+    "id": "camt108-postconditions",
+    "name": "camt.108 to MT111 Postconditions and Publishing",
+    "description": "Validates postconditions and publishes MT111 message",
+    "priority": 8,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.108.001.01"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt108-reason-fields-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "set_field_order"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "validate_postconditions",
+            "name": "Validate Postconditions",
+            "description": "Validate message completeness before publishing",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.SwiftMT.fields.20",
+                            "logic": {"!!": {"var": "data.SwiftMT.fields.20"}},
+                            "message": "POSTC: Field 20 (Sender's Reference) is required"
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.21",
+                            "logic": {"!!": {"var": "data.SwiftMT.fields.21"}},
+                            "message": "POSTC: Field 21 (Cheque Number) is required"
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.30",
+                            "logic": {"!!": {"var": "data.SwiftMT.fields.30"}},
+                            "message": "POSTC: Field 30 (Issue Date) is required"
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.32",
+                            "logic": {"!!": {"var": "data.SwiftMT.fields.32"}},
+                            "message": "POSTC: Field 32 (Currency/Amount) is required"
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.75",
+                            "logic": {"!!": {"var": "data.SwiftMT.fields.75"}},
+                            "message": "POSTC: Field 75 (Stop/Cancellation Reason) is required"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "publish_mt111",
+            "name": "Publish MT111",
+            "description": "Generate the complete SWIFT MT111 message",
+            "function": {
+                "name": "PublishMT",
+                "input": {
+                    "input_field_name": "SwiftMT",
+                    "output_field_name": "result",
+                    "source_format": "camt.108.001.01"
+                }
+            }
+        }
+    ]
+}

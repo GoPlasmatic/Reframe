@@ -15,6 +15,7 @@ mod parse_mx;
 mod publish_mt;
 mod publish_mx;
 mod sample_generator;
+mod scenario_loader;
 mod types;
 mod validation_helpers;
 

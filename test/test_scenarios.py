@@ -58,139 +58,80 @@ class APIEndpoints:
 
 @dataclass
 class ScenarioMapping:
-    """Scenario mapping configuration"""
+    """Scenario mapping configuration loaded from index.json"""
     mappings: Dict[str, Dict[str, str]] = field(default_factory=dict)
     
     @classmethod
-    def load_default(cls):
-        """Load default scenario mappings"""
-        return cls(mappings={
-            "MT101": {
-                "bulk": "standard",
-                "pain001": "standard",
-                "default": "standard"
-            },
-            "MT103": {
-                "high_value": "high_value",
-                "remittance": "remittance_enhanced",
-                "stp": "stp",
-                "cbpr_standard": "standard",
-                "cbpr_high_value": "high_value",
-                "cbpr_remittance": "remittance_enhanced",
-                "rejt": "rejection",
-                "retn": "return",
-                "default": "standard"
-            },
-            "MT192": {
-                "cancellation": "request_cancellation",
-                "camt056": "request_cancellation",
-                "default": "request_cancellation"
-            },
-            "MT196": {
-                "resolution": "answer_cancellation",
-                "camt029": "answer_cancellation",
-                "customer_resolution": "answer_cancellation",
-                "default": "answer_cancellation"
-            },
-            "MT202": {
-                "cov": "cbpr_cov_standard",
-                "cover": "cbpr_cov_standard",
-                "core": "cbpr_cov_standard",
-                "rejt": "cbpr_cov_standard",
-                "retn": "cbpr_cov_standard",
-                "default": "cbpr_cov_standard"
-            },
-            "MT205": {
-                "cov": "bank_transfer_cover",
-                "serial": "bank_transfer_non_cover",
-                "cover": "bank_transfer_cover",
-                "rejt": "rejection_payment",
-                "retn": "return_payment",
-                "default": "bank_transfer_non_cover"
-            },
-            "MT292": {
-                "cancellation": "fi_cancellation_request",
-                "camt056": "fi_cancellation_request",
-                "default": "fi_cancellation_request"
-            },
-            "MT296": {
-                "resolution": "cancellation_accepted",
-                "camt029": "cancellation_accepted",
-                "fi_resolution": "cancellation_accepted",
-                "default": "cancellation_accepted"
-            },
-            "MT900": {
-                "debit": "basic_debit_confirmation",
-                "camt054": "basic_debit_confirmation",
-                "default": "basic_debit_confirmation"
-            },
-            "MT910": {
-                "credit": "basic_credit_confirmation",
-                "camt054": "basic_credit_confirmation",
-                "default": "basic_credit_confirmation"
-            },
-            # MX message mappings
-            "PACS.002": {
-                "rejt": "stop_payment_rejected",
-                "mt103rejt": "stop_payment_rejected",
-                "default": "stop_payment_rejected"
-            },
-            "PACS.004": {
-                "mt103retn": "cbpr_compliant_return",
-                "mt202retn": "cbpr_compliant_return",
-                "mt205retn": "cbpr_compliant_return",
-                "default": "cbpr_compliant_return"
-            },
-            "PACS.008": {
-                "cbpr_standard": "cbpr_business_payment",
-                "cbpr_stp": "cbpr_commission_payment",
-                "stp": "cbpr_commission_payment",
-                "default": "cbpr_business_payment"
-            },
-            "PACS.009": {
-                "core": "bank_transfer_non_cover",
-                "cov": "bank_transfer_cover",
-                "cover": "bank_transfer_cover",
-                "adv": "bank_transfer_non_cover",
-                "serial": "bank_transfer_non_cover",
-                "default": "bank_transfer_non_cover"
-            },
-            "CAMT.052": {
-                "mt942": "daily_balance_report",
-                "default": "daily_balance_report"
-            },
-            "CAMT.053": {
-                "mt940": "daily_account_statement",
-                "default": "daily_account_statement"
-            },
-            "CAMT.107": {
-                "mt110": "cbpr_cross_border_cheque",
-                "default": "cbpr_cross_border_cheque"
-            },
-            "CAMT.108": {
-                "mt111": "cbpr_lost_cheque_cancellation",
-                "default": "cbpr_lost_cheque_cancellation"
-            },
-            "CAMT.109": {
-                "mt112": "cbpr_stop_confirmation_report",
-                "default": "cbpr_stop_confirmation_report"
-            }
-        })
+    def load_from_index(cls, index_path: Path = None):
+        """Load scenario mappings from scenarios/index.json"""
+        if index_path is None:
+            # Try both paths
+            if Path("../scenarios/index.json").exists():
+                index_path = Path("../scenarios/index.json")
+            elif Path("scenarios/index.json").exists():
+                index_path = Path("scenarios/index.json")
+            else:
+                index_path = Path("../scenarios/index.json")  # default
+        mappings = {}
+        
+        try:
+            with open(index_path, 'r') as f:
+                data = json.load(f)
+                
+                # Process forward transformations
+                for scenario in data.get("forward", []):
+                    source = scenario.get("source", "")
+                    scenario_id = scenario.get("id", "")
+                    filename = Path(scenario.get("file", "")).stem
+                    
+                    if source and scenario_id:
+                        if source not in mappings:
+                            mappings[source] = {}
+                        mappings[source][filename] = scenario_id
+                        # Also add a default if it's the first one or named "standard"
+                        if "default" not in mappings[source] or scenario_id == "standard":
+                            mappings[source]["default"] = scenario_id
+                
+                # Process reverse transformations  
+                for scenario in data.get("reverse", []):
+                    source = scenario.get("source", "")
+                    scenario_id = scenario.get("id", "")
+                    filename = Path(scenario.get("file", "")).stem
+                    
+                    if source and scenario_id:
+                        # Normalize MX message types to uppercase with dot
+                        normalized_source = source.upper().replace(".", "_") if not source.startswith("MT") else source
+                        if normalized_source not in mappings:
+                            mappings[normalized_source] = {}
+                        mappings[normalized_source][filename] = scenario_id
+                        # Also add a default if it's the first one or named "standard"
+                        if "default" not in mappings[normalized_source] or scenario_id == "standard":
+                            mappings[normalized_source]["default"] = scenario_id
+                            
+        except Exception as e:
+            print(f"Warning: Could not load scenario mappings from index.json: {e}")
+            # Return empty mappings if loading fails
+            return cls(mappings={})
+            
+        return cls(mappings=mappings)
     
-    def get_fallback(self, message_type: str, scenario: str) -> str:
-        """Get fallback scenario for a given message type and scenario"""
-        msg_type_upper = message_type.upper()
-        scenario_lower = scenario.lower()
+    @classmethod
+    def load_default(cls):
+        """Load scenario mappings from index.json (backward compatibility)"""
+        return cls.load_from_index()
+    
+    def get_scenario_id(self, message_type: str, scenario_name: str) -> str:
+        """Get scenario ID for a given message type and scenario name"""
+        msg_type_upper = message_type.upper().replace(".", "_") if not message_type.startswith("MT") else message_type
         
         type_mappings = self.mappings.get(msg_type_upper, {})
         
-        # Try to find best match
-        for keyword, mapped_scenario in type_mappings.items():
-            if keyword != "default" and keyword in scenario_lower:
-                return mapped_scenario
+        # Direct lookup first
+        if scenario_name in type_mappings:
+            return type_mappings[scenario_name]
         
-        # Return default for message type or generic default
-        return type_mappings.get("default", "standard")
+        # Return default or the scenario name itself if not found
+        return type_mappings.get("default", scenario_name)
 
 
 @dataclass
@@ -416,8 +357,17 @@ class ReframeAPIClient:
 class ScenarioManager:
     """Manages scenario discovery and loading"""
     
-    def __init__(self, transformation_index_path: Path = Path("scenarios/index.json")):
-        self.index_path = transformation_index_path
+    def __init__(self, transformation_index_path: Path = None):
+        if transformation_index_path is None:
+            # Try both paths
+            if Path("../scenarios/index.json").exists():
+                self.index_path = Path("../scenarios/index.json")
+            elif Path("scenarios/index.json").exists():
+                self.index_path = Path("scenarios/index.json")
+            else:
+                self.index_path = Path("../scenarios/index.json")  # default
+        else:
+            self.index_path = transformation_index_path
     
     def discover_message_types(self) -> Dict[str, List[str]]:
         """Discover all available message types from transformation scenarios"""
@@ -505,11 +455,11 @@ class MessageGenerator:
         # Get the scenario name from the path
         scenario_name = Path(scenario_path).stem
         
-        # Use scenario mapping to get the appropriate scenario
-        fallback_scenario = self.mapping.get_fallback(message_type, scenario_name)
+        # Use scenario mapping to get the appropriate scenario ID
+        scenario_id = self.mapping.get_scenario_id(message_type, scenario_name)
         
         # Generate the message using the API
-        message = self.api.generate_sample(message_type, {"scenario": fallback_scenario})
+        message = self.api.generate_sample(message_type, {"scenario": scenario_id})
         
         if message:
             return message, format_type
@@ -757,8 +707,8 @@ Jane Smith
         
         for scenario_info in scenarios:
             for sample_num in range(1, sample_count + 1):
-                # Use simplified test for now until sample generation is fixed
-                result = self.test_scenario_simplified(message_type, scenario_info)
+                # Use the full test flow now that sample generation works
+                result = self.test_scenario(message_type, scenario_info)
                 result.sample = sample_num
                 results.append(result)
                 

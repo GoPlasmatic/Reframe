@@ -1,0 +1,49 @@
+{
+    "id": "camt106-variant-detection",
+    "name": "camt.106 Variant Detection for MT191/MT291",
+    "description": "Detects whether to transform to MT191 or MT291 based on underlying transaction type",
+    "priority": 1,
+    "condition": { "and": [
+        {"==": [{"var": "data.ISO20022_MX.message_type"}, "camt.106"]},
+        {"==": [{"var": "data.ISO20022_MX.message_version"}, "001.02"]},
+        {"==": [{"var": "progress.workflow_id"}, "parse-mx"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "detect_target_message",
+            "name": "Detect Target Message Type",
+            "description": "Determines MT191 or MT291 based on underlying transaction type (PREC004)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.underlying_message_name",
+                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPmtReq.Chrgs.PerTx.Rcrd.UndrlygTx.MsgNmId"}
+                        },
+                        {
+                            "path": "data.SwiftMT.message_type",
+                            "logic": { "if": [
+                                { "or": [
+                                    {"match": [{"var": "temp_data.underlying_message_name"}, "^pacs\\.008"]},
+                                    {"match": [{"var": "temp_data.underlying_message_name"}, "^MT103"]}
+                                ]},
+                                "191",
+                                "291"
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.variant",
+                            "logic": { "if": [
+                                {"==": [{"var": "data.SwiftMT.message_type"}, "191"]},
+                                "CUSTOMER_CHARGES",
+                                "FI_CHARGES"
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

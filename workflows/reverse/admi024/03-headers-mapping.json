@@ -1,0 +1,70 @@
+{
+    "id": "admi024-headers-mapping",
+    "name": "admi.024 to MT199 Headers Mapping",
+    "description": "Maps message headers for MT199 transformation",
+    "priority": 3,
+    "condition": { "and": [
+        {"==": [{"var": "data.SwiftMT.message_type"}, "199"]},
+        {"==": [{"var": "progress.workflow_id"}, "admi024-preconditions"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_basic_headers",
+            "name": "Map Basic Headers",
+            "description": "Maps basic header information from BAH",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.application_id",
+                            "logic": "F"
+                        },
+                        {
+                            "path": "data.SwiftMT.service_id",
+                            "logic": "01"
+                        },
+                        {
+                            "path": "data.SwiftMT.sender",
+                            "logic": {"var": "data.ISO20022_MX.header.From.FINSTId.FinInstnId.BICFI"}
+                        },
+                        {
+                            "path": "data.SwiftMT.receiver",
+                            "logic": {"var": "data.ISO20022_MX.header.To.FINSTId.FinInstnId.BICFI"}
+                        },
+                        {
+                            "path": "data.SwiftMT.message_priority",
+                            "logic": "N"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_uetr_if_present",
+            "name": "Map UETR if Present",
+            "description": "Maps UETR to Block 3 if available",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.uetr_from_group_header",
+                            "logic": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.GrpHdr.MsgId"}
+                        },
+                        {
+                            "path": "data.SwiftMT.block3.121",
+                            "condition": {"and": [
+                                {"var": "temp_data.uetr_from_group_header"},
+                                {"==": [{"strlen": [{"var": "temp_data.uetr_from_group_header"}]}, 36]},
+                                {"match": [{"var": "temp_data.uetr_from_group_header"}, "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"]}
+                            ]},
+                            "logic": {"var": "temp_data.uetr_from_group_header"}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

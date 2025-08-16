@@ -1,0 +1,146 @@
+{
+    "id": "camt110-mandatory-fields-mapping",
+    "name": "camt.110 to MT199 Mandatory Fields Mapping",
+    "description": "Maps mandatory fields including references",
+    "priority": 4,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "199"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt110-headers-mapping"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_field_20",
+            "name": "Map Field 20 Transaction Reference",
+            "description": "Maps requestor investigation ID to field 20",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field20_raw",
+                            "logic": {"var": "data.ISO20022_MX.document.InvstgtnReq.RqstrInvstgtnId"}
+                        },
+                        {
+                            "path": "temp_data.field20_valid",
+                            "logic": { "and": [
+                                {"var": "temp_data.field20_raw"},
+                                { "not": { "or": [
+                                    {"match": [{"var": "temp_data.field20_raw"}, "^/"]},
+                                    {"match": [{"var": "temp_data.field20_raw"}, "/$"]},
+                                    {"match": [{"var": "temp_data.field20_raw"}, "//"]}
+                                ]}}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.20",
+                            "condition": {"var": "temp_data.field20_raw"},
+                            "logic": {
+                                "transaction_reference": { "if": [
+                                    {">": [{"strlen": [{"var": "temp_data.field20_raw"}]}, 16]},
+                                    { "if": [
+                                        {"var": "temp_data.field20_valid"},
+                                        {"cat": [{"substr": [{"var": "temp_data.field20_raw"}, 0, 15]}, "+"]},
+                                        "NOTPROVIDED"
+                                    ]},
+                                    { "if": [
+                                        {"var": "temp_data.field20_valid"},
+                                        {"var": "temp_data.field20_raw"},
+                                        "NOTPROVIDED"
+                                    ]}
+                                ]}
+                            }
+                        },
+                        {
+                            "path": "temp_data.warnings.field20_truncated",
+                            "condition": { "and": [
+                                {"var": "temp_data.field20_raw"},
+                                {">": [{"strlen": [{"var": "temp_data.field20_raw"}]}, 16]}
+                            ]},
+                            "logic": {
+                                "code": "T20055",
+                                "message": "Field 20 truncated to 16 characters"
+                            }
+                        },
+                        {
+                            "path": "temp_data.warnings.field20_invalid",
+                            "condition": { "and": [
+                                {"var": "temp_data.field20_raw"},
+                                {"not": {"var": "temp_data.field20_valid"}}
+                            ]},
+                            "logic": {
+                                "code": "T14001",
+                                "message": "Field 20 contains invalid characters"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_21",
+            "name": "Map Field 21 Related Reference",
+            "description": "Maps original instruction ID to field 21",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field21_raw",
+                            "logic": { "if": [
+                                {"==": [{"var": "temp_data.underlying_type"}, "Initiation"]},
+                                {"var": "data.ISO20022_MX.document.InvstgtnReq.Undrlyg.Initn.OrgnlInstrId"},
+                                { "if": [
+                                    {"==": [{"var": "temp_data.underlying_type"}, "Interbank"]},
+                                    {"var": "data.ISO20022_MX.document.InvstgtnReq.Undrlyg.IntrBk.OrgnlInstrId"},
+                                    null
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field21_valid",
+                            "logic": { "and": [
+                                {"var": "temp_data.field21_raw"},
+                                { "not": { "or": [
+                                    {"match": [{"var": "temp_data.field21_raw"}, "^/"]},
+                                    {"match": [{"var": "temp_data.field21_raw"}, "/$"]},
+                                    {"match": [{"var": "temp_data.field21_raw"}, "//"]}
+                                ]}}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.21",
+                            "condition": {"var": "temp_data.field21_raw"},
+                            "logic": {
+                                "related_reference": { "if": [
+                                    {">": [{"strlen": [{"var": "temp_data.field21_raw"}]}, 16]},
+                                    { "if": [
+                                        {"var": "temp_data.field21_valid"},
+                                        {"cat": [{"substr": [{"var": "temp_data.field21_raw"}, 0, 15]}, "+"]},
+                                        "NOTPROVIDED"
+                                    ]},
+                                    { "if": [
+                                        {"var": "temp_data.field21_valid"},
+                                        {"var": "temp_data.field21_raw"},
+                                        "NOTPROVIDED"
+                                    ]}
+                                ]}
+                            }
+                        },
+                        {
+                            "path": "temp_data.warnings.field21_truncated",
+                            "condition": { "and": [
+                                {"var": "temp_data.field21_raw"},
+                                {">": [{"strlen": [{"var": "temp_data.field21_raw"}]}, 16]}
+                            ]},
+                            "logic": {
+                                "code": "T20056",
+                                "message": "Field 21 truncated to 16 characters"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,90 @@
+{
+    "id": "camt105-headers-mapping",
+    "name": "camt.105 to MTn90 Headers Mapping",
+    "description": "Maps headers for MT190/MT290 transformation",
+    "priority": 3,
+    "condition": { "and": [
+        { "or": [
+            {"==": [{"var": "SwiftMT.message_type"}, "190"]},
+            {"==": [{"var": "SwiftMT.message_type"}, "290"]}
+        ]},
+        {"==": [{"var": "progress.workflow_id"}, "camt105-preconditions"]},
+        {"var": "temp_data.preconditions_met"},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_basic_header",
+            "name": "Map Basic Header",
+            "description": "Maps sender and receiver BIC for MTn90",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.basic_header",
+                            "logic": {
+                                "application_id": "F",
+                                "service_id": "01",
+                                "sender_bic": { "if": [
+                                    {"var": "data.ISO20022_MX.header.From.FinancialInstitutionIdentification.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.From.FinancialInstitutionIdentification.BICFI"},
+                                    "NOTPROVIDED"
+                                ]},
+                                "receiver_bic": { "if": [
+                                    {"var": "data.ISO20022_MX.header.To.FinancialInstitutionIdentification.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.To.FinancialInstitutionIdentification.BICFI"},
+                                    "NOTPROVIDED"
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_application_header",
+            "name": "Map Application Header",
+            "description": "Maps application header for MTn90",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.application_header",
+                            "logic": {
+                                "input_output_identifier": "O",
+                                "message_type": {"var": "data.SwiftMT.message_type"},
+                                "receiver_bic": {"var": "data.SwiftMT.basic_header.receiver_bic"},
+                                "priority": "N",
+                                "delivery_monitoring": "",
+                                "obsolescence_period": ""
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_user_header",
+            "name": "Map User Header",
+            "description": "Maps user header with UETR if present",
+            "condition": {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.UndrlygTx.UETR"},
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.user_header",
+                            "logic": {
+                                "block3": {
+                                    "121": {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.UndrlygTx.UETR"}
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

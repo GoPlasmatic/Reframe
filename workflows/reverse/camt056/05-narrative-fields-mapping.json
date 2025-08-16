@@ -1,0 +1,150 @@
+{
+    "id": "camt056-narrative-fields-mapping",
+    "name": "camt.056 to MT192/MT292 Narrative Fields Mapping",
+    "description": "Maps field 79 narrative and field 32A",
+    "priority": 5,
+    "condition": { "and": [
+        { "in": [{"var": "SwiftMT.message_type"}, ["192", "292"]]},
+        {"==": [{"var": "progress.workflow_id"}, "camt056-mandatory-fields-mapping"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "prepare_field79_components",
+            "name": "Prepare Field 79 Components",
+            "description": "Prepares components for field 79 narrative",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field79_components",
+                            "logic": {
+                                "uetr": { "if": [
+                                    {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlUETR"},
+                                    {"cat": ["/UETR/", {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlUETR"}]},
+                                    null
+                                ]},
+                                "asgr": { "if": [
+                                    {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.Case.Cretr.Agt.FinInstnId.BICFI"},
+                                    {"cat": ["/ASGR/", {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.Case.Cretr.Agt.FinInstnId.BICFI"}]},
+                                    null
+                                ]},
+                                "reason_code": { "if": [
+                                    {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.CxlRsnInf.0.Rsn.Cd"},
+                                    {"cat": ["/CANC/", {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.CxlRsnInf.0.Rsn.Cd"}]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.CxlRsnInf.0.Rsn.Prtry"},
+                                        {"cat": ["/CANC/", {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.CxlRsnInf.0.Rsn.Prtry"}]},
+                                        null
+                                    ]}
+                                ]},
+                                "additional_info": { "if": [
+                                    {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.CxlRsnInf.0.AddtlInf"},
+                                    {"join": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.CxlRsnInf.0.AddtlInf"}, " "]},
+                                    null
+                                ]},
+                                "originator": { "if": [
+                                    {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.CxlRsnInf.0.Orgtr.Nm"},
+                                    {"cat": ["/ORIG/", {"substr": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.CxlRsnInf.0.Orgtr.Nm"}, 0, 35]}]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.CxlRsnInf.0.Orgtr.Id.OrgId.AnyBIC"},
+                                        {"cat": ["/ORIG/", {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.CxlRsnInf.0.Orgtr.Id.OrgId.AnyBIC"}]},
+                                        null
+                                    ]}
+                                ]},
+                                "original_msg_id": { "if": [
+                                    {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlGrpInf.OrgnlMsgId"},
+                                    {"cat": ["/OMID/", {"substr": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlGrpInf.OrgnlMsgId"}, 0, 35]}]},
+                                    null
+                                ]},
+                                "original_e2e_id": { "if": [
+                                    {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlEndToEndId"},
+                                    {"cat": ["/E2E/", {"substr": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlEndToEndId"}, 0, 35]}]},
+                                    null
+                                ]},
+                                "original_tx_id": { "if": [
+                                    {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlTxId"},
+                                    {"cat": ["/TXID/", {"substr": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlTxId"}, 0, 35]}]},
+                                    null
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_79",
+            "name": "Map Field 79 Narrative",
+            "description": "Maps narrative description with all components",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.79",
+                            "logic": {
+                                "narrative": {"split": [
+                                    {"substr": [
+                                        {"join": [
+                                            {"filter": [
+                                                [
+                                                    {"var": "temp_data.field79_components.uetr"},
+                                                    {"var": "temp_data.field79_components.asgr"},
+                                                    {"var": "temp_data.field79_components.reason_code"},
+                                                    {"var": "temp_data.field79_components.originator"},
+                                                    {"var": "temp_data.field79_components.original_msg_id"},
+                                                    {"var": "temp_data.field79_components.original_e2e_id"},
+                                                    {"var": "temp_data.field79_components.original_tx_id"},
+                                                    {"var": "temp_data.field79_components.additional_info"}
+                                                ],
+                                                {"var": ""}
+                                            ]},
+                                            " "
+                                        ]},
+                                        0,
+                                        1750
+                                    ]},
+                                    50
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_32A",
+            "name": "Map Field 32A",
+            "description": "Maps original interbank settlement amount and date",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field32A_date",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlIntrBkSttlmDt"},
+                                {"cat": [
+                                    {"substr": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlIntrBkSttlmDt"}, 2, 2]},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlIntrBkSttlmDt"}, 5, 2]},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlIntrBkSttlmDt"}, 8, 2]}
+                                ]},
+                                "991231"
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.32A",
+                            "logic": {
+                                "value_date": {"var": "temp_data.field32A_date"},
+                                "currency": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlIntrBkSttlmAmt/@Ccy"},
+                                "amount": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlIntrBkSttlmAmt"}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

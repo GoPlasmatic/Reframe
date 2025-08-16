@@ -1,0 +1,111 @@
+{
+    "id": "camt105-sender-receiver-info-mapping",
+    "name": "camt.105 to MTn90 Sender to Receiver Information Mapping",
+    "description": "Maps charges requestor and instructions to field 72",
+    "priority": 6,
+    "condition": { "and": [
+        { "or": [
+            {"==": [{"var": "SwiftMT.message_type"}, "190"]},
+            {"==": [{"var": "SwiftMT.message_type"}, "290"]}
+        ]},
+        {"==": [{"var": "progress.workflow_id"}, "camt105-charges-breakdown-mapping"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_field_72",
+            "name": "Map Field 72 Sender to Receiver Info",
+            "description": "Maps charges requestor to field 72 with /CHRQ/ code word",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.charges_requestor",
+                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.GrpHdr.ChrgsReqstr"}
+                        },
+                        {
+                            "path": "temp_data.field72_lines",
+                            "logic": {"filter": [
+                                [
+                                    { "if": [
+                                        {"var": "temp_data.charges_requestor.FinInstnId.BICFI"},
+                                        {"cat": [
+                                            "/CHRQ/",
+                                            {"var": "temp_data.charges_requestor.FinInstnId.BICFI"}
+                                        ]},
+                                        null
+                                    ]},
+                                    { "if": [
+                                        { "and": [
+                                            {"not": {"var": "temp_data.charges_requestor.FinInstnId.BICFI"}},
+                                            {"var": "temp_data.charges_requestor.FinInstnId.Nm"}
+                                        ]},
+                                        {"cat": [
+                                            "/CHRQ/",
+                                            {"substr": [{"var": "temp_data.charges_requestor.FinInstnId.Nm"}, 0, 29]}
+                                        ]},
+                                        null
+                                    ]},
+                                    { "if": [
+                                        { "and": [
+                                            {"not": {"var": "temp_data.charges_requestor.FinInstnId.BICFI"}},
+                                            {"not": {"var": "temp_data.charges_requestor.FinInstnId.Nm"}},
+                                            {"var": "temp_data.charges_requestor.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}
+                                        ]},
+                                        {"cat": [
+                                            "/CHRQ//",
+                                            {"var": "temp_data.charges_requestor.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                            {"var": "temp_data.charges_requestor.FinInstnId.ClrSysMmbId.MmbId"}
+                                        ]},
+                                        null
+                                    ]},
+                                    { "if": [
+                                        { "and": [
+                                            {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.0"},
+                                            {"not": {"match": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.0"}, "^NOTPROVIDED$"]}}
+                                        ]},
+                                        {"substr": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.0"}, 0, 35]},
+                                        null
+                                    ]},
+                                    { "if": [
+                                        { "and": [
+                                            {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.1"},
+                                            {"not": {"match": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.1"}, "^NOTPROVIDED$"]}}
+                                        ]},
+                                        {"substr": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.1"}, 0, 35]},
+                                        null
+                                    ]},
+                                    { "if": [
+                                        { "and": [
+                                            {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.2"},
+                                            {"not": {"match": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.2"}, "^NOTPROVIDED$"]}}
+                                        ]},
+                                        {"substr": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.2"}, 0, 35]},
+                                        null
+                                    ]}
+                                ],
+                                {"var": ""}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.72",
+                            "condition": {">": [{"count": {"var": "temp_data.field72_lines"}}, 0]},
+                            "logic": {
+                                "sender_to_receiver_information": {"slice": [{"var": "temp_data.field72_lines"}, 0, 6]}
+                            }
+                        },
+                        {
+                            "path": "temp_data.warnings.field72_truncated",
+                            "condition": {">": [{"count": {"var": "temp_data.field72_lines"}}, 6]},
+                            "logic": {
+                                "code": "T20303",
+                                "message": "Field 72 truncated to 6 lines"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,167 @@
+{
+    "id": "camt029-postconditions",
+    "name": "camt.029 to MT196/MT296 Postconditions",
+    "description": "Applies postconditions for MT196/MT296 transformation",
+    "priority": 6,
+    "condition": { "and": [
+        { "in": [{"var": "SwiftMT.message_type"}, ["196", "296"]]},
+        {"==": [{"var": "progress.workflow_id"}, "camt029-narrative-fields-mapping"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "apply_charset_conversion",
+            "name": "Apply Character Set Conversion (POSTC001)",
+            "description": "Removes all characters that are not FIN compliant",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.20",
+                            "condition": {"var": "data.SwiftMT.fields.20"},
+                            "logic": {"replace": [
+                                {"var": "data.SwiftMT.fields.20"},
+                                "[^A-Za-z0-9 \\n\\r/\\-\\?:\\(\\)\\.,'\\+]",
+                                "."
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.21",
+                            "condition": {"var": "data.SwiftMT.fields.21"},
+                            "logic": {"replace": [
+                                {"var": "data.SwiftMT.fields.21"},
+                                "[^A-Za-z0-9 \\n\\r/\\-\\?:\\(\\)\\.,'\\+]",
+                                "."
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.76",
+                            "condition": {"var": "data.SwiftMT.fields.76"},
+                            "logic": {"replace": [
+                                {"var": "data.SwiftMT.fields.76"},
+                                "[^A-Za-z0-9 \\n\\r/\\-\\?:\\(\\)\\.,'\\+]",
+                                "."
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.77A",
+                            "condition": {"var": "data.SwiftMT.fields.77A"},
+                            "logic": {"replace": [
+                                {"var": "data.SwiftMT.fields.77A"},
+                                "[^A-Za-z0-9 \\n\\r/\\-\\?:\\(\\)\\.,'\\+]",
+                                "."
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "clean_multiline_fields",
+            "name": "Clean Multiline Fields (POSTC002, POSTC003)",
+            "description": "Removes starting colon/hyphen and empty lines from multiline fields",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.76",
+                            "condition": {"var": "data.SwiftMT.fields.76"},
+                            "logic": {"replace": [
+                                {"replace": [
+                                    {"var": "data.SwiftMT.fields.76"},
+                                    "^[:\\-]",
+                                    ""
+                                ]},
+                                "\\n\\n+",
+                                "\n"
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.77A",
+                            "condition": {"var": "data.SwiftMT.fields.77A"},
+                            "logic": {"replace": [
+                                {"replace": [
+                                    {"var": "data.SwiftMT.fields.77A"},
+                                    "^[:\\-]",
+                                    ""
+                                ]},
+                                "\\n\\n+",
+                                "\n"
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_field_lengths",
+            "name": "Validate Field Lengths",
+            "description": "Ensures fields don't exceed maximum allowed lengths",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field76_lines",
+                            "condition": {"var": "data.SwiftMT.fields.76"},
+                            "logic": {"split": [{"var": "data.SwiftMT.fields.76"}, "\n"]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.76",
+                            "condition": { "and": [
+                                {"var": "temp_data.field76_lines"},
+                                {"gt": [{"count": [{"var": "temp_data.field76_lines"}]}, 6]}
+                            ]},
+                            "logic": {"join": [
+                                {"slice": [{"var": "temp_data.field76_lines"}, 0, 6]},
+                                "\n"
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field77a_lines",
+                            "condition": {"var": "data.SwiftMT.fields.77A"},
+                            "logic": {"split": [{"var": "data.SwiftMT.fields.77A"}, "\n"]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.77A",
+                            "condition": { "and": [
+                                {"var": "temp_data.field77a_lines"},
+                                {"gt": [{"count": [{"var": "temp_data.field77a_lines"}]}, 20]}
+                            ]},
+                            "logic": {"join": [
+                                {"slice": [{"var": "temp_data.field77a_lines"}, 0, 20]},
+                                "\n"
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "finalize_transformation",
+            "name": "Finalize Transformation",
+            "description": "Sets final transformation status",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.transformation_complete",
+                            "logic": true
+                        },
+                        {
+                            "path": "data.SwiftMT.source_message_type",
+                            "logic": "camt.029"
+                        },
+                        {
+                            "path": "data.SwiftMT.source_message_version",
+                            "logic": "001.09"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

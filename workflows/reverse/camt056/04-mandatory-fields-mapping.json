@@ -1,0 +1,200 @@
+{
+    "id": "camt056-mandatory-fields-mapping",
+    "name": "camt.056 to MT192/MT292 Mandatory Fields Mapping",
+    "description": "Maps mandatory fields including references and original message information",
+    "priority": 4,
+    "condition": { "and": [
+        { "in": [{"var": "SwiftMT.message_type"}, ["192", "292"]]},
+        {"==": [{"var": "progress.workflow_id"}, "camt056-headers-mapping"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_field_20",
+            "name": "Map Field 20 Transaction Reference",
+            "description": "Maps Case Identification to field 20",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field20_raw",
+                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.Case.Id"}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.20",
+                            "logic": {
+                                "transaction_reference": { "if": [
+                                    {">": [{"strlen": [{"var": "temp_data.field20_raw"}]}, 16]},
+                                    {"cat": [{"substr": [{"var": "temp_data.field20_raw"}, 0, 15]}, "+"]},
+                                    { "if": [
+                                        {"var": "temp_data.prec.case_id_valid"},
+                                        {"var": "temp_data.field20_raw"},
+                                        "NOTPROVIDED"
+                                    ]}
+                                ]}
+                            }
+                        },
+                        {
+                            "path": "temp_data.warnings.field20_truncated",
+                            "condition": {">": [{"strlen": [{"var": "temp_data.field20_raw"}]}, 16]},
+                            "logic": {
+                                "code": "T20080",
+                                "message": "Field 20 truncated to 16 characters"
+                            }
+                        },
+                        {
+                            "path": "temp_data.warnings.field20_invalid",
+                            "condition": {"not": {"var": "temp_data.prec.case_id_valid"}},
+                            "logic": {
+                                "code": "T14001",
+                                "message": "Field 20 contains invalid characters (/, //)"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_21",
+            "name": "Map Field 21 Related Reference",
+            "description": "Maps Original Instruction Identification to field 21",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field21_raw",
+                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlInstrId"}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.21",
+                            "logic": {
+                                "related_reference": { "if": [
+                                    {"var": "temp_data.field21_raw"},
+                                    { "if": [
+                                        {">": [{"strlen": [{"var": "temp_data.field21_raw"}]}, 16]},
+                                        {"cat": [{"substr": [{"var": "temp_data.field21_raw"}, 0, 15]}, "+"]},
+                                        { "if": [
+                                            {"var": "temp_data.prec.original_instruction_id_valid"},
+                                            {"var": "temp_data.field21_raw"},
+                                            "NOTPROVIDED"
+                                        ]}
+                                    ]},
+                                    "NOTPROVIDED"
+                                ]}
+                            }
+                        },
+                        {
+                            "path": "temp_data.warnings.field21_missing",
+                            "condition": {"not": {"var": "temp_data.field21_raw"}},
+                            "logic": {
+                                "code": "T20072",
+                                "message": "OriginalInstructionId absent, using NOTPROVIDED"
+                            }
+                        },
+                        {
+                            "path": "temp_data.warnings.field21_truncated",
+                            "condition": { "and": [
+                                {"var": "temp_data.field21_raw"},
+                                {">": [{"strlen": [{"var": "temp_data.field21_raw"}]}, 16]}
+                            ]},
+                            "logic": {
+                                "code": "T20081",
+                                "message": "Field 21 truncated to 16 characters"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_11S",
+            "name": "Map Field 11S MT and Date",
+            "description": "Maps original message type and date to field 11S",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field11S_type",
+                            "logic": { "if": [
+                                {"in": ["pacs.008", {"var": "temp_data.original_message_name"}]},
+                                "103",
+                                { "if": [
+                                    {"in": ["pacs.003", {"var": "temp_data.original_message_name"}]},
+                                    "104",
+                                    { "if": [
+                                        {"match": [{"var": "temp_data.original_message_name"}, "^MT10[0-9]$"]},
+                                        {"substr": [{"var": "temp_data.original_message_name"}, 3, 3]},
+                                        { "if": [
+                                            {"in": ["pacs.009", {"var": "temp_data.original_message_name"}]},
+                                            "202",
+                                            { "if": [
+                                                {"in": ["pacs.010", {"var": "temp_data.original_message_name"}]},
+                                                "204",
+                                                { "if": [
+                                                    {"match": [{"var": "temp_data.original_message_name"}, "^MT20[0-9]$"]},
+                                                    {"substr": [{"var": "temp_data.original_message_name"}, 3, 3]},
+                                                    "202"
+                                                ]}
+                                            ]}
+                                        ]}
+                                    ]}
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field11S_date",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlGrpInf.OrgnlCreDtTm"},
+                                { "if": [
+                                    {"match": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlGrpInf.OrgnlCreDtTm"}, "^[0-9]{4}-[0-9]{2}-[0-9]{2}"]},
+                                    {"cat": [
+                                        {"substr": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlGrpInf.OrgnlCreDtTm"}, 2, 2]},
+                                        {"substr": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlGrpInf.OrgnlCreDtTm"}, 5, 2]},
+                                        {"substr": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlGrpInf.OrgnlCreDtTm"}, 8, 2]}
+                                    ]},
+                                    "991231"
+                                ]},
+                                "991231"
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.11S",
+                            "logic": {
+                                "mt_and_date": [
+                                    {"var": "temp_data.field11S_type"},
+                                    {"var": "temp_data.field11S_date"}
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.warnings.field11S_default",
+                            "condition": {"==": [{"var": "temp_data.field11S_type"}, "202"]},
+                            "logic": { "if": [
+                                { "not": { "or": [
+                                    {"in": ["pacs.009", {"var": "temp_data.original_message_name"}]},
+                                    {"match": [{"var": "temp_data.original_message_name"}, "^MT20[0-9]$"]}
+                                ]}},
+                                {
+                                    "code": "T20083",
+                                    "message": "Original message type not recognized, defaulting to 202"
+                                },
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.warnings.field11S_date",
+                            "condition": {"==": [{"var": "temp_data.field11S_date"}, "991231"]},
+                            "logic": {
+                                "code": "T20136",
+                                "message": "Original creation date not available or invalid, using default 991231"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

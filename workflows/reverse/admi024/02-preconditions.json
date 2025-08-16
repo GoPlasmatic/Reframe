@@ -1,0 +1,52 @@
+{
+    "id": "admi024-preconditions",
+    "name": "admi.024 to MT199 Preconditions",
+    "description": "Validates preconditions for admi.024 to MT199 transformation",
+    "priority": 2,
+    "condition": { "and": [
+        {"==": [{"var": "data.SwiftMT.message_type"}, "199"]},
+        {"==": [{"var": "progress.workflow_id"}, "admi024-variant-detection"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "validate_message_structure",
+            "name": "Validate Message Structure",
+            "description": "Validates required elements are present",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "name": "notification_data_present",
+                            "description": "NotificationData must be present",
+                            "condition": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData"},
+                            "error": {
+                                "code": "T20000",
+                                "message": "NotificationData is required for MT199 transformation"
+                            }
+                        },
+                        {
+                            "name": "sender_notification_id_present",
+                            "description": "SenderNotificationIdentification must be present",
+                            "condition": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.SndrNtfctnId"},
+                            "error": {
+                                "code": "T20001",
+                                "message": "SenderNotificationIdentification is required for field 20"
+                            }
+                        },
+                        {
+                            "name": "notification_type_present",
+                            "description": "NotificationType must be present",
+                            "condition": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.NtfctnTp"},
+                            "error": {
+                                "code": "T20002",
+                                "message": "NotificationType is required for field 79"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

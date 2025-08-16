@@ -1,0 +1,78 @@
+{
+    "id": "camt110-variant-detection",
+    "name": "camt.110 Variant Detection for MT199",
+    "description": "Validates camt.110 message and prepares for MT199 transformation",
+    "priority": 1,
+    "condition": { "and": [
+        {"==": [{"var": "data.ISO20022_MX.message_type"}, "camt.110"]},
+        {"==": [{"var": "data.ISO20022_MX.message_version"}, "001.01"]},
+        {"==": [{"var": "progress.workflow_id"}, "parse-mx"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "set_message_type",
+            "name": "Set Message Type",
+            "description": "Sets MT199 as target message type for investigation request",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.message_type",
+                            "logic": "199"
+                        },
+                        {
+                            "path": "data.SwiftMT.variant",
+                            "logic": "INVESTIGATION_REQUEST"
+                        },
+                        {
+                            "path": "temp_data.investigation_type",
+                            "logic": {"var": "data.ISO20022_MX.document.InvstgtnReq.InvstgtnTp.Cd"}
+                        },
+                        {
+                            "path": "temp_data.investigation_subtype",
+                            "logic": {"var": "data.ISO20022_MX.document.InvstgtnReq.InvstgtnSubTp.Cd"}
+                        },
+                        {
+                            "path": "temp_data.eir",
+                            "logic": {"var": "data.ISO20022_MX.document.InvstgtnReq.EIR"}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "extract_underlying_choice",
+            "name": "Extract Underlying Choice",
+            "description": "Determines which underlying transaction type is present",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.underlying_type",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.InvstgtnReq.Undrlyg.Initn"},
+                                "Initiation",
+                                { "if": [
+                                    {"var": "data.ISO20022_MX.document.InvstgtnReq.Undrlyg.IntrBk"},
+                                    "Interbank",
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.InvstgtnReq.Undrlyg.StmtNtry"},
+                                        "StatementEntry",
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.InvstgtnReq.Undrlyg.Othr"},
+                                            "Other",
+                                            null
+                                        ]}
+                                    ]}
+                                ]}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,112 @@
+{
+    "id": "admi024-mandatory-fields-mapping",
+    "name": "admi.024 to MT199 Mandatory Fields Mapping",
+    "description": "Maps mandatory fields for MT199 transformation",
+    "priority": 4,
+    "condition": { "and": [
+        {"==": [{"var": "data.SwiftMT.message_type"}, "199"]},
+        {"==": [{"var": "progress.workflow_id"}, "admi024-headers-mapping"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_transaction_reference",
+            "name": "Map Transaction Reference (Field 20)",
+            "description": "Maps SenderNotificationIdentification to Field 20 (TR001)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field20_raw",
+                            "logic": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.SndrNtfctnId"}
+                        },
+                        {
+                            "path": "temp_data.field20_truncated",
+                            "condition": {"gt": [{"strlen": [{"var": "temp_data.field20_raw"}]}, 16]},
+                            "logic": {"cat": [
+                                {"substr": [{"var": "temp_data.field20_raw"}, 0, 15]},
+                                "+"
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.20",
+                            "logic": { "if": [
+                                {"var": "temp_data.field20_truncated"},
+                                {"var": "temp_data.field20_truncated"},
+                                { "if": [
+                                    { "not": { "or": [
+                                        {"match": [{"var": "temp_data.field20_raw"}, "^/"]},
+                                        {"match": [{"var": "temp_data.field20_raw"}, "/$"]},
+                                        {"match": [{"var": "temp_data.field20_raw"}, "//"]}
+                                    ]}},
+                                    {"var": "temp_data.field20_raw"},
+                                    "NOTPROVIDED"
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field20_error",
+                            "condition": {"==": [{"var": "data.SwiftMT.fields.20"}, "NOTPROVIDED"]},
+                            "logic": {
+                                "code": "T14001",
+                                "message": "Field 20 contains invalid characters (/, //)"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_narrative_field",
+            "name": "Map Narrative Field (Field 79)",
+            "description": "Maps NotificationType and NotificationNarrative to Field 79",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.notification_type_code",
+                            "logic": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.NtfctnTp.Cd"}
+                        },
+                        {
+                            "path": "temp_data.notification_narratives",
+                            "logic": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.NtfctnNrrtv"}
+                        },
+                        {
+                            "path": "temp_data.field79_lines",
+                            "logic": { "if": [
+                                {"var": "temp_data.notification_type_code"},
+                                {"cat": [
+                                    "/NTTP/", {"var": "temp_data.notification_type_code"},
+                                    { "if": [
+                                        {"var": "temp_data.notification_narratives"},
+                                        {"reduce": [
+                                            {"var": "temp_data.notification_narratives"},
+                                            {"cat": [{"var": "accumulator"}, "\n", {"var": "current"}]},
+                                            ""
+                                        ]},
+                                        ""
+                                    ]}
+                                ]},
+                                { "if": [
+                                    {"var": "temp_data.notification_narratives"},
+                                    {"reduce": [
+                                        {"var": "temp_data.notification_narratives"},
+                                        {"cat": [{"var": "accumulator"}, "\n", {"var": "current"}]},
+                                        {"substr": [{"var": "temp_data.notification_narratives.0"}, 0]}
+                                    ]},
+                                    "/NTTP/NOTPROVIDED"
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.79",
+                            "logic": {"var": "temp_data.field79_lines"}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

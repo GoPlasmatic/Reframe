@@ -1,0 +1,184 @@
+{
+    "id": "camt105-preconditions",
+    "name": "camt.105 to MTn90 Preconditions Validation",
+    "description": "Validates preconditions for camt.105 to MT190/MT290 transformation",
+    "priority": 2,
+    "condition": { "and": [
+        { "or": [
+            {"==": [{"var": "SwiftMT.message_type"}, "190"]},
+            {"==": [{"var": "SwiftMT.message_type"}, "290"]}
+        ]},
+        {"==": [{"var": "progress.workflow_id"}, "camt105-variant-detection"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "validate_business_service",
+            "name": "Validate Business Service",
+            "description": "Validates that business service is not multi-record",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.prec.business_service",
+                            "logic": {"var": "data.ISO20022_MX.header.BizSvc"}
+                        },
+                        {
+                            "path": "temp_data.prec.is_multi_record",
+                            "logic": {"==": [{"var": "temp_data.prec.business_service"}, "swift.cbprplus.mlp.01"]}
+                        },
+                        {
+                            "path": "temp_data.prec.error_multi_record",
+                            "condition": {"var": "temp_data.prec.is_multi_record"},
+                            "logic": {
+                                "code": "T20287",
+                                "message": "Multiple records not supported - single MT only"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_charges_breakdown_count",
+            "name": "Validate Charges Breakdown Count",
+            "description": "Validates that maximum 6 charges breakdown items are present",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.prec.charges_breakdown_count",
+                            "logic": {"count": {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.ChrgsBrkdwn"}}
+                        },
+                        {
+                            "path": "temp_data.prec.valid_breakdown_count",
+                            "logic": {"<=": [{"var": "temp_data.prec.charges_breakdown_count"}, 6]}
+                        },
+                        {
+                            "path": "temp_data.prec.error_too_many_charges",
+                            "condition": {"not": {"var": "temp_data.prec.valid_breakdown_count"}},
+                            "logic": {
+                                "code": "T20288",
+                                "message": {"cat": [
+                                    "Too many charges breakdown items: ",
+                                    {"var": "temp_data.prec.charges_breakdown_count"},
+                                    " (max 6 allowed in field 71B)"
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_charges_amounts",
+            "name": "Validate Charges Amounts",
+            "description": "Validates that all charge amounts fit in MT format (max 13 digits)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.prec.amount_errors",
+                            "logic": {"filter": [
+                                {"map": [
+                                    {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.ChrgsBrkdwn"},
+                                    { "if": [
+                                        {">": [
+                                            {"count": [{"match": [{"var": ".Amt"}, "[0-9]"]}]},
+                                            13
+                                        ]},
+                                        {
+                                            "code": "T20289",
+                                            "message": {"cat": [
+                                                "Charge amount exceeds 13 digits: ",
+                                                {"var": ".Amt"}
+                                            ]}
+                                        },
+                                        null
+                                    ]}
+                                ]},
+                                {"var": ""}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.prec.valid_amounts",
+                            "logic": {"==": [{"count": {"var": "temp_data.prec.amount_errors"}}, 0]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_total_amount",
+            "name": "Validate Total Amount",
+            "description": "Validates total charges amount",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.prec.total_amount",
+                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.TtlChrgsPerRcrd.TtlChrgsAmt"}
+                        },
+                        {
+                            "path": "temp_data.prec.total_amount_valid",
+                            "logic": {"<=": [
+                                {"count": [{"match": [{"var": "temp_data.prec.total_amount"}, "[0-9]"]}]},
+                                14
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.prec.error_total_amount",
+                            "condition": {"not": {"var": "temp_data.prec.total_amount_valid"}},
+                            "logic": {
+                                "code": "T20066",
+                                "message": "Total charges amount exceeds 14 digits"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "check_all_preconditions",
+            "name": "Check All Preconditions",
+            "description": "Consolidates all precondition checks",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.preconditions_met",
+                            "logic": { "and": [
+                                {"var": "temp_data.is_single_charge"},
+                                {"not": {"var": "temp_data.prec.is_multi_record"}},
+                                {"var": "temp_data.prec.valid_breakdown_count"},
+                                {"var": "temp_data.prec.valid_amounts"},
+                                {"var": "temp_data.prec.total_amount_valid"}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.validation_status",
+                            "condition": {"not": {"var": "temp_data.preconditions_met"}},
+                            "logic": {
+                                "success": false,
+                                "errors": {"filter": [
+                                    [
+                                        {"var": "temp_data.error_multiple_charges"},
+                                        {"var": "temp_data.prec.error_multi_record"},
+                                        {"var": "temp_data.prec.error_too_many_charges"},
+                                        {"var": "temp_data.prec.error_total_amount"}
+                                    ],
+                                    {"var": ""}
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

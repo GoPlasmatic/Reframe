@@ -1,0 +1,136 @@
+{
+    "id": "camt110-preconditions",
+    "name": "camt.110 to MT199 Preconditions Validation",
+    "description": "Validates preconditions for camt.110 to MT199 transformation",
+    "priority": 2,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "199"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt110-variant-detection"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "validate_requestor_responder",
+            "name": "Validate Requestor and Responder",
+            "description": "Validates that requestor and responder BICs are present",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.prec.requestor_bic",
+                            "logic": {"var": "data.ISO20022_MX.document.InvstgtnReq.Rqstr.Agt.FinInstnId.BICFI"}
+                        },
+                        {
+                            "path": "temp_data.prec.responder_bic",
+                            "logic": {"var": "data.ISO20022_MX.document.InvstgtnReq.Rspndr.Agt.FinInstnId.BICFI"}
+                        },
+                        {
+                            "path": "temp_data.prec.requestor_valid",
+                            "logic": {"var": "temp_data.prec.requestor_bic"}
+                        },
+                        {
+                            "path": "temp_data.prec.responder_valid",
+                            "logic": {"var": "temp_data.prec.responder_bic"}
+                        },
+                        {
+                            "path": "temp_data.prec.error_missing_bics",
+                            "condition": { "not": { "and": [
+                                {"var": "temp_data.prec.requestor_valid"},
+                                {"var": "temp_data.prec.responder_valid"}
+                            ]}},
+                            "logic": {
+                                "code": "E2001",
+                                "message": "Requestor or Responder BIC missing"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_investigation_type",
+            "name": "Validate Investigation Type",
+            "description": "Validates that investigation type is present",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.prec.investigation_type_valid",
+                            "logic": {"var": "temp_data.investigation_type"}
+                        },
+                        {
+                            "path": "temp_data.prec.error_missing_type",
+                            "condition": {"not": {"var": "temp_data.prec.investigation_type_valid"}},
+                            "logic": {
+                                "code": "E2002",
+                                "message": "Investigation type missing"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_underlying",
+            "name": "Validate Underlying Transaction",
+            "description": "Validates that underlying transaction information is present",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.prec.underlying_valid",
+                            "logic": {"var": "temp_data.underlying_type"}
+                        },
+                        {
+                            "path": "temp_data.prec.error_missing_underlying",
+                            "condition": {"not": {"var": "temp_data.prec.underlying_valid"}},
+                            "logic": {
+                                "code": "E2003",
+                                "message": "Underlying transaction information missing"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "check_all_preconditions",
+            "name": "Check All Preconditions",
+            "description": "Consolidates all precondition checks",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.preconditions_met",
+                            "logic": { "and": [
+                                {"var": "temp_data.prec.requestor_valid"},
+                                {"var": "temp_data.prec.responder_valid"},
+                                {"var": "temp_data.prec.investigation_type_valid"},
+                                {"var": "temp_data.prec.underlying_valid"}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.validation_status",
+                            "condition": {"not": {"var": "temp_data.preconditions_met"}},
+                            "logic": {
+                                "success": false,
+                                "errors": {"filter": [
+                                    [
+                                        {"var": "temp_data.prec.error_missing_bics"},
+                                        {"var": "temp_data.prec.error_missing_type"},
+                                        {"var": "temp_data.prec.error_missing_underlying"}
+                                    ],
+                                    {"var": ""}
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

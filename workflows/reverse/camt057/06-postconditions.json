@@ -1,0 +1,188 @@
+{
+    "id": "camt057-postconditions",
+    "name": "camt.057 to MT210 Postconditions and Final Assembly",
+    "description": "Performs final validation and assembles MT210 message",
+    "priority": 6,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "210"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt057-party-fields-mapping"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "validate_mandatory_fields",
+            "name": "Validate Mandatory Fields",
+            "description": "Validates all mandatory fields are present",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.post.field20_present",
+                            "logic": {"var": "data.SwiftMT.fields.20.transaction_reference"}
+                        },
+                        {
+                            "path": "temp_data.post.field21_present",
+                            "logic": {"var": "data.SwiftMT.fields.21.related_reference"}
+                        },
+                        {
+                            "path": "temp_data.post.field30_present",
+                            "logic": {"var": "data.SwiftMT.fields.30.value_date"}
+                        },
+                        {
+                            "path": "temp_data.post.field32B_present",
+                            "logic": { "and": [
+                                {"var": "data.SwiftMT.fields.32B.currency"},
+                                {"var": "data.SwiftMT.fields.32B.amount"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.post.field50_present",
+                            "logic": { "or": [
+                                {"var": "data.SwiftMT.fields.50"},
+                                {"var": "data.SwiftMT.fields.50C"},
+                                {"var": "data.SwiftMT.fields.50F"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.post.all_mandatory_present",
+                            "logic": { "and": [
+                                {"var": "temp_data.post.field20_present"},
+                                {"var": "temp_data.post.field21_present"},
+                                {"var": "temp_data.post.field30_present"},
+                                {"var": "temp_data.post.field32B_present"},
+                                {"var": "temp_data.post.field50_present"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.post.errors",
+                            "condition": {"not": {"var": "temp_data.post.all_mandatory_present"}},
+                            "logic": {"filter": [
+                                [
+                                    { "if": [{"not": {"var": "temp_data.post.field20_present"}}, {"code": "E2051", "message": "Mandatory field 20 missing"}, null]},
+                                    { "if": [{"not": {"var": "temp_data.post.field21_present"}}, {"code": "E2055", "message": "Mandatory field 21 missing"}, null]},
+                                    { "if": [{"not": {"var": "temp_data.post.field30_present"}}, {"code": "E3062", "message": "Mandatory field 30 missing"}, null]},
+                                    { "if": [{"not": {"var": "temp_data.post.field32B_present"}}, {"code": "E3265", "message": "Mandatory field 32B missing"}, null]},
+                                    { "if": [{"not": {"var": "temp_data.post.field50_present"}}, {"code": "E5097", "message": "Mandatory field 50 missing"}, null]}
+                                ],
+                                {"var": ""}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "collect_warnings",
+            "name": "Collect All Warnings",
+            "description": "Collects all warnings generated during transformation",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.all_warnings",
+                            "logic": {"filter": [
+                                [
+                                    {"var": "temp_data.warnings.field20_truncated"},
+                                    {"var": "temp_data.warnings.field20_invalid"},
+                                    {"var": "temp_data.warnings.field21_truncated"},
+                                    {"var": "temp_data.warnings.field30_default"},
+                                    {"var": "temp_data.warnings.field50_agent_clearing"},
+                                    {"var": "temp_data.warnings.field52_conflict"}
+                                ],
+                                {"var": ""}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "assemble_mt210",
+            "name": "Assemble MT210 Message",
+            "description": "Assembles final MT210 message structure",
+            "condition": {"var": "temp_data.post.all_mandatory_present"},
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.message_variant",
+                            "logic": "MT210_NOTICE_TO_RECEIVE"
+                        },
+                        {
+                            "path": "data.SwiftMT.transformation_status",
+                            "logic": {
+                                "success": true,
+                                "message": "camt.057 successfully transformed to MT210",
+                                "warnings": {"var": "temp_data.all_warnings"}
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.metadata",
+                            "logic": {
+                                "source_message": "camt.057",
+                                "target_message": "MT210",
+                                "transformation_timestamp": {"now": "iso"},
+                                "business_service": { "if": [
+                                    {"var": "data.ISO20022_MX.header.BusinessMessageIdentifier"},
+                                    {"var": "data.ISO20022_MX.header.BusinessMessageIdentifier"},
+                                    "camt.057.001.06"
+                                ]},
+                                "message_id": {"var": "data.ISO20022_MX.document.NtfctnToRcv.GrpHdr.MsgId"},
+                                "creation_datetime": {"var": "data.ISO20022_MX.document.NtfctnToRcv.GrpHdr.CreDtTm"},
+                                "uetr": {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.UETR"}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "handle_transformation_failure",
+            "name": "Handle Transformation Failure",
+            "description": "Handles transformation failure when mandatory fields are missing",
+            "condition": {"not": {"var": "temp_data.post.all_mandatory_present"}},
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.transformation_status",
+                            "logic": {
+                                "success": false,
+                                "message": "camt.057 to MT210 transformation failed - mandatory fields missing",
+                                "errors": {"var": "temp_data.post.errors"},
+                                "warnings": {"var": "temp_data.all_warnings"}
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.validation_status",
+                            "logic": {
+                                "success": false,
+                                "errors": {"var": "temp_data.post.errors"}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "cleanup_temp_data",
+            "name": "Cleanup Temporary Data",
+            "description": "Removes temporary data used during transformation",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data",
+                            "logic": null
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

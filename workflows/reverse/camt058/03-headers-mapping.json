@@ -1,0 +1,93 @@
+{
+    "id": "camt058-headers-mapping",
+    "name": "camt.058 to MT292 Headers Mapping",
+    "description": "Maps headers for MT292 transformation",
+    "priority": 3,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "292"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt058-preconditions"]},
+        {"var": "temp_data.preconditions_met"},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_basic_header",
+            "name": "Map Basic Header",
+            "description": "Maps sender and receiver BIC for MT292",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.basic_header",
+                            "logic": {
+                                "application_id": "F",
+                                "service_id": "01",
+                                "sender_bic": { "if": [
+                                    {"var": "data.ISO20022_MX.header.From.FinancialInstitutionIdentification.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.From.FinancialInstitutionIdentification.BICFI"},
+                                    "NOTPROVIDED"
+                                ]},
+                                "receiver_bic": { "if": [
+                                    {"var": "data.ISO20022_MX.header.To.FinancialInstitutionIdentification.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.To.FinancialInstitutionIdentification.BICFI"},
+                                    "NOTPROVIDED"
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_application_header",
+            "name": "Map Application Header",
+            "description": "Maps application header for MT292",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.application_header",
+                            "logic": {
+                                "input_output_identifier": "O",
+                                "message_type": "292",
+                                "receiver_bic": {"var": "data.SwiftMT.basic_header.receiver_bic"},
+                                "priority": "N",
+                                "delivery_monitoring": "",
+                                "obsolescence_period": ""
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_user_header",
+            "name": "Map User Header with UETR",
+            "description": "Maps user header with UETR from original item",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.uetr_for_block3",
+                            "logic": { "if": [
+                                {"isArray": [{"var": "temp_data.prec.original_items"}]},
+                                {"var": "temp_data.prec.original_items.0.UETR"},
+                                {"var": "temp_data.prec.original_items.UETR"}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.user_header",
+                            "condition": {"var": "temp_data.uetr_for_block3"},
+                            "logic": {
+                                "unique_end_to_end_transaction_reference": {"var": "temp_data.uetr_for_block3"}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,95 @@
+{
+    "id": "camt110-headers-mapping",
+    "name": "camt.110 to MT199 Headers Mapping",
+    "description": "Maps headers for MT199 transformation",
+    "priority": 3,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "199"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt110-preconditions"]},
+        {"var": "temp_data.preconditions_met"},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_basic_header",
+            "name": "Map Basic Header",
+            "description": "Maps requestor and responder BIC for MT199",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.basic_header",
+                            "logic": {
+                                "application_id": "F",
+                                "service_id": "01",
+                                "sender_bic": {"var": "temp_data.prec.requestor_bic"},
+                                "receiver_bic": {"var": "temp_data.prec.responder_bic"}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_application_header",
+            "name": "Map Application Header",
+            "description": "Maps application header for MT199",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.application_header",
+                            "logic": {
+                                "input_output_identifier": "O",
+                                "message_type": "199",
+                                "receiver_bic": {"var": "temp_data.prec.responder_bic"},
+                                "priority": "N",
+                                "delivery_monitoring": "",
+                                "obsolescence_period": ""
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_user_header",
+            "name": "Map User Header",
+            "description": "Maps user header with UETR if present",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.uetr",
+                            "logic": { "if": [
+                                {"==": [{"var": "temp_data.underlying_type"}, "Initiation"]},
+                                {"var": "data.ISO20022_MX.document.InvstgtnReq.Undrlyg.Initn.OrgnlUETR"},
+                                { "if": [
+                                    {"==": [{"var": "temp_data.underlying_type"}, "Interbank"]},
+                                    {"var": "data.ISO20022_MX.document.InvstgtnReq.Undrlyg.IntrBk.OrgnlUETR"},
+                                    { "if": [
+                                        {"==": [{"var": "temp_data.underlying_type"}, "StatementEntry"]},
+                                        {"var": "data.ISO20022_MX.document.InvstgtnReq.Undrlyg.StmtNtry.OrgnlUETR"},
+                                        null
+                                    ]}
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.user_header",
+                            "condition": {"var": "temp_data.uetr"},
+                            "logic": {
+                                "block3": {
+                                    "121": {"var": "temp_data.uetr"}
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

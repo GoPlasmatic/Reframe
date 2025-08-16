@@ -1,0 +1,107 @@
+{
+    "id": "camt029-preconditions",
+    "name": "camt.029 to MT196/MT296 Preconditions Validation",
+    "description": "Validates preconditions for camt.029 to MT196/MT296 transformation",
+    "priority": 2,
+    "condition": { "and": [
+        { "in": [{"var": "SwiftMT.message_type"}, ["196", "296"]]},
+        {"==": [{"var": "progress.workflow_id"}, "camt029-variant-detection"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "validate_mandatory_fields",
+            "name": "Validate Mandatory Fields",
+            "description": "Validates presence of mandatory fields for MT196/MT296",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.prec.cancellation_status_id_present",
+                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.CxlStsId"}
+                        },
+                        {
+                            "path": "temp_data.prec.resolved_case_id_present",
+                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.RslvdCase.Id"}
+                        },
+                        {
+                            "path": "temp_data.prec.original_uetr_present",
+                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.OrgnlUETR"}
+                        },
+                        {
+                            "path": "temp_data.prec.confirmation_present",
+                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Sts.Conf"}
+                        },
+                        {
+                            "path": "temp_data.prec.original_message_name_present",
+                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_reference_format",
+            "name": "Validate Reference Format",
+            "description": "Validates reference fields don't contain invalid characters",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.prec.cancellation_status_id_valid",
+                            "condition": {"var": "temp_data.prec.cancellation_status_id_present"},
+                            "logic": { "not": { "or": [
+                                {"match": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.CxlStsId"}, "^/"]},
+                                {"match": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.CxlStsId"}, "/$"]},
+                                {"match": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.CxlStsId"}, "//"]}
+                            ]}}
+                        },
+                        {
+                            "path": "temp_data.prec.resolved_case_id_valid",
+                            "condition": {"var": "temp_data.prec.resolved_case_id_present"},
+                            "logic": { "not": { "or": [
+                                {"match": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.RslvdCase.Id"}, "^/"]},
+                                {"match": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.RslvdCase.Id"}, "/$"]},
+                                {"match": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.RslvdCase.Id"}, "//"]}
+                            ]}}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "check_all_preconditions",
+            "name": "Check All Preconditions",
+            "description": "Consolidates all precondition checks",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.preconditions_met",
+                            "logic": { "and": [
+                                {"var": "temp_data.prec.cancellation_status_id_present"},
+                                {"var": "temp_data.prec.resolved_case_id_present"},
+                                {"var": "temp_data.prec.original_uetr_present"},
+                                {"var": "temp_data.prec.confirmation_present"},
+                                {"var": "temp_data.prec.original_message_name_present"},
+                                {"!=": [{"var": "temp_data.prec.cancellation_status_id_valid"}, false]},
+                                {"!=": [{"var": "temp_data.prec.resolved_case_id_valid"}, false]}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.validation_status",
+                            "condition": {"not": {"var": "temp_data.preconditions_met"}},
+                            "logic": {
+                                "code": "T20073",
+                                "message": "camt.029 to MT196/MT296 preconditions not met"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,123 @@
+{
+    "id": "camt058-preconditions",
+    "name": "camt.058 to MT292 Preconditions Validation",
+    "description": "Validates preconditions for camt.058 to MT292 transformation",
+    "priority": 2,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "292"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt058-variant-detection"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "validate_single_item",
+            "name": "Validate Single Original Item (PREC001)",
+            "description": "Ensures only one original item is present for cancellation",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.prec.original_items",
+                            "logic": {"var": "data.ISO20022_MX.document.NtfctnToRcvCxlAdvc.OrgnlNtfctn.OrgnlNtfctnRef.OrgnlItm"}
+                        },
+                        {
+                            "path": "temp_data.prec.item_count",
+                            "logic": { "if": [
+                                {"isArray": [{"var": "temp_data.prec.original_items"}]},
+                                {"count": [{"var": "temp_data.prec.original_items"}]},
+                                1
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.prec.single_item_valid",
+                            "logic": {"<=": [{"var": "temp_data.prec.item_count"}, 1]}
+                        },
+                        {
+                            "path": "temp_data.prec.error_multiple_items",
+                            "condition": {"not": {"var": "temp_data.prec.single_item_valid"}},
+                            "logic": {
+                                "code": "T20279",
+                                "message": "Multiple original items not supported in MT292. Only single item cancellation allowed."
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_mandatory_fields",
+            "name": "Validate Mandatory Fields",
+            "description": "Validates presence of mandatory fields for MT292",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.prec.message_id_present",
+                            "logic": {"var": "data.ISO20022_MX.document.NtfctnToRcvCxlAdvc.GrpHdr.MsgId"}
+                        },
+                        {
+                            "path": "temp_data.prec.original_item_id_present",
+                            "logic": { "if": [
+                                {"isArray": [{"var": "temp_data.prec.original_items"}]},
+                                {"var": "temp_data.prec.original_items.0.OrgnlItmId"},
+                                {"var": "temp_data.prec.original_items.OrgnlItmId"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.prec.amount_present",
+                            "logic": { "if": [
+                                {"isArray": [{"var": "temp_data.prec.original_items"}]},
+                                {"var": "temp_data.prec.original_items.0.Amt"},
+                                {"var": "temp_data.prec.original_items.Amt"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.prec.cancellation_reason_present",
+                            "logic": {"var": "data.ISO20022_MX.document.NtfctnToRcvCxlAdvc.CxlRsn.Rsn.Cd"}
+                        },
+                        {
+                            "path": "temp_data.prec.uetr_present",
+                            "logic": { "if": [
+                                {"isArray": [{"var": "temp_data.prec.original_items"}]},
+                                {"var": "temp_data.prec.original_items.0.UETR"},
+                                {"var": "temp_data.prec.original_items.UETR"}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "check_all_preconditions",
+            "name": "Check All Preconditions",
+            "description": "Consolidates all precondition checks",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.preconditions_met",
+                            "logic": { "and": [
+                                {"var": "temp_data.prec.single_item_valid"},
+                                {"var": "temp_data.prec.message_id_present"},
+                                {"var": "temp_data.prec.original_item_id_present"},
+                                {"var": "temp_data.prec.amount_present"},
+                                {"var": "temp_data.prec.cancellation_reason_present"}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.validation_status",
+                            "condition": {"not": {"var": "temp_data.preconditions_met"}},
+                            "logic": {
+                                "code": "T20073",
+                                "message": "camt.058 to MT292 preconditions not met"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

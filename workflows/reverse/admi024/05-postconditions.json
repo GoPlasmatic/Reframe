@@ -1,0 +1,134 @@
+{
+    "id": "admi024-postconditions",
+    "name": "admi.024 to MT199 Postconditions",
+    "description": "Applies final formatting and validation for MT199",
+    "priority": 5,
+    "condition": { "and": [
+        {"==": [{"var": "data.SwiftMT.message_type"}, "199"]},
+        {"==": [{"var": "progress.workflow_id"}, "admi024-mandatory-fields-mapping"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "apply_character_set_conversion",
+            "name": "Apply FIN Character Set Conversion (POSTC001)",
+            "description": "Converts all fields to FIN-compliant character set",
+            "function": {
+                "name": "transform",
+                "input": {
+                    "transformations": [
+                        {
+                            "path": "data.SwiftMT.fields.20",
+                            "logic": {"replace": [
+                                {"var": "data.SwiftMT.fields.20"},
+                                "[^A-Za-z0-9 ().,+\\-/:?'\\n]",
+                                "."
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.79",
+                            "logic": {"replace": [
+                                {"var": "data.SwiftMT.fields.79"},
+                                "[^A-Za-z0-9 ().,+\\-/:?'\\n]",
+                                "."
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "clean_multiline_field",
+            "name": "Clean Multiline Field 79 (POSTC002, POSTC003)",
+            "description": "Removes starting colon/hyphen and empty lines from field 79",
+            "function": {
+                "name": "transform",
+                "input": {
+                    "transformations": [
+                        {
+                            "path": "temp_data.field79_lines_array",
+                            "logic": {"split": [{"var": "data.SwiftMT.fields.79"}, "\n"]}
+                        },
+                        {
+                            "path": "temp_data.field79_cleaned_lines",
+                            "logic": {"map": [
+                                {"var": "temp_data.field79_lines_array"},
+                                { "if": [
+                                    {"match": [{"var": ""}, "^[:/-]"]},
+                                    {"replace": [{"var": ""}, "^[:/-]", "."]},
+                                    {"var": ""}
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field79_non_empty_lines",
+                            "logic": {"filter": [
+                                {"var": "temp_data.field79_cleaned_lines"},
+                                {"!=": [{"trim": [{"var": ""}]}, ""]}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.79",
+                            "logic": {"join": [{"var": "temp_data.field79_non_empty_lines"}, "\n"]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "order_fields",
+            "name": "Order Fields for MT199",
+            "description": "Ensures fields are in correct order",
+            "function": {
+                "name": "transform",
+                "input": {
+                    "transformations": [
+                        {
+                            "path": "data.SwiftMT.field_order",
+                            "logic": ["20", "79"]
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_final_message",
+            "name": "Validate Final MT199 Message",
+            "description": "Validates the final message structure",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "name": "field_20_present",
+                            "description": "Field 20 must be present",
+                            "condition": {"var": "data.SwiftMT.fields.20"},
+                            "error": {
+                                "code": "T20010",
+                                "message": "Field 20 is mandatory for MT199"
+                            }
+                        },
+                        {
+                            "name": "field_79_present",
+                            "description": "Field 79 must be present",
+                            "condition": {"var": "data.SwiftMT.fields.79"},
+                            "error": {
+                                "code": "T20011",
+                                "message": "Field 79 is mandatory for MT199"
+                            }
+                        },
+                        {
+                            "name": "field_79_not_empty",
+                            "description": "Field 79 must not be empty",
+                            "condition": {"!=": [{"trim": [{"var": "data.SwiftMT.fields.79"}]}, ""]},
+                            "error": {
+                                "code": "T20012",
+                                "message": "Field 79 cannot be empty"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

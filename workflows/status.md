@@ -98,79 +98,17 @@ This document tracks the implementation status of all SWIFT MT ↔ ISO 20022 tra
 
 | ISO 20022 | MT Message | Variant | Status | Notes |
 |-----------|------------|---------|--------|-------|
-| camt.056 | MT192/MT292 | - | ❌ | Cancellation Request |
-| camt.029 | MT196/MT296 | - | ❌ | Resolution of Investigation |
-| camt.057 | MT210 | - | ❌ | Notice to Receive |
-| camt.058 | MT292 | - | ❌ | Notification of Case Assignment |
-| camt.105 | MTn90 | - | ❌ | Unable to Apply |
-| camt.106 | MTn91 | - | ❌ | Request to Modify Payment |
+| camt.056 | MT192/MT292 | - | ✅ 🔧 | Cancellation Request (New) |
+| camt.029 | MT196/MT296 | - | ✅ 🔧 | Resolution of Investigation (New) |
+| camt.057 | MT210 | - | ✅ 🔧 | Notice to Receive (New) |
+| camt.058 | MT292 | - | ✅ 🔧 | Notification to Receive Cancellation Advice (New) |
+| camt.105 | MT190/MT290 | - | ✅ 🔧 | Charges Advice (New) |
+| camt.106 | MT191/MT291 | - | ✅ 🔧 | Charges Payment Request (New) |
 | camt.107 | MT110 | - | ✅ 🔧 | Advice of Fate of Payment (Refactored) |
 | camt.108 | MT111 | - | ✅ 🔧 | Request for Stop of Payment (Refactored) |
 | camt.109 | MT112 | - | ✅ 🔧 | Bank to Bank Interest Payment Advice (New) |
-| camt.110 | MT199 | - | ❌ | Advice of Charges and Interest |
-| admi.024 | MT199 | - | ❌ | Administrative Notification |
+| camt.110 | MT199 | - | ✅ 🔧 | Investigation Request (New) |
+| admi.024 | MT199 | - | ✅ 🔧 | Administrative Notification (New) |
 
 ---
 
-## Summary Statistics
-
-### Forward Transformations (MT → ISO 20022)
-- **Total**: 19 transformations
-- **Implemented**: 19 (✅)
-- **In Progress**: 0 (🚧)
-- **Not Started**: 0 (❌)
-- **Newly Added**: 2 (MT101 → pain.001, MT200 → pacs.009)
-- **Completion**: 100%
-
-### Reverse Transformations (ISO 20022 → MT)
-- **Total**: 31 transformations
-- **Implemented**: 19 (✅)
-- **In Progress**: 0 (🚧)
-- **Not Started**: 12 (❌)
-- **Recently Added**: 3 (camt.054 → MT103 Advice, MT202 Advice, MT900/MT910)
-- **Completion**: 61%
-
-### Overall Progress
-- **Total Transformations**: 50
-- **Implemented**: 38
-- **Overall Completion**: 76%
-
----
-
-## Recent Updates (Latest First)
-
-### December 2024 - January 2025
-- ✅ **camt.054 → MT103 Advice**: New reverse transformation implemented with unified workflow
-- ✅ **camt.054 → MT202 Advice**: New reverse transformation implemented with unified workflow
-- ✅ **camt.054 → MT900/MT910**: New reverse transformation implemented with unified workflow
-- ✅ **pacs.010 → MT204**: New reverse transformation implemented for Direct Debit (Margin Collection) with modular pattern
-- ✅ **pacs.003 → MT104**: New reverse transformation implemented for Direct Debit with modular pattern
-- ✅ **pain.001 → MT101**: New reverse transformation implemented with modular pattern
-- ✅ **MT200 → pacs.009**: New forward transformation implemented for FI Transfer for Own Account
-- ✅ **MT101 → pain.001**: New forward transformation implemented
-- 🔧 **camt.109 → MT112**: New reverse transformation with modular pattern
-- 🔧 **camt.108 → MT111**: Rebuilt with modular pattern
-- 🔧 **camt.107 → MT110**: Rebuilt with modular pattern  
-- 🔧 **camt.053 → MT940**: Rebuilt with modular pattern
-- 🔧 **camt.052 → MT942**: Rebuilt with modular pattern
-- 🔧 **pacs.002 → MTn99**: Rebuilt with modular pattern
-
----
-
-## Priority Implementation Queue
-
-### High Priority (Core payment flows)
-1. ❌ camt.056 → MT192/MT292
-2. ❌ camt.029 → MT196/MT296
-
-### Medium Priority (Cash management)
-3. ❌ camt.057 → MT210
-4. ❌ camt.110 → MT199
-
-### Low Priority (Less common scenarios)
-5. ❌ camt.058 → MT292
-6. ❌ camt.105 → MTn90
-7. ❌ camt.106 → MTn91
-8. ❌ admi.024 → MT199
-
----

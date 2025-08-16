@@ -1,0 +1,229 @@
+{
+    "id": "camt029-mandatory-fields-mapping",
+    "name": "camt.029 to MT196/MT296 Mandatory Fields Mapping",
+    "description": "Maps mandatory fields for MT196/MT296 transformation",
+    "priority": 4,
+    "condition": { "and": [
+        { "in": [{"var": "SwiftMT.message_type"}, ["196", "296"]]},
+        {"==": [{"var": "progress.workflow_id"}, "camt029-headers-mapping"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_transaction_reference",
+            "name": "Map Transaction Reference (Field 20)",
+            "description": "Maps CancellationStatusIdentification to Field 20 (TR001)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field20_raw",
+                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.CxlStsId"}
+                        },
+                        {
+                            "path": "temp_data.field20_truncated",
+                            "condition": {"gt": [{"strlen": [{"var": "temp_data.field20_raw"}]}, 16]},
+                            "logic": {"cat": [
+                                {"substr": [{"var": "temp_data.field20_raw"}, 0, 15]},
+                                "+"
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.20",
+                            "logic": { "if": [
+                                {"var": "temp_data.field20_truncated"},
+                                {"var": "temp_data.field20_truncated"},
+                                { "if": [
+                                    { "not": { "or": [
+                                        {"match": [{"var": "temp_data.field20_raw"}, "^/"]},
+                                        {"match": [{"var": "temp_data.field20_raw"}, "/$"]},
+                                        {"match": [{"var": "temp_data.field20_raw"}, "//"]}
+                                    ]}},
+                                    {"var": "temp_data.field20_raw"},
+                                    "NOTPROVIDED"
+                                ]}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_related_reference",
+            "name": "Map Related Reference (Field 21)",
+            "description": "Maps ResolvedCase Identification to Field 21 (TR002)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field21_raw",
+                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.RslvdCase.Id"}
+                        },
+                        {
+                            "path": "temp_data.field21_truncated",
+                            "condition": {"gt": [{"strlen": [{"var": "temp_data.field21_raw"}]}, 16]},
+                            "logic": {"cat": [
+                                {"substr": [{"var": "temp_data.field21_raw"}, 0, 15]},
+                                "+"
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.21",
+                            "logic": { "if": [
+                                {"var": "temp_data.field21_truncated"},
+                                {"var": "temp_data.field21_truncated"},
+                                { "if": [
+                                    { "not": { "or": [
+                                        {"match": [{"var": "temp_data.field21_raw"}, "^/"]},
+                                        {"match": [{"var": "temp_data.field21_raw"}, "/$"]},
+                                        {"match": [{"var": "temp_data.field21_raw"}, "//"]}
+                                    ]}},
+                                    {"var": "temp_data.field21_raw"},
+                                    "NOTPROVIDED"
+                                ]}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_mt_and_date",
+            "name": "Map MT and Date of Original Message (Field 11R)",
+            "description": "Maps original message type and creation date to Field 11R (TR003)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field11r_mt_type",
+                            "logic": { "if": [
+                                {"in": ["pacs.008", {"var": "temp_data.original_message_name"}]},
+                                "103",
+                                { "if": [
+                                    {"in": ["pacs.003", {"var": "temp_data.original_message_name"}]},
+                                    "104",
+                                    { "if": [
+                                        {"match": [{"var": "temp_data.original_message_name"}, "^MT10[0-9]$"]},
+                                        {"substr": [{"var": "temp_data.original_message_name"}, 2, 3]},
+                                        { "if": [
+                                            {"in": ["pacs.009", {"var": "temp_data.original_message_name"}]},
+                                            "202",
+                                            { "if": [
+                                                {"in": ["pacs.010", {"var": "temp_data.original_message_name"}]},
+                                                "204",
+                                                { "if": [
+                                                    {"match": [{"var": "temp_data.original_message_name"}, "^MT20[0-9]$"]},
+                                                    {"substr": [{"var": "temp_data.original_message_name"}, 2, 3]},
+                                                    "202"
+                                                ]}
+                                            ]}
+                                        ]}
+                                    ]}
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field11r_mx_date",
+                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlCreDtTm"}
+                        },
+                        {
+                            "path": "temp_data.field11r_date",
+                            "logic": { "if": [
+                                {"var": "temp_data.field11r_mx_date"},
+                                {"date_format": [{"var": "temp_data.field11r_mx_date"}, "YYMMDD"]},
+                                "991231"
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.11R",
+                            "logic": {"cat": [
+                                {"var": "temp_data.field11r_mt_type"},
+                                "\n",
+                                {"var": "temp_data.field11r_date"}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_answers_field",
+            "name": "Map Answers Field (Field 76)",
+            "description": "Maps cancellation status confirmation to Field 76",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.confirmation_code",
+                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Sts.Conf"}
+                        },
+                        {
+                            "path": "temp_data.reason_code",
+                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.CxlStsRsnInf.Rsn.Cd"}
+                        },
+                        {
+                            "path": "temp_data.additional_info",
+                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.76",
+                            "logic": { "if": [
+                                {"==": [{"var": "temp_data.confirmation_code"}, "CNCL"]},
+                                {"cat": [
+                                    "/CANC/",
+                                    { "if": [
+                                        {"var": "temp_data.reason_code"},
+                                        {"var": "temp_data.reason_code"},
+                                        ""
+                                    ]},
+                                    { "if": [
+                                        {"var": "temp_data.additional_info"},
+                                        {"cat": ["\n", {"var": "temp_data.additional_info"}]},
+                                        ""
+                                    ]}
+                                ]},
+                                { "if": [
+                                    {"==": [{"var": "temp_data.confirmation_code"}, "PDCR"]},
+                                    {"cat": [
+                                        "/PDCR/",
+                                        { "if": [
+                                            {"var": "temp_data.reason_code"},
+                                            {"var": "temp_data.reason_code"},
+                                            ""
+                                        ]},
+                                        { "if": [
+                                            {"var": "temp_data.additional_info"},
+                                            {"cat": ["\n", {"var": "temp_data.additional_info"}]},
+                                            ""
+                                        ]}
+                                    ]},
+                                    { "if": [
+                                        {"==": [{"var": "temp_data.confirmation_code"}, "RJCR"]},
+                                        {"cat": [
+                                            "/RJCR/",
+                                            { "if": [
+                                                {"var": "temp_data.reason_code"},
+                                                {"var": "temp_data.reason_code"},
+                                                ""
+                                            ]},
+                                            { "if": [
+                                                {"var": "temp_data.additional_info"},
+                                                {"cat": ["\n", {"var": "temp_data.additional_info"}]},
+                                                ""
+                                            ]}
+                                        ]},
+                                        "/NOTPROVIDED/"
+                                    ]}
+                                ]}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

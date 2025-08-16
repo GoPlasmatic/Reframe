@@ -1,0 +1,155 @@
+{
+    "id": "camt056-postconditions",
+    "name": "camt.056 Post-conditions and Final Assembly",
+    "description": "Validates post-conditions and assembles final MT192/MT292 message",
+    "priority": 6,
+    "condition": { "and": [
+        { "in": [{"var": "SwiftMT.message_type"}, ["192", "292"]]},
+        {"==": [{"var": "progress.workflow_id"}, "camt056-narrative-fields-mapping"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "collect_warnings",
+            "name": "Collect Warnings",
+            "description": "Collects warnings for non-translated elements",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.all_warnings",
+                            "logic": {"filter": [
+                                [
+                                    {"var": "temp_data.warning_default_292"},
+                                    {"var": "temp_data.warnings.field20_truncated"},
+                                    {"var": "temp_data.warnings.field20_invalid"},
+                                    {"var": "temp_data.warnings.field21_missing"},
+                                    {"var": "temp_data.warnings.field21_truncated"},
+                                    {"var": "temp_data.warnings.field11S_default"},
+                                    {"var": "temp_data.warnings.field11S_date"},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Assgnmt.Id"},
+                                        {
+                                            "code": "T20200",
+                                            "message": "Assignment/Identification not translated"
+                                        },
+                                        null
+                                    ]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Assgnmt.Assgnr"},
+                                        {
+                                            "code": "T20201",
+                                            "message": "Assignment/Assigner not translated"
+                                        },
+                                        null
+                                    ]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Assgnmt.Assgne"},
+                                        {
+                                            "code": "T20202",
+                                            "message": "Assignment/Assignee not translated"
+                                        },
+                                        null
+                                    ]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Assgnmt.CreDtTm"},
+                                        {
+                                            "code": "T20203",
+                                            "message": "Assignment/CreationDateTime not translated"
+                                        },
+                                        null
+                                    ]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlGrpInf.OrgnlMsgId"},
+                                        { "if": [
+                                            {"not": {"var": "temp_data.field79_components.original_msg_id"}},
+                                            {
+                                                "code": "T20204",
+                                                "message": "OriginalMessageIdentification truncated in field 79"
+                                            },
+                                            null
+                                        ]},
+                                        null
+                                    ]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlClrSysRef"},
+                                        {
+                                            "code": "T20205",
+                                            "message": "OriginalClearingSystemReference not translated"
+                                        },
+                                        null
+                                    ]},
+                                    { "if": [
+                                        {">": [{"count": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf"}}, 1]},
+                                        {
+                                            "code": "T20206",
+                                            "message": "Multiple TransactionInformation occurrences, only first translated"
+                                        },
+                                        null
+                                    ]},
+                                    { "if": [
+                                        {">": [{"count": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.CxlRsnInf"}}, 1]},
+                                        {
+                                            "code": "T20207",
+                                            "message": "Multiple CancellationReasonInformation occurrences, only first translated"
+                                        },
+                                        null
+                                    ]}
+                                ],
+                                {"var": ""}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "construct_message",
+            "name": "Construct Final Message",
+            "description": "Assembles the complete MT192/MT292 message structure",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.message_complete",
+                            "logic": true
+                        },
+                        {
+                            "path": "data.SwiftMT.transformation_status",
+                            "logic": {
+                                "success": true,
+                                "warnings": {"var": "temp_data.all_warnings"},
+                                "source_message_type": "camt.056.001.08",
+                                "target_message_type": { "if": [
+                                    {"==": [{"var": "SwiftMT.message_type"}, "192"]},
+                                    "MT192",
+                                    "MT292"
+                                ]},
+                                "variant": {"var": "SwiftMT.variant"}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "publish_message",
+            "name": "Publish MT Message",
+            "description": "Publishes the complete MT192/MT292 message",
+            "function": {
+                "name": "PublishMT",
+                "input": {
+                    "input_field_name": "SwiftMT",
+                    "output_field_name": "mt_message",
+                    "format": { "if": [
+                        {"==": [{"var": "SwiftMT.message_type"}, "192"]},
+                        "MT192",
+                        "MT292"
+                    ]}
+                }
+            }
+        }
+    ]
+}

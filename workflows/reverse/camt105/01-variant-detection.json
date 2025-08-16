@@ -1,0 +1,80 @@
+{
+    "id": "camt105-variant-detection",
+    "name": "camt.105 Variant Detection for MTn90",
+    "description": "Validates camt.105 message and determines MT190 or MT290 based on underlying transaction",
+    "priority": 1,
+    "condition": { "and": [
+        {"==": [{"var": "data.ISO20022_MX.message_type"}, "camt.105"]},
+        {"==": [{"var": "data.ISO20022_MX.message_version"}, "001.02"]},
+        {"==": [{"var": "progress.workflow_id"}, "parse-mx"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "determine_mt_variant",
+            "name": "Determine MT Variant",
+            "description": "Determines MT190 or MT290 based on underlying transaction type",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.message_name_id",
+                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.UndrlygTx.MsgNmId"}
+                        },
+                        {
+                            "path": "temp_data.is_customer_payment",
+                            "logic": { "or": [
+                                {"match": [{"var": "temp_data.message_name_id"}, "^pacs\\.008"]},
+                                {"match": [{"var": "temp_data.message_name_id"}, "^MT103"]}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.message_type",
+                            "logic": { "if": [
+                                {"var": "temp_data.is_customer_payment"},
+                                "190",
+                                "290"
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.variant",
+                            "logic": { "if": [
+                                {"var": "temp_data.is_customer_payment"},
+                                "CHARGES_ADVICE_CUSTOMER",
+                                "CHARGES_ADVICE_FI"
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_single_charge",
+            "name": "Validate Single Charge",
+            "description": "Validates that only single charge is present (not multiple charges)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.is_single_charge",
+                            "logic": { "and": [
+                                {"==": [{"count": {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx"}}, 1]},
+                                {"==": [{"count": {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd"}}, 1]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.error_multiple_charges",
+                            "condition": {"not": {"var": "temp_data.is_single_charge"}},
+                            "logic": {
+                                "code": "T20287",
+                                "message": "Multiple charges not supported - only single charge per transaction"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

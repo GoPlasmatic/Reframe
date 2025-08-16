@@ -14,7 +14,9 @@ struct ScenarioEntry {
     id: String,
     file: String,
     source: String,
+    #[allow(dead_code)]
     target: String,
+    #[allow(dead_code)]
     description: String,
 }
 
@@ -99,13 +101,13 @@ impl ScenarioIndex {
     }
 }
 
+#[allow(dead_code)]
 /// Load a scenario file and return its schema and variables
 pub fn load_scenario_file(file_path: &str) -> Result<Value, Box<dyn std::error::Error>> {
     let full_path = Path::new("scenarios").join(file_path);
     let content = fs::read_to_string(&full_path)?;
     let data: Value = serde_json::from_str(&content)?;
     
-    // Return the scenario data which contains schema and variables
     Ok(data)
 }
 

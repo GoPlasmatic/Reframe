@@ -1,7 +1,7 @@
 use datafake_rs::DataGenerator;
 use serde_json::Value;
 use std::path::PathBuf;
-use tracing::{debug, error};
+use tracing::debug;
 
 use crate::scenario_loader;
 use crate::types::SampleGenerationOptions;
@@ -65,12 +65,10 @@ pub fn is_supported_mx_type(message_type: &str) -> bool {
     )
 }
 
-// Helper function to generate sample for a specific MT message type using datafake directly
 fn generate_mt_sample_from_scenario(
     message_type: &str,
     config: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    // Extract scenario name from config if provided
     let scenario_name = config.get("scenario").and_then(|s| s.as_str());
 
     debug!(
@@ -78,12 +76,10 @@ fn generate_mt_sample_from_scenario(
         message_type, scenario_name
     );
 
-    // Try to find the scenario file using our index.json
     let scenario_id = scenario_name.unwrap_or("standard");
     let scenario_file = match scenario_loader::get_scenario_file_path(message_type, scenario_id) {
         Ok(file) => file,
         Err(e) => {
-            // If specific scenario not found, try "standard"
             if scenario_id != "standard" {
                 debug!("Scenario {} not found, trying standard: {}", scenario_id, e);
                 scenario_loader::get_scenario_file_path(message_type, "standard")?
@@ -93,22 +89,18 @@ fn generate_mt_sample_from_scenario(
         }
     };
 
-    // Load the scenario file
     let scenario_path = PathBuf::from("scenarios").join(&scenario_file);
     let scenario_content = std::fs::read_to_string(&scenario_path)?;
     let scenario_json: Value = serde_json::from_str(&scenario_content)?;
 
-    // Extract variables and schema for datafake
     let variables = scenario_json.get("variables").cloned().unwrap_or(serde_json::json!({}));
     let schema = scenario_json.get("schema").cloned().unwrap_or(serde_json::json!({}));
 
-    // Create datafake scenario with both variables and schema
     let datafake_scenario = serde_json::json!({
         "variables": variables,
         "schema": schema
     });
 
-    // Use datafake-rs to generate the sample
     let generator = DataGenerator::from_value(datafake_scenario).map_err(|e| {
         format!("Failed to create datafake generator: {:?}", e)
     })?;
@@ -117,16 +109,13 @@ fn generate_mt_sample_from_scenario(
         format!("Datafake generation failed: {:?}", e)
     })?;
 
-    // Convert the generated data to SWIFT MT format
     let swift_message = format_swift_message(message_type, &generated_data)?;
     
     debug!("Successfully generated {} using scenario {}", message_type, scenario_id);
     Ok(swift_message)
 }
 
-// Format the generated JSON data into SWIFT MT message format
 fn format_swift_message(message_type: &str, data: &Value) -> Result<String, Box<dyn std::error::Error>> {
-    // Extract headers and fields
     let basic_header = data.get("basic_header").ok_or("Missing basic_header")?;
     let app_header = data.get("application_header").ok_or("Missing application_header")?;
     let user_header = data.get("user_header");
@@ -203,9 +192,7 @@ fn format_swift_message(message_type: &str, data: &Value) -> Result<String, Box<
     Ok(swift_message)
 }
 
-// Format individual MT field
 fn format_field(tag: &str, value: &Value) -> Result<String, Box<dyn std::error::Error>> {
-    // Handle simple string values
     if let Some(s) = value.as_str() {
         return Ok(format!(":{}:{}", tag, s));
     }
@@ -287,7 +274,6 @@ fn format_field(tag: &str, value: &Value) -> Result<String, Box<dyn std::error::
         }
     }
 
-    // Default: return empty string for unhandled fields
     Ok(String::new())
 }
 
@@ -296,28 +282,22 @@ pub async fn generate_mt_from_config(
     message_type: &str,
     options: &SampleGenerationOptions,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    // Log the incoming configuration for debugging
-    tracing::debug!(
+    debug!(
         "Generating {} with config: {:?} and options: {:?}",
         message_type,
         config,
         options
     );
 
-    // Validate the message if validation is enabled
     if options.validation {
-        tracing::debug!("Validation enabled - message validated during parsing");
+        debug!("Validation enabled - message validated during parsing");
     }
 
-    // Generate the MT message using datafake directly
     let mt_message = generate_mt_sample_from_scenario(message_type, config)?;
-
-    // Apply any additional formatting if needed
     Ok(format_mt_message(&mt_message))
 }
 
 fn format_mt_message(mt_string: &str) -> String {
-    // Apply consistent formatting to MT message
     mt_string
         .lines()
         .map(|line| line.trim())
@@ -326,13 +306,10 @@ fn format_mt_message(mt_string: &str) -> String {
         .join("\n")
 }
 
-// MX Sample Generation Functions
-
 fn generate_mx_sample_from_scenario(
     message_type: &str,
     config: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    // Extract scenario name from config if provided
     let scenario_name = config.get("scenario").and_then(|s| s.as_str());
 
     debug!(
@@ -340,12 +317,10 @@ fn generate_mx_sample_from_scenario(
         message_type, scenario_name
     );
 
-    // Try to find the scenario file using our index.json
     let scenario_id = scenario_name.unwrap_or("standard");
     let scenario_file = match scenario_loader::get_scenario_file_path(message_type, scenario_id) {
         Ok(file) => file,
         Err(e) => {
-            // If specific scenario not found, try "standard"
             if scenario_id != "standard" {
                 debug!("Scenario {} not found, trying standard: {}", scenario_id, e);
                 scenario_loader::get_scenario_file_path(message_type, "standard")?
@@ -355,22 +330,18 @@ fn generate_mx_sample_from_scenario(
         }
     };
 
-    // Load the scenario file
     let scenario_path = PathBuf::from("scenarios").join(&scenario_file);
     let scenario_content = std::fs::read_to_string(&scenario_path)?;
     let scenario_json: Value = serde_json::from_str(&scenario_content)?;
 
-    // Extract variables and schema for datafake
     let variables = scenario_json.get("variables").cloned().unwrap_or(serde_json::json!({}));
     let schema = scenario_json.get("schema").cloned().unwrap_or(serde_json::json!({}));
 
-    // Create datafake scenario with both variables and schema
     let datafake_scenario = serde_json::json!({
         "variables": variables,
         "schema": schema
     });
 
-    // Use datafake-rs to generate the sample
     let generator = DataGenerator::from_value(datafake_scenario).map_err(|e| {
         format!("Failed to create datafake generator: {:?}", e)
     })?;
@@ -379,7 +350,6 @@ fn generate_mx_sample_from_scenario(
         format!("Datafake generation failed: {:?}", e)
     })?;
 
-    // Convert the generated data to ISO 20022 XML format
     let xml_message = format_iso20022_message(message_type, &generated_data)?;
     
     debug!("Successfully generated {} using scenario {}", message_type, scenario_id);
@@ -391,34 +361,24 @@ pub async fn generate_mx_from_config(
     message_type: &str,
     options: &SampleGenerationOptions,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    // Log the incoming configuration for debugging
     debug!(
         "Generating {} with config: {:?} and options: {:?}",
         message_type, config, options
     );
 
-    // Validate the message if validation is enabled
     if options.validation {
         debug!("Validation enabled - message will be validated during generation");
     }
 
-    // Generate MX message - the library now returns XML directly
     let xml_message = generate_mx_sample_from_scenario(message_type, config)?;
-
-    // Apply any additional formatting if needed
     Ok(format_xml_message(&xml_message))
 }
 
 fn format_xml_message(xml_string: &str) -> String {
-    // For now, return as-is. Could add pretty-printing here if needed
     xml_string.to_string()
 }
 
-// Format the generated JSON data into ISO 20022 XML format
-fn format_iso20022_message(message_type: &str, data: &Value) -> Result<String, Box<dyn std::error::Error>> {
-    // For now, just return the JSON as a string
-    // In a real implementation, this would convert to proper XML format
-    // Since MX messages from scenarios are complex transformation specs,
-    // we'll return JSON for now
+fn format_iso20022_message(_message_type: &str, data: &Value) -> Result<String, Box<dyn std::error::Error>> {
+    // TODO: Convert to proper XML format
     Ok(serde_json::to_string_pretty(data)?)
 }

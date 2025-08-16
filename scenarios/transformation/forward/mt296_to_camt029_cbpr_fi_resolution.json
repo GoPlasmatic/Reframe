@@ -1,0 +1,96 @@
+{
+    "description": "MT296 to camt.029 CBPR+ FI Investigation Resolution",
+    "source_type": "MT296",
+    "target_type": "camt.029",
+    "variant": "CBPR+_FI_RESOLUTION",
+    "variables": {
+        "sender_bic": {"fake": ["bic"]},
+        "receiver_bic": {"fake": ["bic"]},
+        "case_id": {"cat": ["FIRES", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "original_case_id": {"cat": ["FICASE", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "resolution_type": {"one_of": ["ACCP", "RJCT", "PDNG", "MODI", "CANC"]},
+        "original_amount": {"fake": ["f64", 100000.0, 10000000.0]},
+        "modified_amount": {"fake": ["f64", 100000.0, 10000000.0]},
+        "currency": {"one_of": ["USD", "EUR", "GBP"]},
+        "uetr": {"fake": ["uuid"]},
+        "resolution_details": {"fake": ["words", 5, 10]},
+        "action_taken": {"fake": ["words", 3, 7]},
+        "sender_lei": {"fake": ["lei"]},
+        "receiver_lei": {"fake": ["lei"]},
+        "clearing_system": {"one_of": ["TGT", "EBA", "FDW"]},
+        "settlement_date": {"fake": ["date", "%Y-%m-%d", "+0d", "+2d"]}
+    },
+    "schema": {
+        "basic_header": {
+            "application_id": "F",
+            "service_id": "01",
+            "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
+            "session_number": {"fake": ["i64", 1, 9999]},
+            "sequence_number": {"fake": ["i64", 100000, 999999]}
+        },
+        "application_header": {
+            "direction": "I",
+            "message_type": "296",
+            "destination_address": {"cat": [{"var": "receiver_bic"}, "XXXX"]},
+            "priority": "N"
+        },
+        "user_header": {
+            "service_type_identifier": "001",
+            "unique_end_to_end_reference": {"var": "uetr"}
+        },
+        "message_type": "296",
+        "fields": {
+            "20": {"reference": {"var": "case_id"}},
+            "21": {"related_reference": {"var": "original_case_id"}},
+            "76": {
+                "answers": [
+                    {"cat": ["/RESOLUTION/", {"var": "resolution_type"}]},
+                    {"cat": ["/ORIGAMT/", {"var": "currency"}, {"var": "original_amount"}]},
+                    {"cat": ["/MODAMT/", {"var": "currency"}, {"var": "modified_amount"}]},
+                    {"cat": ["/ACTION/", {"var": "action_taken"}]},
+                    {"cat": ["/DETAILS/", {"var": "resolution_details"}]},
+                    {"cat": ["/LEI/SENDER/", {"var": "sender_lei"}]},
+                    {"cat": ["/LEI/RECEIVER/", {"var": "receiver_lei"}]},
+                    {"cat": ["/CLEARING/", {"var": "clearing_system"}]},
+                    {"cat": ["/SETTDATE/", {"var": "settlement_date"}]},
+                    "/CBPR/COMPLIANT",
+                    {"cat": ["/UETR/", {"var": "uetr"}]}
+                ]
+            },
+            "77A": {
+                "narrative": [
+                    "FI INVESTIGATION RESOLVED",
+                    {"cat": ["CASE ID: ", {"var": "original_case_id"}]},
+                    {"cat": ["RESOLUTION: ", {"var": "resolution_type"}]},
+                    "INTERBANK SETTLEMENT CONFIRMED"
+                ]
+            }
+        }
+    },
+    "expected_camt029": {
+        "validation_rules": [
+            "BizSvc must be 'swift.cbprplus.01'",
+            "Assignment.Id from field 20",
+            "Case.Id from original case reference",
+            "Resolution type mapped to Sts.Conf",
+            "Modified amount in ModDtls if changed",
+            "FI specific information preserved",
+            "Clearing system mapped",
+            "Settlement date included",
+            "LEI information for both parties",
+            "UETR must be preserved"
+        ],
+        "required_elements": [
+            "AppHdr.BizSvc = 'swift.cbprplus.01'",
+            "Document.RsltnOfInvstgtn.Assgnmt.Id",
+            "Document.RsltnOfInvstgtn.Assgnmt.Assgnr.FIId.FinInstnId.LEI",
+            "Document.RsltnOfInvstgtn.Assgnmt.Assgne.FIId.FinInstnId.LEI",
+            "Document.RsltnOfInvstgtn.Sts.Conf",
+            "Document.RsltnOfInvstgtn.ModDtls",
+            "Document.RsltnOfInvstgtn.RsltnRltdInf",
+            "Document.RsltnOfInvstgtn.RsltnRltdInf.IntrBkSttlmDt",
+            "Document.RsltnOfInvstgtn.RsltnRltdInf.CxlRsnInf",
+            "Document.RsltnOfInvstgtn.RsltnRltdInf.OrgnlUETR"
+        ]
+    }
+}

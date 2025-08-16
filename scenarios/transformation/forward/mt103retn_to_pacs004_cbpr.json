@@ -1,0 +1,95 @@
+{
+    "description": "MT103 RETN to pacs.004 CBPR+ Payment Return",
+    "source_type": "MT103RETN",
+    "target_type": "pacs.004",
+    "variant": "CBPR+_RETURN",
+    "variables": {
+        "sender_bic": {"fake": ["bic"]},
+        "receiver_bic": {"fake": ["bic"]},
+        "return_ref": {"cat": ["RTN", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "original_ref": {"cat": ["ORIG", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "currency": {"one_of": ["USD", "EUR", "GBP"]},
+        "amount": {"fake": ["f64", 1000.0, 100000.0]},
+        "value_date": {"fake": ["date", "%y%m%d", "+0d", "+2d"]},
+        "return_reason": {"one_of": ["AC01", "AC04", "BE04", "MD01", "RC01"]},
+        "uetr": {"fake": ["uuid"]},
+        "charges_amount": {"fake": ["f64", 10.0, 100.0]},
+        "charges_bearer": {"one_of": ["SHA", "OUR", "BEN"]},
+        "additional_info": {"fake": ["words", 3, 7]}
+    },
+    "schema": {
+        "basic_header": {
+            "application_id": "F",
+            "service_id": "01",
+            "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
+            "session_number": {"fake": ["i64", 1, 9999]},
+            "sequence_number": {"fake": ["i64", 100000, 999999]}
+        },
+        "application_header": {
+            "direction": "I",
+            "message_type": "103",
+            "destination_address": {"cat": [{"var": "receiver_bic"}, "XXXX"]},
+            "priority": "N",
+            "message_input_reference": "RETN"
+        },
+        "user_header": {
+            "service_type_identifier": "001",
+            "unique_end_to_end_reference": {"var": "uetr"}
+        },
+        "message_type": "103",
+        "fields": {
+            "20": {"reference": {"var": "return_ref"}},
+            "21": {"related_reference": {"var": "original_ref"}},
+            "32A": {
+                "value_date": {"var": "value_date"},
+                "currency": {"var": "currency"},
+                "amount": {"var": "amount"}
+            },
+            "52A": {"ordering_institution": {"var": "sender_bic"}},
+            "57A": {"account_with_institution": {"var": "receiver_bic"}},
+            "71A": {"details_of_charges": {"var": "charges_bearer"}},
+            "71F": {
+                "senders_charges": {
+                    "currency": {"var": "currency"},
+                    "amount": {"var": "charges_amount"}
+                }
+            },
+            "72": {
+                "sender_to_receiver": [
+                    {"cat": ["/RETN/", {"var": "return_reason"}]},
+                    "/ACC/CBPR+ RETURN",
+                    {"cat": ["/ADDINFO/", {"var": "additional_info"}]},
+                    "/REC/FULL RETURN"
+                ]
+            },
+            "77B": {
+                "regulatory_reporting": [
+                    {"cat": ["/RETRES/", {"var": "return_reason"}]},
+                    "/RETREF/ORIGINAL PAYMENT RETURNED"
+                ]
+            }
+        }
+    },
+    "expected_pacs004": {
+        "validation_rules": [
+            "BizSvc must be 'swift.cbprplus.01'",
+            "RtrId from field 20",
+            "Original reference from field 21",
+            "Return amount matches field 32A",
+            "Return reason mapped to RtrRsnInf",
+            "Charges mapped to ChrgsInf",
+            "ChrgBr from field 71A",
+            "UETR must be preserved"
+        ],
+        "required_elements": [
+            "AppHdr.BizSvc = 'swift.cbprplus.01'",
+            "Document.PmtRtr.TxInf.RtrId",
+            "Document.PmtRtr.TxInf.OrgnlTxId",
+            "Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt",
+            "Document.PmtRtr.TxInf.RtrRsnInf",
+            "Document.PmtRtr.TxInf.ChrgBr",
+            "Document.PmtRtr.TxInf.ChrgsInf",
+            "Document.PmtRtr.TxInf.OrgnlUETR"
+        ]
+    }
+}

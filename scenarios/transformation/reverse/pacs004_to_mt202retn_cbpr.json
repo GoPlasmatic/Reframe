@@ -1,0 +1,121 @@
+{
+    "description": "pacs.004 CBPR+ to MT202 RETN FI Payment Return",
+    "source_type": "pacs.004",
+    "target_type": "MT202RETN",
+    "variant": "CBPR+_FI_RETURN",
+    "variables": {
+        "msg_id": {"cat": ["FIRTN", {"fake": ["i64", 100000000000, 999999999999]}]},
+        "creation_datetime": {"fake": ["iso8601_datetime"]},
+        "sender_bic": {"fake": ["bic"]},
+        "receiver_bic": {"fake": ["bic"]},
+        "intermediary_bic": {"fake": ["bic"]},
+        "original_msg_id": {"cat": ["FIORIG", {"fake": ["i64", 100000000000, 999999999999]}]},
+        "return_ref": {"cat": ["FIRTN", {"fake": ["i64", 100000000000, 999999999999]}]},
+        "uetr": {"fake": ["uuid"]},
+        "amount": {"fake": ["f64", 100000.0, 10000000.0]},
+        "currency": {"one_of": ["USD", "EUR", "GBP"]},
+        "return_reason_code": {"one_of": ["TECH", "FRAD", "DUPL", "AGNT"]},
+        "original_date": {"fake": ["date", "%Y-%m-%d", "-5d", "-1d"]},
+        "charges_amount": {"fake": ["f64", 25.0, 250.0]},
+        "additional_info": {"fake": ["words", 3, 7]},
+        "sender_lei": {"fake": ["lei"]},
+        "receiver_lei": {"fake": ["lei"]},
+        "clearing_system": {"one_of": ["TGT", "EBA", "FDW"]}
+    },
+    "schema": {
+        "AppHdr": {
+            "Fr": {
+                "FIId": {"FinInstnId": {"BICFI": {"var": "sender_bic"}, "LEI": {"var": "sender_lei"}}}
+            },
+            "To": {
+                "FIId": {"FinInstnId": {"BICFI": {"var": "receiver_bic"}, "LEI": {"var": "receiver_lei"}}}
+            },
+            "BizMsgIdr": {"var": "msg_id"},
+            "MsgDefIdr": "pacs.004.001.09",
+            "BizSvc": "swift.cbprplus.01",
+            "CreDt": {"var": "creation_datetime"}
+        },
+        "Document": {
+            "PmtRtr": {
+                "GrpHdr": {
+                    "MsgId": {"var": "msg_id"},
+                    "CreDtTm": {"var": "creation_datetime"},
+                    "NbOfTxs": "1",
+                    "TtlRtrdIntrBkSttlmAmt": {"@Ccy": {"var": "currency"}, "$value": {"var": "amount"}},
+                    "IntrBkSttlmDt": {"fake": ["date", "%Y-%m-%d", "+0d", "+1d"]},
+                    "SttlmInf": {
+                        "SttlmMtd": "INDA",
+                        "ClrSys": {"Cd": {"var": "clearing_system"}}
+                    },
+                    "InstgAgt": {"FinInstnId": {"BICFI": {"var": "sender_bic"}, "LEI": {"var": "sender_lei"}}},
+                    "InstdAgt": {"FinInstnId": {"BICFI": {"var": "receiver_bic"}, "LEI": {"var": "receiver_lei"}}}
+                },
+                "TxInf": {
+                    "RtrId": {"var": "return_ref"},
+                    "OrgnlGrpInf": {
+                        "OrgnlMsgId": {"var": "original_msg_id"},
+                        "OrgnlMsgNmId": "pacs.009.001.08"
+                    },
+                    "OrgnlEndToEndId": {"cat": ["E2E", {"fake": ["i64", 100000000000, 999999999999]}]},
+                    "OrgnlTxId": {"cat": ["TXN", {"fake": ["i64", 100000000000, 999999999999]}]},
+                    "OrgnlUETR": {"var": "uetr"},
+                    "OrgnlIntrBkSttlmAmt": {"@Ccy": {"var": "currency"}, "$value": {"var": "amount"}},
+                    "OrgnlIntrBkSttlmDt": {"var": "original_date"},
+                    "RtrdIntrBkSttlmAmt": {"@Ccy": {"var": "currency"}, "$value": {"var": "amount"}},
+                    "IntrmyAgt1": {"FinInstnId": {"BICFI": {"var": "intermediary_bic"}}},
+                    "ChrgBr": "SHAR",
+                    "ChrgsInf": [
+                        {
+                            "Amt": {"@Ccy": {"var": "currency"}, "$value": {"var": "charges_amount"}},
+                            "Agt": {"FinInstnId": {"BICFI": {"var": "sender_bic"}}},
+                            "Tp": {"Cd": "DEBT"}
+                        }
+                    ],
+                    "InstgAgt": {"FinInstnId": {"BICFI": {"var": "sender_bic"}, "LEI": {"var": "sender_lei"}}},
+                    "InstdAgt": {"FinInstnId": {"BICFI": {"var": "receiver_bic"}, "LEI": {"var": "receiver_lei"}}},
+                    "RtrRsnInf": [
+                        {
+                            "Orgtr": {"Id": {"OrgId": {"AnyBIC": {"var": "sender_bic"}}}},
+                            "Rsn": {"Cd": {"var": "return_reason_code"}},
+                            "AddtlInf": [{"var": "additional_info"}]
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "expected_mt202retn": {
+        "validation_rules": [
+            "Message type must be 202 with RETN suffix",
+            "Field 20 from return reference",
+            "Field 21 from original reference",
+            "Field 32A with returned amount",
+            "Field 52A from InstgAgt",
+            "Field 56A from IntrmyAgt1 if present",
+            "Field 57A from InstdAgt",
+            "Field 58A includes settlement details",
+            "Field 72 must include return reason",
+            "UETR preserved in user header"
+        ],
+        "required_fields": [
+            "20: Transaction Reference (return)",
+            "21: Related Reference (original)",
+            "32A: Value Date, Currency, Amount",
+            "52A: Ordering Institution",
+            "56A: Intermediary (if present)",
+            "57A: Account With Institution",
+            "58A: Beneficiary Institution",
+            "72: Return reason and info"
+        ],
+        "field_mapping": {
+            "20": "RtrId (16 chars max)",
+            "21": "OrgnlTxId or OrgnlEndToEndId",
+            "32A": "IntrBkSttlmDt + RtrdIntrBkSttlmAmt",
+            "52A": "InstgAgt.FinInstnId.BICFI",
+            "56A": "IntrmyAgt1.FinInstnId.BICFI",
+            "57A": "InstdAgt.FinInstnId.BICFI",
+            "58A": "InstdAgt + settlement account",
+            "72": "'/RETN/' + RtrRsnInf.Rsn.Cd + AddtlInf"
+        }
+    }
+}

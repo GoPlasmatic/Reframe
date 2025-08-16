@@ -1,0 +1,109 @@
+{
+    "description": "pacs.009 ADV to MT202 Advice Variant",
+    "source_type": "pacs.009",
+    "target_type": "MT202",
+    "variant": "CBPR+_ADV",
+    "variables": {
+        "msg_id": {"cat": ["ADV", {"fake": ["i64", 100000000000, 999999999999]}]},
+        "creation_datetime": {"fake": ["iso8601_datetime"]},
+        "sender_bic": {"fake": ["bic"]},
+        "receiver_bic": {"fake": ["bic"]},
+        "transaction_ref": {"cat": ["ADV", {"fake": ["i64", 100000000000, 999999999999]}]},
+        "related_ref": {"cat": ["REL", {"fake": ["i64", 100000000000, 999999999999]}]},
+        "uetr": {"fake": ["uuid"]},
+        "amount": {"fake": ["f64", 10000.0, 1000000.0]},
+        "currency": {"one_of": ["USD", "EUR", "GBP"]},
+        "advice_type": {"one_of": ["CREDIT", "DEBIT", "PENDING"]},
+        "sender_lei": {"fake": ["lei"]},
+        "receiver_lei": {"fake": ["lei"]},
+        "settlement_account": {"fake": ["iban"]}
+    },
+    "schema": {
+        "AppHdr": {
+            "Fr": {
+                "FIId": {"FinInstnId": {"BICFI": {"var": "sender_bic"}, "LEI": {"var": "sender_lei"}}}
+            },
+            "To": {
+                "FIId": {"FinInstnId": {"BICFI": {"var": "receiver_bic"}, "LEI": {"var": "receiver_lei"}}}
+            },
+            "BizMsgIdr": {"var": "msg_id"},
+            "MsgDefIdr": "pacs.009.001.08",
+            "BizSvc": "swift.cbprplus.01",
+            "CreDt": {"var": "creation_datetime"}
+        },
+        "Document": {
+            "FICdtTrf": {
+                "GrpHdr": {
+                    "MsgId": {"var": "msg_id"},
+                    "CreDtTm": {"var": "creation_datetime"},
+                    "NbOfTxs": "1",
+                    "TtlIntrBkSttlmAmt": {"@Ccy": {"var": "currency"}, "$value": {"var": "amount"}},
+                    "IntrBkSttlmDt": {"fake": ["date", "%Y-%m-%d", "+0d", "+0d"]},
+                    "SttlmInf": {"SttlmMtd": "INDA"}
+                },
+                "CdtTrfTxInf": {
+                    "PmtId": {
+                        "InstrId": {"cat": ["INSTR", {"fake": ["i64", 10000000, 99999999]}]},
+                        "EndToEndId": {"var": "transaction_ref"},
+                        "TxId": {"var": "transaction_ref"},
+                        "UETR": {"var": "uetr"}
+                    },
+                    "PmtTpInf": {
+                        "InstrPrty": "NORM",
+                        "SvcLvl": [{"Cd": "G004"}],
+                        "LclInstrm": {"Cd": "ADVICE"}
+                    },
+                    "IntrBkSttlmAmt": {"@Ccy": {"var": "currency"}, "$value": {"var": "amount"}},
+                    "IntrBkSttlmDt": {"fake": ["date", "%Y-%m-%d", "+0d", "+0d"]},
+                    "InstgAgt": {"FinInstnId": {"BICFI": {"var": "sender_bic"}, "LEI": {"var": "sender_lei"}}},
+                    "InstdAgt": {"FinInstnId": {"BICFI": {"var": "receiver_bic"}, "LEI": {"var": "receiver_lei"}}},
+                    "IntrBkSttlmAcct": {"Id": {"IBAN": {"var": "settlement_account"}}},
+                    "RmtInf": {
+                        "Ustrd": [
+                            {"cat": ["ADVICE TYPE: ", {"var": "advice_type"}]},
+                            "FI TO FI ADVICE",
+                            "CBPR+ COMPLIANT"
+                        ],
+                        "AddtlRmtInf": [{"cat": ["Related: ", {"var": "related_ref"}]}]
+                    },
+                    "SplmtryData": {
+                        "Envlp": {
+                            "AdviceType": {"var": "advice_type"},
+                            "OriginalReference": {"var": "related_ref"}
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "expected_mt202": {
+        "validation_rules": [
+            "Field 20 from EndToEndId or TxId",
+            "Field 21 from related reference",
+            "Field 32A from IntrBkSttlmAmt",
+            "Field 52A from InstgAgt",
+            "Field 57A from InstdAgt",
+            "Field 58A includes settlement account",
+            "Field 72 must indicate ADVICE variant",
+            "UETR preserved in user header"
+        ],
+        "required_fields": [
+            "20: Transaction Reference",
+            "21: Related Reference",
+            "32A: Value Date, Currency, Amount",
+            "52A: Ordering Institution",
+            "57A: Account With Institution",
+            "58A: Beneficiary Institution",
+            "72: Sender to Receiver Information"
+        ],
+        "field_mapping": {
+            "20": "TxId or EndToEndId (16 chars)",
+            "21": "Related ref from AddtlRmtInf",
+            "32A": "IntrBkSttlmDt + IntrBkSttlmAmt",
+            "52A": "InstgAgt.FinInstnId.BICFI",
+            "57A": "InstdAgt.FinInstnId.BICFI",
+            "58A": "InstdAgt + IntrBkSttlmAcct",
+            "72": "'/ACC/ADVICE' + advice type"
+        }
+    }
+}

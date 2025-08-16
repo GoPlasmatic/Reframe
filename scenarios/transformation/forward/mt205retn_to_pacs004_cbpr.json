@@ -1,0 +1,105 @@
+{
+    "description": "MT205 RETN to pacs.004 CBPR+ Serial FI Transfer Return",
+    "source_type": "MT205RETN",
+    "target_type": "pacs.004",
+    "variant": "CBPR+_SERIAL_RETURN",
+    "variables": {
+        "sender_bic": {"fake": ["bic"]},
+        "receiver_bic": {"fake": ["bic"]},
+        "intermediary1_bic": {"fake": ["bic"]},
+        "intermediary2_bic": {"fake": ["bic"]},
+        "intermediary3_bic": {"fake": ["bic"]},
+        "return_ref": {"cat": ["SRTN", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "original_ref": {"cat": ["SORIG", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "currency": {"one_of": ["USD", "EUR", "GBP"]},
+        "amount": {"fake": ["f64", 500000.0, 50000000.0]},
+        "value_date": {"fake": ["date", "%y%m%d", "+0d", "+1d"]},
+        "return_reason": {"one_of": ["TECH", "FRAD", "DUPL", "AGNT", "PATH"]},
+        "uetr": {"fake": ["uuid"]},
+        "sender_lei": {"fake": ["lei"]},
+        "receiver_lei": {"fake": ["lei"]},
+        "clearing_system": {"one_of": ["TGT", "EBA", "FDW"]},
+        "charges_amount": {"fake": ["f64", 50.0, 500.0]}
+    },
+    "schema": {
+        "basic_header": {
+            "application_id": "F",
+            "service_id": "01",
+            "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
+            "session_number": {"fake": ["i64", 1, 9999]},
+            "sequence_number": {"fake": ["i64", 100000, 999999]}
+        },
+        "application_header": {
+            "direction": "I",
+            "message_type": "205",
+            "destination_address": {"cat": [{"var": "receiver_bic"}, "XXXX"]},
+            "priority": "N",
+            "message_input_reference": "RETN"
+        },
+        "user_header": {
+            "service_type_identifier": "001",
+            "unique_end_to_end_reference": {"var": "uetr"}
+        },
+        "message_type": "205",
+        "fields": {
+            "20": {"reference": {"var": "return_ref"}},
+            "21": {"related_reference": {"var": "original_ref"}},
+            "32A": {
+                "value_date": {"var": "value_date"},
+                "currency": {"var": "currency"},
+                "amount": {"var": "amount"}
+            },
+            "52A": {"ordering_institution": {"var": "sender_bic"}},
+            "53A": {"senders_correspondent": {"var": "intermediary1_bic"}},
+            "56A": {"intermediary": {"var": "intermediary2_bic"}},
+            "57A": {"account_with_institution": {"var": "intermediary3_bic"}},
+            "58A": {
+                "beneficiary_institution": {"var": "receiver_bic"},
+                "account": {"cat": ["/", {"fake": ["iban"]}]}
+            },
+            "71F": {
+                "senders_charges": {
+                    "currency": {"var": "currency"},
+                    "amount": {"var": "charges_amount"}
+                }
+            },
+            "72": {
+                "sender_to_receiver": [
+                    {"cat": ["/RETN/", {"var": "return_reason"}]},
+                    "/ACC/CBPR+ SERIAL RETURN",
+                    "/INS/FULL AMOUNT RETURN",
+                    {"cat": ["/REC/", {"var": "clearing_system"}]},
+                    {"cat": ["/LEI/", {"var": "sender_lei"}, "/", {"var": "receiver_lei"}]},
+                    "/PATH/SERIAL ROUTING RETURN"
+                ]
+            }
+        }
+    },
+    "expected_pacs004": {
+        "validation_rules": [
+            "BizSvc must be 'swift.cbprplus.01'",
+            "OrgnlMsgNmId should be 'pacs.009.001.08'",
+            "RtrId from field 20",
+            "Original serial FI transfer reference",
+            "Full amount return with charges",
+            "Multiple intermediaries preserved",
+            "Clearing system information",
+            "LEI information mapped",
+            "UETR must be preserved"
+        ],
+        "required_elements": [
+            "AppHdr.BizSvc = 'swift.cbprplus.01'",
+            "Document.PmtRtr.GrpHdr.SttlmInf.SttlmMtd = 'INDA'",
+            "Document.PmtRtr.GrpHdr.SttlmInf.ClrSys",
+            "Document.PmtRtr.TxInf.RtrId",
+            "Document.PmtRtr.TxInf.OrgnlGrpInf.OrgnlMsgNmId = 'pacs.009.001.08'",
+            "Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt",
+            "Document.PmtRtr.TxInf.RtrRsnInf",
+            "Document.PmtRtr.TxInf.ChrgsInf",
+            "Document.PmtRtr.TxInf.IntrmyAgt1",
+            "Document.PmtRtr.TxInf.IntrmyAgt2",
+            "Document.PmtRtr.TxInf.IntrmyAgt3",
+            "Document.PmtRtr.TxInf.OrgnlUETR"
+        ]
+    }
+}

@@ -1,0 +1,119 @@
+{
+    "description": "MT205 COV to pacs.009 CBPR+ Serial Cover Payment",
+    "source_type": "MT205COV",
+    "target_type": "pacs.009",
+    "variant": "CBPR+_SERIAL_COVE",
+    "variables": {
+        "sender_bic": {"fake": ["bic"]},
+        "receiver_bic": {"fake": ["bic"]},
+        "ordering_bank_bic": {"fake": ["bic"]},
+        "beneficiary_bank_bic": {"fake": ["bic"]},
+        "intermediary1_bic": {"fake": ["bic"]},
+        "intermediary2_bic": {"fake": ["bic"]},
+        "transaction_ref": {"cat": ["SCOV", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "underlying_ref": {"cat": ["UND", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "currency": {"one_of": ["USD", "EUR"]},
+        "amount": {"fake": ["f64", 100000.0, 10000000.0]},
+        "value_date": {"fake": ["date", "%y%m%d", "+0d", "+1d"]},
+        "uetr": {"fake": ["uuid"]},
+        "underlying_uetr": {"fake": ["uuid"]},
+        "ordering_customer": {"fake": ["company_name"]},
+        "beneficiary_customer": {"fake": ["company_name"]},
+        "ordering_lei": {"fake": ["lei"]},
+        "beneficiary_lei": {"fake": ["lei"]},
+        "clearing_system": {"one_of": ["TGT", "EBA"]}
+    },
+    "schema": {
+        "basic_header": {
+            "application_id": "F",
+            "service_id": "01",
+            "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
+            "session_number": {"fake": ["i64", 1, 9999]},
+            "sequence_number": {"fake": ["i64", 100000, 999999]}
+        },
+        "application_header": {
+            "direction": "I",
+            "message_type": "205",
+            "destination_address": {"cat": [{"var": "receiver_bic"}, "XXXX"]},
+            "priority": "N",
+            "message_input_reference": "COV"
+        },
+        "user_header": {
+            "service_type_identifier": "001",
+            "unique_end_to_end_reference": {"var": "uetr"},
+            "validation_flag": "COV"
+        },
+        "message_type": "205",
+        "fields": {
+            "20": {"reference": {"var": "transaction_ref"}},
+            "21": {"reference": {"var": "underlying_ref"}},
+            "13C": [
+                {
+                    "code": "SNDTIME",
+                    "time": {"fake": ["time", "%H%M"]},
+                    "sign": "+",
+                    "offset": "0000"
+                }
+            ],
+            "32A": {
+                "value_date": {"var": "value_date"},
+                "currency": {"var": "currency"},
+                "amount": {"var": "amount"}
+            },
+            "52A": {"ordering_institution": {"var": "ordering_bank_bic"}},
+            "53A": {"senders_correspondent": {"var": "intermediary1_bic"}},
+            "56A": {"intermediary": {"var": "sender_bic"}},
+            "57A": {"account_with_institution": {"var": "intermediary2_bic"}},
+            "58A": {"beneficiary_institution": {"var": "beneficiary_bank_bic"}},
+            "72": {
+                "sender_to_receiver": [
+                    "/ACC/CBPR+ SERIAL COVER",
+                    "/INS/UNDERLYING MT103",
+                    {"cat": ["/REC/UETR/", {"var": "underlying_uetr"}]},
+                    {"cat": ["/CLR/", {"var": "clearing_system"}]}
+                ]
+            },
+            "50K": {
+                "ordering_customer": [
+                    {"var": "ordering_customer"},
+                    {"cat": ["/LEI/", {"var": "ordering_lei"}]},
+                    {"fake": ["street_address"]},
+                    {"fake": ["city_name"]},
+                    {"fake": ["country_code"]}
+                ]
+            },
+            "59": {
+                "beneficiary_customer": [
+                    {"var": "beneficiary_customer"},
+                    {"cat": ["/LEI/", {"var": "beneficiary_lei"}]},
+                    {"fake": ["street_address"]},
+                    {"fake": ["city_name"]},
+                    {"fake": ["country_code"]}
+                ]
+            }
+        }
+    },
+    "expected_pacs009": {
+        "validation_rules": [
+            "BizSvc must be 'swift.cbprplus.01'",
+            "SvcLvl must contain 'G003' for cover payments",
+            "Multiple intermediary agents for serial routing",
+            "UndrlygCstmrCdtTrf must be present",
+            "Underlying UETR in UndrlygCstmrCdtTrf",
+            "Serial path through multiple intermediaries",
+            "Customer details in underlying structure",
+            "Clearing system mapped correctly"
+        ],
+        "required_elements": [
+            "AppHdr.BizSvc = 'swift.cbprplus.01'",
+            "Document.FICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd = 'G003'",
+            "Document.FICdtTrf.CdtTrfTxInf.PmtId.UETR",
+            "Document.FICdtTrf.CdtTrfTxInf.IntrmyAgt1",
+            "Document.FICdtTrf.CdtTrfTxInf.IntrmyAgt2",
+            "Document.FICdtTrf.CdtTrfTxInf.IntrmyAgt3",
+            "Document.FICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf",
+            "Document.FICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf.PmtId.UETR",
+            "Document.FICdtTrf.GrpHdr.SttlmInf.ClrSys"
+        ]
+    }
+}

@@ -1,0 +1,131 @@
+{
+    "description": "MT103 to pacs.008 CBPR+ Remittance with Enhanced Structured Information",
+    "source_type": "MT103",
+    "target_type": "pacs.008",
+    "variant": "CBPR+_REMITTANCE",
+    "variables": {
+        "sender_bic": {"fake": ["bic"]},
+        "receiver_bic": {"fake": ["bic"]},
+        "transaction_ref": {"cat": ["REM", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "currency": {"one_of": ["USD", "EUR", "INR", "PHP", "MXN"]},
+        "amount": {"fake": ["f64", 500.0, 50000.0]},
+        "value_date": {"fake": ["date", "%y%m%d", "+1d", "+3d"]},
+        "uetr": {"fake": ["uuid"]},
+        "sender_name": {"fake": ["name"]},
+        "sender_country": {"one_of": ["US", "GB", "AE", "SG"]},
+        "receiver_name": {"fake": ["name"]},
+        "receiver_country": {"one_of": ["IN", "PH", "MX", "BD"]},
+        "purpose_code": {"one_of": ["CASH", "SSBE", "ENRG", "HLTI", "EDUC"]},
+        "relationship": {"one_of": ["FAMILY", "FRIEND", "EMPLOYEE", "BUSINESS"]},
+        "id_number": {"fake": ["i64", 100000000000, 999999999999]},
+        "birth_date": {"fake": ["date", "%Y%m%d", "-70y", "-18y"]},
+        "phone": {"fake": ["phone_number"]},
+        "reference_msg": {"fake": ["words", 5, 10]}
+    },
+    "schema": {
+        "basic_header": {
+            "application_id": "F",
+            "service_id": "01",
+            "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
+            "session_number": {"fake": ["i64", 1, 9999]},
+            "sequence_number": {"fake": ["i64", 100000, 999999]}
+        },
+        "application_header": {
+            "direction": "I",
+            "message_type": "103",
+            "destination_address": {"cat": [{"var": "receiver_bic"}, "XXXX"]},
+            "priority": "N"
+        },
+        "user_header": {
+            "service_type_identifier": "001",
+            "unique_end_to_end_reference": {"var": "uetr"},
+            "validation_flag": "STP"
+        },
+        "message_type": "103",
+        "fields": {
+            "20": {"reference": {"var": "transaction_ref"}},
+            "13C": [
+                {
+                    "code": "SNDTIME",
+                    "time": {"fake": ["time", "%H%M"]},
+                    "sign": "+",
+                    "offset": "0530"
+                }
+            ],
+            "23B": {"instruction_code": "CRED"},
+            "23E": [
+                {"instruction_code": {"cat": ["PHON/", {"var": "phone"}]}},
+                {"instruction_code": "REPA/BENEFICIARY"},
+                {"instruction_code": {"cat": ["PURP/", {"var": "purpose_code"}]}}
+            ],
+            "32A": {
+                "value_date": {"var": "value_date"},
+                "currency": {"var": "currency"},
+                "amount": {"var": "amount"}
+            },
+            "50F": {
+                "party_identifier": {"cat": ["/", {"var": "id_number"}]},
+                "name_and_address": [
+                    "1/", {"var": "sender_name"},
+                    "2/", {"fake": ["street_address"]},
+                    "3/", {"cat": [{"var": "sender_country"}, "/", {"fake": ["city_name"]}]},
+                    "4/", {"cat": ["DOB/", {"var": "birth_date"}]},
+                    "5/", {"cat": ["ID/", {"var": "id_number"}]}
+                ]
+            },
+            "52A": {"bic": {"var": "sender_bic"}},
+            "57A": {"bic": {"var": "receiver_bic"}},
+            "59F": {
+                "party_identifier": "/", {"fake": ["i64", 100000000, 999999999]},
+                "name_and_address": [
+                    "1/", {"var": "receiver_name"},
+                    "2/", {"fake": ["street_address"]},
+                    "3/", {"cat": [{"var": "receiver_country"}, "/", {"fake": ["city_name"]}]},
+                    "4/", {"cat": ["TEL/", {"fake": ["phone_number"]}]}
+                ]
+            },
+            "70": {
+                "narrative": [
+                    {"cat": ["/PURP/", {"var": "purpose_code"}]},
+                    {"cat": ["/REL/", {"var": "relationship"}]},
+                    {"cat": ["/RFB/", {"var": "reference_msg"}]},
+                    "/BENRES/", {"var": "receiver_country"}
+                ]
+            },
+            "71A": {"code": "SHA"},
+            "72": {
+                "information": [
+                    "/ACC/CBPR+ REMITTANCE",
+                    "/INS/PERSON TO PERSON",
+                    "/REC/COMPLIANCE CHECK",
+                    {"cat": ["/BNF/", {"var": "relationship"}]}
+                ]
+            },
+            "77B": {
+                "narrative": [
+                    {"cat": ["/ORDERRES/", {"var": "sender_country"}]},
+                    {"cat": ["/BENEFRES/", {"var": "receiver_country"}]},
+                    "/FORMAT/REMITTANCE"
+                ]
+            }
+        }
+    },
+    "expected_pacs008": {
+        "validation_rules": [
+            "Debtor and Creditor must use PrvtId for individuals",
+            "CtgyPurp must map from purpose code in field 70",
+            "Relationship information must be preserved in RmtInf",
+            "Birth date and ID must map to Debtor.Id.PrvtId.Othr",
+            "Phone numbers must map to contact details",
+            "Format 50F/59F must map to structured name/address"
+        ],
+        "required_elements": [
+            "AppHdr.BizSvc = 'swift.cbprplus.01'",
+            "Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Dbtr.Id.PrvtId",
+            "Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Cdtr.Id.PrvtId",
+            "Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Purp.Cd",
+            "Document.FIToFICstmrCdtTrf.CdtTrfTxInf.RmtInf.Ustrd",
+            "Document.FIToFICstmrCdtTrf.CdtTrfTxInf.RgltryRptg"
+        ]
+    }
+}

@@ -361,7 +361,7 @@ class ReframeAPIClient:
 class ScenarioManager:
     """Manages scenario discovery and loading"""
     
-    def __init__(self, transformation_index_path: Path = Path("scenarios/transformation/index.json")):
+    def __init__(self, transformation_index_path: Path = Path("scenarios/index.json")):
         self.index_path = transformation_index_path
     
     def discover_message_types(self) -> Dict[str, List[str]]:
@@ -446,9 +446,9 @@ class MessageGenerator:
         
         # Try to load transformation scenario
         if "forward/" in scenario_path or "reverse/" in scenario_path:
-            scenario_file = Path(f"scenarios/transformation/{scenario_path}.json")
+            scenario_file = Path(f"scenarios/{scenario_path}")
         else:
-            scenario_file = Path(f"scenarios/transformation/{Path(scenario_path).stem}.json")
+            scenario_file = Path(f"scenarios/{Path(scenario_path).stem}.json")
         
         if scenario_file.exists():
             try:

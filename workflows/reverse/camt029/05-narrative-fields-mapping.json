@@ -4,7 +4,7 @@
     "description": "Maps narrative and optional fields for MT196/MT296 transformation",
     "priority": 5,
     "condition": { "and": [
-        { "in": [{"var": "SwiftMT.message_type"}, ["196", "296"]]},
+        {"in": [{"var": "SwiftMT.message_type"}, ["196", "296"]]},
         {"==": [{"var": "progress.workflow_id"}, "camt029-mandatory-fields-mapping"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
@@ -32,10 +32,12 @@
                         {
                             "path": "temp_data.field77a_lines",
                             "logic": { "if": [
-                                { "and": [
-                                    {"var": "temp_data.additional_info_array"},
-                                    {"gt": [{"count": [{"var": "temp_data.additional_info_array"}]}, 0]}
-                                ]},
+                                {
+                                    "and": [
+                                        {"var": "temp_data.additional_info_array"},
+                                        {"gt": [{"count": [{"var": "temp_data.additional_info_array"}]}, 0]}
+                                    ]
+                                },
                                 {"var": "temp_data.additional_info_array"},
                                 []
                             ]}
@@ -44,19 +46,23 @@
                             "path": "temp_data.field77a_with_uetr",
                             "logic": { "if": [
                                 {"var": "temp_data.uetr_for_77a"},
-                                {"push": [
-                                    {"var": "temp_data.field77a_lines"},
-                                    {"cat": ["/UETR/", {"var": "temp_data.uetr_for_77a"}]}
-                                ]},
+                                {
+                                    "push": [
+                                        {"var": "temp_data.field77a_lines"},
+                                        {"cat": ["/UETR/", {"var": "temp_data.uetr_for_77a"}]}
+                                    ]
+                                },
                                 {"var": "temp_data.field77a_lines"}
                             ]}
                         },
                         {
                             "path": "data.SwiftMT.fields.77A",
-                            "condition": { "and": [
-                                {"var": "temp_data.field77a_with_uetr"},
-                                {"gt": [{"count": [{"var": "temp_data.field77a_with_uetr"}]}, 0]}
-                            ]},
+                            "condition": {
+                                "and": [
+                                    {"var": "temp_data.field77a_with_uetr"},
+                                    {"gt": [{"count": [{"var": "temp_data.field77a_with_uetr"}]}, 0]}
+                                ]
+                            },
                             "logic": {"join": [{"var": "temp_data.field77a_with_uetr"}, "\n"]}
                         }
                     ]
@@ -73,49 +79,41 @@
                     "mappings": [
                         {
                             "path": "data.SwiftMT.validation_warnings",
-                            "logic": { "filter": [
-                                [
-                                    { "if": [
-                                        {"var": "temp_data.warning_default_296"},
-                                        {"var": "temp_data.warning_default_296"},
-                                        null
-                                    ]},
-                                    { "if": [
-                                        { "and": [
-                                            {"var": "temp_data.field20_truncated"},
-                                            {"==": [true, true]}
+                            "logic": {
+                                "filter": [
+                                    [
+                                        { "if": [
+                                            {"var": "temp_data.warning_default_296"},
+                                            {"var": "temp_data.warning_default_296"},
+                                            null
                                         ]},
-                                        {
-                                            "code": "T20090",
-                                            "message": "Field 20 truncated to 16 characters"
-                                        },
-                                        null
-                                    ]},
-                                    { "if": [
-                                        { "and": [
-                                            {"var": "temp_data.field21_truncated"},
-                                            {"==": [true, true]}
+                                        { "if": [
+                                            {"and": [{"var": "temp_data.field20_truncated"}, {"==": [true, true]}]},
+                                            {"code": "T20090", "message": "Field 20 truncated to 16 characters"},
+                                            null
                                         ]},
-                                        {
-                                            "code": "T20091",
-                                            "message": "Field 21 truncated to 16 characters"
-                                        },
-                                        null
-                                    ]},
-                                    { "if": [
-                                        { "and": [
-                                            {"==": [{"var": "temp_data.field11r_date"}, "991231"]},
-                                            {"not": {"var": "temp_data.field11r_mx_date"}}
+                                        { "if": [
+                                            {"and": [{"var": "temp_data.field21_truncated"}, {"==": [true, true]}]},
+                                            {"code": "T20091", "message": "Field 21 truncated to 16 characters"},
+                                            null
                                         ]},
-                                        {
-                                            "code": "T20136",
-                                            "message": "Original creation date not available, using default 991231"
-                                        },
-                                        null
-                                    ]}
-                                ],
-                                {"!=": [{"var": ""}, null]}
-                            ]}
+                                        { "if": [
+                                            {
+                                                "and": [
+                                                    {"==": [{"var": "temp_data.field11r_date"}, "991231"]},
+                                                    {"not": {"var": "temp_data.field11r_mx_date"}}
+                                                ]
+                                            },
+                                            {
+                                                "code": "T20136",
+                                                "message": "Original creation date not available, using default 991231"
+                                            },
+                                            null
+                                        ]}
+                                    ],
+                                    {"!=": [{"var": ""}, null]}
+                                ]
+                            }
                         }
                     ]
                 }

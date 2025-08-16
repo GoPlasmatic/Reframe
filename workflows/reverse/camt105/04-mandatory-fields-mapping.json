@@ -4,10 +4,12 @@
     "description": "Maps mandatory fields including references, account, and charges amount",
     "priority": 4,
     "condition": { "and": [
-        { "or": [
-            {"==": [{"var": "SwiftMT.message_type"}, "190"]},
-            {"==": [{"var": "SwiftMT.message_type"}, "290"]}
-        ]},
+        {
+            "or": [
+                {"==": [{"var": "SwiftMT.message_type"}, "190"]},
+                {"==": [{"var": "SwiftMT.message_type"}, "290"]}
+            ]
+        },
         {"==": [{"var": "progress.workflow_id"}, "camt105-headers-mapping"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
@@ -23,10 +25,13 @@
                         {
                             "path": "data.SwiftMT.fields.20",
                             "logic": {
-                                "charges_reference": {"substr": [
-                                    {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.ChrgsId"},
-                                    0, 16
-                                ]}
+                                "charges_reference": {
+                                    "substr": [
+                                        {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.ChrgsId"},
+                                        0,
+                                        16
+                                    ]
+                                }
                             }
                         }
                     ]
@@ -63,11 +68,13 @@
                         },
                         {
                             "path": "temp_data.field21_valid",
-                            "logic": { "not": { "or": [
-                                {"match": [{"var": "temp_data.field21_raw"}, "^/"]},
-                                {"match": [{"var": "temp_data.field21_raw"}, "/$"]},
-                                {"match": [{"var": "temp_data.field21_raw"}, "//"]}
-                            ]}}
+                            "logic": {
+                                "not": { "or": [
+                                    {"match": [{"var": "temp_data.field21_raw"}, "^/"]},
+                                    {"match": [{"var": "temp_data.field21_raw"}, "/$"]},
+                                    {"match": [{"var": "temp_data.field21_raw"}, "//"]}
+                                ]}
+                            }
                         },
                         {
                             "path": "data.SwiftMT.fields.21",
@@ -90,18 +97,12 @@
                         {
                             "path": "temp_data.warnings.field21_truncated",
                             "condition": {">": [{"strlen": [{"var": "temp_data.field21_raw"}]}, 16]},
-                            "logic": {
-                                "code": "T20055",
-                                "message": "Field 21 truncated to 16 characters"
-                            }
+                            "logic": {"code": "T20055", "message": "Field 21 truncated to 16 characters"}
                         },
                         {
                             "path": "temp_data.warnings.field21_invalid",
                             "condition": {"not": {"var": "temp_data.field21_valid"}},
-                            "logic": {
-                                "code": "T14001",
-                                "message": "Field 21 contains invalid characters"
-                            }
+                            "logic": {"code": "T14001", "message": "Field 21 contains invalid characters"}
                         },
                         {
                             "path": "temp_data.warnings.field21_default",
@@ -138,9 +139,7 @@
                         {
                             "path": "data.SwiftMT.fields.25",
                             "condition": {"var": "temp_data.account"},
-                            "logic": {
-                                "account": {"substr": [{"var": "temp_data.account"}, 0, 35]}
-                            }
+                            "logic": {"account": {"substr": [{"var": "temp_data.account"}, 0, 35]}}
                         }
                     ]
                 }
@@ -165,7 +164,13 @@
                                 {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.ValDt.Dt"},
                                 { "if": [
                                     {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.ValDt.DtTm"},
-                                    {"substr": [{"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.ValDt.DtTm"}, 0, 10]},
+                                    {
+                                        "substr": [
+                                            {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.ValDt.DtTm"},
+                                            0,
+                                            10
+                                        ]
+                                    },
                                     null
                                 ]}
                             ]}
@@ -174,11 +179,13 @@
                             "path": "temp_data.value_date_mt",
                             "logic": { "if": [
                                 {"var": "temp_data.value_date_raw"},
-                                {"cat": [
-                                    {"substr": [{"var": "temp_data.value_date_raw"}, 2, 2]},
-                                    {"substr": [{"var": "temp_data.value_date_raw"}, 5, 2]},
-                                    {"substr": [{"var": "temp_data.value_date_raw"}, 8, 2]}
-                                ]},
+                                {
+                                    "cat": [
+                                        {"substr": [{"var": "temp_data.value_date_raw"}, 2, 2]},
+                                        {"substr": [{"var": "temp_data.value_date_raw"}, 5, 2]},
+                                        {"substr": [{"var": "temp_data.value_date_raw"}, 8, 2]}
+                                    ]
+                                },
                                 "991231"
                             ]}
                         },

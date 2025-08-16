@@ -4,7 +4,7 @@
     "description": "Maps mandatory fields including references and original message information",
     "priority": 4,
     "condition": { "and": [
-        { "in": [{"var": "SwiftMT.message_type"}, ["192", "292"]]},
+        {"in": [{"var": "SwiftMT.message_type"}, ["192", "292"]]},
         {"==": [{"var": "progress.workflow_id"}, "camt056-headers-mapping"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
@@ -38,18 +38,12 @@
                         {
                             "path": "temp_data.warnings.field20_truncated",
                             "condition": {">": [{"strlen": [{"var": "temp_data.field20_raw"}]}, 16]},
-                            "logic": {
-                                "code": "T20080",
-                                "message": "Field 20 truncated to 16 characters"
-                            }
+                            "logic": {"code": "T20080", "message": "Field 20 truncated to 16 characters"}
                         },
                         {
                             "path": "temp_data.warnings.field20_invalid",
                             "condition": {"not": {"var": "temp_data.prec.case_id_valid"}},
-                            "logic": {
-                                "code": "T14001",
-                                "message": "Field 20 contains invalid characters (/, //)"
-                            }
+                            "logic": {"code": "T14001", "message": "Field 20 contains invalid characters (/, //)"}
                         }
                     ]
                 }
@@ -88,21 +82,17 @@
                         {
                             "path": "temp_data.warnings.field21_missing",
                             "condition": {"not": {"var": "temp_data.field21_raw"}},
-                            "logic": {
-                                "code": "T20072",
-                                "message": "OriginalInstructionId absent, using NOTPROVIDED"
-                            }
+                            "logic": {"code": "T20072", "message": "OriginalInstructionId absent, using NOTPROVIDED"}
                         },
                         {
                             "path": "temp_data.warnings.field21_truncated",
-                            "condition": { "and": [
-                                {"var": "temp_data.field21_raw"},
-                                {">": [{"strlen": [{"var": "temp_data.field21_raw"}]}, 16]}
-                            ]},
-                            "logic": {
-                                "code": "T20081",
-                                "message": "Field 21 truncated to 16 characters"
-                            }
+                            "condition": {
+                                "and": [
+                                    {"var": "temp_data.field21_raw"},
+                                    {">": [{"strlen": [{"var": "temp_data.field21_raw"}]}, 16]}
+                                ]
+                            },
+                            "logic": {"code": "T20081", "message": "Field 21 truncated to 16 characters"}
                         }
                     ]
                 }
@@ -149,12 +139,37 @@
                             "logic": { "if": [
                                 {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlGrpInf.OrgnlCreDtTm"},
                                 { "if": [
-                                    {"match": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlGrpInf.OrgnlCreDtTm"}, "^[0-9]{4}-[0-9]{2}-[0-9]{2}"]},
-                                    {"cat": [
-                                        {"substr": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlGrpInf.OrgnlCreDtTm"}, 2, 2]},
-                                        {"substr": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlGrpInf.OrgnlCreDtTm"}, 5, 2]},
-                                        {"substr": [{"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlGrpInf.OrgnlCreDtTm"}, 8, 2]}
-                                    ]},
+                                    {
+                                        "match": [
+                                            {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlGrpInf.OrgnlCreDtTm"},
+                                            "^[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                                        ]
+                                    },
+                                    {
+                                        "cat": [
+                                            {
+                                                "substr": [
+                                                    {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlGrpInf.OrgnlCreDtTm"},
+                                                    2,
+                                                    2
+                                                ]
+                                            },
+                                            {
+                                                "substr": [
+                                                    {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlGrpInf.OrgnlCreDtTm"},
+                                                    5,
+                                                    2
+                                                ]
+                                            },
+                                            {
+                                                "substr": [
+                                                    {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlGrpInf.OrgnlCreDtTm"},
+                                                    8,
+                                                    2
+                                                ]
+                                            }
+                                        ]
+                                    },
                                     "991231"
                                 ]},
                                 "991231"
@@ -163,20 +178,21 @@
                         {
                             "path": "data.SwiftMT.fields.11S",
                             "logic": {
-                                "mt_and_date": [
-                                    {"var": "temp_data.field11S_type"},
-                                    {"var": "temp_data.field11S_date"}
-                                ]
+                                "mt_and_date": [{"var": "temp_data.field11S_type"}, {"var": "temp_data.field11S_date"}]
                             }
                         },
                         {
                             "path": "temp_data.warnings.field11S_default",
                             "condition": {"==": [{"var": "temp_data.field11S_type"}, "202"]},
                             "logic": { "if": [
-                                { "not": { "or": [
-                                    {"in": ["pacs.009", {"var": "temp_data.original_message_name"}]},
-                                    {"match": [{"var": "temp_data.original_message_name"}, "^MT20[0-9]$"]}
-                                ]}},
+                                {
+                                    "not": {
+                                        "or": [
+                                            {"in": ["pacs.009", {"var": "temp_data.original_message_name"}]},
+                                            {"match": [{"var": "temp_data.original_message_name"}, "^MT20[0-9]$"]}
+                                        ]
+                                    }
+                                },
                                 {
                                     "code": "T20083",
                                     "message": "Original message type not recognized, defaulting to 202"

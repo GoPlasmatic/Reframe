@@ -4,10 +4,12 @@
     "description": "Validates preconditions for camt.105 to MT190/MT290 transformation",
     "priority": 2,
     "condition": { "and": [
-        { "or": [
-            {"==": [{"var": "SwiftMT.message_type"}, "190"]},
-            {"==": [{"var": "SwiftMT.message_type"}, "290"]}
-        ]},
+        {
+            "or": [
+                {"==": [{"var": "SwiftMT.message_type"}, "190"]},
+                {"==": [{"var": "SwiftMT.message_type"}, "290"]}
+            ]
+        },
         {"==": [{"var": "progress.workflow_id"}, "camt105-variant-detection"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
@@ -31,10 +33,7 @@
                         {
                             "path": "temp_data.prec.error_multi_record",
                             "condition": {"var": "temp_data.prec.is_multi_record"},
-                            "logic": {
-                                "code": "T20287",
-                                "message": "Multiple records not supported - single MT only"
-                            }
+                            "logic": {"code": "T20287", "message": "Multiple records not supported - single MT only"}
                         }
                     ]
                 }
@@ -50,7 +49,9 @@
                     "mappings": [
                         {
                             "path": "temp_data.prec.charges_breakdown_count",
-                            "logic": {"count": {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.ChrgsBrkdwn"}}
+                            "logic": {
+                                "count": {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.ChrgsBrkdwn"}
+                            }
                         },
                         {
                             "path": "temp_data.prec.valid_breakdown_count",
@@ -61,11 +62,13 @@
                             "condition": {"not": {"var": "temp_data.prec.valid_breakdown_count"}},
                             "logic": {
                                 "code": "T20288",
-                                "message": {"cat": [
-                                    "Too many charges breakdown items: ",
-                                    {"var": "temp_data.prec.charges_breakdown_count"},
-                                    " (max 6 allowed in field 71B)"
-                                ]}
+                                "message": {
+                                    "cat": [
+                                        "Too many charges breakdown items: ",
+                                        {"var": "temp_data.prec.charges_breakdown_count"},
+                                        " (max 6 allowed in field 71B)"
+                                    ]
+                                }
                             }
                         }
                     ]
@@ -82,26 +85,24 @@
                     "mappings": [
                         {
                             "path": "temp_data.prec.amount_errors",
-                            "logic": {"filter": [
-                                {"map": [
-                                    {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.ChrgsBrkdwn"},
-                                    { "if": [
-                                        {">": [
-                                            {"count": [{"match": [{"var": ".Amt"}, "[0-9]"]}]},
-                                            13
-                                        ]},
-                                        {
-                                            "code": "T20289",
-                                            "message": {"cat": [
-                                                "Charge amount exceeds 13 digits: ",
-                                                {"var": ".Amt"}
+                            "logic": {
+                                "filter": [
+                                    {
+                                        "map": [
+                                            {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.ChrgsBrkdwn"},
+                                            { "if": [
+                                                {">": [{"count": [{"match": [{"var": ".Amt"}, "[0-9]"]}]}, 13]},
+                                                {
+                                                    "code": "T20289",
+                                                    "message": {"cat": ["Charge amount exceeds 13 digits: ", {"var": ".Amt"}]}
+                                                },
+                                                null
                                             ]}
-                                        },
-                                        null
-                                    ]}
-                                ]},
-                                {"var": ""}
-                            ]}
+                                        ]
+                                    },
+                                    {"var": ""}
+                                ]
+                            }
                         },
                         {
                             "path": "temp_data.prec.valid_amounts",
@@ -125,18 +126,12 @@
                         },
                         {
                             "path": "temp_data.prec.total_amount_valid",
-                            "logic": {"<=": [
-                                {"count": [{"match": [{"var": "temp_data.prec.total_amount"}, "[0-9]"]}]},
-                                14
-                            ]}
+                            "logic": {"<=": [{"count": [{"match": [{"var": "temp_data.prec.total_amount"}, "[0-9]"]}]}, 14]}
                         },
                         {
                             "path": "temp_data.prec.error_total_amount",
                             "condition": {"not": {"var": "temp_data.prec.total_amount_valid"}},
-                            "logic": {
-                                "code": "T20066",
-                                "message": "Total charges amount exceeds 14 digits"
-                            }
+                            "logic": {"code": "T20066", "message": "Total charges amount exceeds 14 digits"}
                         }
                     ]
                 }
@@ -165,15 +160,17 @@
                             "condition": {"not": {"var": "temp_data.preconditions_met"}},
                             "logic": {
                                 "success": false,
-                                "errors": {"filter": [
-                                    [
-                                        {"var": "temp_data.error_multiple_charges"},
-                                        {"var": "temp_data.prec.error_multi_record"},
-                                        {"var": "temp_data.prec.error_too_many_charges"},
-                                        {"var": "temp_data.prec.error_total_amount"}
-                                    ],
-                                    {"var": ""}
-                                ]}
+                                "errors": {
+                                    "filter": [
+                                        [
+                                            {"var": "temp_data.error_multiple_charges"},
+                                            {"var": "temp_data.prec.error_multi_record"},
+                                            {"var": "temp_data.prec.error_too_many_charges"},
+                                            {"var": "temp_data.prec.error_total_amount"}
+                                        ],
+                                        {"var": ""}
+                                    ]
+                                }
                             }
                         }
                     ]

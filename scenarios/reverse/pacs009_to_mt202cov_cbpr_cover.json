@@ -1,0 +1,121 @@
+{
+    "description": "pacs.009 CBPR+ Cover to MT202COV Cover Payment",
+    "source_type": "pacs.009",
+    "target_type": "MT202COV",
+    "variant": "CBPR+_COVE",
+    "variables": {
+        "msg_id": {"cat": ["COV", {"fake": ["i64", 100000000000, 999999999999]}]},
+        "creation_datetime": {"fake": ["iso8601_datetime"]},
+        "sender_bic": {"fake": ["bic"]},
+        "receiver_bic": {"fake": ["bic"]},
+        "ordering_bank_bic": {"fake": ["bic"]},
+        "beneficiary_bank_bic": {"fake": ["bic"]},
+        "transaction_ref": {"cat": ["COV", {"fake": ["i64", 100000000000, 999999999999]}]},
+        "underlying_ref": {"cat": ["UND", {"fake": ["i64", 100000000000, 999999999999]}]},
+        "uetr": {"fake": ["uuid"]},
+        "underlying_uetr": {"fake": ["uuid"]},
+        "amount": {"fake": ["f64", 50000.0, 5000000.0]},
+        "currency": {"one_of": ["USD", "EUR"]},
+        "ordering_customer": {"fake": ["company_name"]},
+        "beneficiary_customer": {"fake": ["company_name"]},
+        "ordering_lei": {"fake": ["lei"]},
+        "beneficiary_lei": {"fake": ["lei"]},
+        "ordering_account": {"fake": ["iban"]},
+        "beneficiary_account": {"fake": ["iban"]}
+    },
+    "schema": {
+        "AppHdr": {
+            "Fr": {"FIId": {"FinInstnId": {"BICFI": {"var": "sender_bic"}}}},
+            "To": {"FIId": {"FinInstnId": {"BICFI": {"var": "receiver_bic"}}}},
+            "BizMsgIdr": {"var": "msg_id"},
+            "MsgDefIdr": "pacs.009.001.08",
+            "BizSvc": "swift.cbprplus.01",
+            "CreDt": {"var": "creation_datetime"}
+        },
+        "Document": {
+            "FICdtTrf": {
+                "GrpHdr": {
+                    "MsgId": {"var": "msg_id"},
+                    "CreDtTm": {"var": "creation_datetime"},
+                    "NbOfTxs": "1",
+                    "TtlIntrBkSttlmAmt": {"@Ccy": {"var": "currency"}, "$value": {"var": "amount"}},
+                    "IntrBkSttlmDt": {
+                        "fake": ["date", "%Y-%m-%d", "+0d", "+1d"]
+                    },
+                    "SttlmInf": {"SttlmMtd": "INDA"},
+                    "InstgAgt": {"FinInstnId": {"BICFI": {"var": "ordering_bank_bic"}}},
+                    "InstdAgt": {"FinInstnId": {"BICFI": {"var": "beneficiary_bank_bic"}}}
+                },
+                "CdtTrfTxInf": {
+                    "PmtId": {
+                        "InstrId": {"cat": ["INSTR", {"fake": ["i64", 10000000, 99999999]}]},
+                        "EndToEndId": {"var": "transaction_ref"},
+                        "TxId": {"var": "transaction_ref"},
+                        "UETR": {"var": "uetr"}
+                    },
+                    "PmtTpInf": {"SvcLvl": [{"Cd": "G003"}]},
+                    "IntrBkSttlmAmt": {"@Ccy": {"var": "currency"}, "$value": {"var": "amount"}},
+                    "IntrBkSttlmDt": {
+                        "fake": ["date", "%Y-%m-%d", "+0d", "+1d"]
+                    },
+                    "InstgAgt": {"FinInstnId": {"BICFI": {"var": "ordering_bank_bic"}}},
+                    "IntrmyAgt1": {"FinInstnId": {"BICFI": {"var": "sender_bic"}}},
+                    "IntrmyAgt2": {"FinInstnId": {"BICFI": {"var": "receiver_bic"}}},
+                    "InstdAgt": {"FinInstnId": {"BICFI": {"var": "beneficiary_bank_bic"}}},
+                    "UndrlygCstmrCdtTrf": {
+                        "PmtId": {"EndToEndId": {"var": "underlying_ref"}, "UETR": {"var": "underlying_uetr"}},
+                        "IntrBkSttlmAmt": {"@Ccy": {"var": "currency"}, "$value": {"var": "amount"}},
+                        "Dbtr": {"Nm": {"var": "ordering_customer"}, "Id": {"OrgId": {"LEI": {"var": "ordering_lei"}}}},
+                        "DbtrAcct": {"Id": {"IBAN": {"var": "ordering_account"}}},
+                        "DbtrAgt": {"FinInstnId": {"BICFI": {"var": "ordering_bank_bic"}}},
+                        "CdtrAgt": {"FinInstnId": {"BICFI": {"var": "beneficiary_bank_bic"}}},
+                        "Cdtr": {
+                            "Nm": {"var": "beneficiary_customer"},
+                            "Id": {"OrgId": {"LEI": {"var": "beneficiary_lei"}}}
+                        },
+                        "CdtrAcct": {"Id": {"IBAN": {"var": "beneficiary_account"}}}
+                    }
+                }
+            }
+        }
+    },
+    "expected_mt202cov": {
+        "validation_rules": [
+            "Must have COV in message input reference",
+            "Field 20 from cover payment reference",
+            "Field 21 from underlying payment reference",
+            "Sequence A for cover payment details",
+            "Sequence B for underlying customer details",
+            "Field 50K from underlying Debtor",
+            "Field 59 from underlying Creditor",
+            "Field 72 must reference underlying UETR",
+            "UETR for cover in user header"
+        ],
+        "required_fields": [
+            "Sequence A:",
+            "  20: Transaction Reference",
+            "  21: Related Reference",
+            "  32A: Value Date, Currency, Amount",
+            "  52A: Ordering Institution",
+            "  56A: Intermediary",
+            "  57A: Account With Institution",
+            "  58A: Beneficiary Institution",
+            "  72: Sender to Receiver Info",
+            "Sequence B:",
+            "  50K: Ordering Customer",
+            "  59: Beneficiary Customer"
+        ],
+        "field_mapping": {
+            "20": "CdtTrfTxInf.PmtId.TxId",
+            "21": "UndrlygCstmrCdtTrf.PmtId.EndToEndId",
+            "32A": "IntrBkSttlmDt + IntrBkSttlmAmt",
+            "52A": "InstgAgt (ordering bank)",
+            "56A": "IntrmyAgt1 (sender)",
+            "57A": "IntrmyAgt2 (receiver)",
+            "58A": "InstdAgt (beneficiary bank)",
+            "50K": "UndrlygCstmrCdtTrf.Dbtr + LEI",
+            "59": "UndrlygCstmrCdtTrf.Cdtr + LEI",
+            "72": "'/REC/UETR/' + underlying UETR"
+        }
+    }
+}

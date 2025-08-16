@@ -4,10 +4,12 @@
     "description": "Maps charges requestor and instructions to field 72",
     "priority": 6,
     "condition": { "and": [
-        { "or": [
-            {"==": [{"var": "SwiftMT.message_type"}, "190"]},
-            {"==": [{"var": "SwiftMT.message_type"}, "290"]}
-        ]},
+        {
+            "or": [
+                {"==": [{"var": "SwiftMT.message_type"}, "190"]},
+                {"==": [{"var": "SwiftMT.message_type"}, "290"]}
+            ]
+        },
         {"==": [{"var": "progress.workflow_id"}, "camt105-charges-breakdown-mapping"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
@@ -26,67 +28,94 @@
                         },
                         {
                             "path": "temp_data.field72_lines",
-                            "logic": {"filter": [
-                                [
-                                    { "if": [
-                                        {"var": "temp_data.charges_requestor.FinInstnId.BICFI"},
-                                        {"cat": [
-                                            "/CHRQ/",
-                                            {"var": "temp_data.charges_requestor.FinInstnId.BICFI"}
+                            "logic": {
+                                "filter": [
+                                    [
+                                        { "if": [
+                                            {"var": "temp_data.charges_requestor.FinInstnId.BICFI"},
+                                            {"cat": ["/CHRQ/", {"var": "temp_data.charges_requestor.FinInstnId.BICFI"}]},
+                                            null
                                         ]},
-                                        null
-                                    ]},
-                                    { "if": [
-                                        { "and": [
-                                            {"not": {"var": "temp_data.charges_requestor.FinInstnId.BICFI"}},
-                                            {"var": "temp_data.charges_requestor.FinInstnId.Nm"}
+                                        { "if": [
+                                            {
+                                                "and": [
+                                                    {"not": {"var": "temp_data.charges_requestor.FinInstnId.BICFI"}},
+                                                    {"var": "temp_data.charges_requestor.FinInstnId.Nm"}
+                                                ]
+                                            },
+                                            {"cat": ["/CHRQ/", {"substr": [{"var": "temp_data.charges_requestor.FinInstnId.Nm"}, 0, 29]}]},
+                                            null
                                         ]},
-                                        {"cat": [
-                                            "/CHRQ/",
-                                            {"substr": [{"var": "temp_data.charges_requestor.FinInstnId.Nm"}, 0, 29]}
+                                        { "if": [
+                                            { "and": [
+                                                {"not": {"var": "temp_data.charges_requestor.FinInstnId.BICFI"}},
+                                                {"not": {"var": "temp_data.charges_requestor.FinInstnId.Nm"}},
+                                                {"var": "temp_data.charges_requestor.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}
+                                            ]},
+                                            {
+                                                "cat": [
+                                                    "/CHRQ//",
+                                                    {"var": "temp_data.charges_requestor.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                    {"var": "temp_data.charges_requestor.FinInstnId.ClrSysMmbId.MmbId"}
+                                                ]
+                                            },
+                                            null
                                         ]},
-                                        null
-                                    ]},
-                                    { "if": [
-                                        { "and": [
-                                            {"not": {"var": "temp_data.charges_requestor.FinInstnId.BICFI"}},
-                                            {"not": {"var": "temp_data.charges_requestor.FinInstnId.Nm"}},
-                                            {"var": "temp_data.charges_requestor.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}
+                                        { "if": [
+                                            {
+                                                "and": [
+                                                    {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.0"},
+                                                    {
+                                                        "not": {
+                                                            "match": [
+                                                                {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.0"},
+                                                                "^NOTPROVIDED$"
+                                                            ]
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            {"substr": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.0"}, 0, 35]},
+                                            null
                                         ]},
-                                        {"cat": [
-                                            "/CHRQ//",
-                                            {"var": "temp_data.charges_requestor.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                            {"var": "temp_data.charges_requestor.FinInstnId.ClrSysMmbId.MmbId"}
+                                        { "if": [
+                                            {
+                                                "and": [
+                                                    {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.1"},
+                                                    {
+                                                        "not": {
+                                                            "match": [
+                                                                {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.1"},
+                                                                "^NOTPROVIDED$"
+                                                            ]
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            {"substr": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.1"}, 0, 35]},
+                                            null
                                         ]},
-                                        null
-                                    ]},
-                                    { "if": [
-                                        { "and": [
-                                            {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.0"},
-                                            {"not": {"match": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.0"}, "^NOTPROVIDED$"]}}
-                                        ]},
-                                        {"substr": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.0"}, 0, 35]},
-                                        null
-                                    ]},
-                                    { "if": [
-                                        { "and": [
-                                            {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.1"},
-                                            {"not": {"match": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.1"}, "^NOTPROVIDED$"]}}
-                                        ]},
-                                        {"substr": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.1"}, 0, 35]},
-                                        null
-                                    ]},
-                                    { "if": [
-                                        { "and": [
-                                            {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.2"},
-                                            {"not": {"match": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.2"}, "^NOTPROVIDED$"]}}
-                                        ]},
-                                        {"substr": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.2"}, 0, 35]},
-                                        null
-                                    ]}
-                                ],
-                                {"var": ""}
-                            ]}
+                                        { "if": [
+                                            {
+                                                "and": [
+                                                    {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.2"},
+                                                    {
+                                                        "not": {
+                                                            "match": [
+                                                                {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.2"},
+                                                                "^NOTPROVIDED$"
+                                                            ]
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            {"substr": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.2"}, 0, 35]},
+                                            null
+                                        ]}
+                                    ],
+                                    {"var": ""}
+                                ]
+                            }
                         },
                         {
                             "path": "data.SwiftMT.fields.72",
@@ -98,10 +127,7 @@
                         {
                             "path": "temp_data.warnings.field72_truncated",
                             "condition": {">": [{"count": {"var": "temp_data.field72_lines"}}, 6]},
-                            "logic": {
-                                "code": "T20303",
-                                "message": "Field 72 truncated to 6 lines"
-                            }
+                            "logic": {"code": "T20303", "message": "Field 72 truncated to 6 lines"}
                         }
                     ]
                 }

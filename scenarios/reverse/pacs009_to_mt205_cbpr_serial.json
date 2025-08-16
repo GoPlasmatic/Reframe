@@ -1,0 +1,109 @@
+{
+    "description": "pacs.009 CBPR+ to MT205 Serial FI Transfer",
+    "source_type": "pacs.009",
+    "target_type": "MT205",
+    "variant": "CBPR+_SERIAL",
+    "variables": {
+        "msg_id": {"cat": ["SER", {"fake": ["i64", 100000000000, 999999999999]}]},
+        "creation_datetime": {"fake": ["iso8601_datetime"]},
+        "sender_bic": {"fake": ["bic"]},
+        "receiver_bic": {"fake": ["bic"]},
+        "intermediary1_bic": {"fake": ["bic"]},
+        "intermediary2_bic": {"fake": ["bic"]},
+        "beneficiary_bic": {"fake": ["bic"]},
+        "transaction_ref": {"cat": ["SER", {"fake": ["i64", 100000000000, 999999999999]}]},
+        "related_ref": {"cat": ["REL", {"fake": ["i64", 100000000000, 999999999999]}]},
+        "uetr": {"fake": ["uuid"]},
+        "amount": {"fake": ["f64", 500000.0, 50000000.0]},
+        "currency": {"one_of": ["USD", "EUR", "GBP"]},
+        "clearing_system": {"one_of": ["TGT", "EBA", "FDW"]},
+        "sender_lei": {"fake": ["lei"]},
+        "beneficiary_lei": {"fake": ["lei"]}
+    },
+    "schema": {
+        "AppHdr": {
+            "Fr": {
+                "FIId": {"FinInstnId": {"BICFI": {"var": "sender_bic"}, "LEI": {"var": "sender_lei"}}}
+            },
+            "To": {"FIId": {"FinInstnId": {"BICFI": {"var": "receiver_bic"}}}},
+            "BizMsgIdr": {"var": "msg_id"},
+            "MsgDefIdr": "pacs.009.001.08",
+            "BizSvc": "swift.cbprplus.01",
+            "CreDt": {"var": "creation_datetime"}
+        },
+        "Document": {
+            "FICdtTrf": {
+                "GrpHdr": {
+                    "MsgId": {"var": "msg_id"},
+                    "CreDtTm": {"var": "creation_datetime"},
+                    "NbOfTxs": "1",
+                    "TtlIntrBkSttlmAmt": {"@Ccy": {"var": "currency"}, "$value": {"var": "amount"}},
+                    "IntrBkSttlmDt": {
+                        "fake": ["date", "%Y-%m-%d", "+0d", "+1d"]
+                    },
+                    "SttlmInf": {"SttlmMtd": "INDA", "ClrSys": {"Cd": {"var": "clearing_system"}}}
+                },
+                "CdtTrfTxInf": {
+                    "PmtId": {
+                        "InstrId": {"cat": ["INSTR", {"fake": ["i64", 10000000, 99999999]}]},
+                        "EndToEndId": {"var": "transaction_ref"},
+                        "TxId": {"var": "transaction_ref"},
+                        "UETR": {"var": "uetr"}
+                    },
+                    "PmtTpInf": {"SvcLvl": [{"Cd": "G002"}]},
+                    "IntrBkSttlmAmt": {"@Ccy": {"var": "currency"}, "$value": {"var": "amount"}},
+                    "IntrBkSttlmDt": {
+                        "fake": ["date", "%Y-%m-%d", "+0d", "+1d"]
+                    },
+                    "InstgAgt": {"FinInstnId": {"BICFI": {"var": "sender_bic"}, "LEI": {"var": "sender_lei"}}},
+                    "IntrmyAgt1": {"FinInstnId": {"BICFI": {"var": "intermediary1_bic"}}},
+                    "IntrmyAgt2": {"FinInstnId": {"BICFI": {"var": "intermediary2_bic"}}},
+                    "IntrmyAgt3": {"FinInstnId": {"BICFI": {"var": "receiver_bic"}}},
+                    "InstdAgt": {
+                        "FinInstnId": {"BICFI": {"var": "beneficiary_bic"}, "LEI": {"var": "beneficiary_lei"}}
+                    },
+                    "RmtInf": {
+                        "Ustrd": ["FI TO FI SERIAL TRANSFER", "CBPR+ COMPLIANT"],
+                        "AddtlRmtInf": [{"cat": ["Related: ", {"var": "related_ref"}]}]
+                    }
+                }
+            }
+        }
+    },
+    "expected_mt205": {
+        "validation_rules": [
+            "Field 20 from EndToEndId or TxId",
+            "Field 21 from related reference",
+            "Field 32A from IntrBkSttlmAmt",
+            "Field 52A from InstgAgt",
+            "Field 53A/B from IntrmyAgt1",
+            "Field 56A from IntrmyAgt2",
+            "Field 57A from IntrmyAgt3",
+            "Field 58A from InstdAgt",
+            "Field 72 must indicate serial routing",
+            "UETR preserved in user header"
+        ],
+        "required_fields": [
+            "20: Transaction Reference",
+            "21: Related Reference",
+            "32A: Value Date, Currency, Amount",
+            "52A: Ordering Institution",
+            "53A/B: Sender's Correspondent",
+            "56A: Intermediary",
+            "57A: Account With Institution",
+            "58A: Beneficiary Institution",
+            "72: Sender to Receiver Information"
+        ],
+        "field_mapping": {
+            "20": "TxId or EndToEndId (16 chars)",
+            "21": "Related ref from RmtInf",
+            "32A": "IntrBkSttlmDt + IntrBkSttlmAmt",
+            "52A": "InstgAgt.FinInstnId.BICFI",
+            "53A/B": "IntrmyAgt1.FinInstnId.BICFI",
+            "56A": "IntrmyAgt2.FinInstnId.BICFI",
+            "57A": "IntrmyAgt3.FinInstnId.BICFI",
+            "58A": "InstdAgt.FinInstnId.BICFI",
+            "72": "'/ACC/CBPR+ SERIAL' + clearing info"
+        }
+    }
+}

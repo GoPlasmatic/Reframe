@@ -1,0 +1,97 @@
+{
+    "description": "MT202 to pacs.009 CBPR+ Core Financial Institution Transfer",
+    "source_type": "MT202",
+    "target_type": "pacs.009",
+    "variant": "CBPR+_CORE",
+    "variables": {
+        "sender_bic": {"fake": ["bic"]},
+        "receiver_bic": {"fake": ["bic"]},
+        "intermediary1_bic": {"fake": ["bic"]},
+        "intermediary2_bic": {"fake": ["bic"]},
+        "transaction_ref": {"cat": ["FIT", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "related_ref": {"cat": ["REL", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "currency": {"one_of": ["USD", "EUR", "GBP"]},
+        "amount": {"fake": ["f64", 100000.0, 50000000.0]},
+        "value_date": {
+            "fake": ["date", "%y%m%d", "+0d", "+2d"]
+        },
+        "uetr": {"fake": ["uuid"]},
+        "sender_lei": {"fake": ["lei"]},
+        "receiver_lei": {"fake": ["lei"]},
+        "intermediary1_lei": {"fake": ["lei"]},
+        "intermediary2_lei": {"fake": ["lei"]},
+        "priority": {"one_of": ["NORM", "HIGH"]},
+        "clearing_system": {"one_of": ["TGT", "EBA", "FDW"]}
+    },
+    "schema": {
+        "basic_header": {
+            "application_id": "F",
+            "service_id": "01",
+            "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
+            "session_number": {"fake": ["i64", 1, 9999]},
+            "sequence_number": {"fake": ["i64", 100000, 999999]}
+        },
+        "application_header": {
+            "direction": "I",
+            "message_type": "202",
+            "destination_address": {"cat": [{"var": "receiver_bic"}, "XXXX"]},
+            "priority": "N"
+        },
+        "user_header": {
+            "service_type_identifier": "001",
+            "unique_end_to_end_reference": {"var": "uetr"},
+            "validation_flag": "STP"
+        },
+        "message_type": "202",
+        "fields": {
+            "20": {"reference": {"var": "transaction_ref"}},
+            "21": {"reference": {"var": "related_ref"}},
+            "13C": [
+                {
+                    "code": "SNDTIME",
+                    "time": {"fake": ["time", "%H%M"]},
+                    "sign": "+",
+                    "offset": "0100"
+                }
+            ],
+            "32A": {
+                "value_date": {"var": "value_date"},
+                "currency": {"var": "currency"},
+                "amount": {"var": "amount"}
+            },
+            "52A": {"bic": {"var": "sender_bic"}},
+            "53A": {"bic": {"var": "intermediary1_bic"}},
+            "56A": {"bic": {"var": "intermediary2_bic"}},
+            "57A": {"bic": {"var": "receiver_bic"}},
+            "58A": {"bic": {"var": "receiver_bic"}, "account": {"cat": ["/", {"fake": ["iban"]}]}},
+            "72": {
+                "information": [
+                    "/ACC/CBPR+ COMPLIANT",
+                    "/INS/FI TO FI TRANSFER",
+                    {"cat": ["/REC/", {"var": "clearing_system"}]},
+                    {"cat": ["/BNF/LEI/", {"var": "sender_lei"}]},
+                    {"cat": ["/CDT/LEI/", {"var": "receiver_lei"}]}
+                ]
+            }
+        }
+    },
+    "expected_pacs009": {
+        "validation_rules": [
+            "BizSvc must be 'swift.cbprplus.01'",
+            "SvcLvl must contain 'G002' for FI transfers",
+            "All financial institutions must have LEI",
+            "Settlement method must be INDA for interbank",
+            "Clearing system must be mapped from field 72",
+            "UETR must be preserved from MT202"
+        ],
+        "required_elements": [
+            "AppHdr.BizSvc = 'swift.cbprplus.01'",
+            "Document.FICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd = 'G002'",
+            "Document.FICdtTrf.CdtTrfTxInf.PmtId.UETR",
+            "Document.FICdtTrf.GrpHdr.SttlmInf.SttlmMtd = 'INDA'",
+            "Document.FICdtTrf.GrpHdr.SttlmInf.ClrSys",
+            "Document.FICdtTrf.CdtTrfTxInf.InstgAgt.FinInstnId.LEI",
+            "Document.FICdtTrf.CdtTrfTxInf.InstdAgt.FinInstnId.LEI"
+        ]
+    }
+}

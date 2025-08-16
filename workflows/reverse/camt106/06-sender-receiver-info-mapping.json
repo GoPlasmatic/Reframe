@@ -4,7 +4,7 @@
     "description": "Maps ChargesRequestor and InstructionForInstructedAgent to Field 72",
     "priority": 6,
     "condition": { "and": [
-        { "in": [{"var": "SwiftMT.message_type"}, ["191", "291"]]},
+        {"in": [{"var": "SwiftMT.message_type"}, ["191", "291"]]},
         {"==": [{"var": "progress.workflow_id"}, "camt106-charges-and-agent-mapping"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
@@ -31,37 +31,38 @@
                         },
                         {
                             "path": "temp_data.field72_lines",
-                            "logic": { "filter": [
-                                [
-                                    { "if": [
-                                        {"var": "temp_data.instruction_code"},
-                                        {"cat": ["/", {"var": "temp_data.instruction_code"}, "/"]},
-                                        null
-                                    ]},
-                                    { "if": [
-                                        {"var": "temp_data.charges_requestor.Agt.FinInstnId.BICFI"},
-                                        {"cat": ["/CHRQ/", {"var": "temp_data.charges_requestor.Agt.FinInstnId.BICFI"}]},
+                            "logic": {
+                                "filter": [
+                                    [
                                         { "if": [
-                                            {"var": "temp_data.charges_requestor.Agt.FinInstnId.Nm"},
-                                            {"cat": ["/CHRQ/", {"var": "temp_data.charges_requestor.Agt.FinInstnId.Nm"}]},
+                                            {"var": "temp_data.instruction_code"},
+                                            {"cat": ["/", {"var": "temp_data.instruction_code"}, "/"]},
                                             null
-                                        ]}
-                                    ]},
-                                    {"var": "temp_data.instruction_info"}
-                                ],
-                                {"!=": [{"var": ""}, null]}
-                            ]}
+                                        ]},
+                                        { "if": [
+                                            {"var": "temp_data.charges_requestor.Agt.FinInstnId.BICFI"},
+                                            {"cat": ["/CHRQ/", {"var": "temp_data.charges_requestor.Agt.FinInstnId.BICFI"}]},
+                                            { "if": [
+                                                {"var": "temp_data.charges_requestor.Agt.FinInstnId.Nm"},
+                                                {"cat": ["/CHRQ/", {"var": "temp_data.charges_requestor.Agt.FinInstnId.Nm"}]},
+                                                null
+                                            ]}
+                                        ]},
+                                        {"var": "temp_data.instruction_info"}
+                                    ],
+                                    {"!=": [{"var": ""}, null]}
+                                ]
+                            }
                         },
                         {
                             "path": "data.SwiftMT.fields.72",
-                            "condition": { "and": [
-                                {"var": "temp_data.field72_lines"},
-                                {"gt": [{"count": [{"var": "temp_data.field72_lines"}]}, 0]}
-                            ]},
-                            "logic": {"join": [
-                                {"slice": [{"var": "temp_data.field72_lines"}, 0, 6]},
-                                "\n"
-                            ]}
+                            "condition": {
+                                "and": [
+                                    {"var": "temp_data.field72_lines"},
+                                    {"gt": [{"count": [{"var": "temp_data.field72_lines"}]}, 0]}
+                                ]
+                            },
+                            "logic": {"join": [{"slice": [{"var": "temp_data.field72_lines"}, 0, 6]}, "\n"]}
                         }
                     ]
                 }

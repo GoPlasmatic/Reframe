@@ -4,10 +4,12 @@
     "description": "Performs final validation and assembles MT190/MT290 message",
     "priority": 7,
     "condition": { "and": [
-        { "or": [
-            {"==": [{"var": "SwiftMT.message_type"}, "190"]},
-            {"==": [{"var": "SwiftMT.message_type"}, "290"]}
-        ]},
+        {
+            "or": [
+                {"==": [{"var": "SwiftMT.message_type"}, "190"]},
+                {"==": [{"var": "SwiftMT.message_type"}, "290"]}
+            ]
+        },
         {"==": [{"var": "progress.workflow_id"}, "camt105-sender-receiver-info-mapping"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
@@ -34,10 +36,7 @@
                         },
                         {
                             "path": "temp_data.post.field32_present",
-                            "logic": { "or": [
-                                {"var": "data.SwiftMT.fields.32C"},
-                                {"var": "data.SwiftMT.fields.32D"}
-                            ]}
+                            "logic": {"or": [{"var": "data.SwiftMT.fields.32C"}, {"var": "data.SwiftMT.fields.32D"}]}
                         },
                         {
                             "path": "temp_data.post.field71B_present",
@@ -55,15 +54,33 @@
                         {
                             "path": "temp_data.post.errors",
                             "condition": {"not": {"var": "temp_data.post.all_mandatory_present"}},
-                            "logic": {"filter": [
-                                [
-                                    { "if": [{"not": {"var": "temp_data.post.field20_present"}}, {"code": "E2051", "message": "Mandatory field 20 missing"}, null]},
-                                    { "if": [{"not": {"var": "temp_data.post.field21_present"}}, {"code": "E2055", "message": "Mandatory field 21 missing"}, null]},
-                                    { "if": [{"not": {"var": "temp_data.post.field25_present"}}, {"code": "E2571", "message": "Mandatory field 25 missing"}, null]},
-                                    { "if": [{"not": {"var": "temp_data.post.field32_present"}}, {"code": "E3265", "message": "Mandatory field 32C/D missing"}, null]}
-                                ],
-                                {"var": ""}
-                            ]}
+                            "logic": {
+                                "filter": [
+                                    [
+                                        { "if": [
+                                            {"not": {"var": "temp_data.post.field20_present"}},
+                                            {"code": "E2051", "message": "Mandatory field 20 missing"},
+                                            null
+                                        ]},
+                                        { "if": [
+                                            {"not": {"var": "temp_data.post.field21_present"}},
+                                            {"code": "E2055", "message": "Mandatory field 21 missing"},
+                                            null
+                                        ]},
+                                        { "if": [
+                                            {"not": {"var": "temp_data.post.field25_present"}},
+                                            {"code": "E2571", "message": "Mandatory field 25 missing"},
+                                            null
+                                        ]},
+                                        { "if": [
+                                            {"not": {"var": "temp_data.post.field32_present"}},
+                                            {"code": "E3265", "message": "Mandatory field 32C/D missing"},
+                                            null
+                                        ]}
+                                    ],
+                                    {"var": ""}
+                                ]
+                            }
                         }
                     ]
                 }
@@ -79,16 +96,18 @@
                     "mappings": [
                         {
                             "path": "temp_data.all_warnings",
-                            "logic": {"filter": [
-                                [
-                                    {"var": "temp_data.warnings.field21_truncated"},
-                                    {"var": "temp_data.warnings.field21_invalid"},
-                                    {"var": "temp_data.warnings.field21_default"},
-                                    {"var": "temp_data.warnings.field71B_items_skipped"},
-                                    {"var": "temp_data.warnings.field72_truncated"}
-                                ],
-                                {"var": ""}
-                            ]}
+                            "logic": {
+                                "filter": [
+                                    [
+                                        {"var": "temp_data.warnings.field21_truncated"},
+                                        {"var": "temp_data.warnings.field21_invalid"},
+                                        {"var": "temp_data.warnings.field21_default"},
+                                        {"var": "temp_data.warnings.field71B_items_skipped"},
+                                        {"var": "temp_data.warnings.field72_truncated"}
+                                    ],
+                                    {"var": ""}
+                                ]
+                            }
                         }
                     ]
                 }
@@ -115,10 +134,7 @@
                             "path": "data.SwiftMT.transformation_status",
                             "logic": {
                                 "success": true,
-                                "message": {"cat": [
-                                    "camt.105 successfully transformed to MT",
-                                    {"var": "data.SwiftMT.message_type"}
-                                ]},
+                                "message": {"cat": ["camt.105 successfully transformed to MT", {"var": "data.SwiftMT.message_type"}]},
                                 "warnings": {"var": "temp_data.all_warnings"}
                             }
                         },
@@ -156,21 +172,20 @@
                             "path": "data.SwiftMT.transformation_status",
                             "logic": {
                                 "success": false,
-                                "message": {"cat": [
-                                    "camt.105 to MT",
-                                    {"var": "data.SwiftMT.message_type"},
-                                    " transformation failed - mandatory fields missing"
-                                ]},
+                                "message": {
+                                    "cat": [
+                                        "camt.105 to MT",
+                                        {"var": "data.SwiftMT.message_type"},
+                                        " transformation failed - mandatory fields missing"
+                                    ]
+                                },
                                 "errors": {"var": "temp_data.post.errors"},
                                 "warnings": {"var": "temp_data.all_warnings"}
                             }
                         },
                         {
                             "path": "data.SwiftMT.validation_status",
-                            "logic": {
-                                "success": false,
-                                "errors": {"var": "temp_data.post.errors"}
-                            }
+                            "logic": {"success": false, "errors": {"var": "temp_data.post.errors"}}
                         }
                     ]
                 }
@@ -180,17 +195,7 @@
             "id": "cleanup_temp_data",
             "name": "Cleanup Temporary Data",
             "description": "Removes temporary data used during transformation",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data",
-                            "logic": null
-                        }
-                    ]
-                }
-            }
+            "function": {"name": "map", "input": {"mappings": [{"path": "temp_data", "logic": null}]}}
         }
     ]
 }

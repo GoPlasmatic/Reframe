@@ -19,10 +19,7 @@
                     "mappings": [
                         {
                             "path": "temp_data.prec.single_item",
-                            "logic": {"<=": [
-                                {"count": {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm"}},
-                                1
-                            ]}
+                            "logic": {"<=": [{"count": {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm"}}, 1]}
                         },
                         {
                             "path": "temp_data.prec.error_multiple_items",
@@ -46,18 +43,19 @@
                     "mappings": [
                         {
                             "path": "temp_data.prec.valid_currency",
-                            "logic": { "not": { "in": [
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Amt/@Ccy"},
-                                ["XAU", "XAG", "XPD", "XPT"]
-                            ]}}
+                            "logic": {
+                                "not": {
+                                    "in": [
+                                        {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Amt/@Ccy"},
+                                        ["XAU", "XAG", "XPD", "XPT"]
+                                    ]
+                                }
+                            }
                         },
                         {
                             "path": "temp_data.prec.error_precious_metal",
                             "condition": {"not": {"var": "temp_data.prec.valid_currency"}},
-                            "logic": {
-                                "code": "T20054",
-                                "message": "Precious metal currencies not supported in MT210"
-                            }
+                            "logic": {"code": "T20054", "message": "Precious metal currencies not supported in MT210"}
                         }
                     ]
                 }
@@ -74,21 +72,28 @@
                         {
                             "path": "temp_data.prec.valid_amount",
                             "condition": {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Amt"},
-                            "logic": {"<=": [
-                                {"count": [{"match": [{"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Amt"}, "[0-9]"]}]},
-                                14
-                            ]}
+                            "logic": {
+                                "<=": [
+                                    {
+                                        "count": [
+                                            {
+                                                "match": [{"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Amt"}, "[0-9]"]
+                                            }
+                                        ]
+                                    },
+                                    14
+                                ]
+                            }
                         },
                         {
                             "path": "temp_data.prec.error_amount_digits",
-                            "condition": { "and": [
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Amt"},
-                                {"not": {"var": "temp_data.prec.valid_amount"}}
-                            ]},
-                            "logic": {
-                                "code": "T20066",
-                                "message": "Amount exceeds 14 digits"
-                            }
+                            "condition": {
+                                "and": [
+                                    {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Amt"},
+                                    {"not": {"var": "temp_data.prec.valid_amount"}}
+                                ]
+                            },
+                            "logic": {"code": "T20066", "message": "Amount exceeds 14 digits"}
                         }
                     ]
                 }
@@ -104,24 +109,30 @@
                     "mappings": [
                         {
                             "path": "temp_data.prec.debtor_present",
-                            "logic": { "or": [
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Dbtr"},
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Dbtr"}
-                            ]}
+                            "logic": {
+                                "or": [
+                                    {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Dbtr"},
+                                    {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Dbtr"}
+                                ]
+                            }
                         },
                         {
                             "path": "temp_data.prec.debtor_conflict",
-                            "logic": { "and": [
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Dbtr"},
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Dbtr"}
-                            ]}
+                            "logic": {
+                                "and": [
+                                    {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Dbtr"},
+                                    {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Dbtr"}
+                                ]
+                            }
                         },
                         {
                             "path": "temp_data.prec.debtor_agent_present",
-                            "logic": { "or": [
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.DbtrAgt"},
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.DbtrAgt"}
-                            ]}
+                            "logic": {
+                                "or": [
+                                    {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.DbtrAgt"},
+                                    {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.DbtrAgt"}
+                                ]
+                            }
                         }
                     ]
                 }
@@ -150,14 +161,16 @@
                             "condition": {"not": {"var": "temp_data.preconditions_met"}},
                             "logic": {
                                 "success": false,
-                                "errors": {"filter": [
-                                    [
-                                        {"var": "temp_data.prec.error_multiple_items"},
-                                        {"var": "temp_data.prec.error_precious_metal"},
-                                        {"var": "temp_data.prec.error_amount_digits"}
-                                    ],
-                                    {"var": ""}
-                                ]}
+                                "errors": {
+                                    "filter": [
+                                        [
+                                            {"var": "temp_data.prec.error_multiple_items"},
+                                            {"var": "temp_data.prec.error_precious_metal"},
+                                            {"var": "temp_data.prec.error_amount_digits"}
+                                        ],
+                                        {"var": ""}
+                                    ]
+                                }
                             }
                         }
                     ]

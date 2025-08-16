@@ -4,10 +4,12 @@
     "description": "Maps charges breakdown to field 71B and debtor agent to field 52",
     "priority": 5,
     "condition": { "and": [
-        { "or": [
-            {"==": [{"var": "SwiftMT.message_type"}, "190"]},
-            {"==": [{"var": "SwiftMT.message_type"}, "290"]}
-        ]},
+        {
+            "or": [
+                {"==": [{"var": "SwiftMT.message_type"}, "190"]},
+                {"==": [{"var": "SwiftMT.message_type"}, "290"]}
+            ]
+        },
         {"==": [{"var": "progress.workflow_id"}, "camt105-mandatory-fields-mapping"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
@@ -22,42 +24,40 @@
                     "mappings": [
                         {
                             "path": "temp_data.charges_breakdown",
-                            "logic": {"map": [
-                                {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.ChrgsBrkdwn"},
-                                {
-                                    "currency": {"var": ".Amt/@Ccy"},
-                                    "amount": {"var": ".Amt"},
-                                    "type_code": { "if": [
-                                        {"var": ".Tp.Cd"},
-                                        {"var": ".Tp.Cd"},
-                                        { "if": [
-                                            {"var": ".Tp.Prtry"},
-                                            {"var": ".Tp.Prtry"},
-                                            "OTHR"
-                                        ]}
-                                    ]},
-                                    "indicator": { "if": [
-                                        {"==": [{"var": ".CdtDbtInd"}, "CRDT"]},
-                                        "C",
-                                        "D"
-                                    ]}
-                                }
-                            ]}
+                            "logic": {
+                                "map": [
+                                    {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.ChrgsBrkdwn"},
+                                    {
+                                        "currency": {"var": ".Amt/@Ccy"},
+                                        "amount": {"var": ".Amt"},
+                                        "type_code": { "if": [
+                                            {"var": ".Tp.Cd"},
+                                            {"var": ".Tp.Cd"},
+                                            {"if": [{"var": ".Tp.Prtry"}, {"var": ".Tp.Prtry"}, "OTHR"]}
+                                        ]},
+                                        "indicator": {"if": [{"==": [{"var": ".CdtDbtInd"}, "CRDT"]}, "C", "D"]}
+                                    }
+                                ]
+                            }
                         },
                         {
                             "path": "data.SwiftMT.fields.71B",
                             "logic": {
-                                "details_of_charges": {"map": [
-                                    {"slice": [{"var": "temp_data.charges_breakdown"}, 0, 6]},
-                                    {"cat": [
-                                        {"var": ".currency"},
-                                        {"var": ".amount"},
-                                        " ",
-                                        {"var": ".type_code"},
-                                        " ",
-                                        {"var": ".indicator"}
-                                    ]}
-                                ]}
+                                "details_of_charges": {
+                                    "map": [
+                                        {"slice": [{"var": "temp_data.charges_breakdown"}, 0, 6]},
+                                        {
+                                            "cat": [
+                                                {"var": ".currency"},
+                                                {"var": ".amount"},
+                                                " ",
+                                                {"var": ".type_code"},
+                                                " ",
+                                                {"var": ".indicator"}
+                                            ]
+                                        }
+                                    ]
+                                }
                             }
                         },
                         {
@@ -65,11 +65,13 @@
                             "condition": {">": [{"count": {"var": "temp_data.charges_breakdown"}}, 6]},
                             "logic": {
                                 "code": "T20288",
-                                "message": {"cat": [
-                                    "Only first 6 charges breakdown items mapped to field 71B, ",
-                                    {"subtract": [{"count": {"var": "temp_data.charges_breakdown"}}, 6]},
-                                    " items skipped"
-                                ]}
+                                "message": {
+                                    "cat": [
+                                        "Only first 6 charges breakdown items mapped to field 71B, ",
+                                        {"subtract": [{"count": {"var": "temp_data.charges_breakdown"}}, 6]},
+                                        " items skipped"
+                                    ]
+                                }
                             }
                         }
                     ]
@@ -80,10 +82,12 @@
             "id": "map_field_52",
             "name": "Map Field 52 Debtor Agent",
             "description": "Maps debtor agent to field 52A or 52D",
-            "condition": { "or": [
-                {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.DbtrAgt"},
-                {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.DbtrAgtAcct"}
-            ]},
+            "condition": {
+                "or": [
+                    {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.DbtrAgt"},
+                    {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.DbtrAgtAcct"}
+                ]
+            },
             "function": {
                 "name": "map",
                 "input": {
@@ -145,11 +149,13 @@
                                     ]},
                                     { "if": [
                                         {"var": "temp_data.debtor_agent.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                        {"cat": [
-                                            "//",
-                                            {"var": "temp_data.debtor_agent.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                            {"var": "temp_data.debtor_agent.FinInstnId.ClrSysMmbId.MmbId"}
-                                        ]},
+                                        {
+                                            "cat": [
+                                                "//",
+                                                {"var": "temp_data.debtor_agent.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                {"var": "temp_data.debtor_agent.FinInstnId.ClrSysMmbId.MmbId"}
+                                            ]
+                                        },
                                         ""
                                     ]}
                                 ]},
@@ -177,39 +183,41 @@
                                     ]},
                                     ""
                                 ]},
-                                "name_and_address": {"filter": [
-                                    [
-                                        {"substr": [{"var": "temp_data.debtor_agent.FinInstnId.Nm"}, 0, 35]},
-                                        { "if": [
-                                            {"var": "temp_data.debtor_agent.PstlAdr.AdrLine.0"},
-                                            {"substr": [{"var": "temp_data.debtor_agent.PstlAdr.AdrLine.0"}, 0, 35]},
+                                "name_and_address": {
+                                    "filter": [
+                                        [
+                                            {"substr": [{"var": "temp_data.debtor_agent.FinInstnId.Nm"}, 0, 35]},
                                             { "if": [
-                                                {"var": "temp_data.debtor_agent.FinInstnId.PstlAdr.StrtNm"},
-                                                {"substr": [{"var": "temp_data.debtor_agent.FinInstnId.PstlAdr.StrtNm"}, 0, 35]},
-                                                ""
-                                            ]}
-                                        ]},
-                                        { "if": [
-                                            {"var": "temp_data.debtor_agent.PstlAdr.AdrLine.1"},
-                                            {"substr": [{"var": "temp_data.debtor_agent.PstlAdr.AdrLine.1"}, 0, 35]},
+                                                {"var": "temp_data.debtor_agent.PstlAdr.AdrLine.0"},
+                                                {"substr": [{"var": "temp_data.debtor_agent.PstlAdr.AdrLine.0"}, 0, 35]},
+                                                { "if": [
+                                                    {"var": "temp_data.debtor_agent.FinInstnId.PstlAdr.StrtNm"},
+                                                    {"substr": [{"var": "temp_data.debtor_agent.FinInstnId.PstlAdr.StrtNm"}, 0, 35]},
+                                                    ""
+                                                ]}
+                                            ]},
                                             { "if": [
-                                                {"var": "temp_data.debtor_agent.FinInstnId.PstlAdr.TwnNm"},
-                                                {"substr": [{"var": "temp_data.debtor_agent.FinInstnId.PstlAdr.TwnNm"}, 0, 35]},
-                                                ""
-                                            ]}
-                                        ]},
-                                        { "if": [
-                                            {"var": "temp_data.debtor_agent.PstlAdr.AdrLine.2"},
-                                            {"substr": [{"var": "temp_data.debtor_agent.PstlAdr.AdrLine.2"}, 0, 35]},
+                                                {"var": "temp_data.debtor_agent.PstlAdr.AdrLine.1"},
+                                                {"substr": [{"var": "temp_data.debtor_agent.PstlAdr.AdrLine.1"}, 0, 35]},
+                                                { "if": [
+                                                    {"var": "temp_data.debtor_agent.FinInstnId.PstlAdr.TwnNm"},
+                                                    {"substr": [{"var": "temp_data.debtor_agent.FinInstnId.PstlAdr.TwnNm"}, 0, 35]},
+                                                    ""
+                                                ]}
+                                            ]},
                                             { "if": [
-                                                {"var": "temp_data.debtor_agent.FinInstnId.PstlAdr.Ctry"},
-                                                {"var": "temp_data.debtor_agent.FinInstnId.PstlAdr.Ctry"},
-                                                ""
+                                                {"var": "temp_data.debtor_agent.PstlAdr.AdrLine.2"},
+                                                {"substr": [{"var": "temp_data.debtor_agent.PstlAdr.AdrLine.2"}, 0, 35]},
+                                                { "if": [
+                                                    {"var": "temp_data.debtor_agent.FinInstnId.PstlAdr.Ctry"},
+                                                    {"var": "temp_data.debtor_agent.FinInstnId.PstlAdr.Ctry"},
+                                                    ""
+                                                ]}
                                             ]}
-                                        ]}
-                                    ],
-                                    {"var": ""}
-                                ]}
+                                        ],
+                                        {"var": ""}
+                                    ]
+                                }
                             }
                         }
                     ]

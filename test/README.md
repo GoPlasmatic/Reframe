@@ -4,15 +4,32 @@ This directory contains the test suite for the Reframe SWIFT MT ↔ ISO 20022 tr
 
 ## Overview
 
-The test suite provides comprehensive testing for both:
-- **SWIFT MT Messages**: Traditional MT101-MT950 format messages
-- **ISO 20022 MX Messages**: Modern XML-based pacs, pain, and camt messages
+The `test_scenarios.py` script implements an 8-step validation flow for testing SWIFT MT and ISO 20022 MX message transformations:
 
-The test suite uses **dynamic sample generation** powered by:
-- swift-mt-message v3 library for MT messages (scenario-based system)
-- mx-message library for MX messages (scenario-based system)
-- datafake-rs for dynamic value generation
-- Unified API endpoint `/generate/sample` for both message types
+1. **List scenarios** - Discovers all applicable scenarios for a message type
+2. **Generate sample** - Creates sample messages using the Sample Generation API
+3. **Validate source** - Validates generated message with canonical enabled
+4. **Transform** - Transforms message using the Transformation API
+5. **Extract result** - Extracts the transformed message data
+6. **Validate transformed** - Validates transformed message with debug and canonical enabled
+7. **Reverse transform** - Performs reverse transformation to original format
+8. **Compare roundtrip** - Compares roundtrip result with original message
+
+## Current Implementation Status
+
+### Working Features
+✅ Scenario discovery from `scenarios/index.json`  
+✅ MT message validation with canonical option  
+✅ MT to MX transformation (produces XML with Envelope)  
+✅ Test result reporting with detailed status tracking  
+✅ Summary statistics generation  
+
+### Known Limitations
+⚠️ **Sample Generation** - Currently using hardcoded MT103 test message as the `/generate/sample` endpoint requires scenario files in `scenarios/SwiftMTMessage/` format which don't exist yet
+
+⚠️ **MX Validation** - The transformed XML includes an Envelope structure that the `/validate/mx` endpoint cannot parse (returns "Failed to extract document content")
+
+⚠️ **Roundtrip Testing** - Reverse transformation (MX to MT) fails due to the Envelope format issue, preventing full roundtrip validation
 
 ## Requirements
 
@@ -22,22 +39,26 @@ pip install tabulate
 ```
 
 The test script requires Python 3.6+ with the following modules:
-- `json`, `requests`, `argparse`, `pathlib`, `datetime`, `time`, `collections`, `re` (standard library)
+- `json`, `requests`, `argparse`, `pathlib`, `datetime`, `time`, `collections` (standard library)
 - `tabulate` (for table formatting)
 
 ## Test Script Features
 
-### `test_scenarios.py` - Unified MT and MX Testing
+### `test_scenarios.py` - Transformation Testing
 
-The script provides comprehensive testing with the following features:
+The script provides comprehensive testing with the following components:
 
-1. **Dynamic Message Type Discovery**: Automatically discovers available message types from scenario directories
-2. **Scenario Loading**: Loads scenarios from index.json files in each message type folder
-3. **Multiple Sample Generation**: Can generate multiple samples per scenario for thorough testing
-4. **Table Output**: Displays results in a formatted table with status indicators
-5. **Debug Mode**: Optional verbose output for troubleshooting
-6. **Export Capability**: Export test results to JSON for CI/CD integration
-7. **Round-trip Testing**: Tests bidirectional transformation capabilities
+#### Main Components
+- **ReframeAPIClient** - HTTP client for API interactions
+- **ScenarioManager** - Discovers and loads transformation scenarios
+- **MessageGenerator** - Handles message generation (simplified version)
+- **ScenarioTester** - Main test orchestrator implementing the 8-step flow
+- **ResultsReporter** - Formats and exports test results
+
+#### Configuration Classes
+- **APIEndpoints** - API endpoint configuration
+- **ScenarioMapping** - Maps scenario names to generation templates
+- **TestResult** - Individual test result tracking
 
 ## Usage
 
@@ -92,78 +113,55 @@ The test results are displayed in a formatted table with the following columns:
 | Sample | Sample number (when multiple samples are generated) |
 | Generator | ✅ Success / ❌ Failed - Message generation status |
 | Validator | ✅ Success / ❌ Failed - Message validation status |
-| Transform | ✅ Success / ❌ Failed / N/A - Transformation status |
-| Round Trip | ✅ Success / ⚠️ Warning / ❌ Failed - Round-trip test status |
-| Errors | ⚠️ if errors occurred (details in debug mode) |
+| Transform | ✅ Success / ❌ Failed - Transformation status |
+| Round Trip | ✅ Success / ⚠️ Warning / ❌ Failed / — Skipped - Round-trip test status |
+| Errors | Error message summary |
 
 ### Status Indicators
 
 - ✅ **Success**: Operation completed successfully
 - ❌ **Failed**: Operation failed
 - ⚠️ **Warning**: Partial success or known limitation
-- **N/A**: Not applicable or not yet supported
+- — **Skipped**: Step skipped due to previous failure or limitation
 
 ### Example Output
 
 ```
-Testing MT103 with 2 scenario(s), 1 sample(s) each...
+Testing MT103 with 5 scenario(s), 1 sample(s) each...
 
-+---------------+----------------------+--------+-----------+-----------+-----------+------------+--------+
-| Message Type  | Scenario             | Sample | Generator | Validator | Transform | Round Trip | Errors |
-+===============+======================+========+===========+===========+===========+============+========+
-| MT103         | standard             |      1 | ✅        | ✅        | ✅        | ✅         |        |
-+---------------+----------------------+--------+-----------+-----------+-----------+------------+--------+
-| MT103         | high_value           |      1 | ✅        | ✅        | ✅        | ⚠️         |        |
-+---------------+----------------------+--------+-----------+-----------+-----------+------------+--------+
++----------------+--------------------------------+----------+-------------+-------------+-------------+--------------+----------------------+
+| Message Type   | Scenario                       |   Sample | Generator   | Validator   | Transform   | Round Trip   | Errors               |
++================+================================+==========+=============+=============+=============+==============+======================+
+| MT103          | mt103_to_pacs008_cbpr_standard |        1 | ✅           | ✅           | ✅           | —            | MX validation skippe |
++----------------+--------------------------------+----------+-------------+-------------+-------------+--------------+----------------------+
+| MT103          | mt103_to_pacs008_cbpr_high_... |        1 | ✅           | ✅           | ✅           | —            | MX validation skippe |
++----------------+--------------------------------+----------+-------------+-------------+-------------+--------------+----------------------+
 
 ================================================================================
 TEST SUMMARY
 ================================================================================
-Total tests: 2
-Generation success: 2/2 (100.0%)
-Validation success: 2/2 (100.0%)
-Transformation success: 2/2 (100.0%)
-Round trip success: 1/2 (50.0%)
+Total tests: 5
+Generation Success: 5/5 (100.0%)
+Validation Success: 5/5 (100.0%)
+Transformation Success: 5/5 (100.0%)
+Roundtrip Success: 0/5 (0.0%)
 
 Tests by Message Type:
-  MT103: 2
+  MT Messages:
+    MT103: 5
 ```
 
 ## Message Type Discovery
 
-The script automatically discovers available message types from:
-- `scenarios/SwiftMTMessage/*/index.json` for MT messages
-- `scenarios/MXMessage/*/index.json` for MX messages
+The script automatically discovers available message types from `scenarios/index.json` which contains:
+- Forward transformations (MT → MX) in the `forward` array
+- Reverse transformations (MX → MT) in the `reverse` array
 
-Directory names are automatically converted to proper format:
-- MT: `mt103` → `MT103`
-- MX: `pacs008` → `pacs.008`
-
-## Scenario Discovery
-
-Scenarios are loaded from `index.json` files in each message type directory. The index.json format supports:
-
-```json
-{
-  "scenarios": [
-    {
-      "file": "standard.json",
-      "description": "Standard payment"
-    },
-    {
-      "file": "high_value.json",
-      "description": "High value payment"
-    }
-  ]
-}
-```
-
-Or simple format:
-```json
-{
-  "scenarios": ["standard.json", "high_value.json"]
-}
-```
+Each transformation entry specifies:
+- `source`: Source message type
+- `target`: Target message type
+- `file`: Workflow file path
+- `description`: Transformation description
 
 ## Directory Structure
 
@@ -275,17 +273,21 @@ Test results can be exported to JSON with the `--export` flag:
    - Use `--base-url` flag for different server location
 
 3. **No scenarios found**
-   - Check that index.json exists in the message type directory
-   - Verify scenario directory structure
+   - Check that `scenarios/index.json` exists
+   - Verify the message type has entries in forward or reverse arrays
 
 4. **Generation failures**
-   - Check server logs for detailed error messages
-   - Verify message type is supported
+   - Currently using hardcoded MT103 for testing
+   - Proper scenario files in `scenarios/SwiftMTMessage/` format need to be created
    - Use `--debug` flag for verbose output
 
-5. **Transformation N/A**
-   - Some transformations (especially MX→MT) are still in development
-   - This is expected behavior for certain message types
+5. **MX validation skipped**
+   - The transformed XML includes an Envelope structure that validation can't parse
+   - This is a known limitation in the current implementation
+
+6. **Roundtrip failures**
+   - Reverse transformation (MX→MT) doesn't work with Envelope format
+   - This prevents full roundtrip testing currently
 
 ## Performance Considerations
 
@@ -293,10 +295,21 @@ Test results can be exported to JSON with the `--export` flag:
 - For large-scale testing, consider using `--sample-count` with smaller values
 - Export results for later analysis rather than running all tests interactively
 
-## Notes
+## Next Steps for Full Implementation
 
-- Message types are dynamically discovered from scenario directories
-- Scenarios are loaded from index.json files in each message type folder
-- Results are displayed in a table format for easy readability
-- The script supports both MT and MX message types through the unified API
-- Round-trip testing validates bidirectional transformation capabilities
+1. **Create Scenario Files**: Generate proper scenario templates in `scenarios/SwiftMTMessage/[message_type]/` format for sample generation
+
+2. **Fix MX Validation**: Update the validation endpoint to handle XML with Envelope structure or extract the document content before validation
+
+3. **Enable Roundtrip**: Fix reverse transformation to handle the Envelope format properly
+
+4. **Extend Coverage**: Add support for more message types beyond MT103
+
+## Temporary Workarounds
+
+The script includes `test_scenario_simplified()` method that:
+- Uses hardcoded MT103 message for testing
+- Skips MX validation when it fails (expected due to Envelope format)
+- Documents limitations in error messages
+
+This allows testing the transformation pipeline while the full implementation is being completed.

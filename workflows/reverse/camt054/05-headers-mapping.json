@@ -1,0 +1,121 @@
+{
+    "id": "camt054-headers-mapping",
+    "name": "camt.054 Headers Mapping",
+    "description": "Maps headers for all camt.054 variants (MT103 Advice, MT202 Advice, MT900, MT910)",
+    "priority": 5,
+    "condition": { "and": [
+        { "in": [{"var": "SwiftMT.variant"}, ["MT103_ADVICE", "MT202_ADVICE", "MT900", "MT910"]]},
+        { "or": [
+            { "and": [
+                {"==": [{"var": "SwiftMT.variant"}, "MT103_ADVICE"]},
+                {"==": [{"var": "progress.workflow_id"}, "camt054-to-mt103-preconditions"]},
+                {"var": "temp_data.mt103_preconditions_met"}
+            ]},
+            { "and": [
+                {"==": [{"var": "SwiftMT.variant"}, "MT202_ADVICE"]},
+                {"==": [{"var": "progress.workflow_id"}, "camt054-to-mt202-preconditions"]},
+                {"var": "temp_data.mt202_preconditions_met"}
+            ]},
+            { "and": [
+                { "in": [{"var": "SwiftMT.variant"}, ["MT900", "MT910"]]},
+                {"==": [{"var": "progress.workflow_id"}, "camt054-to-mt9x0-preconditions"]},
+                {"var": "temp_data.mt9x0_preconditions_met"}
+            ]}
+        ]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_basic_header",
+            "name": "Map Basic Header",
+            "description": "Maps sender and receiver BIC for all variants",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.basic_header",
+                            "logic": {
+                                "application_id": "F",
+                                "service_id": "01",
+                                "sender_bic": { "if": [
+                                    {"var": "data.ISO20022_MX.header.From.FinancialInstitutionIdentification.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.From.FinancialInstitutionIdentification.BICFI"},
+                                    "NOTPROVIDED"
+                                ]},
+                                "receiver_bic": { "if": [
+                                    {"var": "data.ISO20022_MX.header.To.FinancialInstitutionIdentification.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.To.FinancialInstitutionIdentification.BICFI"},
+                                    "NOTPROVIDED"
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_application_header",
+            "name": "Map Application Header",
+            "description": "Maps application header specific to message type",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.application_header",
+                            "logic": {
+                                "input_output_identifier": "O",
+                                "message_type": {"var": "data.SwiftMT.message_type"},
+                                "receiver_bic": {"var": "data.SwiftMT.basic_header.receiver_bic"},
+                                "priority": "N",
+                                "delivery_monitoring": "",
+                                "obsolescence_period": ""
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_user_header",
+            "name": "Map User Header",
+            "description": "Maps user header with UETR for applicable message types",
+            "condition": { "in": [{"var": "SwiftMT.variant"}, ["MT103_ADVICE", "MT202_ADVICE"]]},
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.user_header",
+                            "logic": {
+                                "unique_end_to_end_transaction_reference": {"var": "temp_data.txn_path.Refs.UETR"}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "set_message_priority",
+            "name": "Set Message Priority",
+            "description": "Sets message priority based on amount for MT103 Advice",
+            "condition": {"==": [{"var": "SwiftMT.variant"}, "MT103_ADVICE"]},
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.application_header.priority",
+                            "logic": { "if": [
+                                {">": [{"var": "temp_data.txn_path.Amt"}, 1000000]},
+                                "U",
+                                "N"
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

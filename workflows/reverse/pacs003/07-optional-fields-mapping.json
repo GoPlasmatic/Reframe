@@ -1,0 +1,160 @@
+{
+    "id": "pacs003-to-mt104-optional-fields",
+    "name": "pacs.003 to MT104 Optional Fields Mapping",
+    "description": "Maps optional fields including direct debit specific fields, charges, and instruction codes",
+    "priority": 7,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "104"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs003-to-mt104-agent-fields"]},
+        {"==": [{"var": "progress.task_id"}, "map_debtor_agent"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_direct_debit_fields",
+            "name": "Map Direct Debit Specific Fields",
+            "description": "Maps mandate reference (21C), registration reference (21E)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.21C",
+                            "condition": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DrctDbtTx.MndtRltdInf.MndtId"},
+                            "logic": {
+                                "mandate_reference": {"substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DrctDbtTx.MndtRltdInf.MndtId"}, 0, 35]}
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.21E",
+                            "condition": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DrctDbtTx.PreNtfctnId"},
+                            "logic": {
+                                "registration_reference": {"substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DrctDbtTx.PreNtfctnId"}, 0, 35]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_amount_fields_optional",
+            "name": "Map Optional Amount Fields",
+            "description": "Maps field 33B (InstructedAmount) and field 36 (Exchange Rate)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.33B",
+                            "condition": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.InstdAmt"},
+                            "logic": {
+                                "currency": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.InstdAmt.@Ccy"},
+                                "amount": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.InstdAmt.$value"}
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.36",
+                            "condition": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.XchgRate"},
+                            "logic": {
+                                "exchange_rate": {"substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.XchgRate"}, 0, 12]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_charges",
+            "name": "Map Charges Fields",
+            "description": "Maps ChargeBearer to field 71A and ChargesInformation to fields 71F and 71G",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.71A",
+                            "logic": {
+                                "details_of_charges": { "if": [
+                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.ChrgBr"},
+                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.ChrgBr"},
+                                    null
+                                ]}
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.71F",
+                            "condition": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.ChrgsInf"},
+                            "logic": {
+                                "senders_charges": {"map": [
+                                    {"filter": [
+                                        {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.ChrgsInf"},
+                                        { "and": [
+                                            {"var": "Agt.FinInstnId.BICFI"},
+                                            {"==": [
+                                                {"var": "Agt.FinInstnId.BICFI"},
+                                                {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}
+                                            ]}
+                                        ]}
+                                    ]},
+                                    {
+                                        "currency": {"var": "Amt.@Ccy"},
+                                        "amount": {"var": "Amt.$value"}
+                                    }
+                                ]}
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.71G",
+                            "condition": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.ChrgsInf"},
+                            "logic": {
+                                "receivers_charges": {"map": [
+                                    {"filter": [
+                                        {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.ChrgsInf"},
+                                        { "and": [
+                                            {"var": "Agt.FinInstnId.BICFI"},
+                                            {"==": [
+                                                {"var": "Agt.FinInstnId.BICFI"},
+                                                {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}
+                                            ]}
+                                        ]}
+                                    ]},
+                                    {
+                                        "currency": {"var": "Amt.@Ccy"},
+                                        "amount": {"var": "Amt.$value"}
+                                    }
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_instruction_code",
+            "name": "Map Instruction Code Field 23E",
+            "description": "Maps LocalInstrument to field 23E",
+            "condition": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.PmtTpInf.LclInstrm"},
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.23E",
+                            "logic": {
+                                "instruction_code": { "if": [
+                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.PmtTpInf.LclInstrm.Cd"},
+                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.PmtTpInf.LclInstrm.Cd"},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.PmtTpInf.LclInstrm.Prtry"},
+                                        {"cat": ["OTHR/", {"substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.PmtTpInf.LclInstrm.Prtry"}, 0, 30]}]},
+                                        null
+                                    ]}
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

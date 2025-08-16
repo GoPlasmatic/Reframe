@@ -1,0 +1,81 @@
+{
+    "id": "mt200-precondition",
+    "name": "MT200 to pacs.009 Precondition Validation",
+    "description": "Validates MT200 messages against CBPR+ requirements for FI Transfer for Own Account before transformation to pacs.009.001.08",
+    "priority": 3,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "200"]},
+        {"==": [{"var": "progress.workflow_id"}, "mt200-bah-mapper"]},
+        {"==": [{"var": "progress.task_id"}, "publish_header_xml"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "PREC002_validate_no_rejection_return",
+            "name": "Validate No Rejection or Return Indicators",
+            "description": "Ensures field 72 does not start with /REJT/ or /RETN/ codes which are not allowed in CBPR+ MT200 transformation",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": { "!": {
+                                "or": [
+                                    { "and": [
+                                        {"var": "data.SwiftMT.fields.72.sender_to_receiver_info"},
+                                        {"regex_match": [{"var": "data.SwiftMT.fields.72.sender_to_receiver_info"}, "^/REJT/"]}
+                                    ]},
+                                    { "and": [
+                                        {"var": "data.SwiftMT.fields.72.sender_to_receiver_info"},
+                                        {"regex_match": [{"var": "data.SwiftMT.fields.72.sender_to_receiver_info"}, "^/RETN/"]}
+                                    ]}
+                                ]
+                            }},
+                            "error_code": "T20063",
+                            "error_message": "MT200 message cannot contain /REJT/ or /RETN/ codes in field 72 for CBPR+ transformation"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC003_validate_uetr_presence",
+            "name": "Validate UETR Presence",
+            "description": "Ensures UETR (Unique End-to-End Transaction Reference) is present in block 3 as mandatory for CBPR+ pacs.009",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": {"var": "data.SwiftMT.user_header.unique_end_to_end_transaction_reference"},
+                            "error_code": "T20087",
+                            "error_message": "UETR is mandatory in CBPR+ pacs.009 transformation but not found in MT200 block 3"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_core_compatibility",
+            "name": "Validate Core Compatibility",
+            "description": "Validates MT200 message is compatible with CORE workflow for FI Transfer for Own Account",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": {"var": "data.SwiftMT.fields.20.reference"},
+                            "error_code": "T20001",
+                            "error_message": "Field 20 (Transaction Reference Number) is mandatory for MT200 transformation"
+                        },
+                        {
+                            "rule": {"var": "data.SwiftMT.fields.32A"},
+                            "error_code": "T20002",
+                            "error_message": "Field 32A (Value Date, Currency Code, Amount) is mandatory for MT200 transformation"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

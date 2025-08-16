@@ -1,0 +1,64 @@
+{
+    "id": "pain001-variant-detection",
+    "name": "pain.001 Variant Detection",
+    "description": "Detects pain.001 CBPR+ variant and validates single transaction requirement for MT101 transformation",
+    "priority": 1,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pain.001.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "detect_variant",
+            "name": "Detect pain.001 Variant",
+            "description": "Validates pain.001 is CBPR+ variant and has single transaction for MT101 transformation",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.variant",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"==": [{"var": "data.ISO20022_MX.header.BizSvc"}, "swift.cbprplus.02"]},
+                                    {"==": [{"var": "data.ISO20022_MX.document.GrpHdr.NbOfTxs"}, "1"]},
+                                    {"==": [{"length": {"var": "data.ISO20022_MX.document.PmtInf"}}, 1]},
+                                    {"==": [{"length": {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf"}}, 1]}
+                                ]},
+                                "CBPR_SINGLE",
+                                "INVALID"
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT",
+                            "logic": {
+                                "message_type": "101",
+                                "variant": {"var": "temp_data.variant"}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_variant",
+            "name": "Validate Variant",
+            "description": "Ensures pain.001 is valid for MT101 transformation",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": {"==": [{"var": "temp_data.variant"}, "CBPR_SINGLE"]},
+                            "error_code": "T20053",
+                            "error_message": "pain.001 must be CBPR+ variant with single transaction for MT101 transformation"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,146 @@
+{
+    "id": "camt054-variant-detection",
+    "name": "camt.054 Variant Detection and Target Message Determination",
+    "description": "Detects which MT message type to translate to based on indicators and preconditions",
+    "priority": 1,
+    "condition": { "and": [
+        {"==": [{"var": "data.ISO20022_MX.message_type"}, "camt.054"]},
+        {"==": [{"var": "data.ISO20022_MX.message_version"}, "001.08"]},
+        {"==": [{"var": "progress.workflow_id"}, "parse-mx"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "check_trans103_indicator",
+            "name": "Check for MT103 Advice Indicator",
+            "description": "Checks if /TRANS103/ indicator is present in AddtlNtfctnInf",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.trans103_indicator",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.AddtlNtfctnInf"},
+                                {"in": ["/TRANS103/", {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.AddtlNtfctnInf"}]},
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.trans202_indicator",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.AddtlNtfctnInf"},
+                                {"in": ["/TRANS202/", {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.AddtlNtfctnInf"}]},
+                                false
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "check_entry_status",
+            "name": "Check Entry Status",
+            "description": "Validates that Entry status is BOOK",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.entry_status_valid",
+                            "logic": {"==": [{"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.Sts"}, "BOOK"]}
+                        },
+                        {
+                            "path": "temp_data.credit_debit_indicator",
+                            "logic": {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.CdtDbtInd"}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "check_occurrence_counts",
+            "name": "Check Single Occurrence",
+            "description": "Validates single occurrence of Notification, Entry, EntryDetails, TransactionDetails",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.single_occurrence",
+                            "logic": { "and": [
+                                {"<=": [{"count": {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn"}}, 1]},
+                                {"<=": [{"count": {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry"}}, 1]},
+                                {"<=": [{"count": {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls"}}, 1]},
+                                {"<=": [{"count": {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls"}}, 1]}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "determine_target_message",
+            "name": "Determine Target Message Type",
+            "description": "Determines which MT message type to translate to based on indicators and preconditions",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.variant",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "temp_data.trans103_indicator"},
+                                    {"var": "temp_data.entry_status_valid"},
+                                    {"var": "temp_data.single_occurrence"}
+                                ]},
+                                "MT103_ADVICE",
+                                { "if": [
+                                    { "and": [
+                                        {"var": "temp_data.trans202_indicator"},
+                                        {"var": "temp_data.entry_status_valid"},
+                                        {"var": "temp_data.single_occurrence"}
+                                    ]},
+                                    "MT202_ADVICE",
+                                    { "if": [
+                                        { "and": [
+                                            {"var": "temp_data.entry_status_valid"},
+                                            {"var": "temp_data.single_occurrence"}
+                                        ]},
+                                        { "if": [
+                                            {"==": [{"var": "temp_data.credit_debit_indicator"}, "CRDT"]},
+                                            "MT910",
+                                            "MT900"
+                                        ]},
+                                        "UNSUPPORTED"
+                                    ]}
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.message_type",
+                            "logic": { "if": [
+                                {"==": [{"var": "data.SwiftMT.variant"}, "MT103_ADVICE"]},
+                                "103",
+                                { "if": [
+                                    {"==": [{"var": "data.SwiftMT.variant"}, "MT202_ADVICE"]},
+                                    "202",
+                                    { "if": [
+                                        {"==": [{"var": "data.SwiftMT.variant"}, "MT910"]},
+                                        "910",
+                                        { "if": [
+                                            {"==": [{"var": "data.SwiftMT.variant"}, "MT900"]},
+                                            "900",
+                                            null
+                                        ]}
+                                    ]}
+                                ]}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

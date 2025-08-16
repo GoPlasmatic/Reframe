@@ -1,0 +1,92 @@
+{
+    "id": "pain001-to-mt101-headers",
+    "name": "pain.001 to MT101 Headers Mapping",
+    "description": "Maps pain.001 header information to MT101 basic and application headers",
+    "priority": 3,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "101"]},
+        {"==": [{"var": "SwiftMT.variant"}, "CBPR_SINGLE"]},
+        {"==": [{"var": "progress.workflow_id"}, "pain001-to-mt101-preconditions"]},
+        {"in": [{"var": "progress.task_id"}, ["PREC016_validate_creditor_agent_account"]]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_basic_header",
+            "name": "Map Basic Header",
+            "description": "Maps sender and receiver BIC from pain.001 to MT101 basic header",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.basic_header",
+                            "logic": {
+                                "application_id": "F",
+                                "service_id": "01",
+                                "sender_bic": { "if": [
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.InitgPty.Id.OrgId.AnyBIC"},
+                                    "NOTPROVIDED"
+                                ]},
+                                "session_number": "0000",
+                                "sequence_number": "000001"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_application_header",
+            "name": "Map Application Header",
+            "description": "Maps application header fields for MT101",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.application_header",
+                            "logic": {
+                                "io_identifier": "I",
+                                "message_type": "101",
+                                "receiver_bic": { "if": [
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.DbtrAgt.FinInstnId.BICFI"},
+                                    "NOTPROVIDED"
+                                ]},
+                                "priority": "N",
+                                "delivery_monitoring": "",
+                                "obsolescence_period": ""
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_user_header",
+            "name": "Map User Header (Block 3)",
+            "description": "Maps UETR and service type to MT101 user header block 3",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.user_header",
+                            "logic": {
+                                "unique_end_to_end_transaction_reference": { "if": [
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.PmtId.UETR"},
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.PmtId.UETR"},
+                                    null
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

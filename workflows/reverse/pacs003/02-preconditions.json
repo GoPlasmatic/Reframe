@@ -1,0 +1,88 @@
+{
+    "id": "pacs003-to-mt104-preconditions",
+    "name": "pacs.003 to MT104 Preconditions Validation",
+    "description": "Validates preconditions for pacs.003 to MT104 transformation according to CBPR+ specification",
+    "priority": 2,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "104"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs003-variant-detection"]},
+        {"==": [{"var": "progress.task_id"}, "detect_variant"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "PREC001_validate_amounts",
+            "name": "PREC001: Validate Amounts Difference",
+            "description": "Ensures InstructedAmount and InterbankSettlementAmount are different if both present",
+            "condition": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.InstdAmt"},
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": { "!": { "and": [
+                                {"==": [
+                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.InstdAmt.$value"},
+                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.IntrBkSttlmAmt.$value"}
+                                ]},
+                                {"==": [
+                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.InstdAmt.@Ccy"},
+                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.IntrBkSttlmAmt.@Ccy"}
+                                ]}
+                            ]}},
+                            "error_code": "T20319",
+                            "error_message": "PREC001: InstructedAmount and its Currency must be different from InterbankSettlementAmount and its Currency"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_mandatory_elements",
+            "name": "Validate Mandatory Elements",
+            "description": "Validates that all required elements for MT104 are present",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.PmtId.InstrId"},
+                            "error_code": "T20001",
+                            "error_message": "InstructionIdentification is mandatory for MT104 field 20"
+                        },
+                        {
+                            "rule": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.IntrBkSttlmAmt"},
+                            "error_code": "T20002",
+                            "error_message": "InterbankSettlementAmount is mandatory for MT104 field 32B"
+                        },
+                        {
+                            "rule": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.ReqdColltnDt"},
+                            "error_code": "T20003",
+                            "error_message": "RequestedCollectionDate is mandatory for MT104 field 30"
+                        },
+                        {
+                            "rule": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.Cdtr"},
+                            "error_code": "T20004",
+                            "error_message": "Creditor is mandatory for MT104 field 50"
+                        },
+                        {
+                            "rule": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgt"},
+                            "error_code": "T20005",
+                            "error_message": "CreditorAgent is mandatory for MT104 field 52"
+                        },
+                        {
+                            "rule": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.Dbtr"},
+                            "error_code": "T20006",
+                            "error_message": "Debtor is mandatory for MT104 field 59"
+                        },
+                        {
+                            "rule": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgt"},
+                            "error_code": "T20007",
+                            "error_message": "DebtorAgent is mandatory for MT104 field 57"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

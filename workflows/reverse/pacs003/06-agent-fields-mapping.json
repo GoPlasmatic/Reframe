@@ -1,0 +1,188 @@
+{
+    "id": "pacs003-to-mt104-agent-fields",
+    "name": "pacs.003 to MT104 Agent Fields Mapping",
+    "description": "Maps agent fields including CreditorAgent (52A/D), DebtorAgent (57A/D), and Sender's Correspondent (53B)",
+    "priority": 6,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "104"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs003-to-mt104-party-fields"]},
+        {"==": [{"var": "progress.task_id"}, "map_debtor_field_59"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_senders_correspondent",
+            "name": "Map Sender's Correspondent Field 53B",
+            "description": "Maps SettlementAccount to field 53B",
+            "condition": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct"},
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.53B",
+                            "logic": {
+                                "party_identifier": { "if": [
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"},
+                                    {"cat": ["/", {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"}]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"},
+                                        {"cat": ["/", {"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}, 0, 33]}]},
+                                        null
+                                    ]}
+                                ]},
+                                "location": { "if": [
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Nm"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Nm"}, 0, 35]},
+                                    null
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_creditor_agent",
+            "name": "Map Creditor Agent Field 52A/D",
+            "description": "Maps CreditorAgent to field 52A or 52D",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.52",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgt.FinInstnId.BICFI"},
+                                {
+                                    "A": {
+                                        "party_identifier": { "if": [
+                                            {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgtAcct.Id.IBAN"},
+                                            {"cat": ["/", {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgtAcct.Id.IBAN"}]},
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgtAcct.Id.Othr.Id"},
+                                                {"cat": ["/", {"substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgtAcct.Id.Othr.Id"}, 0, 33]}]},
+                                                null
+                                            ]}
+                                        ]},
+                                        "identifier_code": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgt.FinInstnId.BICFI"}
+                                    }
+                                },
+                                { "if": [
+                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                    {
+                                        "D": {
+                                            "party_identifier": {"cat": [
+                                                "//",
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                    ""
+                                                ]},
+                                                {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                            ]},
+                                            "name_and_address": [
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgt.FinInstnId.Nm"},
+                                                    {"substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgt.FinInstnId.Nm"}, 0, 35]},
+                                                    "NOTPROVIDED"
+                                                ]},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgt.FinInstnId.PstlAdr.AdrLine.0"},
+                                                    {"substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgt.FinInstnId.PstlAdr.AdrLine.0"}, 0, 35]},
+                                                    null
+                                                ]},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgt.FinInstnId.PstlAdr.AdrLine.1"},
+                                                    {"substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgt.FinInstnId.PstlAdr.AdrLine.1"}, 0, 35]},
+                                                    null
+                                                ]},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgt.FinInstnId.PstlAdr.Ctry"},
+                                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgt.FinInstnId.PstlAdr.Ctry"},
+                                                    null
+                                                ]}
+                                            ]
+                                        }
+                                    },
+                                    null
+                                ]}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_debtor_agent",
+            "name": "Map Debtor Agent Field 57A/D",
+            "description": "Maps DebtorAgent to field 57A or 57D",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.57",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgt.FinInstnId.BICFI"},
+                                {
+                                    "A": {
+                                        "party_identifier": { "if": [
+                                            {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgtAcct.Id.IBAN"},
+                                            {"cat": ["/", {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgtAcct.Id.IBAN"}]},
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgtAcct.Id.Othr.Id"},
+                                                {"cat": ["/", {"substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgtAcct.Id.Othr.Id"}, 0, 33]}]},
+                                                null
+                                            ]}
+                                        ]},
+                                        "identifier_code": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgt.FinInstnId.BICFI"}
+                                    }
+                                },
+                                { "if": [
+                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                    {
+                                        "D": {
+                                            "party_identifier": {"cat": [
+                                                "//",
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                    ""
+                                                ]},
+                                                {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                            ]},
+                                            "name_and_address": [
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgt.FinInstnId.Nm"},
+                                                    {"substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgt.FinInstnId.Nm"}, 0, 35]},
+                                                    "NOTPROVIDED"
+                                                ]},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgt.FinInstnId.PstlAdr.AdrLine.0"},
+                                                    {"substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgt.FinInstnId.PstlAdr.AdrLine.0"}, 0, 35]},
+                                                    null
+                                                ]},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgt.FinInstnId.PstlAdr.AdrLine.1"},
+                                                    {"substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgt.FinInstnId.PstlAdr.AdrLine.1"}, 0, 35]},
+                                                    null
+                                                ]},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgt.FinInstnId.PstlAdr.Ctry"},
+                                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgt.FinInstnId.PstlAdr.Ctry"},
+                                                    null
+                                                ]}
+                                            ]
+                                        }
+                                    },
+                                    null
+                                ]}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

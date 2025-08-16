@@ -1,0 +1,42 @@
+{
+    "id": "pacs003-variant-detection",
+    "name": "pacs.003 Variant Detection",
+    "description": "Detects pacs.003 CBPR+ variant for MT104 Direct Debit transformation",
+    "priority": 1,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.003.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "detect_variant",
+            "name": "Detect pacs.003 Variant",
+            "description": "Validates pacs.003 is CBPR+ variant for MT104 transformation",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.variant",
+                            "logic": { "if": [
+                                {"==": [{"var": "data.ISO20022_MX.header.BizSvc"}, "swift.cbprplus.02"]},
+                                "CBPR",
+                                "STANDARD"
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT",
+                            "logic": {
+                                "message_type": "104",
+                                "variant": {"var": "temp_data.variant"}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

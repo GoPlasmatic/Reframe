@@ -1,0 +1,262 @@
+{
+    "id": "pain001-to-mt101-preconditions",
+    "name": "pain.001 to MT101 Preconditions Validation",
+    "description": "Validates preconditions for pain.001 to MT101 transformation according to CBPR+ specification PREC001-PREC017",
+    "priority": 2,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "101"]},
+        {"==": [{"var": "SwiftMT.variant"}, "CBPR_SINGLE"]},
+        {"==": [{"var": "progress.workflow_id"}, "pain001-variant-detection"]},
+        {"==": [{"var": "progress.task_id"}, "validate_variant"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "PREC001_validate_initiating_party",
+            "name": "PREC001: Validate Initiating Party",
+            "description": "Ensures InitiatingParty has either BIC or Name for field 50C/L mapping",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": { "or": [
+                                {"var": "data.ISO20022_MX.document.GrpHdr.InitgPty.Id.OrgId.AnyBIC"},
+                                {"var": "data.ISO20022_MX.document.GrpHdr.InitgPty.Nm"}
+                            ]},
+                            "error_code": "T20322",
+                            "error_message": "PREC001: InitiatingParty must have either BIC or Name"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC002_validate_debtor_agent",
+            "name": "PREC002: Validate Debtor Agent",
+            "description": "Ensures DebtorAgent has BIC or ClearingSystemMemberIdentification for field 52A/C mapping",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": { "or": [
+                                {"var": "data.ISO20022_MX.document.PmtInf.0.DbtrAgt.FinInstnId.BICFI"},
+                                {"var": "data.ISO20022_MX.document.PmtInf.0.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                            ]},
+                            "error_code": "T20323",
+                            "error_message": "PREC002: DebtorAgent must have BICFI or ClearingSystemMemberIdentification"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC003_validate_intermediary_agent",
+            "name": "PREC003: Validate Intermediary Agent",
+            "description": "Ensures IntermediaryAgent1 if present has required identification",
+            "condition": {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.IntrmyAgt1"},
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": { "or": [
+                                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.IntrmyAgt1.FinInstnId.BICFI"},
+                                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.IntrmyAgt1.FinInstnId.Nm"},
+                                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}
+                            ]},
+                            "error_code": "T20324",
+                            "error_message": "PREC003: IntermediaryAgent1 must have BICFI, Name or ClearingSystemMemberIdentification"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC004_validate_creditor_agent",
+            "name": "PREC004: Validate Creditor Agent",
+            "description": "Ensures CreditorAgent if present has required identification",
+            "condition": {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.CdtrAgt"},
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": { "or": [
+                                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.CdtrAgt.FinInstnId.BICFI"},
+                                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.CdtrAgt.FinInstnId.Nm"},
+                                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                            ]},
+                            "error_code": "T20324",
+                            "error_message": "PREC004: CreditorAgent must have BICFI, Name or ClearingSystemMemberIdentification"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC005_validate_agent_hierarchy",
+            "name": "PREC005: Validate Agent Hierarchy",
+            "description": "Ensures CreditorAgent is present when IntermediaryAgent1 is present",
+            "condition": {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.IntrmyAgt1"},
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.CdtrAgt"},
+                            "error_code": "T20325",
+                            "error_message": "PREC005: CreditorAgent must be present when IntermediaryAgent1 is present"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC006_validate_debtor",
+            "name": "PREC006: Validate Debtor",
+            "description": "Ensures Debtor has either BIC or Name for field 50F/G/H mapping",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": { "or": [
+                                {"var": "data.ISO20022_MX.document.PmtInf.0.Dbtr.Id.OrgId.AnyBIC"},
+                                {"var": "data.ISO20022_MX.document.PmtInf.0.Dbtr.Nm"}
+                            ]},
+                            "error_code": "T20322",
+                            "error_message": "PREC006: Debtor must have either BIC or Name"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC007_validate_creditor",
+            "name": "PREC007: Validate Creditor",
+            "description": "Ensures Creditor has either BIC or Name for field 59/59A/59F mapping",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": { "or": [
+                                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.Cdtr.Id.OrgId.AnyBIC"},
+                                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.Cdtr.Nm"}
+                            ]},
+                            "error_code": "T20322",
+                            "error_message": "PREC007: Creditor must have either BIC or Name"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC008_validate_currency",
+            "name": "PREC008: Validate Currency",
+            "description": "Ensures currencies are not commodity currencies",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": { "!": { "or": [
+                                { "in": [
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.Amt.InstdAmt.@Ccy"},
+                                    ["XAU", "XAG", "XPD", "XPT"]
+                                ]},
+                                { "in": [
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.Amt.EqvtAmt.Amt.@Ccy"},
+                                    ["XAU", "XAG", "XPD", "XPT"]
+                                ]},
+                                { "in": [
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.Amt.EqvtAmt.CcyOfTrf"},
+                                    ["XAU", "XAG", "XPD", "XPT"]
+                                ]}
+                            ]}},
+                            "error_code": "T20054",
+                            "error_message": "PREC008: Commodity currencies (XAU, XAG, XPD, XPT) not allowed"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC012_validate_ultimate_debtor",
+            "name": "PREC012: Validate Ultimate Debtor",
+            "description": "Ensures UltimateDebtor if present has required identification",
+            "condition": { "or": [
+                {"var": "data.ISO20022_MX.document.PmtInf.0.UltmtDbtr"},
+                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.UltmtDbtr"}
+            ]},
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": { "or": [
+                                { "or": [
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.UltmtDbtr.Nm"},
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.UltmtDbtr.Id.OrgId.AnyBIC"},
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.UltmtDbtr.Id.OrgId.Othr"},
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.UltmtDbtr.Id.PrvtId.Othr"}
+                                ]},
+                                { "or": [
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.UltmtDbtr.Nm"},
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.UltmtDbtr.Id.OrgId.AnyBIC"},
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.UltmtDbtr.Id.OrgId.Othr"},
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.UltmtDbtr.Id.PrvtId.Othr"}
+                                ]}
+                            ]},
+                            "error_code": "T20327",
+                            "error_message": "PREC012: UltimateDebtor must have Name or valid Identification"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC013_validate_ultimate_creditor",
+            "name": "PREC013: Validate Ultimate Creditor",
+            "description": "Ensures UltimateCreditor if present has required identification",
+            "condition": {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.UltmtCdtr"},
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": { "or": [
+                                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.UltmtCdtr.Nm"},
+                                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.UltmtCdtr.Id.OrgId.AnyBIC"},
+                                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.UltmtCdtr.Id.OrgId.Othr"},
+                                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.UltmtCdtr.Id.PrvtId.Othr"}
+                            ]},
+                            "error_code": "T20327",
+                            "error_message": "PREC013: UltimateCreditor must have Name or valid Identification"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC016_validate_creditor_agent_account",
+            "name": "PREC016: Validate Creditor Agent Account",
+            "description": "Ensures CreditorAgentAccount is not present without CreditorAgent",
+            "condition": {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.CdtrAgtAcct"},
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.CdtrAgt"},
+                            "error_code": "T20328",
+                            "error_message": "PREC016: CreditorAgentAccount cannot be present without CreditorAgent"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

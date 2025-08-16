@@ -1,0 +1,208 @@
+{
+    "id": "camt054-postconditions",
+    "name": "camt.054 Post-conditions and Final Assembly",
+    "description": "Validates post-conditions and assembles final MT message for all variants",
+    "priority": 10,
+    "condition": { "and": [
+        { "in": [{"var": "SwiftMT.variant"}, ["MT103_ADVICE", "MT202_ADVICE", "MT900", "MT910"]]},
+        { "or": [
+            { "and": [
+                {"==": [{"var": "SwiftMT.variant"}, "MT103_ADVICE"]},
+                {"==": [{"var": "progress.workflow_id"}, "camt054-to-mt103-remittance-mapping"]},
+                {"==": [{"var": "progress.status_code"}, 200]}
+            ]},
+            { "and": [
+                {"==": [{"var": "SwiftMT.variant"}, "MT202_ADVICE"]},
+                {"==": [{"var": "progress.workflow_id"}, "camt054-to-mt202-fields-mapping"]},
+                {"==": [{"var": "progress.status_code"}, 200]}
+            ]},
+            { "and": [
+                { "in": [{"var": "SwiftMT.variant"}, ["MT900", "MT910"]]},
+                {"==": [{"var": "progress.workflow_id"}, "camt054-to-mt9x0-fields-mapping"]},
+                {"==": [{"var": "progress.status_code"}, 200]}
+            ]}
+        ]}
+    ]},
+    "tasks": [
+        {
+            "id": "collect_warnings",
+            "name": "Collect Warnings",
+            "description": "Collects warnings for non-translated elements",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.warnings",
+                            "logic": []
+                        },
+                        {
+                            "path": "temp_data.warnings.0",
+                            "condition": { "and": [
+                                {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.CreDtTm"},
+                                { "in": [{"var": "SwiftMT.variant"}, ["MT103_ADVICE", "MT202_ADVICE"]]}
+                            ]},
+                            "logic": {
+                                "code": "T20100",
+                                "message": "Notification/CreationDateTime not translated"
+                            }
+                        },
+                        {
+                            "path": "temp_data.warnings.1",
+                            "condition": { "and": [
+                                {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.BookgDt"},
+                                { "in": [{"var": "SwiftMT.variant"}, ["MT900", "MT910"]]}
+                            ]},
+                            "logic": {
+                                "code": "T20101",
+                                "message": "Entry/BookingDate not translated to MT900/MT910"
+                            }
+                        },
+                        {
+                            "path": "temp_data.warnings.2",
+                            "condition": { "and": [
+                                {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt2"},
+                                {"==": [{"var": "SwiftMT.variant"}, "MT103_ADVICE"]},
+                                {"not": {"var": "data.SwiftMT.fields.72"}}
+                            ]},
+                            "logic": {
+                                "code": "T20102",
+                                "message": "IntermediaryAgent2 could not be translated to field 72"
+                            }
+                        },
+                        {
+                            "path": "temp_data.warnings.3",
+                            "condition": { "and": [
+                                {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt3"},
+                                {"==": [{"var": "SwiftMT.variant"}, "MT103_ADVICE"]},
+                                {"not": {"var": "data.SwiftMT.fields.72"}}
+                            ]},
+                            "logic": {
+                                "code": "T20103",
+                                "message": "IntermediaryAgent3 could not be translated to field 72"
+                            }
+                        },
+                        {
+                            "path": "temp_data.warnings.4",
+                            "condition": { "and": [
+                                {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.ElctrncSeqNb"},
+                                { "in": [{"var": "SwiftMT.variant"}, ["MT900", "MT910"]]}
+                            ]},
+                            "logic": {
+                                "code": "T20104",
+                                "message": "ElectronicSequenceNumber not translated"
+                            }
+                        },
+                        {
+                            "path": "temp_data.warnings.5",
+                            "condition": { "and": [
+                                {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.LglSeqNb"},
+                                { "in": [{"var": "SwiftMT.variant"}, ["MT900", "MT910"]]}
+                            ]},
+                            "logic": {
+                                "code": "T20105",
+                                "message": "LegalSequenceNumber not translated"
+                            }
+                        },
+                        {
+                            "path": "temp_data.warnings.6",
+                            "condition": { "and": [
+                                {"var": "temp_data.txn_path.BankTxCd"},
+                                { "in": [{"var": "SwiftMT.variant"}, ["MT900", "MT910"]]}
+                            ]},
+                            "logic": {
+                                "code": "T20106",
+                                "message": "BankTransactionCode not translated"
+                            }
+                        },
+                        {
+                            "path": "temp_data.warnings.7",
+                            "condition": { "and": [
+                                {"var": "temp_data.txn_path.Avlbty"},
+                                { "in": [{"var": "SwiftMT.variant"}, ["MT900", "MT910"]]}
+                            ]},
+                            "logic": {
+                                "code": "T20107",
+                                "message": "Availability information not translated"
+                            }
+                        },
+                        {
+                            "path": "temp_data.warnings.8",
+                            "condition": { "and": [
+                                {"var": "temp_data.txn_path.RltdQties"},
+                                {"==": [{"var": "SwiftMT.variant"}, "MT103_ADVICE"]}
+                            ]},
+                            "logic": {
+                                "code": "T20108",
+                                "message": "RelatedQuantities not translated to MT103 Advice"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "construct_message",
+            "name": "Construct Final Message",
+            "description": "Assembles the complete MT message structure",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.message_complete",
+                            "logic": true
+                        },
+                        {
+                            "path": "data.SwiftMT.transformation_status",
+                            "logic": {
+                                "success": true,
+                                "warnings": {"filter": [{"var": "temp_data.warnings"}, {"var": ""}]},
+                                "source_message_type": "camt.054.001.08",
+                                "target_message_type": { "if": [
+                                    {"==": [{"var": "SwiftMT.variant"}, "MT103_ADVICE"]},
+                                    "MT103 Advice",
+                                    { "if": [
+                                        {"==": [{"var": "SwiftMT.variant"}, "MT202_ADVICE"]},
+                                        "MT202 Advice",
+                                        { "if": [
+                                            {"==": [{"var": "SwiftMT.variant"}, "MT910"]},
+                                            "MT910",
+                                            "MT900"
+                                        ]}
+                                    ]}
+                                ]},
+                                "variant": {"var": "SwiftMT.variant"}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "publish_message",
+            "name": "Publish MT Message",
+            "description": "Publishes the complete MT message",
+            "function": {
+                "name": "PublishMT",
+                "input": {
+                    "input_field_name": "SwiftMT",
+                    "output_field_name": "mt_message",
+                    "format": { "if": [
+                        {"==": [{"var": "SwiftMT.variant"}, "MT103_ADVICE"]},
+                        "MT103",
+                        { "if": [
+                            {"==": [{"var": "SwiftMT.variant"}, "MT202_ADVICE"]},
+                            "MT202",
+                            { "if": [
+                                {"==": [{"var": "SwiftMT.variant"}, "MT910"]},
+                                "MT910",
+                                "MT900"
+                            ]}
+                        ]}
+                    ]}
+                }
+            }
+        }
+    ]
+}

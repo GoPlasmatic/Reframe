@@ -1,0 +1,91 @@
+{
+    "id": "pacs003-to-mt104-mandatory-fields",
+    "name": "pacs.003 to MT104 Mandatory Fields Mapping",
+    "description": "Maps mandatory fields from pacs.003 to MT104 Sequence A and B",
+    "priority": 4,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "104"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs003-to-mt104-headers"]},
+        {"==": [{"var": "progress.task_id"}, "map_user_header"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_sequence_a_mandatory",
+            "name": "Map Sequence A Mandatory Fields",
+            "description": "Maps field 20 (Sender's Reference) and field 30 (Requested Execution Date)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.20",
+                            "logic": {
+                                "reference": { "if": [
+                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.PmtId.InstrId"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.PmtId.InstrId"}, 0, 16]},
+                                    "NOTPROVIDED"
+                                ]}
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.30",
+                            "logic": {
+                                "requested_execution_date": { "if": [
+                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.ReqdColltnDt"},
+                                    {"replace": [{"substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.ReqdColltnDt"}, 2, 8]}, "-", ""]},
+                                    "991231"
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_sequence_b_reference",
+            "name": "Map Sequence B Reference Fields",
+            "description": "Maps field 21 (Transaction Reference) from PaymentIdentification",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.21",
+                            "condition": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.PmtId.TxId"},
+                            "logic": {
+                                "reference": {"substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.PmtId.TxId"}, 0, 16]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_amount_fields",
+            "name": "Map Amount Fields",
+            "description": "Maps field 32B for both sequence B and C (InterbankSettlementAmount)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.32B_seq_b",
+                            "logic": {
+                                "currency": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.IntrBkSttlmAmt.@Ccy"},
+                                "amount": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.IntrBkSttlmAmt.$value"}
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.32B_seq_c",
+                            "logic": {
+                                "currency": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.IntrBkSttlmAmt.@Ccy"},
+                                "amount": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.IntrBkSttlmAmt.$value"}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,252 @@
+{
+    "id": "pacs010-to-mt204-sender-receiver-info",
+    "name": "pacs.010 to MT204 Sender to Receiver Information Mapping",
+    "description": "Maps various elements to field 72 for both Sequence A and B",
+    "priority": 7,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "204"]},
+        {"==": [{"var": "SwiftMT.variant"}, "MC"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs010-to-mt204-agent-fields"]},
+        {"==": [{"var": "progress.task_id"}, "map_creditor_agent"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "prepare_field_72_components",
+            "name": "Prepare Field 72 Components",
+            "description": "Prepares components for field 72 from various MX elements",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field72_seq_a",
+                            "logic": {
+                                "catpurp": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtInstr.PmtTpInf.CtgyPurp.Cd"},
+                                    {"cat": ["/CATPURP/", {"var": "data.ISO20022_MX.document.CdtInstr.PmtTpInf.CtgyPurp.Cd"}]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtInstr.PmtTpInf.CtgyPurp.Prtry"},
+                                        {"cat": ["/CATPURP/", {"substr": [{"var": "data.ISO20022_MX.document.CdtInstr.PmtTpInf.CtgyPurp.Prtry"}, 0, 30]}]},
+                                        null
+                                    ]}
+                                ]},
+                                "inta1": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt1"},
+                                    {"cat": [
+                                        "/INTA1/",
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt1.FinInstnId.BICFI"},
+                                            {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt1.FinInstnId.BICFI"},
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"},
+                                                {"cat": [
+                                                    "//",
+                                                    {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt1.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                    {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}
+                                                ]},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt1.FinInstnId.Nm"},
+                                                    {"substr": [{"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt1.FinInstnId.Nm"}, 0, 30]},
+                                                    ""
+                                                ]}
+                                            ]}
+                                        ]}
+                                    ]},
+                                    null
+                                ]},
+                                "inta2": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt2"},
+                                    {"cat": [
+                                        "/INTA/",
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt2.FinInstnId.BICFI"},
+                                            {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt2.FinInstnId.BICFI"},
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt2.FinInstnId.ClrSysMmbId.MmbId"},
+                                                {"cat": [
+                                                    "//",
+                                                    {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt2.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                    {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt2.FinInstnId.ClrSysMmbId.MmbId"}
+                                                ]},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt2.FinInstnId.Nm"},
+                                                    {"substr": [{"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt2.FinInstnId.Nm"}, 0, 30]},
+                                                    ""
+                                                ]}
+                                            ]}
+                                        ]}
+                                    ]},
+                                    null
+                                ]},
+                                "inta3": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt3"},
+                                    {"cat": [
+                                        "/INTA/",
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt3.FinInstnId.BICFI"},
+                                            {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt3.FinInstnId.BICFI"},
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt3.FinInstnId.ClrSysMmbId.MmbId"},
+                                                {"cat": [
+                                                    "//",
+                                                    {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt3.FinInstnId.ClrSysId.Cd"},
+                                                    {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt3.FinInstnId.ClrSysMmbId.MmbId"}
+                                                ]},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt3.FinInstnId.Nm"},
+                                                    {"substr": [{"var": "data.ISO20022_MX.document.CdtInstr.IntrmyAgt3.FinInstnId.Nm"}, 0, 30]},
+                                                    ""
+                                                ]}
+                                            ]}
+                                        ]}
+                                    ]},
+                                    null
+                                ]}
+                            }
+                        },
+                        {
+                            "path": "temp_data.field72_seq_b",
+                            "logic": {
+                                "svclvl": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtTpInf.SvcLvl.Cd"},
+                                    {"cat": ["/SVCLVL/", {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtTpInf.SvcLvl.Cd"}]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtTpInf.SvcLvl.Prtry"},
+                                        {"cat": ["/SVCLVL/", {"substr": [{"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtTpInf.SvcLvl.Prtry"}, 0, 30]}]},
+                                        null
+                                    ]}
+                                ]},
+                                "catpurp": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtTpInf.CtgyPurp.Cd"},
+                                    {"cat": ["/CATPURP/", {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtTpInf.CtgyPurp.Cd"}]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtTpInf.CtgyPurp.Prtry"},
+                                        {"cat": ["/CATPURP/", {"substr": [{"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtTpInf.CtgyPurp.Prtry"}, 0, 30]}]},
+                                        null
+                                    ]}
+                                ]},
+                                "locins": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtTpInf.LclInstrm.Cd"},
+                                    {"cat": ["/LOCINS/", {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtTpInf.LclInstrm.Cd"}]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtTpInf.LclInstrm.Prtry"},
+                                        {"cat": ["/LOCINS/", {"substr": [{"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtTpInf.LclInstrm.Prtry"}, 0, 30]}]},
+                                        null
+                                    ]}
+                                ]},
+                                "rec": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.InstrForDbtrAgt"},
+                                    {"cat": ["/REC/", {"substr": [{"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.InstrForDbtrAgt"}, 0, 140]}]},
+                                    null
+                                ]},
+                                "purp": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Purp.Cd"},
+                                    {"cat": ["/BNF/", {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Purp.Cd"}]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Purp.Prtry"},
+                                        {"cat": ["/BNF/", {"substr": [{"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Purp.Prtry"}, 0, 140]}]},
+                                        null
+                                    ]}
+                                ]},
+                                "rmt": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.RmtInf.Ustrd"},
+                                    {"cat": ["/BNF/", {"join": [{"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.RmtInf.Ustrd"}, " "]}]},
+                                    null
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_72_seq_a",
+            "name": "Map Field 72 Sequence A",
+            "description": "Maps concatenated information to field 72 in Sequence A",
+            "condition": { "or": [
+                {"var": "temp_data.field72_seq_a.catpurp"},
+                {"var": "temp_data.field72_seq_a.inta1"},
+                {"var": "temp_data.field72_seq_a.inta2"},
+                {"var": "temp_data.field72_seq_a.inta3"}
+            ]},
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.72_seq_a",
+                            "logic": {
+                                "sender_to_receiver_info": {"split": [
+                                    {"substr": [
+                                        {"join": [
+                                            {"filter": [
+                                                [
+                                                    {"var": "temp_data.field72_seq_a.catpurp"},
+                                                    {"var": "temp_data.field72_seq_a.inta1"},
+                                                    {"var": "temp_data.field72_seq_a.inta2"},
+                                                    {"var": "temp_data.field72_seq_a.inta3"}
+                                                ],
+                                                {"var": ""}
+                                            ]},
+                                            " "
+                                        ]},
+                                        0,
+                                        210
+                                    ]},
+                                    35
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_72_seq_b",
+            "name": "Map Field 72 Sequence B",
+            "description": "Maps concatenated information to field 72 in Sequence B",
+            "condition": { "or": [
+                {"var": "temp_data.field72_seq_b.svclvl"},
+                {"var": "temp_data.field72_seq_b.catpurp"},
+                {"var": "temp_data.field72_seq_b.locins"},
+                {"var": "temp_data.field72_seq_b.rec"},
+                {"var": "temp_data.field72_seq_b.purp"},
+                {"var": "temp_data.field72_seq_b.rmt"}
+            ]},
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.72_seq_b",
+                            "logic": {
+                                "sender_to_receiver_info": {"split": [
+                                    {"substr": [
+                                        {"join": [
+                                            {"filter": [
+                                                [
+                                                    {"var": "temp_data.field72_seq_b.svclvl"},
+                                                    {"var": "temp_data.field72_seq_b.catpurp"},
+                                                    {"var": "temp_data.field72_seq_b.locins"},
+                                                    {"var": "temp_data.field72_seq_b.rec"},
+                                                    {"var": "temp_data.field72_seq_b.purp"},
+                                                    {"var": "temp_data.field72_seq_b.rmt"}
+                                                ],
+                                                {"var": ""}
+                                            ]},
+                                            " "
+                                        ]},
+                                        0,
+                                        210
+                                    ]},
+                                    35
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

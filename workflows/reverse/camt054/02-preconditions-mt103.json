@@ -1,0 +1,231 @@
+{
+    "id": "camt054-to-mt103-preconditions",
+    "name": "camt.054 to MT103 Advice Preconditions Validation",
+    "description": "Validates preconditions for camt.054 to MT103 Advice transformation",
+    "priority": 2,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.variant"}, "MT103_ADVICE"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt054-variant-detection"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "validate_transaction_details",
+            "name": "Validate Transaction Details Requirements",
+            "description": "Validates required transaction details for MT103 Advice",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.txn_path",
+                            "logic": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls.0"
+                        },
+                        {
+                            "path": "temp_data.prec_mt103.PREC003",
+                            "logic": { "or": [
+                                {"var": "temp_data.txn_path.RltdPties.Dbtr.Pty"},
+                                {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.prec_mt103.PREC004",
+                            "logic": { "or": [
+                                {"var": "temp_data.txn_path.RltdPties.Cdtr.Pty"},
+                                {"var": "temp_data.txn_path.RltdPties.Cdtr.Agt"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.prec_mt103.PREC005",
+                            "logic": {"!=": [{"var": "temp_data.txn_path.CdtDbtInd"}, "DBIT"]}
+                        },
+                        {
+                            "path": "temp_data.prec_mt103.PREC006",
+                            "logic": {"var": "temp_data.txn_path.RltdDts.IntrBkSttlmDt"}
+                        },
+                        {
+                            "path": "temp_data.prec_mt103.PREC007",
+                            "logic": {"var": "temp_data.txn_path.Refs.UETR"}
+                        },
+                        {
+                            "path": "temp_data.prec_mt103.PREC008",
+                            "condition": {"var": "temp_data.txn_path.Amt"},
+                            "logic": {"<=": [
+                                {"count": [{"match": [{"var": "temp_data.txn_path.Amt"}, "[0-9]"]}]},
+                                14
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.prec_mt103.PREC010",
+                            "logic": {"not": { "and": [
+                                {"var": "temp_data.txn_path.RltdPties.Cdtr.Agt"},
+                                {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt"}
+                            ]}}
+                        },
+                        {
+                            "path": "temp_data.prec_mt103.PREC027",
+                            "logic": {"var": "temp_data.txn_path.RltdAgts.DbtrAgt"}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_party_requirements",
+            "name": "Validate Party Requirements",
+            "description": "Validates debtor and creditor party requirements for MT103 Advice",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.prec_mt103.PREC011",
+                            "condition": {"var": "temp_data.txn_path.RltdPties.Dbtr.Pty"},
+                            "logic": { "or": [
+                                {"var": "temp_data.txn_path.RltdPties.Dbtr.Pty.Nm"},
+                                {"var": "temp_data.txn_path.RltdPties.Dbtr.Pty.Id.OrgId.AnyBIC"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.prec_mt103.PREC019",
+                            "condition": {"var": "temp_data.txn_path.RltdPties.Cdtr.Pty"},
+                            "logic": { "or": [
+                                {"var": "temp_data.txn_path.RltdPties.Cdtr.Pty.Nm"},
+                                {"var": "temp_data.txn_path.RltdPties.Cdtr.Pty.Id.OrgId.AnyBIC"}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_agent_requirements",
+            "name": "Validate Agent Requirements",
+            "description": "Validates agent requirements for MT103 Advice",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.prec_mt103.PREC015",
+                            "condition": {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt.FinInstnId"},
+                            "logic": { "or": [
+                                {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt.FinInstnId.Nm"},
+                                {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt.FinInstnId.BICFI"},
+                                {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt.FinInstnId.ClrSysMmbId"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.prec_mt103.PREC023",
+                            "condition": {"var": "temp_data.txn_path.RltdPties.Cdtr.Agt.FinInstnId"},
+                            "logic": { "or": [
+                                {"var": "temp_data.txn_path.RltdPties.Cdtr.Agt.FinInstnId.Nm"},
+                                {"var": "temp_data.txn_path.RltdPties.Cdtr.Agt.FinInstnId.BICFI"},
+                                {"var": "temp_data.txn_path.RltdPties.Cdtr.Agt.FinInstnId.ClrSysMmbId"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.prec_mt103.PREC028",
+                            "condition": {"var": "temp_data.txn_path.RltdAgts.DbtrAgt.FinInstnId"},
+                            "logic": { "or": [
+                                {"var": "temp_data.txn_path.RltdAgts.DbtrAgt.FinInstnId.Nm"},
+                                {"var": "temp_data.txn_path.RltdAgts.DbtrAgt.FinInstnId.BICFI"},
+                                {"var": "temp_data.txn_path.RltdAgts.DbtrAgt.FinInstnId.ClrSysMmbId"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.prec_mt103.PREC036",
+                            "condition": {"var": "temp_data.txn_path.RltdAgts.CdtrAgt.FinInstnId"},
+                            "logic": { "or": [
+                                {"var": "temp_data.txn_path.RltdAgts.CdtrAgt.FinInstnId.Nm"},
+                                {"var": "temp_data.txn_path.RltdAgts.CdtrAgt.FinInstnId.BICFI"},
+                                {"var": "temp_data.txn_path.RltdAgts.CdtrAgt.FinInstnId.ClrSysMmbId"}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_intermediary_sequence",
+            "name": "Validate Intermediary Agent Sequence",
+            "description": "Validates intermediary agent sequence requirements",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.prec_mt103.PREC045",
+                            "logic": { "if": [
+                                { "or": [
+                                    {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt2"},
+                                    {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt3"}
+                                ]},
+                                {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt1"},
+                                true
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.prec_mt103.PREC046",
+                            "logic": { "if": [
+                                {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt3"},
+                                {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt2"},
+                                true
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.prec_mt103.PREC047",
+                            "logic": { "if": [
+                                {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt1"},
+                                {"var": "temp_data.txn_path.RltdAgts.CdtrAgt"},
+                                true
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "check_all_preconditions",
+            "name": "Check All Preconditions",
+            "description": "Consolidates all precondition checks",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.mt103_preconditions_met",
+                            "logic": { "and": [
+                                {"var": "temp_data.prec_mt103.PREC003"},
+                                {"var": "temp_data.prec_mt103.PREC004"},
+                                {"var": "temp_data.prec_mt103.PREC005"},
+                                {"var": "temp_data.prec_mt103.PREC006"},
+                                {"var": "temp_data.prec_mt103.PREC007"},
+                                {"!=": [{"var": "temp_data.prec_mt103.PREC008"}, false]},
+                                {"var": "temp_data.prec_mt103.PREC010"},
+                                {"!=": [{"var": "temp_data.prec_mt103.PREC011"}, false]},
+                                {"!=": [{"var": "temp_data.prec_mt103.PREC015"}, false]},
+                                {"!=": [{"var": "temp_data.prec_mt103.PREC019"}, false]},
+                                {"!=": [{"var": "temp_data.prec_mt103.PREC023"}, false]},
+                                {"var": "temp_data.prec_mt103.PREC027"},
+                                {"!=": [{"var": "temp_data.prec_mt103.PREC028"}, false]},
+                                {"!=": [{"var": "temp_data.prec_mt103.PREC036"}, false]},
+                                {"var": "temp_data.prec_mt103.PREC045"},
+                                {"var": "temp_data.prec_mt103.PREC046"},
+                                {"var": "temp_data.prec_mt103.PREC047"}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.validation_status",
+                            "condition": {"not": {"var": "temp_data.mt103_preconditions_met"}},
+                            "logic": {
+                                "code": "T20338",
+                                "message": "camt.054 to MT103 Advice preconditions not met"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

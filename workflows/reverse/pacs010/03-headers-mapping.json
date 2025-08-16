@@ -1,0 +1,92 @@
+{
+    "id": "pacs010-to-mt204-headers",
+    "name": "pacs.010 to MT204 Headers Mapping",
+    "description": "Maps pacs.010 header information to MT204 basic and application headers",
+    "priority": 3,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "204"]},
+        {"==": [{"var": "SwiftMT.variant"}, "MC"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs010-to-mt204-preconditions"]},
+        {"==": [{"var": "progress.task_id"}, "validate_mandatory_elements"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_basic_header",
+            "name": "Map Basic Header",
+            "description": "Maps sender and receiver BIC from pacs.010 to MT204 basic header",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.basic_header",
+                            "logic": {
+                                "application_id": "F",
+                                "service_id": "01",
+                                "sender_bic": { "if": [
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.InstgAgt.FinInstnId.BICFI"},
+                                    "NOTPROVIDED"
+                                ]},
+                                "session_number": "0000",
+                                "sequence_number": "000001"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_application_header",
+            "name": "Map Application Header",
+            "description": "Maps application header fields for MT204",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.application_header",
+                            "logic": {
+                                "io_identifier": "I",
+                                "message_type": "204",
+                                "receiver_bic": { "if": [
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.InstdAgt.FinInstnId.BICFI"},
+                                    "NOTPROVIDED"
+                                ]},
+                                "priority": "N",
+                                "delivery_monitoring": "",
+                                "obsolescence_period": ""
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_user_header",
+            "name": "Map User Header (Block 3)",
+            "description": "Maps UETR to MT204 user header block 3",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.user_header",
+                            "logic": {
+                                "unique_end_to_end_transaction_reference": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtId.UETR"},
+                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtId.UETR"},
+                                    null
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

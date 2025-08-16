@@ -1,0 +1,200 @@
+{
+    "id": "pain001-to-mt101-optional-fields",
+    "name": "pain.001 to MT101 Optional Fields Mapping",
+    "description": "Maps optional fields including charges, authorisation, instruction codes, and remittance information",
+    "priority": 6,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "101"]},
+        {"==": [{"var": "SwiftMT.variant"}, "CBPR_SINGLE"]},
+        {"==": [{"var": "progress.workflow_id"}, "pain001-to-mt101-party-fields"]},
+        {"==": [{"var": "progress.task_id"}, "map_creditor_field_59"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_authorisation",
+            "name": "Map Authorisation Field 25",
+            "description": "Maps GroupHeader Authorisation to field 25",
+            "condition": {"var": "data.ISO20022_MX.document.GrpHdr.Authstn"},
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.25",
+                            "logic": {
+                                "authorisation": { "if": [
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.Authstn.0.Cd"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.Authstn.0.Cd"}, 0, 35]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.Authstn.0.Prtry"},
+                                        {"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.Authstn.0.Prtry"}, 0, 35]},
+                                        null
+                                    ]}
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_charges",
+            "name": "Map Charges Fields",
+            "description": "Maps ChargeBearer to field 71A and ChargesAccount to field 25A",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.71A",
+                            "logic": {
+                                "details_of_charges": { "if": [
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.ChrgBr"},
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.ChrgBr"},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.ChrgBr"},
+                                        {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.ChrgBr"},
+                                        null
+                                    ]}
+                                ]}
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.25A",
+                            "condition": {"var": "data.ISO20022_MX.document.PmtInf.0.ChrgsAcct"},
+                            "logic": {
+                                "charges_account": { "if": [
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.ChrgsAcct.Id.IBAN"},
+                                    {"cat": ["/", {"var": "data.ISO20022_MX.document.PmtInf.0.ChrgsAcct.Id.IBAN"}]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.PmtInf.0.ChrgsAcct.Id.Othr.Id"},
+                                        {"cat": ["/", {"substr": [{"var": "data.ISO20022_MX.document.PmtInf.0.ChrgsAcct.Id.Othr.Id"}, 0, 33]}]},
+                                        null
+                                    ]}
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_instruction_codes",
+            "name": "Map Instruction Codes Field 23E",
+            "description": "Maps various instruction codes to field 23E occurrences",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.23E",
+                            "logic": []
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.23E.0",
+                            "condition": {"==": [{"var": "data.ISO20022_MX.document.PmtInf.0.PmtMtd"}, "CHK"]},
+                            "logic": {
+                                "instruction_code": "CHQB"
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.23E.1",
+                            "condition": { "or": [
+                                {"==": [{"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForCdtrAgt.0.Cd"}, "CHQB"]},
+                                {"==": [{"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForCdtrAgt.1.Cd"}, "CHQB"]}
+                            ]},
+                            "logic": {
+                                "instruction_code": "CHQB"
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.23E.2",
+                            "condition": {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.Amt.EqvtAmt"},
+                            "logic": {
+                                "instruction_code": "EQUI"
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.23E.3",
+                            "condition": { "or": [
+                                {"==": [{"var": "data.ISO20022_MX.document.PmtInf.0.PmtTpInf.SvcLvl.Cd"}, "URGP"]},
+                                {"==": [{"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.PmtTpInf.SvcLvl.Cd"}, "URGP"]}
+                            ]},
+                            "logic": {
+                                "instruction_code": "URGP"
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.23E.4",
+                            "condition": { "or": [
+                                {"==": [{"var": "data.ISO20022_MX.document.PmtInf.0.PmtTpInf.CtgyPurp.Cd"}, "INTC"]},
+                                {"==": [{"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.PmtTpInf.CtgyPurp.Cd"}, "INTC"]}
+                            ]},
+                            "logic": {
+                                "instruction_code": "INTC"
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.23E.5",
+                            "condition": { "or": [
+                                {"==": [{"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForCdtrAgt.0.Cd"}, "PHOB"]},
+                                {"==": [{"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForCdtrAgt.1.Cd"}, "PHOB"]}
+                            ]},
+                            "logic": {
+                                "instruction_code": "PHON",
+                                "additional_info": { "if": [
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForCdtrAgt.0.InstrInf"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForCdtrAgt.0.InstrInf"}, 0, 30]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForCdtrAgt.1.InstrInf"},
+                                        {"substr": [{"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForCdtrAgt.1.InstrInf"}, 0, 30]},
+                                        null
+                                    ]}
+                                ]}
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.23E.6",
+                            "condition": { "or": [
+                                {"var": "data.ISO20022_MX.document.PmtInf.0.InstrForDbtrAgt"},
+                                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForDbtrAgt"}
+                            ]},
+                            "logic": {
+                                "instruction_code": "OTHR",
+                                "additional_info": { "if": [
+                                    {"var": "data.ISO20022_MX.document.PmtInf.0.InstrForDbtrAgt"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.PmtInf.0.InstrForDbtrAgt"}, 0, 30]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForDbtrAgt"},
+                                        {"substr": [{"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForDbtrAgt"}, 0, 30]},
+                                        null
+                                    ]}
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_fx_reference",
+            "name": "Map FX Deal Reference Field 21F",
+            "description": "Maps ExchangeRateInformation ContractIdentification to field 21F",
+            "condition": {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.XchgRateInf.CtrctId"},
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.21F",
+                            "logic": {
+                                "fx_deal_reference": {"substr": [{"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.XchgRateInf.CtrctId"}, 0, 16]}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

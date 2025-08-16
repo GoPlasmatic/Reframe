@@ -1,0 +1,86 @@
+{
+    "id": "pacs010-to-mt204-preconditions",
+    "name": "pacs.010 to MT204 Preconditions Validation",
+    "description": "Validates preconditions for pacs.010 to MT204 transformation according to CBPR+ specification",
+    "priority": 2,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "204"]},
+        {"==": [{"var": "SwiftMT.variant"}, "MC"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs010-variant-detection"]},
+        {"==": [{"var": "progress.task_id"}, "detect_variant"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "PREC001_validate_amount_length",
+            "name": "PREC001: Validate Amount Length",
+            "description": "Ensures InterbankSettlementAmount doesn't exceed 15 digits",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": { "if": [
+                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.IntrBkSttlmAmt.$value"},
+                                {"<=": [
+                                    {"length": [{"replace": [{"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.IntrBkSttlmAmt.$value"}, ".", ""]}]},
+                                    15
+                                ]},
+                                true
+                            ]},
+                            "error_code": "T13001",
+                            "error_message": "PREC001: InterbankSettlementAmount exceeds 15 digits for MT204"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_mandatory_elements",
+            "name": "Validate Mandatory Elements",
+            "description": "Validates that all required elements for MT204 are present",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "validations": [
+                        {
+                            "rule": {"var": "data.ISO20022_MX.document.CdtInstr.CdtId"},
+                            "error_code": "T20001",
+                            "error_message": "CreditIdentification is mandatory for MT204 field 20 (Sequence A)"
+                        },
+                        {
+                            "rule": {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtId.InstrId"},
+                            "error_code": "T20002",
+                            "error_message": "InstructionIdentification is mandatory for MT204 field 20 (Sequence B)"
+                        },
+                        {
+                            "rule": {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtId.EndToEndId"},
+                            "error_code": "T20003",
+                            "error_message": "EndToEndIdentification is mandatory for MT204 field 21"
+                        },
+                        {
+                            "rule": {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.IntrBkSttlmAmt"},
+                            "error_code": "T20004",
+                            "error_message": "InterbankSettlementAmount is mandatory for MT204 field 32B and field 19"
+                        },
+                        {
+                            "rule": {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.IntrBkSttlmDt"},
+                            "error_code": "T20005",
+                            "error_message": "InterbankSettlementDate is mandatory for MT204 field 30"
+                        },
+                        {
+                            "rule": {"var": "data.ISO20022_MX.document.CdtInstr.Cdtr"},
+                            "error_code": "T20006",
+                            "error_message": "Creditor is mandatory for MT204 field 58"
+                        },
+                        {
+                            "rule": {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Dbtr"},
+                            "error_code": "T20007",
+                            "error_message": "Debtor is mandatory for MT204 field 53"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

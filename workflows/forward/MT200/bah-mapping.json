@@ -1,0 +1,118 @@
+{
+    "id": "mt200-bah-mapper",
+    "name": "MT200 Business Application Header Mapping for CBPR+",
+    "description": "Maps MT200 message to ISO 20022 Business Application Header (AppHdr) using head.001.001.02 schema for FI Transfer for Own Account",
+    "priority": 2,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "200"]},
+        {"==": [{"var": "progress.workflow_id"}, "parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "prepare_bah_context",
+            "name": "Prepare BAH Context",
+            "description": "Extracts sender and receiver BIC codes from MT200 headers for establishing business application header context",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data",
+                            "logic": {
+                                "Sender": { "if": [
+                                    {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                    {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                    "NOTPROVIDED"
+                                ]},
+                                "Receiver": { "if": [
+                                    {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                    {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                    "NOTPROVIDED"
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "construct_business_application_header",
+            "name": "Construct Business Application Header",
+            "description": "Builds CBPR+ business application header (AppHdr) with sender/receiver BIC, message identification, and creation timestamp for MT200 FI Transfer for Own Account",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.AppHdr",
+                            "logic": {
+                                "Fr": {"FIId": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}}},
+                                "To": {"FIId": {"FinInstnId": {"BICFI": {"var": "temp_data.Receiver"}}}},
+                                "BizMsgIdr": { "if": [
+                                    {"var": "data.SwiftMT.fields.20.reference"},
+                                    {"var": "data.SwiftMT.fields.20.reference"},
+                                    "NOTPROVIDED"
+                                ]},
+                                "MsgDefIdr": "pacs.009.001.08",
+                                "BizSvc": "swift.cbprplus.02",
+                                "CreDt": { "if": [
+                                    {"var": "data.SwiftMT.fields.32A.value_date"},
+                                    {"cat": [{"var": "data.SwiftMT.fields.32A.value_date"}, "T00:00:00+00:00"]},
+                                    "9999-12-31T00:00:00+00:00"
+                                ]},
+                                "CpyDplct": "CODU",
+                                "PssblDplct": false,
+                                "Prty": "NORM"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_related_message_metadata",
+            "name": "Map Related Message Metadata",
+            "description": "Maps related message metadata including sender/receiver BIC, message definition identifier, business message identifier, and creation date for message correlation",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.AppHdr.Rltd",
+                            "logic": {
+                                "Fr": {"FIId": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}}},
+                                "To": {"FIId": {"FinInstnId": {"BICFI": {"var": "temp_data.Receiver"}}}},
+                                "MsgDefIdr": "pacs.009.001.08",
+                                "BizMsgIdr": { "if": [
+                                    {"var": "data.SwiftMT.fields.20.reference"},
+                                    {"var": "data.SwiftMT.fields.20.reference"},
+                                    "NOTPROVIDED"
+                                ]},
+                                "CreDt": { "if": [
+                                    {"var": "data.SwiftMT.fields.32A.value_date"},
+                                    {"cat": [{"var": "data.SwiftMT.fields.32A.value_date"}, "T00:00:00+00:00"]},
+                                    "9999-12-31T00:00:00+00:00"
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "publish_header_xml",
+            "name": "Publish Core Header XML",
+            "description": "Publish the Core Header XML to the output field",
+            "function": {
+                "name": "PublishMX",
+                "input": {
+                    "input_field_name": "AppHdr",
+                    "output_field_name": "header_xml",
+                    "source_format": "MT200_CORE.Header"
+                }
+            }
+        }
+    ]
+}

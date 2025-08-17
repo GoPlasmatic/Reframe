@@ -188,14 +188,27 @@ fn generate_mx_sample_from_scenario(
 
     // Clone the generated data for returning
     let generated_json = generated_data.clone();
-
-    // For now, return JSON for MX messages as XML generation requires exact field mapping
-    // TODO: Complete XML generation support for all MX message types
-    let result = serde_json::to_string_pretty(&generated_data)?;
-    debug!("Generated {} message in JSON format", message_type);
     
-    debug!("Successfully generated {} using scenario {}", message_type, scenario_id);
-    Ok((result, generated_json))
+    // Debug: Log the generated data
+    debug!("Generated data from datafake: {}", serde_json::to_string_pretty(&generated_data)?);
+    
+    // Parse the generated JSON into proper MX XML format
+    match mx_generator::generate_mx_from_json(message_type, &generated_data) {
+        Ok(xml_message) => {
+            debug!("Successfully generated {} XML using scenario {}", message_type, scenario_id);
+            Ok((xml_message, generated_json))
+        }
+        Err(e) => {
+            // Return the error but include the generated JSON for debugging
+            let error_msg = format!(
+                "Failed to generate {} XML from JSON: {}. Generated JSON: {}",
+                message_type,
+                e,
+                serde_json::to_string_pretty(&generated_json).unwrap_or_else(|_| "Invalid JSON".to_string())
+            );
+            Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, error_msg)))
+        }
+    }
 }
 
 pub async fn generate_mx_from_config(
@@ -212,6 +225,6 @@ pub async fn generate_mx_from_config(
         debug!("Validation enabled - message will be validated during generation");
     }
 
-    let (result, generated_json) = generate_mx_sample_from_scenario(message_type, config)?;
-    Ok((mx_generator::format_xml_message(&result), generated_json))
+    let (xml_message, generated_json) = generate_mx_sample_from_scenario(message_type, config)?;
+    Ok((xml_message, generated_json))
 }

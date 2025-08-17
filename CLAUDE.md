@@ -8,44 +8,72 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-### Rust Backend Commands
+### Building and Running
 
 ```bash
-# Build the project
+# Build in debug mode (faster compilation, with debug symbols)
 cargo build
 
-# Build for production
+# Build in release mode (optimized for performance)
 cargo build --release
 
 # Run the application
 cargo run
 
-# Run with debug logging
+# Run with debug logging to see detailed transformation steps
 RUST_LOG=debug cargo run
 
-# Run with production logging
+# Run with info logging (recommended for development)
 RUST_LOG=info cargo run
 
-# Run tests
+# Kill existing process on port 3000 and restart
+lsof -i :3000 | grep LISTEN | awk '{print $2}' | xargs kill -9 2>/dev/null; RUST_LOG=info cargo run
+```
+
+### Testing
+
+```bash
+# Run all tests
 cargo test
 
-# Run tests with output
+# Run tests with output visible
 cargo test -- --nocapture
 
 # Run tests with debug logging
 RUST_LOG=debug cargo test -- --nocapture
 
+# Run a specific test
+cargo test test_name -- --nocapture
+
+# Test scenario generation for specific message types
+python3 test/test_scenarios.py -m MT103 -d
+python3 test/test_scenarios.py -m pacs.008 -d
+python3 test/test_scenarios.py -m camt.052 -d
+
+# Test all scenarios with verbose output
+python3 test/test_scenarios.py --all -v
+```
+
+### Code Quality
+
+```bash
 # Format code
 cargo fmt
 
-# Lint code
+# Check formatting without changes
+cargo fmt -- --check
+
+# Run clippy linter
 cargo clippy
 
-# Check for linting errors
+# Run clippy with all warnings as errors
 cargo clippy -- -D warnings
+
+# Check for unused dependencies
+cargo machete
 ```
 
-### Docker Commands
+### Docker Operations
 
 ```bash
 # Build container
@@ -54,172 +82,206 @@ docker build -t reframe .
 # Run container
 docker run -p 3000:3000 reframe
 
-# Run container with volume (for development)
+# Run with local workflow mount for development
 docker run -p 3000:3000 -v $(pwd)/workflows:/app/workflows reframe
 ```
 
-## Architecture Overview
+## Architecture and Code Structure
 
-### Core Application Structure
+### Core Components
 
-- **Main Server** (`src/main.rs`): Axum-based HTTP server with dual-engine architecture
-- **Bidirectional Processing**: Separate engines for forward (MT→MX) and reverse (MX→MT) transformations
-- **Parser Modules**: 
-  - `src/parse_mt.rs`: SWIFT MT message parsing and validation
-  - `src/parse_mx.rs`: ISO 20022 MX message parsing and validation
-- **Publisher Modules**: 
-  - `src/publish_mx.rs`: ISO 20022 XML generation and serialization
-  - `src/publish_mt.rs`: SWIFT MT generation and serialization
-- **Helper Module** (`src/helper.rs`): Utility functions and shared logic
+The application follows a dual-engine architecture with clear separation of concerns:
 
-### Workflow Engine Architecture
+1. **Main Server** (`src/main.rs`): 
+   - Axum HTTP server setup
+   - Route configuration
+   - Engine initialization
+   - Sets environment variables for scenario paths
 
-The application uses `dataflow-rs` as the workflow engine with JSON-based configuration:
+2. **Transformation Engines** (`src/engine.rs`):
+   - **Forward Engine**: MT → ISO 20022 transformations
+   - **Reverse Engine**: ISO 20022 → MT transformations
+   - Both engines use dataflow-rs for workflow orchestration
+   - Engines are initialized once and reused across requests
 
-- **Forward Workflows** (`workflows/forward/`): MT → ISO 20022 transformations
-- **Reverse Workflows** (`workflows/reverse/`): ISO 20022 → MT transformations
-- **Index Files**: `index.json` files define workflow loading order
-- **Message Type Specific**: Each message type (MT103, MT202, etc.) has dedicated workflow files
+3. **Message Parsing**:
+   - `src/parse_mt.rs`: SWIFT MT parsing using pest grammar
+   - `src/parse_mx.rs`: ISO 20022 XML parsing and validation
+   - Grammar files in `src/mt_messages/` define MT message structures
 
-### Supported Message Types
+4. **Message Generation**:
+   - `src/mx_generator.rs`: Converts JSON to ISO 20022 XML using mx-message library
+   - `src/mt_generator.rs`: Generates SWIFT MT messages from structured data
+   - `src/sample_generator.rs`: Creates sample messages using datafake-rs
 
-**Forward Transformations (MT → ISO 20022):**
-- MT103 (Customer Credit Transfer) → pacs.008, pacs.002, pacs.004
-- MT202/MT205 (Financial Institution Transfer) → pacs.009, pacs.002, pacs.004
-- MT900/MT910 (Confirmation messages) → camt.054
-- MT192/MT292/MT196/MT296 (Cancellation/Investigation) → camt.056
+5. **API Handlers** (`src/handlers.rs`):
+   - Request validation and routing
+   - Engine invocation
+   - Response formatting
+   - Error handling and reporting
 
-**Reverse Transformations (ISO 20022 → MT):**
-- pacs.008 → MT103
-- pacs.009 → MT202/MT205
-- pacs.004 → MT103RETN/MT202RETN/MT205RETN
+### Workflow System
 
-### API Endpoints
+Workflows are JSON-based transformation rules processed by dataflow-rs:
 
-- `GET /health` - Health check with engine status
-- `POST /transform/mt-to-mx` - Forward transformation (MT to ISO 20022)
-- `POST /transform/mx-to-mt` - Reverse transformation (ISO 20022 to MT)
-- `POST /generate/mt-sample` - Generate sample MT messages from JSON configuration
-- `POST /admin/reload-workflows` - Hot reload workflow configurations without restart
-
-## Configuration and Workflow Management
-
-### Hot Reload Workflows
-
-The application supports hot reloading of workflow configurations without restarting:
-
-```bash
-# Reload all workflows from disk
-curl -X POST http://localhost:3000/admin/reload-workflows
-
-# The API returns timing and status information
-{
-  "success": true,
-  "message": "Workflows reloaded successfully in 44ms",
-  "timestamp": "2025-07-14T08:59:36.916060+00:00"
-}
+```
+workflows/
+├── forward/           # MT → MX transformations
+│   ├── index.json    # Workflow loading order
+│   ├── parse-mt.json # Common MT parsing
+│   ├── MT103/        # Message-specific workflows
+│   │   ├── bah-mapping.json      # Business Application Header
+│   │   ├── document-mapping.json # Document body mapping
+│   │   └── precondition.json     # Validation rules
+│   └── combine-xml.json          # Final XML assembly
+└── reverse/           # MX → MT transformations
+    ├── index.json
+    ├── parse-mx.json
+    └── pacs008/      # Message-specific workflows
+        ├── 01-variant-detection.json
+        ├── 02-preconditions.json
+        └── ...
 ```
 
-This feature enables:
-- **Development productivity**: Test workflow changes immediately
-- **Production updates**: Update transformation rules without downtime
-- **A/B testing**: Quickly switch between different workflow configurations
+### Scenario System
 
-### Adding New Message Types
+Scenarios provide test data generation using datafake-rs:
 
-1. Create workflow directories in `workflows/forward/[MESSAGE_TYPE]/` or `workflows/reverse/[MESSAGE_TYPE]/`
-2. Add workflow files: `bah-mapping.json`, `document-mapping.json`, `precondition.json`
-3. Update `workflows/forward/index.json` or `workflows/reverse/index.json` to include new workflows
-4. Use the reload API to apply changes: `POST /admin/reload-workflows`
-5. Test with sample messages in `test/data/` directory
-
-### Sample Generation (Unified MT and MX Support)
-
-The sample generation API now supports both SWIFT MT and ISO 20022 MX message generation using scenario-based templates. Both libraries provide pre-defined test scenarios for realistic message generation:
-
-```bash
-# Generate MT103 with default scenario
-curl -X POST http://localhost:3000/generate/sample \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message_type": "MT103",
-    "config": {
-      "scenario": "standard"
-    }
-  }'
-
-# Generate pacs.008 (ISO 20022) with specific scenario
-curl -X POST http://localhost:3000/generate/sample \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message_type": "pacs.008",
-    "config": {
-      "scenario": "high_value"
-    }
-  }'
+```
+scenarios/
+├── index.json         # Scenario registry
+├── forward/          # MT → MX test scenarios
+└── reverse/          # MX → MT test scenarios
+    ├── camt052_to_mt942_cbpr.json
+    └── pacs008_to_mt103_cbpr_standard.json
 ```
 
-**Supported Message Types**:
-- **MT Messages**: MT101, MT103, MT104, MT107, MT110, MT111, MT112, MT192, MT196, MT199, MT202, MT205, MT210, MT292, MT296, MT299, MT900, MT910, MT920, MT935, MT940, MT941, MT942, MT950
-- **MX Messages**: pacs.002, pacs.003, pacs.004, pacs.008, pacs.009, camt.025, camt.029, camt.052, camt.053, camt.054, camt.056, camt.057, camt.060, pain.001, pain.002, pain.008
+Each scenario file contains:
+- `variables`: Reusable values (BICs, amounts, etc.)
+- `schema`: Message structure with datafake generators
 
-**Important Notes**: 
-- The unified endpoint `/generate/sample` automatically detects MT vs MX message types
-- MT messages are returned as SWIFT MT format strings
-- MX messages are returned as JSON (XML serialization coming soon)
-- Both libraries use JSON scenario files with datafake-rs for dynamic data generation
+### Key Libraries and Dependencies
 
-**Available Scenarios**: 
-- MT scenarios located in `scenarios/SwiftMTMessage/[message_type]/`
-- MX scenarios located in `scenarios/MXMessage/[message_type]/`
-- Common scenarios include: `standard`, `high_value`, `cbpr_*` variants, `regulatory_compliant`
-- See the full list in each message type's scenario directory
+- **mx-message**: ISO 20022 message structures and serialization
+- **swift-mt-message**: SWIFT MT message handling  
+- **dataflow-rs**: Workflow engine for transformation pipelines
+- **datalogic-rs**: JSONLogic implementation for declarative rules
+- **datafake-rs**: Test data generation from JSON schemas
+- **pest**: Parser generator for MT message grammars
+- **axum**: Async web framework
+- **quick-xml**: XML serialization
 
-### Environment Variables
+## API Endpoints
 
-- `RUST_LOG`: Controls logging level (debug, info, warn, error)
-- Standard Rust environment variables for compilation and runtime
+### Core Transformation APIs
 
-### Testing
+- `POST /transform/mt-to-mx`: Convert SWIFT MT to ISO 20022
+- `POST /transform/mx-to-mt`: Convert ISO 20022 to SWIFT MT
 
-- **Unit Tests**: Run with `cargo test`
-- **Sample Data**: Located in `test/data/` directory with various message types
-- **Integration Testing**: API endpoints can be tested with curl
+### Sample Generation
 
-## Deployment
+- `POST /generate/sample`: Generate sample messages for testing
+  - Automatically detects MT vs MX message types
+  - Uses scenario files for realistic data
 
-### Local Development
+### Validation
 
-1. Run the Rust application: `cargo run`
-2. Access the API endpoints at `http://localhost:3000`
+- `POST /validate/mt`: Validate SWIFT MT messages
+- `POST /validate/mx`: Validate ISO 20022 messages
 
-### Production Docker Deployment
+### Administration
 
-1. Build: `docker build -t reframe .`
-2. Run: `docker run -p 3000:3000 reframe`
-3. The container runs the API service
+- `POST /admin/reload-workflows`: Hot reload workflow configurations
+- `GET /health`: Health check with engine status
 
-### Azure Deployment
+## Common Development Tasks
 
-- Automated CI/CD pipeline via GitHub Actions (`.github/workflows/deploy-azure.yml`)
-- Deploys to Azure Container Instances
-- Includes staging and production environments
-- See `DEPLOYMENT.md` for detailed deployment instructions
+### Adding Support for a New Message Type
 
-## Important Development Notes
+1. **For MT → MX transformation**:
+   - Create workflow directory: `workflows/forward/MT{XXX}/`
+   - Add workflow files: `bah-mapping.json`, `document-mapping.json`, `precondition.json`
+   - Update `workflows/forward/index.json`
 
-- The application uses dual engines - always ensure both forward and reverse engines are properly initialized
-- **Hot Reload**: Workflow files can be reloaded at runtime using `POST /admin/reload-workflows` - no restart required
-- **Legacy Note**: Previously required restart after modifying workflow configurations, now supports hot reload
-- Message type detection is automatic based on content analysis
-- All transformations are logged with structured tracing for debugging
+2. **For MX → MT transformation**:
+   - Create workflow directory: `workflows/reverse/{message_type}/`
+   - Add numbered workflow files following existing patterns
+   - Update `workflows/reverse/index.json`
 
-## File Structure Key Points
+3. **Add scenario for testing**:
+   - Create scenario file in `scenarios/forward/` or `scenarios/reverse/`
+   - Register in `scenarios/index.json`
+   - Test with: `python3 test/test_scenarios.py -m {message_type}`
 
-- `src/`: Core Rust application code
-- `workflows/`: JSON-based transformation workflows (forward and reverse)
-- `test/data/`: Sample SWIFT MT and ISO 20022 messages for testing
-- `specification/`: Message format specifications and mapping tables
-- When there is a pure number compoennt in path, we need to use # in front other wise the path is taken as array notation.
-- date should be in yyyy-mm-dd format in the reverse mapping as json parsing is directly loading it to NativeDate
-- one_of is not a valid operator in JSONLogic library datalogic-rs
+### Debugging Transformation Issues
+
+1. Run with debug logging: `RUST_LOG=debug cargo run`
+2. Check workflow execution in logs
+3. Use the debug option in API requests for detailed output
+4. Test individual workflows with the test script
+
+### Working with MX Message Library
+
+When the mx-message library is updated:
+1. Update version in Cargo.toml
+2. Run `cargo update -p mx-message`
+3. Fix any compilation errors (usually import path changes)
+4. Test affected message types
+
+## MX Message Scenario Generation Issues
+
+Common issues when creating/fixing MX scenarios:
+
+1. **Array vs String for Ustrd**: 
+   ```json
+   // Wrong
+   "RmtInf": {"Ustrd": [{"fake": ["words", 3, 7]}]}
+   // Correct
+   "RmtInf": {"Ustrd": {"fake": ["words", 3, 7]}}
+   ```
+
+2. **Missing required fields in TxDtls**:
+   ```json
+   "TxDtls": {
+       "Amt": {"@Ccy": {"var": "currency"}, "$value": {"fake": ["f64", 1000.0, 50000.0]}},
+       "CdtDbtInd": "CRDT",  // Required!
+       "AmtDtls": {...}
+   }
+   ```
+
+3. **NtryDtls array structure** - ensure proper closing:
+   ```json
+   "NtryDtls": [{"TxDtls": {...}}]  // Note the closing ]
+   ```
+
+4. **String conversion for numbers** - use cat operator:
+   ```json
+   "NbOfNtries": {"cat": [{"var": "num_transactions"}]}
+   ```
+
+5. **Pagination fields**:
+   - camt.052: Add `RptPgntn` to `Rpt`
+   - camt.053: Add `StmtPgntn` to `Stmt`
+
+## Important Implementation Notes
+
+- Date format in reverse mappings must be `yyyy-mm-dd` (parsed as NativeDate)
+- Numeric path components need `#` prefix to avoid array notation interpretation
+- `one_of` is not valid in datalogic-rs (use alternative logic)
+- The application maintains separate forward and reverse engines that persist across requests
+- Workflow modifications can be hot-reloaded without restart
+- All transformations are logged with structured tracing
+
+## Testing Strategy
+
+1. **Unit tests**: Test individual components (`cargo test`)
+2. **Scenario tests**: Test end-to-end with realistic data (`test/test_scenarios.py`)
+3. **Manual testing**: Use curl or Postman with test data in `test/data/`
+4. **Validation testing**: Ensure generated messages pass validation
+
+## Performance Considerations
+
+- Use release builds for performance testing (`cargo build --release`)
+- The application is stateless and can scale horizontally
+- Workflow engines are initialized once and reused
+- JSON parsing is a potential bottleneck for large messages

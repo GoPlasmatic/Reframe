@@ -9,7 +9,9 @@
         "transaction_ref": {"cat": ["REM", {"fake": ["i64", 1000000000, 9999999999]}]},
         "currency": {"fake": ["currency_code"]},
         "amount": {"fake": ["f64", 500.0, 50000.0]},
-        "value_date": {"fake": ["date", "%y-%m-%d", "+1d", "+3d"]},
+        "value_date": {
+            "fake": ["date", "%y-%m-%d", "+1d", "+3d"]
+        },
         "uetr": {"fake": ["uuid"]},
         "sender_name": {"fake": ["name"]},
         "sender_country": {"fake": ["country_code"]},
@@ -18,7 +20,9 @@
         "purpose_code": "CASH",
         "relationship": "FAMILY",
         "id_number": {"fake": ["i64", 100000000000, 999999999999]},
-        "birth_date": {"fake": ["date", "%Y%m%d", "-70y", "-18y"]},
+        "birth_date": {
+            "fake": ["date", "%Y%m%d", "-70y", "-18y"]
+        },
         "phone": {"fake": ["phone_number"]},
         "reference_msg": {"fake": ["words", 5, 10]}
     },
@@ -71,7 +75,14 @@
                     "name_and_address": [
                         {"cat": ["1/", {"var": "sender_name"}]},
                         {"cat": ["2/", {"fake": ["street_address"]}]},
-                        {"cat": ["3/", {"var": "sender_country"}, "/", {"fake": ["city_name"]}]},
+                        {
+                            "cat": [
+                                "3/",
+                                {"var": "sender_country"},
+                                "/",
+                                {"fake": ["city_name"]}
+                            ]
+                        },
                         {"cat": ["4/DOB/", {"var": "birth_date"}]}
                     ]
                 }
@@ -80,13 +91,20 @@
             "57A": {"bic": {"var": "receiver_bic"}},
             "59": {
                 "F": {
-                "account": {"cat": ["/", {"fake": ["i64", 100000000, 999999999]}]},
-                "name_and_address": [
-                    {"cat": ["1/", {"var": "receiver_name"}]},
-                    {"cat": ["2/", {"fake": ["street_address"]}]},
-                    {"cat": ["3/", {"var": "receiver_country"}, "/", {"fake": ["city_name"]}]},
-                    {"cat": ["4/TEL/", {"fake": ["phone_number"]}]}
-                ]
+                    "account": {"cat": ["/", {"fake": ["i64", 100000000, 999999999]}]},
+                    "name_and_address": [
+                        {"cat": ["1/", {"var": "receiver_name"}]},
+                        {"cat": ["2/", {"fake": ["street_address"]}]},
+                        {
+                            "cat": [
+                                "3/",
+                                {"var": "receiver_country"},
+                                "/",
+                                {"fake": ["city_name"]}
+                            ]
+                        },
+                        {"cat": ["4/TEL/", {"fake": ["phone_number"]}]}
+                    ]
                 }
             },
             "70": {
@@ -114,23 +132,5 @@
                 ]
             }
         }
-    },
-    "expected_pacs008": {
-        "validation_rules": [
-            "Debtor and Creditor must use PrvtId for individuals",
-            "CtgyPurp must map from purpose code in field 70",
-            "Relationship information must be preserved in RmtInf",
-            "Birth date and ID must map to Debtor.Id.PrvtId.Othr",
-            "Phone numbers must map to contact details",
-            "Format 50F/59F must map to structured name/address"
-        ],
-        "required_elements": [
-            "AppHdr.BizSvc = 'swift.cbprplus.01'",
-            "Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Dbtr.Id.PrvtId",
-            "Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Cdtr.Id.PrvtId",
-            "Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Purp.Cd",
-            "Document.FIToFICstmrCdtTrf.CdtTrfTxInf.RmtInf.Ustrd",
-            "Document.FIToFICstmrCdtTrf.CdtTrfTxInf.RgltryRptg"
-        ]
     }
 }

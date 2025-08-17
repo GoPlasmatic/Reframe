@@ -4,163 +4,44 @@
     "target_type": "camt.054",
     "variant": "CBPR+_CREDIT",
     "variables": {
-        "sender_bic": {
-            "fake": [
-                "bic"
-            ]
-        },
-        "receiver_bic": {
-            "fake": [
-                "bic"
-            ]
-        },
-        "transaction_ref": {
-            "cat": [
-                "CRD",
-                {
-                    "fake": [
-                        "i64",
-                        1000000000,
-                        9999999999
-                    ]
-                }
-            ]
-        },
-        "account_id": {
-            "fake": [
-                "iban"
-            ]
-        },
-        "currency": {
-            "fake": [
-                "currency_code"
-            ]
-        },
-        "amount": {
-            "fake": [
-                "f64",
-                1000.0,
-                500000.0
-            ]
-        },
+        "sender_bic": {"fake": ["bic"]},
+        "receiver_bic": {"fake": ["bic"]},
+        "transaction_ref": {"cat": ["CRD", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "account_id": {"fake": ["iban"]},
+        "currency": {"fake": ["currency_code"]},
+        "amount": {"fake": ["f64", 1000.0, 500000.0]},
         "value_date": {
-            "fake": [
-                "date",
-                "%y-%m-%d",
-                "+0d",
-                "+0d"
-            ]
+            "fake": ["date", "%y-%m-%d", "+0d", "+0d"]
         },
-        "ordering_customer": {
-            "fake": [
-                "company_name"
-            ]
-        },
-        "intermediary_bic": {
-            "fake": [
-                "bic"
-            ]
-        },
-        "supplementary_details": {
-            "fake": [
-                "words",
-                3,
-                7
-            ]
-        }
+        "ordering_customer": {"fake": ["company_name"]},
+        "intermediary_bic": {"fake": ["bic"]},
+        "supplementary_details": {"fake": ["words", 3, 7]}
     },
     "schema": {
         "basic_header": {
             "application_id": "F",
             "service_id": "01",
-            "logical_terminal": {
-                "cat": [
-                    {
-                        "var": "sender_bic"
-                    },
-                    "AXXX"
-                ]
-            },
-            "session_number": {
-                "cat": [
-                    "",
-                    {
-                        "fake": [
-                            "i64",
-                            1,
-                            9999
-                        ]
-                    }
-                ]
-            },
-            "sequence_number": {
-                "cat": [
-                    "",
-                    {
-                        "fake": [
-                            "i64",
-                            100000,
-                            999999
-                        ]
-                    }
-                ]
-            },
-            "sender_bic": {
-                "var": "sender_bic"
-            }
+            "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
+            "session_number": {"cat": ["", {"fake": ["i64", 1, 9999]}]},
+            "sequence_number": {"cat": ["", {"fake": ["i64", 100000, 999999]}]},
+            "sender_bic": {"var": "sender_bic"}
         },
         "application_header": {
             "direction": "I",
             "message_type": "910",
-            "destination_address": {
-                "cat": [
-                    {
-                        "var": "receiver_bic"
-                    },
-                    "XXXX"
-                ]
-            },
+            "destination_address": {"cat": [{"var": "receiver_bic"}, "XXXX"]},
             "priority": "N",
-            "receiver_bic": {
-                "var": "receiver_bic"
-            }
+            "receiver_bic": {"var": "receiver_bic"}
         },
         "message_type": "910",
         "fields": {
-            "20": {
-                "reference": {
-                    "var": "transaction_ref"
-                }
-            },
-            "21": {
-                "reference": {
-                    "cat": [
-                        "REL",
-                        {
-                            "fake": [
-                                "i64",
-                                100000,
-                                999999
-                            ]
-                        }
-                    ]
-                }
-            },
-            "25": {
-                "NoOption": {
-                    "authorisation": {"var": "account_id"}
-                }
-            },
+            "20": {"reference": {"var": "transaction_ref"}},
+            "21": {"reference": {"cat": ["REL", {"fake": ["i64", 100000, 999999]}]}},
+            "25": {"NoOption": {"authorisation": {"var": "account_id"}}},
             "32A": {
-                "value_date": {
-                    "var": "value_date"
-                },
-                "currency": {
-                    "var": "currency"
-                },
-                "amount": {
-                    "var": "amount"
-                }
+                "value_date": {"var": "value_date"},
+                "currency": {"var": "currency"},
+                "amount": {"var": "amount"}
             },
             "50": {
                 "K": {
@@ -173,49 +54,15 @@
                     ]
                 }
             },
-            "52A": {
-                "bic": {
-                    "var": "sender_bic"
-                }
-            },
-            "56A": {
-                "bic": {
-                    "var": "intermediary_bic"
-                }
-            },
+            "52A": {"bic": {"var": "sender_bic"}},
+            "56A": {"bic": {"var": "intermediary_bic"}},
             "72": {
                 "information": [
                     "/ACC/CREDIT CONFIRMATION",
-                    {
-                        "cat": [
-                            "/REC/",
-                            {
-                                "var": "supplementary_details"
-                            }
-                        ]
-                    },
+                    {"cat": ["/REC/", {"var": "supplementary_details"}]},
                     "/BNF/CBPR+ COMPLIANT"
                 ]
             }
         }
-    },
-    "expected_camt054": {
-        "validation_rules": [
-            "Must create Ntry with CdtDbtInd = 'CRDT'",
-            "Entry status must be 'BOOK' for confirmed",
-            "BkTxCd must indicate credit transaction type",
-            "Amount and currency must match MT910 field 32A",
-            "Account identification from field 25",
-            "Ordering customer mapped to RltdPties.Dbtr",
-            "Intermediary mapped to RltdAgts"
-        ],
-        "required_elements": [
-            "Document.BkToCstmrDbtCdtNtfctn.Ntfctn.Acct",
-            "Document.BkToCstmrDbtCdtNtfctn.Ntfctn.Ntry.NtryRef",
-            "Document.BkToCstmrDbtCdtNtfctn.Ntfctn.Ntry.Amt",
-            "Document.BkToCstmrDbtCdtNtfctn.Ntfctn.Ntry.CdtDbtInd = 'CRDT'",
-            "Document.BkToCstmrDbtCdtNtfctn.Ntfctn.Ntry.Sts.Cd = 'BOOK'",
-            "Document.BkToCstmrDbtCdtNtfctn.Ntfctn.Ntry.NtryDtls.TxDtls.RltdPties"
-        ]
     }
 }

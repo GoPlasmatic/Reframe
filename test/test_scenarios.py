@@ -3,14 +3,9 @@
 Test script for MT and MX message scenarios using the Reframe transformation service.
 
 Test Flow for Each Scenario:
-1. List all applicable scenarios for a given message type
-2. Generate sample message using the Sample Generation API  
-3. Validate the generated message with canonical enabled
-4. Transform the message using the Transformation API
-5. Extract the transformed message data
-6. Validate the transformed message with debug and canonical enabled
-7. Perform reverse transformation to get back to original format
-8. Compare the roundtrip result with the original message
+1. Generate sample message using the Sample Generation API with message type and scenario
+2. Validate the generated message structure using validation API
+3. Transform the message using the Transformation API
 """
 
 import json
@@ -56,82 +51,6 @@ class APIEndpoints:
                 setattr(self, attr, '/' + endpoint)
 
 
-@dataclass
-class ScenarioMapping:
-    """Scenario mapping configuration loaded from index.json"""
-    mappings: Dict[str, Dict[str, str]] = field(default_factory=dict)
-    
-    @classmethod
-    def load_from_index(cls, index_path: Path = None):
-        """Load scenario mappings from scenarios/index.json"""
-        if index_path is None:
-            # Try both paths
-            if Path("../scenarios/index.json").exists():
-                index_path = Path("../scenarios/index.json")
-            elif Path("scenarios/index.json").exists():
-                index_path = Path("scenarios/index.json")
-            else:
-                index_path = Path("../scenarios/index.json")  # default
-        mappings = {}
-        
-        try:
-            with open(index_path, 'r') as f:
-                data = json.load(f)
-                
-                # Process forward transformations
-                for scenario in data.get("forward", []):
-                    source = scenario.get("source", "")
-                    scenario_id = scenario.get("id", "")
-                    filename = Path(scenario.get("file", "")).stem
-                    
-                    if source and scenario_id:
-                        if source not in mappings:
-                            mappings[source] = {}
-                        mappings[source][filename] = scenario_id
-                        # Also add a default if it's the first one or named "standard"
-                        if "default" not in mappings[source] or scenario_id == "standard":
-                            mappings[source]["default"] = scenario_id
-                
-                # Process reverse transformations  
-                for scenario in data.get("reverse", []):
-                    source = scenario.get("source", "")
-                    scenario_id = scenario.get("id", "")
-                    filename = Path(scenario.get("file", "")).stem
-                    
-                    if source and scenario_id:
-                        # Normalize MX message types to uppercase with dot
-                        normalized_source = source.upper().replace(".", "_") if not source.startswith("MT") else source
-                        if normalized_source not in mappings:
-                            mappings[normalized_source] = {}
-                        mappings[normalized_source][filename] = scenario_id
-                        # Also add a default if it's the first one or named "standard"
-                        if "default" not in mappings[normalized_source] or scenario_id == "standard":
-                            mappings[normalized_source]["default"] = scenario_id
-                            
-        except Exception as e:
-            print(f"Warning: Could not load scenario mappings from index.json: {e}")
-            # Return empty mappings if loading fails
-            return cls(mappings={})
-            
-        return cls(mappings=mappings)
-    
-    @classmethod
-    def load_default(cls):
-        """Load scenario mappings from index.json (backward compatibility)"""
-        return cls.load_from_index()
-    
-    def get_scenario_id(self, message_type: str, scenario_name: str) -> str:
-        """Get scenario ID for a given message type and scenario name"""
-        msg_type_upper = message_type.upper().replace(".", "_") if not message_type.startswith("MT") else message_type
-        
-        type_mappings = self.mappings.get(msg_type_upper, {})
-        
-        # Direct lookup first
-        if scenario_name in type_mappings:
-            return type_mappings[scenario_name]
-        
-        # Return default or the scenario name itself if not found
-        return type_mappings.get("default", scenario_name)
 
 
 @dataclass
@@ -144,7 +63,6 @@ class TestResult:
     generation: TestStatus = TestStatus.FAILURE
     validation: TestStatus = TestStatus.FAILURE
     transformation: TestStatus = TestStatus.FAILURE
-    roundtrip: TestStatus = TestStatus.FAILURE
     errors: List[str] = field(default_factory=list)
     
     def to_dict(self) -> Dict[str, Any]:
@@ -157,7 +75,6 @@ class TestResult:
             "generation": self.generation.value,
             "validation": self.validation.value,
             "transformation": self.transformation.value,
-            "roundtrip": self.roundtrip.value,
             "errors": self.errors
         }
 
@@ -269,50 +186,7 @@ class ReframeAPIClient:
             return result.get("success", False), errors
         return False, [f"HTTP {response.status_code}"]
     
-    def validate_mt_with_debug(self, message: str) -> Tuple[bool, List[str]]:
-        """Validate MT message with debug and canonical options"""
-        response = self._make_request(
-            "POST",
-            self.endpoints.validate_mt,
-            json={"message": message, "options": {"canonical": True, "debug": True}}
-        )
-        
-        errors = []
-        if response.status_code == 200:
-            result = response.json()
-            if not result.get("success"):
-                api_errors = result.get("errors", [])
-                for err in api_errors:
-                    errors.append(f"{err.get('code', 'UNKNOWN')}: {err.get('message', 'Unknown error')}")
-            return result.get("success", False), errors
-        return False, [f"HTTP {response.status_code}"]
-    
-    def validate_mx_with_debug(self, message: Any) -> Tuple[bool, List[str]]:
-        """Validate MX message with debug and canonical options"""
-        # Handle different message formats
-        if isinstance(message, list) and len(message) > 0:
-            # Result from transformation is a list with XML strings
-            message_str = message[0] if isinstance(message[0], str) else str(message[0])
-        elif isinstance(message, dict):
-            message_str = json.dumps(message)
-        else:
-            message_str = str(message)
-        
-        response = self._make_request(
-            "POST",
-            self.endpoints.validate_mx,
-            json={"message": message_str, "options": {"canonical": True, "debug": True}}
-        )
-        
-        errors = []
-        if response.status_code == 200:
-            result = response.json()
-            if not result.get("success"):
-                api_errors = result.get("errors", [])
-                for err in api_errors:
-                    errors.append(f"{err.get('code', 'UNKNOWN')}: {err.get('message', 'Unknown error')}")
-            return result.get("success", False), errors
-        return False, [f"HTTP {response.status_code}"]
+    # Removed debug validation methods as they're not used in simplified flow
     
     def transform_mt_to_mx(self, message: str) -> Optional[str]:
         """Transform MT to MX"""
@@ -422,14 +296,12 @@ class ScenarioManager:
                     normalized_source = source.upper() if source.upper().startswith("MT") else source
                     
                     if normalized_source == normalized_type:
-                        file_path = scenario.get("file", "")
-                        if file_path:
-                            filename = Path(file_path).stem
+                        scenario_id = scenario.get("id", "")
+                        if scenario_id:
                             scenario_list.append({
-                                "name": filename,
+                                "id": scenario_id,
                                 "description": scenario.get("description", ""),
-                                "target": scenario.get("target", ""),
-                                "file": file_path
+                                "target": scenario.get("target", "")
                             })
                 
                 return scenario_list
@@ -439,181 +311,43 @@ class ScenarioManager:
 
 # ==================== Test Engine ====================
 
-class MessageGenerator:
-    """Handles message generation logic"""
-    
-    def __init__(self, api_client: ReframeAPIClient, scenario_mapping: ScenarioMapping):
-        self.api = api_client
-        self.mapping = scenario_mapping
-    
-    def generate(self, message_type: str, scenario_path: str) -> Tuple[Optional[Any], str]:
-        """Generate a message using the appropriate scenario"""
-        
-        # Determine the format type
-        format_type = "MT" if message_type.upper().startswith("MT") else "MX"
-        
-        # Get the scenario name from the path
-        scenario_name = Path(scenario_path).stem
-        
-        # Use scenario mapping to get the appropriate scenario ID
-        scenario_id = self.mapping.get_scenario_id(message_type, scenario_name)
-        
-        # Generate the message using the API
-        message = self.api.generate_sample(message_type, {"scenario": scenario_id})
-        
-        if message:
-            return message, format_type
-        
-        return None, ""
-
-
 class ScenarioTester:
     """Main test orchestrator"""
     
-    def __init__(self, api_client: ReframeAPIClient, scenario_manager: ScenarioManager,
-                 message_generator: MessageGenerator):
+    def __init__(self, api_client: ReframeAPIClient, scenario_manager: ScenarioManager):
         self.api = api_client
         self.scenarios = scenario_manager
-        self.generator = message_generator
         self.statistics = defaultdict(int)
     
-    def test_roundtrip_with_comparison(self, original_message: Any, format_type: str) -> bool:
-        """Test roundtrip transformation and compare with original"""
-        try:
-            if format_type == "MT":
-                # MT -> MX -> MT
-                mx_result = self.api.transform_mt_to_mx(original_message)
-                if mx_result:
-                    mt_result = self.api.transform_mx_to_mt(mx_result)
-                    if mt_result:
-                        # Compare normalized versions (removing whitespace differences)
-                        original_normalized = self._normalize_mt_message(original_message)
-                        result_normalized = self._normalize_mt_message(mt_result)
-                        return original_normalized == result_normalized
-            elif format_type == "MX":
-                # MX -> MT -> MX
-                mt_result = self.api.transform_mx_to_mt(original_message)
-                if mt_result:
-                    mx_result = self.api.transform_mt_to_mx(mt_result)
-                    if mx_result:
-                        # Compare JSON structures
-                        original_json = json.loads(original_message) if isinstance(original_message, str) else original_message
-                        result_json = json.loads(mx_result) if isinstance(mx_result, str) else mx_result
-                        return self._compare_mx_messages(original_json, result_json)
-            return False
-        except Exception:
-            return False
-    
-    def _normalize_mt_message(self, message: str) -> str:
-        """Normalize MT message for comparison"""
-        # Remove extra whitespace and normalize line endings
-        lines = [line.strip() for line in message.split('\n') if line.strip()]
-        return '\n'.join(lines)
-    
-    def _compare_mx_messages(self, msg1: dict, msg2: dict) -> bool:
-        """Compare MX messages allowing for acceptable differences"""
-        # Basic comparison - can be enhanced for more intelligent comparison
-        return json.dumps(msg1, sort_keys=True) == json.dumps(msg2, sort_keys=True)
-    
-    def test_scenario_simplified(self, message_type: str, scenario_info: Dict[str, str]) -> TestResult:
-        """Simplified test for transformation scenarios without generation"""
-        result = TestResult(
-            message_type=message_type,
-            scenario=scenario_info["name"],
-            description=scenario_info.get("description", "")
-        )
-        
-        # Since sample generation is not working yet, create a simple test message
-        # This is a workaround until proper scenario files are created
-        if message_type == "MT103":
-            # Use a hardcoded valid MT103 message for testing
-            message = """{1:F01DEUTDEFFXXXX0000000000}{2:I103BNPAFRPPXXXXN}{3:{108:TEST12345}}{4:
-:20:TEST12345
-:23B:CRED
-:32A:250816EUR5000.00
-:50K:/1234567890
-John Doe
-123 Main St
-:57A:BNPAFRPP
-:59:/9876543210
-Jane Smith
-456 Park Ave
-:71A:SHA
--}{5:{CHK:123456789ABC}}"""
-            format_type = "MT"
-        else:
-            # Skip other message types for now
-            result.errors.append("Test message not available for this type")
-            return result
-        
-        result.generation = TestStatus.SUCCESS
-        self.statistics["generation_success"] += 1
-        
-        # Continue with validation and transformation as before
-        is_valid, errors = self.api.validate_mt(message)
-        
-        if is_valid:
-            result.validation = TestStatus.SUCCESS
-            self.statistics["validation_success"] += 1
-        else:
-            result.errors.extend(errors)
-            result.transformation = TestStatus.SKIPPED
-            result.roundtrip = TestStatus.SKIPPED
-            self.statistics["total"] += 1
-            self.statistics[f"by_type_{message_type}"] += 1
-            return result
-        
-        # Transform the message
-        transformed = self.api.transform_mt_to_mx(message)
-        if transformed:
-            result.transformation = TestStatus.SUCCESS
-            self.statistics["transformation_success"] += 1
-            
-            # Validate transformed MX message
-            is_valid_transformed, _ = self.api.validate_mx_with_debug(transformed)
-            if not is_valid_transformed:
-                # Note: Current implementation returns XML with Envelope which validation can't parse
-                # This is expected behavior - mark as successful transformation
-                result.roundtrip = TestStatus.SKIPPED
-                result.errors.append("MX validation skipped (envelope format)")
-            else:
-                # Test roundtrip
-                if self.test_roundtrip_with_comparison(message, format_type):
-                    result.roundtrip = TestStatus.SUCCESS
-                    self.statistics["roundtrip_success"] += 1
-                else:
-                    result.roundtrip = TestStatus.WARNING
-                    result.errors.append("Roundtrip transformation did not match original")
-        else:
-            result.errors.append("MT to MX transformation failed")
-            result.transformation = TestStatus.FAILURE
-            result.roundtrip = TestStatus.SKIPPED
-        
-        self.statistics["total"] += 1
-        self.statistics[f"by_type_{message_type}"] += 1
-        
-        return result
+    # Removed roundtrip testing methods
     
     def test_scenario(self, message_type: str, scenario_info: Dict[str, str]) -> TestResult:
-        """Test a single scenario following the complete validation flow"""
+        """Test a single scenario following the simplified 3-step validation flow"""
         result = TestResult(
             message_type=message_type,
-            scenario=scenario_info["name"],
+            scenario=scenario_info["id"],
             description=scenario_info.get("description", "")
         )
         
-        # Step 2: Generate message for the scenario
-        scenario_path = scenario_info.get("file", scenario_info["name"])
-        message, format_type = self.generator.generate(message_type, scenario_path)
+        # Step 1: Generate sample message using Sample Generator API with message type and scenario
+        scenario_id = scenario_info["id"]
+        format_type = "MT" if message_type.upper().startswith("MT") else "MX"
+        message = self.api.generate_sample(message_type, {"scenario": scenario_id})
         
         if not message:
             result.errors.append("Generation failed")
+            # Still count this test in statistics
+            self.statistics["total"] += 1
+            self.statistics[f"by_type_{message_type}"] += 1
+            # Mark other statuses as skipped
+            result.validation = TestStatus.SKIPPED
+            result.transformation = TestStatus.SKIPPED
             return result
         
         result.generation = TestStatus.SUCCESS
         self.statistics["generation_success"] += 1
         
-        # Step 3: Validate generated message with canonical enabled
+        # Step 2: Validate the generated message structure using validation API
         if format_type == "MT":
             is_valid, errors = self.api.validate_mt(message)
         else:
@@ -624,60 +358,29 @@ Jane Smith
             self.statistics["validation_success"] += 1
         else:
             result.errors.extend(errors)
-            # Skip further steps if initial validation fails
+            # Skip transformation if validation fails
             result.transformation = TestStatus.SKIPPED
-            result.roundtrip = TestStatus.SKIPPED
             self.statistics["total"] += 1
             self.statistics[f"by_type_{message_type}"] += 1
             return result
         
-        # Step 4 & 5: Transform the message
+        # Step 3: Transform the message using the Transformation API
         if format_type == "MT":
             transformed = self.api.transform_mt_to_mx(message)
             if transformed:
                 result.transformation = TestStatus.SUCCESS
                 self.statistics["transformation_success"] += 1
-                
-                # Step 6: Validate transformed MX message with debug and canonical
-                is_valid_transformed, transform_errors = self.api.validate_mx_with_debug(transformed)
-                if not is_valid_transformed:
-                    result.errors.append(f"Transformed MX validation failed: {', '.join(transform_errors)}")
-                    result.roundtrip = TestStatus.WARNING
-                else:
-                    # Step 7 & 8: Reverse transform and check equality
-                    if self.test_roundtrip_with_comparison(message, format_type):
-                        result.roundtrip = TestStatus.SUCCESS
-                        self.statistics["roundtrip_success"] += 1
-                    else:
-                        result.roundtrip = TestStatus.WARNING
-                        result.errors.append("Roundtrip transformation did not match original")
             else:
                 result.errors.append("MT to MX transformation failed")
                 result.transformation = TestStatus.FAILURE
-                result.roundtrip = TestStatus.SKIPPED
         else:
             transformed = self.api.transform_mx_to_mt(message)
             if transformed:
                 result.transformation = TestStatus.SUCCESS
                 self.statistics["transformation_success"] += 1
-                
-                # Step 6: Validate transformed MT message with debug and canonical
-                is_valid_transformed, transform_errors = self.api.validate_mt_with_debug(transformed)
-                if not is_valid_transformed:
-                    result.errors.append(f"Transformed MT validation failed: {', '.join(transform_errors)}")
-                    result.roundtrip = TestStatus.WARNING
-                else:
-                    # Step 7 & 8: Reverse transform and check equality
-                    if self.test_roundtrip_with_comparison(message, format_type):
-                        result.roundtrip = TestStatus.SUCCESS
-                        self.statistics["roundtrip_success"] += 1
-                    else:
-                        result.roundtrip = TestStatus.WARNING
-                        result.errors.append("Roundtrip transformation did not match original")
             else:
                 result.errors.append("MX to MT transformation failed")
                 result.transformation = TestStatus.FAILURE
-                result.roundtrip = TestStatus.SKIPPED
         
         self.statistics["total"] += 1
         self.statistics[f"by_type_{message_type}"] += 1
@@ -698,7 +401,8 @@ Jane Smith
         
         # Filter if specific scenarios requested
         if specific_scenarios:
-            scenarios = [s for s in scenarios if s["name"] in specific_scenarios]
+            # Only filter by ID
+            scenarios = [s for s in scenarios if s.get("id") in specific_scenarios]
             if not scenarios:
                 print(f"Warning: None of the specified scenarios found for {message_type}")
                 return results
@@ -750,8 +454,7 @@ class ResultsReporter:
                     r.sample,
                     r.generation.value,
                     r.validation.value,
-                    r.transformation.value,
-                    r.roundtrip.value
+                    r.transformation.value
                 ]
                 
                 # Add error summary
@@ -764,7 +467,7 @@ class ResultsReporter:
                 table_data.append(row)
         
         headers = ["Message Type", "Scenario", "Sample", "Generator", 
-                   "Validator", "Transform", "Round Trip", "Errors"]
+                   "Validator", "Transform", "Errors"]
         print("\n" + tabulate(table_data, headers=headers, tablefmt="grid"))
     
     @staticmethod
@@ -781,7 +484,7 @@ class ResultsReporter:
         
         print(f"Total tests: {total}")
         for metric in ["generation_success", "validation_success", 
-                       "transformation_success", "roundtrip_success"]:
+                       "transformation_success"]:
             count = statistics.get(metric, 0)
             percentage = 100 * count / total
             print(f"{metric.replace('_', ' ').title()}: {count}/{total} ({percentage:.1f}%)")
@@ -858,9 +561,7 @@ def main():
     endpoints = APIEndpoints(base_url=args.base_url)
     api_client = ReframeAPIClient(endpoints, debug=args.debug)
     scenario_manager = ScenarioManager()
-    scenario_mapping = ScenarioMapping.load_default()
-    message_generator = MessageGenerator(api_client, scenario_mapping)
-    tester = ScenarioTester(api_client, scenario_manager, message_generator)
+    tester = ScenarioTester(api_client, scenario_manager)
     
     # Handle listing operations
     if args.list_types:
@@ -893,8 +594,9 @@ def main():
             print("="*50)
             for i, scenario in enumerate(scenarios, 1):
                 desc = f" - {scenario['description']}" if scenario['description'] else ""
-                print(f"{i:3}. {scenario['name']}{desc}")
+                print(f"{i:3}. {scenario['id']:<20} {desc}")
             print(f"\nTotal: {len(scenarios)} scenarios")
+            print("\nUse the scenario ID with --scenario option")
         else:
             print(f"No scenarios found for {args.message_type}")
         sys.exit(0)

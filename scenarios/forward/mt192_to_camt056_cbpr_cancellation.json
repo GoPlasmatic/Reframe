@@ -4,56 +4,218 @@
     "target_type": "camt.056",
     "variant": "CBPR+_CUSTOMER_CANCEL",
     "variables": {
-        "sender_bic": {"fake": ["bic"]},
-        "receiver_bic": {"fake": ["bic"]},
-        "case_id": {"cat": ["CAN", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "sender_bic": {
+            "fake": [
+                "bic"
+            ]
+        },
+        "receiver_bic": {
+            "fake": [
+                "bic"
+            ]
+        },
+        "case_id": {
+            "cat": [
+                "CAN",
+                {
+                    "fake": [
+                        "i64",
+                        1000000000,
+                        9999999999
+                    ]
+                }
+            ]
+        },
         "original_msg_type": "103",
-        "original_ref": {"cat": ["ORIG", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "original_ref": {
+            "cat": [
+                "ORIG",
+                {
+                    "fake": [
+                        "i64",
+                        1000000000,
+                        9999999999
+                    ]
+                }
+            ]
+        },
         "original_date": {
-            "fake": ["date", "%y%m%d", "-5d", "-1d"]
+            "fake": [
+                "date",
+                "%y-%m-%d",
+                "-5d",
+                "-1d"
+            ]
         },
-        "original_amount": {"fake": ["f64", 1000.0, 100000.0]},
-        "currency": {"one_of": ["USD", "EUR", "GBP"]},
-        "cancellation_reason": {
-            "one_of": ["DUPL", "FRAD", "TECH", "CUST"]
+        "original_amount": {
+            "fake": [
+                "f64",
+                1000.0,
+                100000.0
+            ]
         },
-        "uetr": {"fake": ["uuid"]},
-        "ordering_customer": {"fake": ["company_name"]},
-        "beneficiary": {"fake": ["company_name"]}
+        "currency": {
+            "fake": [
+                "currency_code"
+            ]
+        },
+        "cancellation_reason": "DUPL",
+        "uetr": {
+            "fake": [
+                "uuid"
+            ]
+        },
+        "ordering_customer": {
+            "fake": [
+                "company_name"
+            ]
+        },
+        "beneficiary": {
+            "fake": [
+                "company_name"
+            ]
+        }
     },
     "schema": {
         "basic_header": {
             "application_id": "F",
             "service_id": "01",
-            "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
-            "session_number": {"fake": ["i64", 1, 9999]},
-            "sequence_number": {"fake": ["i64", 100000, 999999]}
+            "logical_terminal": {
+                "cat": [
+                    {
+                        "var": "sender_bic"
+                    },
+                    "AXXX"
+                ]
+            },
+            "sender_bic": {
+                "var": "sender_bic"
+            },
+            "session_number": {
+                "cat": [
+                    "",
+                    {
+                        "fake": [
+                            "i64",
+                            1,
+                            9999
+                        ]
+                    }
+                ]
+            },
+            "sequence_number": {
+                "cat": [
+                    "",
+                    {
+                        "fake": [
+                            "i64",
+                            100000,
+                            999999
+                        ]
+                    }
+                ]
+            }
         },
         "application_header": {
             "direction": "I",
             "message_type": "192",
-            "destination_address": {"cat": [{"var": "receiver_bic"}, "XXXX"]},
+            "destination_address": {
+                "cat": [
+                    {
+                        "var": "receiver_bic"
+                    },
+                    "XXXX"
+                ]
+            },
+            "receiver_bic": {
+                "var": "receiver_bic"
+            },
             "priority": "U"
         },
-        "user_header": {"service_type_identifier": "001", "unique_end_to_end_reference": {"var": "uetr"}},
-        "message_type": "192",
+        "user_header": {
+            "service_type_identifier": "001",
+            "unique_end_to_end_reference": {
+                "var": "uetr"
+            }
+        },
         "fields": {
-            "20": {"reference": {"var": "case_id"}},
-            "21": {"related_reference": {"var": "original_ref"}},
-            "11S": {"mt_number": {"var": "original_msg_type"}, "date": {"var": "original_date"}},
+            "20": {
+                "reference": {
+                    "var": "case_id"
+                }
+            },
+            "21": {
+                "reference": {
+                    "var": "original_ref"
+                }
+            },
+            "11S": {
+                "date": {
+                    "var": "original_date"
+                },
+                "message_type": {
+                    "var": "original_msg_type"
+                }
+            },
             "79": {
-                "narrative": [
-                    {"cat": ["/ORGREF/", {"var": "original_ref"}]},
-                    {"cat": ["/REASON/", {"var": "cancellation_reason"}]},
-                    {"cat": ["/ORIGAMT/", {"var": "currency"}, {"var": "original_amount"}]},
-                    {"cat": ["/BENEF/", {"var": "beneficiary"}]},
-                    {"cat": ["/ORDCUST/", {"var": "ordering_customer"}]},
+                "information": [
+                    {
+                        "cat": [
+                            "/ORGREF/",
+                            {
+                                "var": "original_ref"
+                            }
+                        ]
+                    },
+                    {
+                        "cat": [
+                            "/REASON/",
+                            {
+                                "var": "cancellation_reason"
+                            }
+                        ]
+                    },
+                    {
+                        "cat": [
+                            "/ORIGAMT/",
+                            {
+                                "var": "currency"
+                            },
+                            {
+                                "var": "original_amount"
+                            }
+                        ]
+                    },
+                    {
+                        "cat": [
+                            "/BENEF/",
+                            {
+                                "var": "beneficiary"
+                            }
+                        ]
+                    },
+                    {
+                        "cat": [
+                            "/ORDCUST/",
+                            {
+                                "var": "ordering_customer"
+                            }
+                        ]
+                    },
                     "/REQUEST/FULL CANCELLATION",
                     "/CBPR/COMPLIANT",
-                    {"cat": ["/UETR/", {"var": "uetr"}]}
+                    {
+                        "cat": [
+                            "/UETR/",
+                            {
+                                "var": "uetr"
+                            }
+                        ]
+                    }
                 ]
             }
-        }
+        },
+        "message_type": "192"
     },
     "expected_camt056": {
         "validation_rules": [

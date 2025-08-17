@@ -4,65 +4,246 @@
     "target_type": "camt.029",
     "variant": "CBPR+_FI_RESOLUTION",
     "variables": {
-        "sender_bic": {"fake": ["bic"]},
-        "receiver_bic": {"fake": ["bic"]},
-        "case_id": {"cat": ["FIRES", {"fake": ["i64", 1000000000, 9999999999]}]},
-        "original_case_id": {"cat": ["FICASE", {"fake": ["i64", 1000000000, 9999999999]}]},
-        "resolution_type": {
-            "one_of": ["ACCP", "RJCT", "PDNG", "MODI", "CANC"]
+        "sender_bic": {
+            "fake": [
+                "bic"
+            ]
         },
-        "original_amount": {"fake": ["f64", 100000.0, 10000000.0]},
-        "modified_amount": {"fake": ["f64", 100000.0, 10000000.0]},
-        "currency": {"one_of": ["USD", "EUR", "GBP"]},
-        "uetr": {"fake": ["uuid"]},
-        "resolution_details": {"fake": ["words", 5, 10]},
-        "action_taken": {"fake": ["words", 3, 7]},
-        "sender_lei": {"fake": ["lei"]},
-        "receiver_lei": {"fake": ["lei"]},
-        "clearing_system": {"one_of": ["TGT", "EBA", "FDW"]},
+        "receiver_bic": {
+            "fake": [
+                "bic"
+            ]
+        },
+        "case_id": {
+            "cat": [
+                "FIRES",
+                {
+                    "fake": [
+                        "i64",
+                        1000000000,
+                        9999999999
+                    ]
+                }
+            ]
+        },
+        "original_case_id": {
+            "cat": [
+                "FICASE",
+                {
+                    "fake": [
+                        "i64",
+                        1000000000,
+                        9999999999
+                    ]
+                }
+            ]
+        },
+        "resolution_type": "ACCP",
+        "original_amount": {
+            "fake": [
+                "f64",
+                100000.0,
+                10000000.0
+            ]
+        },
+        "modified_amount": {
+            "fake": [
+                "f64",
+                100000.0,
+                10000000.0
+            ]
+        },
+        "currency": {
+            "fake": [
+                "currency_code"
+            ]
+        },
+        "uetr": {
+            "fake": [
+                "uuid"
+            ]
+        },
+        "resolution_details": {
+            "fake": [
+                "words",
+                5,
+                10
+            ]
+        },
+        "action_taken": {
+            "fake": [
+                "words",
+                3,
+                7
+            ]
+        },
+        "sender_lei": {
+            "fake": [
+                "lei"
+            ]
+        },
+        "receiver_lei": {
+            "fake": [
+                "lei"
+            ]
+        },
+        "clearing_system": "TGT",
         "settlement_date": {
-            "fake": ["date", "%Y-%m-%d", "+0d", "+2d"]
+            "fake": [
+                "date",
+                "%Y-%m-%d",
+                "+0d",
+                "+2d"
+            ]
         }
     },
     "schema": {
         "basic_header": {
             "application_id": "F",
             "service_id": "01",
-            "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
-            "session_number": {"fake": ["i64", 1, 9999]},
-            "sequence_number": {"fake": ["i64", 100000, 999999]}
+            "logical_terminal": {
+                "cat": [
+                    {
+                        "var": "sender_bic"
+                    },
+                    "AXXX"
+                ]
+            },
+            "session_number": {
+                "cat": [
+                    "",
+                    {
+                        "fake": [
+                            "i64",
+                            1,
+                            9999
+                        ]
+                    }
+                ]
+            },
+            "sequence_number": {
+                "cat": [
+                    "",
+                    {
+                        "fake": [
+                            "i64",
+                            100000,
+                            999999
+                        ]
+                    }
+                ]
+            },
+            "sender_bic": {
+                "var": "sender_bic"
+            }
         },
         "application_header": {
             "direction": "I",
             "message_type": "296",
-            "destination_address": {"cat": [{"var": "receiver_bic"}, "XXXX"]},
-            "priority": "N"
+            "destination_address": {
+                "cat": [
+                    {
+                        "var": "receiver_bic"
+                    },
+                    "XXXX"
+                ]
+            },
+            "priority": "N",
+            "receiver_bic": {
+                "var": "receiver_bic"
+            }
         },
-        "user_header": {"service_type_identifier": "001", "unique_end_to_end_reference": {"var": "uetr"}},
+        "user_header": {
+            "service_type_identifier": "001",
+            "unique_end_to_end_reference": {
+                "var": "uetr"
+            }
+        },
         "message_type": "296",
         "fields": {
-            "20": {"reference": {"var": "case_id"}},
-            "21": {"related_reference": {"var": "original_case_id"}},
+            "20": {
+                "reference": {
+                    "var": "case_id"
+                }
+            },
+            "21": {
+                "reference": {
+                    "var": "original_case_id"
+                }
+            },
             "76": {
-                "answers": [
-                    {"cat": ["/RESOLUTION/", {"var": "resolution_type"}]},
-                    {"cat": ["/ORIGAMT/", {"var": "currency"}, {"var": "original_amount"}]},
-                    {"cat": ["/MODAMT/", {"var": "currency"}, {"var": "modified_amount"}]},
-                    {"cat": ["/ACTION/", {"var": "action_taken"}]},
-                    {"cat": ["/DETAILS/", {"var": "resolution_details"}]},
-                    {"cat": ["/LEI/SENDER/", {"var": "sender_lei"}]},
-                    {"cat": ["/LEI/RECEIVER/", {"var": "receiver_lei"}]},
-                    {"cat": ["/CLEARING/", {"var": "clearing_system"}]},
-                    {"cat": ["/SETTDATE/", {"var": "settlement_date"}]},
-                    "/CBPR/COMPLIANT",
-                    {"cat": ["/UETR/", {"var": "uetr"}]}
+                "information": [
+                    {
+                        "cat": [
+                            "/RESOLUTION/",
+                            {
+                                "var": "resolution_type"
+                            }
+                        ]
+                    },
+                    {
+                        "cat": [
+                            "/ORIGAMT/",
+                            {
+                                "var": "currency"
+                            },
+                            {
+                                "var": "original_amount"
+                            }
+                        ]
+                    },
+                    {
+                        "cat": [
+                            "/ACTION/",
+                            {
+                                "var": "action_taken"
+                            }
+                        ]
+                    },
+                    {
+                        "cat": [
+                            "/CLEARING/",
+                            {
+                                "var": "clearing_system"
+                            }
+                        ]
+                    },
+                    {
+                        "cat": [
+                            "/UETR/",
+                            {
+                                "substr": [
+                                    {
+                                        "var": "uetr"
+                                    },
+                                    0,
+                                    28
+                                ]
+                            }
+                        ]
+                    },
+                    "/CBPR/COMPLIANT"
                 ]
             },
             "77A": {
                 "narrative": [
                     "FI INVESTIGATION RESOLVED",
-                    {"cat": ["CASE ID: ", {"var": "original_case_id"}]},
-                    {"cat": ["RESOLUTION: ", {"var": "resolution_type"}]},
+                    {
+                        "cat": [
+                            "CASE ID: ",
+                            {
+                                "var": "original_case_id"
+                            }
+                        ]
+                    },
+                    {
+                        "cat": [
+                            "RESOLUTION: ",
+                            {
+                                "var": "resolution_type"
+                            }
+                        ]
+                    },
                     "INTERBANK SETTLEMENT CONFIRMED"
                 ]
             }

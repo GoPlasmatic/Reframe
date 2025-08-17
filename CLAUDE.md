@@ -222,3 +222,4 @@ curl -X POST http://localhost:3000/generate/sample \
 - `specification/`: Message format specifications and mapping tables
 - When there is a pure number compoennt in path, we need to use # in front other wise the path is taken as array notation.
 - date should be in yyyy-mm-dd format in the reverse mapping as json parsing is directly loading it to NativeDate
+- one_of is not a valid operator in JSONLogic library datalogic-rs

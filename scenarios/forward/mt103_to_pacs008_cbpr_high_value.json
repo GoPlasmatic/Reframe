@@ -9,10 +9,10 @@
         "correspondent_bic": {"fake": ["bic"]},
         "beneficiary_bank_bic": {"fake": ["bic"]},
         "transaction_ref": {"cat": ["HVP", {"fake": ["i64", 1000000000, 9999999999]}]},
-        "currency": {"one_of": ["USD", "EUR"]},
+        "currency": {"fake": ["currency_code"]},
         "amount": {"fake": ["f64", 10000000.0, 999999999.99]},
         "value_date": {
-            "fake": ["date", "%y%m%d", "+0d", "+1d"]
+            "fake": ["date", "%y-%m-%d", "+0d", "+1d"]
         },
         "ordering_account": {"fake": ["iban"]},
         "beneficiary_account": {"fake": ["iban"]},
@@ -29,13 +29,15 @@
             "application_id": "F",
             "service_id": "01",
             "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
-            "session_number": {"fake": ["i64", 1, 9999]},
-            "sequence_number": {"fake": ["i64", 100000, 999999]}
+            "sender_bic": {"var": "sender_bic"},
+            "session_number": {"cat": ["", {"fake": ["i64", 1, 9999]}]},
+            "sequence_number": {"cat": ["", {"fake": ["i64", 100000, 999999]}]}
         },
         "application_header": {
             "direction": "I",
             "message_type": "103",
             "destination_address": {"cat": [{"var": "receiver_bic"}, "XXXX"]},
+            "receiver_bic": {"var": "receiver_bic"},
             "priority": "U",
             "delivery_monitoring": "1",
             "obsolescence_period": "003"
@@ -70,33 +72,37 @@
                 {"instruction_code": {"cat": ["PHON/", {"fake": ["phone_number"]}]}},
                 {"instruction_code": {"cat": ["TELE/", {"fake": ["email"]}]}}
             ],
-            "26T": {"transaction_type": "K90"},
+            "26T": {"type_code": "K90"},
             "32A": {
                 "value_date": {"var": "value_date"},
                 "currency": {"var": "currency"},
                 "amount": {"var": "amount"}
             },
             "33B": {"currency": {"var": "currency"}, "amount": {"var": "amount"}},
-            "50K": {
-                "account": {"cat": ["/", {"var": "ordering_account"}]},
-                "name_and_address": [
-                    {"var": "ordering_name"},
-                    {"cat": ["/LEI/", {"var": "ordering_lei"}]},
-                    {"fake": ["street_address"]},
-                    {"cat": [{"fake": ["city_name"]}, " ", {"fake": ["country_code"]}]}
-                ]
+            "50": {
+                "K": {
+                    "account": {"cat": ["/", {"var": "ordering_account"}]},
+                    "name_and_address": [
+                        {"var": "ordering_name"},
+                        {"cat": ["/LEI/", {"var": "ordering_lei"}]},
+                        {"fake": ["street_address"]},
+                        {"cat": [{"fake": ["city_name"]}, " ", {"fake": ["country_code"]}]}
+                    ]
+                }
             },
             "52A": {"bic": {"var": "sender_bic"}},
             "53A": {"bic": {"var": "correspondent_bic"}},
             "57A": {"bic": {"var": "beneficiary_bank_bic"}},
             "59": {
-                "account": {"cat": ["/", {"var": "beneficiary_account"}]},
-                "name_and_address": [
-                    {"var": "beneficiary_name"},
-                    {"cat": ["/LEI/", {"var": "beneficiary_lei"}]},
-                    {"fake": ["street_address"]},
-                    {"cat": [{"fake": ["city_name"]}, " ", {"fake": ["country_code"]}]}
-                ]
+                "NoOption": {
+                    "account": {"cat": ["/", {"var": "beneficiary_account"}]},
+                    "name_and_address": [
+                        {"var": "beneficiary_name"},
+                        {"cat": ["/LEI/", {"var": "beneficiary_lei"}]},
+                        {"fake": ["street_address"]},
+                        {"cat": [{"fake": ["city_name"]}, " ", {"fake": ["country_code"]}]}
+                    ]
+                }
             },
             "70": {
                 "narrative": [
@@ -108,7 +114,7 @@
                 ]
             },
             "71A": {"code": "OUR"},
-            "71F": {"currency": {"var": "currency"}, "amount": {"fake": ["f64", 100.0, 500.0]}},
+            "71F": [{"currency": {"var": "currency"}, "amount": {"fake": ["f64", 100.0, 500.0]}}],
             "71G": {"currency": {"var": "currency"}, "amount": {"fake": ["f64", 50.0, 200.0]}},
             "72": {
                 "information": [

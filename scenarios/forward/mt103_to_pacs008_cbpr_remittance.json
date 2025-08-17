@@ -7,16 +7,16 @@
         "sender_bic": {"fake": ["bic"]},
         "receiver_bic": {"fake": ["bic"]},
         "transaction_ref": {"cat": ["REM", {"fake": ["i64", 1000000000, 9999999999]}]},
-        "currency": {"one_of": ["USD", "EUR", "INR", "PHP", "MXN"]},
+        "currency": {"fake": ["currency_code"]},
         "amount": {"fake": ["f64", 500.0, 50000.0]},
-        "value_date": {"fake": ["date", "%y%m%d", "+1d", "+3d"]},
+        "value_date": {"fake": ["date", "%y-%m-%d", "+1d", "+3d"]},
         "uetr": {"fake": ["uuid"]},
         "sender_name": {"fake": ["name"]},
-        "sender_country": {"one_of": ["US", "GB", "AE", "SG"]},
+        "sender_country": {"fake": ["country_code"]},
         "receiver_name": {"fake": ["name"]},
-        "receiver_country": {"one_of": ["IN", "PH", "MX", "BD"]},
-        "purpose_code": {"one_of": ["CASH", "SSBE", "ENRG", "HLTI", "EDUC"]},
-        "relationship": {"one_of": ["FAMILY", "FRIEND", "EMPLOYEE", "BUSINESS"]},
+        "receiver_country": {"fake": ["country_code"]},
+        "purpose_code": "CASH",
+        "relationship": "FAMILY",
         "id_number": {"fake": ["i64", 100000000000, 999999999999]},
         "birth_date": {"fake": ["date", "%Y%m%d", "-70y", "-18y"]},
         "phone": {"fake": ["phone_number"]},
@@ -27,13 +27,15 @@
             "application_id": "F",
             "service_id": "01",
             "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
-            "session_number": {"fake": ["i64", 1, 9999]},
-            "sequence_number": {"fake": ["i64", 100000, 999999]}
+            "sender_bic": {"var": "sender_bic"},
+            "session_number": {"cat": ["", {"fake": ["i64", 1, 9999]}]},
+            "sequence_number": {"cat": ["", {"fake": ["i64", 100000, 999999]}]}
         },
         "application_header": {
             "direction": "I",
             "message_type": "103",
             "destination_address": {"cat": [{"var": "receiver_bic"}, "XXXX"]},
+            "receiver_bic": {"var": "receiver_bic"},
             "priority": "N"
         },
         "user_header": {
@@ -63,33 +65,36 @@
                 "currency": {"var": "currency"},
                 "amount": {"var": "amount"}
             },
-            "50F": {
-                "party_identifier": {"cat": ["/", {"var": "id_number"}]},
-                "name_and_address": [
-                    "1/", {"var": "sender_name"},
-                    "2/", {"fake": ["street_address"]},
-                    "3/", {"cat": [{"var": "sender_country"}, "/", {"fake": ["city_name"]}]},
-                    "4/", {"cat": ["DOB/", {"var": "birth_date"}]},
-                    "5/", {"cat": ["ID/", {"var": "id_number"}]}
-                ]
+            "50": {
+                "K": {
+                    "account": {"cat": ["/", {"fake": ["iban"]}]},
+                    "name_and_address": [
+                        {"cat": ["1/", {"var": "sender_name"}]},
+                        {"cat": ["2/", {"fake": ["street_address"]}]},
+                        {"cat": ["3/", {"var": "sender_country"}, "/", {"fake": ["city_name"]}]},
+                        {"cat": ["4/DOB/", {"var": "birth_date"}]}
+                    ]
+                }
             },
             "52A": {"bic": {"var": "sender_bic"}},
             "57A": {"bic": {"var": "receiver_bic"}},
-            "59F": {
-                "party_identifier": "/", {"fake": ["i64", 100000000, 999999999]},
+            "59": {
+                "F": {
+                "account": {"cat": ["/", {"fake": ["i64", 100000000, 999999999]}]},
                 "name_and_address": [
-                    "1/", {"var": "receiver_name"},
-                    "2/", {"fake": ["street_address"]},
-                    "3/", {"cat": [{"var": "receiver_country"}, "/", {"fake": ["city_name"]}]},
-                    "4/", {"cat": ["TEL/", {"fake": ["phone_number"]}]}
+                    {"cat": ["1/", {"var": "receiver_name"}]},
+                    {"cat": ["2/", {"fake": ["street_address"]}]},
+                    {"cat": ["3/", {"var": "receiver_country"}, "/", {"fake": ["city_name"]}]},
+                    {"cat": ["4/TEL/", {"fake": ["phone_number"]}]}
                 ]
+                }
             },
             "70": {
                 "narrative": [
                     {"cat": ["/PURP/", {"var": "purpose_code"}]},
                     {"cat": ["/REL/", {"var": "relationship"}]},
                     {"cat": ["/RFB/", {"var": "reference_msg"}]},
-                    "/BENRES/", {"var": "receiver_country"}
+                    {"cat": ["/BENRES/", {"var": "receiver_country"}]}
                 ]
             },
             "71A": {"code": "SHA"},

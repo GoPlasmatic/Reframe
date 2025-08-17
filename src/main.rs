@@ -9,6 +9,8 @@ use tracing_subscriber::EnvFilter;
 mod engine;
 mod handlers;
 mod helper;
+mod mt_generator;
+mod mx_generator;
 mod openapi;
 mod parse_mt;
 mod parse_mx;

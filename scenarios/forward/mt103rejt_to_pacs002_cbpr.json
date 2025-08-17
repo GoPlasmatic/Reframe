@@ -1,56 +1,304 @@
 {
     "description": "MT103 REJT to pacs.002 CBPR+ Payment Rejection Status Report",
-    "source_type": "MT103REJT",
+    "source_type": "MT103",
     "target_type": "pacs.002",
     "variant": "CBPR+_REJECTION",
     "variables": {
-        "sender_bic": {"fake": ["bic"]},
-        "receiver_bic": {"fake": ["bic"]},
-        "rejection_ref": {"cat": ["REJ", {"fake": ["i64", 1000000000, 9999999999]}]},
-        "original_ref": {"cat": ["ORIG", {"fake": ["i64", 1000000000, 9999999999]}]},
-        "rejection_reason": {
-            "one_of": ["AC01", "AC04", "AG01", "RC01", "NARR"]
+        "sender_bic": {
+            "fake": [
+                "bic"
+            ]
         },
-        "uetr": {"fake": ["uuid"]},
-        "rejection_time": {"fake": ["time", "%H%M"]},
-        "additional_info": {"fake": ["words", 5, 10]},
-        "ordering_bank_bic": {"fake": ["bic"]},
-        "beneficiary_bank_bic": {"fake": ["bic"]}
+        "receiver_bic": {
+            "fake": [
+                "bic"
+            ]
+        },
+        "rejection_ref": {
+            "cat": [
+                "REJ",
+                {
+                    "fake": [
+                        "i64",
+                        1000000000,
+                        9999999999
+                    ]
+                }
+            ]
+        },
+        "original_ref": {
+            "cat": [
+                "ORIG",
+                {
+                    "fake": [
+                        "i64",
+                        1000000000,
+                        9999999999
+                    ]
+                }
+            ]
+        },
+        "rejection_reason": "AC01",
+        "uetr": {
+            "fake": [
+                "uuid"
+            ]
+        },
+        "rejection_time": {
+            "fake": [
+                "time",
+                "%H%M"
+            ]
+        },
+        "additional_info": {
+            "fake": [
+                "words",
+                5,
+                10
+            ]
+        },
+        "ordering_bank_bic": {
+            "fake": [
+                "bic"
+            ]
+        },
+        "beneficiary_bank_bic": {
+            "fake": [
+                "bic"
+            ]
+        },
+        "value_date": {
+            "fake": [
+                "date",
+                "%y-%m-%d",
+                "+0d",
+                "+2d"
+            ]
+        },
+        "currency": {
+            "fake": [
+                "currency_code"
+            ]
+        },
+        "amount": {
+            "fake": [
+                "f64",
+                1000.0,
+                100000.0
+            ]
+        }
     },
     "schema": {
         "basic_header": {
             "application_id": "F",
             "service_id": "01",
-            "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
-            "session_number": {"fake": ["i64", 1, 9999]},
-            "sequence_number": {"fake": ["i64", 100000, 999999]}
+            "logical_terminal": {
+                "cat": [
+                    {
+                        "var": "sender_bic"
+                    },
+                    "AXXX"
+                ]
+            },
+            "sender_bic": {
+                "var": "sender_bic"
+            },
+            "session_number": {
+                "cat": [
+                    "",
+                    {
+                        "fake": [
+                            "i64",
+                            1,
+                            9999
+                        ]
+                    }
+                ]
+            },
+            "sequence_number": {
+                "cat": [
+                    "",
+                    {
+                        "fake": [
+                            "i64",
+                            100000,
+                            999999
+                        ]
+                    }
+                ]
+            }
         },
         "application_header": {
             "direction": "I",
             "message_type": "103",
-            "destination_address": {"cat": [{"var": "receiver_bic"}, "XXXX"]},
+            "destination_address": {
+                "cat": [
+                    {
+                        "var": "receiver_bic"
+                    },
+                    "XXXX"
+                ]
+            },
+            "receiver_bic": {
+                "var": "receiver_bic"
+            },
             "priority": "N",
             "message_input_reference": "REJT"
         },
-        "user_header": {"service_type_identifier": "001", "unique_end_to_end_reference": {"var": "uetr"}},
+        "user_header": {
+            "service_type_identifier": "001",
+            "unique_end_to_end_reference": {
+                "var": "uetr"
+            }
+        },
         "message_type": "103",
         "fields": {
-            "20": {"reference": {"var": "rejection_ref"}},
-            "21": {"related_reference": {"var": "original_ref"}},
-            "52A": {"ordering_institution": {"var": "ordering_bank_bic"}},
-            "57A": {"account_with_institution": {"var": "beneficiary_bank_bic"}},
+            "20": {
+                "reference": {
+                    "var": "rejection_ref"
+                }
+            },
+            "21": {
+                "reference": {
+                    "var": "original_ref"
+                }
+            },
+            "23B": {
+                "instruction_code": "CRED"
+            },
+            "32A": {
+                "value_date": {
+                    "fake": [
+                        "date",
+                        "%y-%m-%d",
+                        "+0d",
+                        "+2d"
+                    ]
+                },
+                "currency": "EUR",
+                "amount": {
+                    "fake": [
+                        "f64",
+                        1000.0,
+                        100000.0
+                    ]
+                }
+            },
+            "50": {
+                "K": {
+                    "account": {
+                        "cat": [
+                            "/",
+                            {
+                                "fake": [
+                                    "iban"
+                                ]
+                            }
+                        ]
+                    },
+                    "name_and_address": [
+                        {
+                            "fake": [
+                                "company_name"
+                            ]
+                        },
+                        {
+                            "fake": [
+                                "street_address"
+                            ]
+                        },
+                        {
+                            "fake": [
+                                "city_name"
+                            ]
+                        }
+                    ]
+                }
+            },
+            "59": {
+                "NoOption": {
+                    "account": {
+                        "cat": [
+                            "/",
+                            {
+                                "fake": [
+                                    "iban"
+                                ]
+                            }
+                        ]
+                    },
+                    "name_and_address": [
+                        {
+                            "fake": [
+                                "company_name"
+                            ]
+                        },
+                        {
+                            "fake": [
+                                "street_address"
+                            ]
+                        },
+                        {
+                            "fake": [
+                                "city_name"
+                            ]
+                        }
+                    ]
+                }
+            },
+            "71A": {
+                "code": "SHA"
+            },
+            "52A": {
+                "bic": {
+                    "var": "ordering_bank_bic"
+                }
+            },
+            "57A": {
+                "bic": {
+                    "var": "beneficiary_bank_bic"
+                }
+            },
             "72": {
-                "sender_to_receiver": [
-                    {"cat": ["/REJT/", {"var": "rejection_reason"}]},
-                    {"cat": ["/TIME/", {"var": "rejection_time"}]},
+                "information": [
+                    {
+                        "cat": [
+                            "/REJT/",
+                            {
+                                "var": "rejection_reason"
+                            }
+                        ]
+                    },
+                    {
+                        "cat": [
+                            "/TIME/",
+                            {
+                                "var": "rejection_time"
+                            }
+                        ]
+                    },
                     "/ACC/CBPR+ REJECTION",
-                    {"cat": ["/ADDINFO/", {"var": "additional_info"}]}
+                    {
+                        "cat": [
+                            "/ADDINFO/",
+                            {
+                                "var": "additional_info"
+                            }
+                        ]
+                    }
                 ]
             },
             "77B": {
-                "regulatory_reporting": [
+                "narrative": [
                     "/REJRES/COMPLIANCE CHECK FAILED",
-                    {"cat": ["/REASON/", {"var": "rejection_reason"}]}
+                    {
+                        "cat": [
+                            "/REASON/",
+                            {
+                                "var": "rejection_reason"
+                            }
+                        ]
+                    }
                 ]
             }
         }

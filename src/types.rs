@@ -79,6 +79,8 @@ pub struct SampleDebugInfo {
     pub generation_time_ms: u64,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub warnings: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generated_json: Option<Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Default, ToSchema)]

@@ -660,7 +660,7 @@ pub async fn generate_sample(
     };
 
     match result {
-        Ok(message) => {
+        Ok((message, generated_json)) => {
             let processing_time = start_time.elapsed().as_millis() as u64;
             info!("✅ Sample generation completed in {}ms", processing_time);
 
@@ -683,6 +683,7 @@ pub async fn generate_sample(
                         scenario_config: request.config,
                         generation_time_ms: processing_time,
                         warnings: Vec::new(),
+                        generated_json: Some(generated_json),
                     })
                 } else {
                     None
@@ -691,6 +692,28 @@ pub async fn generate_sample(
         }
         Err(e) => {
             error!("❌ Sample generation failed: {}", e);
+            
+            // Try to extract any JSON from the error message for debugging
+            let error_str = e.to_string();
+            let generated_json = if error_str.contains("Generated JSON:") {
+                // Try to extract the JSON from the error message
+                if let Some(json_start) = error_str.find("Generated JSON:") {
+                    let json_str = &error_str[json_start + 15..];
+                    serde_json::from_str(json_str).ok()
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            
+            // Clean up the error message to remove the large JSON dump
+            let clean_error = if let Some(json_idx) = error_str.find("Generated JSON:") {
+                error_str[..json_idx].trim().to_string()
+            } else {
+                error_str
+            };
+            
             Ok(Json(SampleGenerationResponse {
                 success: false,
                 message_type: request.message_type.clone(),
@@ -698,13 +721,14 @@ pub async fn generate_sample(
                 scenario: None,
                 errors: vec![ReframeError::generation_error(
                     "GENERATION_FAILED",
-                    e.to_string(),
+                    clean_error,
                 )],
                 debug_info: if request.options.debug {
                     Some(SampleDebugInfo {
-                        scenario_config: request.config,
+                        scenario_config: request.config.clone(),
                         generation_time_ms: start_time.elapsed().as_millis() as u64,
                         warnings: Vec::new(),
+                        generated_json,
                     })
                 } else {
                     None

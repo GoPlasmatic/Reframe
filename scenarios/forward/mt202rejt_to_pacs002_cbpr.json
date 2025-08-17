@@ -1,54 +1,233 @@
 {
     "description": "MT202 REJT to pacs.002 CBPR+ FI Transfer Rejection",
-    "source_type": "MT202REJT",
+    "source_type": "MT202",
     "target_type": "pacs.002",
     "variant": "CBPR+_FI_REJECTION",
     "variables": {
-        "sender_bic": {"fake": ["bic"]},
-        "receiver_bic": {"fake": ["bic"]},
-        "rejection_ref": {"cat": ["FIREJ", {"fake": ["i64", 1000000000, 9999999999]}]},
-        "original_ref": {"cat": ["FIORIG", {"fake": ["i64", 1000000000, 9999999999]}]},
-        "rejection_reason": {
-            "one_of": ["AC06", "AG01", "FF01", "NARR", "TM01"]
+        "sender_bic": {
+            "fake": [
+                "bic"
+            ]
         },
-        "uetr": {"fake": ["uuid"]},
-        "rejection_datetime": {"fake": ["iso8601_datetime"]},
-        "sender_lei": {"fake": ["lei"]},
-        "receiver_lei": {"fake": ["lei"]},
-        "intermediary_bic": {"fake": ["bic"]}
+        "receiver_bic": {
+            "fake": [
+                "bic"
+            ]
+        },
+        "rejection_ref": {
+            "cat": [
+                "FIREJ",
+                {
+                    "fake": [
+                        "i64",
+                        1000000000,
+                        9999999999
+                    ]
+                }
+            ]
+        },
+        "original_ref": {
+            "cat": [
+                "FIORIG",
+                {
+                    "fake": [
+                        "i64",
+                        1000000000,
+                        9999999999
+                    ]
+                }
+            ]
+        },
+        "rejection_reason": "AC06",
+        "uetr": {
+            "fake": [
+                "uuid"
+            ]
+        },
+        "rejection_datetime": {
+            "fake": [
+                "iso8601_datetime"
+            ]
+        },
+        "sender_lei": {
+            "fake": [
+                "lei"
+            ]
+        },
+        "receiver_lei": {
+            "fake": [
+                "lei"
+            ]
+        },
+        "intermediary_bic": {
+            "fake": [
+                "bic"
+            ]
+        },
+        "beneficiary_institution_bic": {
+            "fake": [
+                "bic"
+            ]
+        },
+        "value_date": {
+            "fake": [
+                "date",
+                "%y-%m-%d",
+                "+0d",
+                "+2d"
+            ]
+        },
+        "currency": {
+            "fake": [
+                "currency_code"
+            ]
+        },
+        "amount": {
+            "fake": [
+                "f64",
+                1000.0,
+                100000.0
+            ]
+        }
     },
     "schema": {
         "basic_header": {
             "application_id": "F",
             "service_id": "01",
-            "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
-            "session_number": {"fake": ["i64", 1, 9999]},
-            "sequence_number": {"fake": ["i64", 100000, 999999]}
+            "logical_terminal": {
+                "cat": [
+                    {
+                        "var": "sender_bic"
+                    },
+                    "AXXX"
+                ]
+            },
+            "session_number": {
+                "cat": [
+                    "",
+                    {
+                        "fake": [
+                            "i64",
+                            1,
+                            9999
+                        ]
+                    }
+                ]
+            },
+            "sequence_number": {
+                "cat": [
+                    "",
+                    {
+                        "fake": [
+                            "i64",
+                            100000,
+                            999999
+                        ]
+                    }
+                ]
+            },
+            "sender_bic": {
+                "var": "sender_bic"
+            }
         },
         "application_header": {
             "direction": "I",
             "message_type": "202",
-            "destination_address": {"cat": [{"var": "receiver_bic"}, "XXXX"]},
+            "destination_address": {
+                "cat": [
+                    {
+                        "var": "receiver_bic"
+                    },
+                    "XXXX"
+                ]
+            },
             "priority": "N",
-            "message_input_reference": "REJT"
+            "message_input_reference": "REJT",
+            "receiver_bic": {
+                "var": "receiver_bic"
+            }
         },
-        "user_header": {"service_type_identifier": "001", "unique_end_to_end_reference": {"var": "uetr"}},
+        "user_header": {
+            "service_type_identifier": "001",
+            "unique_end_to_end_reference": {
+                "var": "uetr"
+            }
+        },
         "message_type": "202",
         "fields": {
-            "20": {"reference": {"var": "rejection_ref"}},
-            "21": {"related_reference": {"var": "original_ref"}},
-            "52A": {"ordering_institution": {"var": "sender_bic"}},
-            "56A": {"intermediary": {"var": "intermediary_bic"}},
-            "57A": {"account_with_institution": {"var": "receiver_bic"}},
+            "20": {
+                "reference": {
+                    "var": "rejection_ref"
+                }
+            },
+            "21": {
+                "reference": {
+                    "var": "original_ref"
+                }
+            },
+            "52A": {
+                "bic": {
+                    "var": "sender_bic"
+                }
+            },
+            "56A": {
+                "bic": {
+                    "var": "intermediary_bic"
+                }
+            },
+            "57A": {
+                "bic": {
+                    "var": "receiver_bic"
+                }
+            },
             "72": {
-                "sender_to_receiver": [
-                    {"cat": ["/REJT/", {"var": "rejection_reason"}]},
+                "information": [
+                    {
+                        "cat": [
+                            "/REJT/",
+                            {
+                                "var": "rejection_reason"
+                            }
+                        ]
+                    },
                     "/ACC/CBPR+ FI REJECTION",
                     "/INS/INTERBANK TRANSFER REJECTED",
-                    {"cat": ["/LEI/SENDER/", {"var": "sender_lei"}]},
-                    {"cat": ["/LEI/RECEIVER/", {"var": "receiver_lei"}]},
+                    {
+                        "cat": [
+                            "/LEI/SENDER/",
+                            {
+                                "var": "sender_lei"
+                            }
+                        ]
+                    },
+                    {
+                        "cat": [
+                            "/LEI/RECEIVER/",
+                            {
+                                "var": "receiver_lei"
+                            }
+                        ]
+                    },
                     "/REC/IMMEDIATE ACTION REQUIRED"
                 ]
+            },
+            "32A": {
+                "value_date": {
+                    "var": "value_date"
+                },
+                "currency": {
+                    "var": "currency"
+                },
+                "amount": {
+                    "var": "amount"
+                }
+            },
+            "58": {
+                "A": {
+                    "bic": {
+                        "var": "beneficiary_institution_bic"
+                    }
+                }
             }
         }
     },

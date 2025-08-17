@@ -15,14 +15,16 @@ pub struct Iso20022Message {
     pub document: Value,
 }
 
+// No transformation needed - MX library expects @Ccy and $value notation
+
 /// Generate MX message XML from JSON data
 pub fn generate_mx_from_json(
     message_type: &str,
     json_data: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
     debug!("Generating {} from JSON data", message_type);
-
-    // Extract AppHdr and Document from the generated data
+    
+    // Extract AppHdr and Document from the generated data (no transformation needed)
     let app_hdr = json_data
         .get("AppHdr")
         .ok_or("Missing AppHdr in generated data")?;
@@ -63,15 +65,20 @@ pub fn generate_mx_from_json(
 
 fn generate_pacs008_xml(app_hdr: &Value, document: &Value) -> Result<String, Box<dyn std::error::Error>> {
     // Parse header
+    debug!("Parsing BusinessApplicationHeaderV02 from: {:?}", app_hdr);
     let header: bah_pacs_008_001_08::BusinessApplicationHeaderV02 = 
-        serde_json::from_value(app_hdr.clone())?;
+        serde_json::from_value(app_hdr.clone())
+        .map_err(|e| format!("Failed to parse header: {}", e))?;
     
     // Parse document
     let doc_content = document
         .get("FIToFICstmrCdtTrf")
         .ok_or("Missing FIToFICstmrCdtTrf in Document")?;
+    
+    debug!("Parsing FIToFICustomerCreditTransferV08 from: {:?}", doc_content);
     let doc: pacs_008_001_08::FIToFICustomerCreditTransferV08 = 
-        serde_json::from_value(doc_content.clone())?;
+        serde_json::from_value(doc_content.clone())
+        .map_err(|e| format!("Failed to parse document: {}", e))?;
     
     // Create complete message
     let message = format!(

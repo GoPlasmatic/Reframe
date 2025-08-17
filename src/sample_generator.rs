@@ -189,14 +189,10 @@ fn generate_mx_sample_from_scenario(
     // Clone the generated data for returning
     let generated_json = generated_data.clone();
 
-    // Try to generate XML using mx_generator, fallback to JSON if not supported
-    let result = match mx_generator::generate_mx_from_json(message_type, &generated_data) {
-        Ok(xml) => xml,
-        Err(e) => {
-            debug!("XML generation not supported for {}: {}, returning JSON", message_type, e);
-            serde_json::to_string_pretty(&generated_data)?
-        }
-    };
+    // For now, return JSON for MX messages as XML generation requires exact field mapping
+    // TODO: Complete XML generation support for all MX message types
+    let result = serde_json::to_string_pretty(&generated_data)?;
+    debug!("Generated {} message in JSON format", message_type);
     
     debug!("Successfully generated {} using scenario {}", message_type, scenario_id);
     Ok((result, generated_json))

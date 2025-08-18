@@ -209,19 +209,14 @@ impl ParseMX {
         None
     }
 
-    /// Extract Document inner content (without the Document wrapper)
+    /// Extract Document content including the wrapper element
     pub fn extract_document_content(xml: &str) -> Option<String> {
         // Find Document opening tag
-        if let Some(start) = xml.find("<Document") {
-            // Find end of opening tag
-            if let Some(tag_end) = xml[start..].find(">") {
-                let content_start = start + tag_end + 1;
-
-                // Find closing tag
-                if let Some(end) = xml.find("</Document>") {
-                    return Some(xml[content_start..end].to_string());
-                }
-            }
+        if let Some(start) = xml.find("<Document")
+            && let Some(end) = xml.find("</Document>")
+        {
+            let end_pos = end + "</Document>".len();
+            return Some(xml[start..end_pos].to_string());
         }
         None
     }

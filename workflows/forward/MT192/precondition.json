@@ -1,7 +1,7 @@
 {
     "id": "mt192-precondition",
     "name": "MT192 Message Precondition",
-    "description": "Simplified precondition checks for MT192",
+    "description": "Precondition checks for MT192 according to specification",
     "priority": 3,
     "condition": { "and": [
         {"==": [{"var": "SwiftMT.message_type"}, "192"]},
@@ -12,9 +12,33 @@
     ]},
     "tasks": [
         {
+            "id": "validate_field_32a_presence",
+            "name": "Check Field 32A Presence",
+            "description": "Field 32A is optional (0..1) per specification mapping table, despite PREC002 note",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.has_field_32a",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.32A"},
+                                true,
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.prec002_note",
+                            "logic": "Field 32A is optional per MT192 structure and mapping table (0..1 multiplicity)"
+                        }
+                    ]
+                }
+            }
+        },
+        {
             "id": "extract_mt_type_from_field_11s",
             "name": "Extract MT Type from Field 11S",
-            "description": "Extract original MT type from field 11S and convert to MX equivalent",
+            "description": "Extract original MT type from field 11S",
             "function": {
                 "name": "map",
                 "input": {
@@ -26,6 +50,52 @@
                                 {"var": "data.SwiftMT.fields.11S.message_type"},
                                 "103"
                             ]}
+                        },
+                        {
+                            "path": "temp_data.field_11s_date",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.11S.date"},
+                                {"var": "data.SwiftMT.fields.11S.date"},
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_message_type_format",
+            "name": "Validate Message Type Format (PREC004)",
+            "description": "Validate that Field 11S contains 10n or 20n format",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.is_valid_mt_type",
+                            "logic": { "or": [
+                                {"and": [
+                                    {">=": [{"var": "temp_data.original_mt_type"}, "100"]},
+                                    {"<=": [{"var": "temp_data.original_mt_type"}, "109"]}
+                                ]},
+                                {"and": [
+                                    {">=": [{"var": "temp_data.original_mt_type"}, "200"]},
+                                    {"<=": [{"var": "temp_data.original_mt_type"}, "209"]}
+                                ]},
+                                {"==": [{"var": "temp_data.original_mt_type"}, "103"]},
+                                {"==": [{"var": "temp_data.original_mt_type"}, "104"]},
+                                {"==": [{"var": "temp_data.original_mt_type"}, "202"]},
+                                {"==": [{"var": "temp_data.original_mt_type"}, "204"]},
+                                {"==": [{"var": "temp_data.original_mt_type"}, "205"]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.prec004_error",
+                            "logic": { "if": [
+                                {"var": "temp_data.is_valid_mt_type"},
+                                null,
+                                {"cat": ["T20278: Invalid MT type in Field 11S: ", {"var": "temp_data.original_mt_type"}]}
+                            ]}
                         }
                     ]
                 }
@@ -33,7 +103,7 @@
         },
         {
             "id": "convert_mt_type_to_mx",
-            "name": "Convert MT Type to MX",
+            "name": "Convert MT Type to MX (TR003)",
             "description": "Convert MT type to corresponding MX message type according to TR003",
             "function": {
                 "name": "map",
@@ -109,6 +179,127 @@
                                 },
                                 false
                             ]}
+                        },
+                        {
+                            "path": "temp_data.has_origamt_in_field_79",
+                            "logic": { "if": [
+                                {"var": "temp_data.field_79_concat"},
+                                {
+                                    "and": [
+                                        {">": [{"length": {"var": "temp_data.field_79_concat"}}, 0]},
+                                        {"in": ["/ORIGAMT/", {"var": "temp_data.field_79_concat"}]}
+                                    ]
+                                },
+                                false
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "extract_and_validate_uetr",
+            "name": "Extract and Validate UETR (PREC001)",
+            "description": "Extract UETR and validate format, raise T20087 if missing",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.uetr_from_header",
+                            "logic": {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}
+                        },
+                        {
+                            "path": "temp_data.uetr_from_field_79",
+                            "logic": { "if": [
+                                {"var": "temp_data.has_uetr_in_field_79"},
+                                {
+                                    "reduce": [
+                                        {"var": "temp_data.field_79_narrative"},
+                                        {"if": [
+                                            {"in": ["/UETR/", {"var": "current"}]},
+                                            {"substr": [{"var": "current"}, 6]},
+                                            {"var": "accumulator"}
+                                        ]},
+                                        null
+                                    ]
+                                },
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.extracted_uetr",
+                            "logic": { "if": [
+                                {"var": "temp_data.uetr_from_header"},
+                                {"var": "temp_data.uetr_from_header"},
+                                {"if": [
+                                    {"var": "temp_data.uetr_from_field_79"},
+                                    {"var": "temp_data.uetr_from_field_79"},
+                                    null
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.has_valid_uetr",
+                            "logic": { "if": [
+                                {"var": "temp_data.extracted_uetr"},
+                                {">": [{"length": {"var": "temp_data.extracted_uetr"}}, 0]},
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.prec001_error",
+                            "logic": { "if": [
+                                {"var": "temp_data.has_valid_uetr"},
+                                null,
+                                "T20087: UETR is mandatory but missing in Block3 and Field 79"
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "extract_original_amount",
+            "name": "Extract Original Amount from Field 79",
+            "description": "Extract and parse original amount from /ORIGAMT/ in field 79",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.extracted_origamt_str",
+                            "logic": { "if": [
+                                {"var": "temp_data.has_origamt_in_field_79"},
+                                {
+                                    "reduce": [
+                                        {"var": "temp_data.field_79_narrative"},
+                                        {"if": [
+                                            {"in": ["/ORIGAMT/", {"var": "current"}]},
+                                            {"substr": [{"var": "current"}, 9]},
+                                            {"var": "accumulator"}
+                                        ]},
+                                        null
+                                    ]
+                                },
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.extracted_origamt_ccy",
+                            "logic": { "if": [
+                                {"var": "temp_data.extracted_origamt_str"},
+                                {"substr": [{"var": "temp_data.extracted_origamt_str"}, 0, 3]},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.extracted_origamt_val_str",
+                            "logic": { "if": [
+                                {"var": "temp_data.extracted_origamt_str"},
+                                {"substr": [{"var": "temp_data.extracted_origamt_str"}, 3]},
+                                null
+                            ]}
                         }
                     ]
                 }
@@ -117,21 +308,13 @@
         {
             "id": "set_basic_values",
             "name": "Set Basic Values",
-            "description": "Set basic temp data values including UETR and cancellation info",
+            "description": "Set basic temp data values including cancellation info",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {"path": "temp_data.cancellation_type", "logic": "FULL"},
                         {"path": "temp_data.request_status", "logic": "CANC"},
-                        {
-                            "path": "temp_data.extracted_uetr",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
-                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
-                                {"if": [{"var": "temp_data.has_uetr_in_field_79"}, "EXTRACTED_FROM_FIELD_79", ""]}
-                            ]}
-                        },
                         {
                             "path": "temp_data.cancellation_reason",
                             "logic": {"if": [{"var": "data.SwiftMT.fields.79"}, "NARR", "NARR"]}
@@ -142,6 +325,45 @@
                                 {"var": "data.SwiftMT.fields.79"},
                                 {"var": "temp_data.field_79_narrative"},
                                 ["NOTPROVIDED"]
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.original_date_formatted",
+                            "logic": { "if": [
+                                {"var": "temp_data.field_11s_date"},
+                                {"cat": [{"var": "temp_data.field_11s_date"}, "T00:00:00+00:00"]},
+                                "9999-12-31T00:00:00+00:00"
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "check_precondition_errors",
+            "name": "Check Precondition Errors",
+            "description": "Check if any precondition errors exist and prepare error message",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.has_errors",
+                            "logic": { "or": [
+                                {"var": "temp_data.prec001_error"},
+                                {"var": "temp_data.prec004_error"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.error_message",
+                            "logic": { "if": [
+                                {"var": "temp_data.prec001_error"},
+                                {"var": "temp_data.prec001_error"},
+                                { "if": [
+                                    {"var": "temp_data.prec004_error"},
+                                    {"var": "temp_data.prec004_error"},
+                                    null
+                                ]}
                             ]}
                         }
                     ]

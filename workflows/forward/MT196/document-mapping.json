@@ -7,8 +7,9 @@
         {"==": [{"var": "SwiftMT.message_type"}, "196"]},
         {"==": [{"var": "SwiftMT.method"}, "normal"]},
         {"==": [{"var": "progress.workflow_id"}, "mt196-precondition"]},
-        {"==": [{"var": "progress.task_id"}, "PREC004_implement_tr003_message_type"]},
-        {"==": [{"var": "progress.status_code"}, 200]}
+        {"==": [{"var": "progress.task_id"}, "check_precondition_errors"]},
+        {"==": [{"var": "progress.status_code"}, 200]},
+        {"!": [{"var": "temp_data.has_errors"}]}
     ]},
     "tasks": [
         {
@@ -75,23 +76,7 @@
                         {
                             "path": "data.Document.RsltnOfInvstgtn.Sts",
                             "logic": {
-                                "Conf": { "if": [
-                                    {"var": "data.SwiftMT.fields.76.lines"},
-                                    { "if": [
-                                        {"matches": [{"var": "data.SwiftMT.fields.76.lines.0"}, "/CNCL/"]},
-                                        "CNCL",
-                                        { "if": [
-                                            {"matches": [{"var": "data.SwiftMT.fields.76.lines.0"}, "/PDCR/"]},
-                                            "PDCR",
-                                            { "if": [
-                                                {"matches": [{"var": "data.SwiftMT.fields.76.lines.0"}, "/RJCR/"]},
-                                                "RJCR",
-                                                "CNCL"
-                                            ]}
-                                        ]}
-                                    ]},
-                                    "CNCL"
-                                ]}
+                                "Conf": {"var": "temp_data.status_code"}
                             }
                         }
                     ]
@@ -137,37 +122,8 @@
                                             {"var": "data.SwiftMT.fields.21.reference"},
                                             "NOTPROVIDED"
                                         ]},
-                                        "OrgnlMsgNmId": { "if": [
-                                            {"var": "temp_data.original_mx_type"},
-                                            {"var": "temp_data.original_mx_type"},
-                                            { "if": [
-                                                {"var": "data.SwiftMT.fields.11R.message_type"},
-                                                { "if": [
-                                                    {"==": [{"var": "data.SwiftMT.fields.11R.message_type"}, "103"]},
-                                                    "pacs.008.001.08",
-                                                    { "if": [
-                                                        {"==": [{"var": "data.SwiftMT.fields.11R.message_type"}, "104"]},
-                                                        "pacs.003.001.08",
-                                                        { "if": [
-                                                            {
-                                                                "or": [
-                                                                    {"==": [{"var": "data.SwiftMT.fields.11R.message_type"}, "202"]},
-                                                                    {"==": [{"var": "data.SwiftMT.fields.11R.message_type"}, "205"]}
-                                                                ]
-                                                            },
-                                                            "pacs.009.001.08",
-                                                            {"cat": ["MT", {"var": "data.SwiftMT.fields.11R.message_type"}]}
-                                                        ]}
-                                                    ]}
-                                                ]},
-                                                "NOTPROVIDED"
-                                            ]}
-                                        ]},
-                                        "OrgnlCreDtTm": { "if": [
-                                            {"var": "data.SwiftMT.fields.11R.date_time"},
-                                            {"cat": [{"var": "data.SwiftMT.fields.11R.date_time"}, "T00:00:00+00:00"]},
-                                            "9999-12-31T00:00:00+00:00"
-                                        ]}
+                                        "OrgnlMsgNmId": {"var": "temp_data.original_mx_type"},
+                                        "OrgnlCreDtTm": {"var": "temp_data.original_date_formatted"}
                                     },
                                     "OrgnlUETR": { "if": [
                                         {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
@@ -181,21 +137,21 @@
                                     "CxlStsRsnInf": {
                                         "Rsn": {
                                             "Cd": { "if": [
-                                                {"matches": [{"var": "data.SwiftMT.fields.76.lines.0"}, "/CNCL/"]},
+                                                {"==": [{"var": "temp_data.status_code"}, "CNCL"]},
                                                 "CUST",
                                                 { "if": [
-                                                    {"matches": [{"var": "data.SwiftMT.fields.76.lines.0"}, "/PDCR/"]},
+                                                    {"==": [{"var": "temp_data.status_code"}, "PDCR"]},
                                                     "RQDA",
                                                     { "if": [
-                                                        {"matches": [{"var": "data.SwiftMT.fields.76.lines.0"}, "/RJCR/"]},
+                                                        {"==": [{"var": "temp_data.status_code"}, "RJCR"]},
                                                         "NOOR",
                                                         "CUST"
                                                     ]}
                                                 ]}
                                             ]},
                                             "Prtry": { "if": [
-                                                {"matches": [{"var": "data.SwiftMT.fields.76.lines.0"}, "/CNCL/"]},
-                                                "CNCL",
+                                                {"==": [{"var": "temp_data.field76_reason_code"}, "ARPL"]},
+                                                {"var": "temp_data.field76_reason_code"},
                                                 { "if": [
                                                     {"matches": [{"var": "data.SwiftMT.fields.76.lines.0"}, "/PDCR/"]},
                                                     "PDCR",
@@ -208,13 +164,13 @@
                                             ]}
                                         },
                                         "AddtlInf": { "if": [
-                                            {"var": "data.SwiftMT.fields.76.lines"},
+                                            {"var": "temp_data.field76_additional_info"},
+                                            [{"var": "temp_data.field76_additional_info"}],
                                             { "if": [
-                                                {"in": ["ARPL", {"var": "data.SwiftMT.fields.76.information.0"}]},
-                                                {"filter": [{"var": "data.SwiftMT.fields.76.lines"}, {"!=": [{"var": ""}, "ARPL"]}]},
-                                                {"var": "data.SwiftMT.fields.76.lines"}
-                                            ]},
-                                            ["Resolution details as per field 76"]
+                                                {"==": [{"var": "temp_data.field76_reason_code"}, "ARPL"]},
+                                                ["ARPL"],
+                                                []
+                                            ]}
                                         ]}
                                     }
                                 }
@@ -254,16 +210,7 @@
                     "mappings": [
                         {
                             "path": "data.Document.RsltnOfInvstgtn.SplmtryData",
-                            "logic": { "if": [
-                                {"var": "temp_data.filtered_77A"},
-                                [
-                                    {
-                                        "PlcAndNm": "Field77A_Narrative",
-                                        "Envlp": {"Narrative": {"var": "temp_data.filtered_77A"}}
-                                    }
-                                ],
-                                []
-                            ]}
+                            "logic": []
                         }
                     ]
                 }

@@ -200,6 +200,10 @@ fn handle_mt_to_mx_header(
             debug!("Serializing MT196/MT296 to MX header");
             serialize_mt_to_mx_header::<bah_camt_029_001::BusinessApplicationHeaderV02>(data)?
         }
+        "101" => {
+            debug!("Serializing MT101 to MX header");
+            serialize_mt_to_mx_header::<bah_pain_001_001_09::BusinessApplicationHeaderV02>(data)?
+        }
         _ => {
             error!("Invalid message type: {}", message_type);
             return Err(DataflowError::Validation(format!(
@@ -403,6 +407,29 @@ fn handle_mt_to_mx_document(
                     .clone(),
             )?
         }
+        "101" => {
+            debug!("Serializing MT101 to MX document");
+            // For MT101, the Document contains CstmrCdtTrfInitn
+            let doc_content = if let Some(cstmr_cdt_trf) = data.get("CstmrCdtTrfInitn") {
+                cstmr_cdt_trf.clone()
+            } else if let Some(doc) = data.as_object() {
+                // If we have the full Document, extract CstmrCdtTrfInitn from it
+                doc.get("CstmrCdtTrfInitn")
+                    .ok_or_else(|| {
+                        DataflowError::Validation(
+                            "Missing CstmrCdtTrfInitn field for MT101".to_string(),
+                        )
+                    })?
+                    .clone()
+            } else {
+                return Err(DataflowError::Validation(
+                    "Invalid Document structure for MT101".to_string(),
+                ));
+            };
+            serialize_mt_to_mx_document::<pain_001_001_09::CustomerCreditTransferInitiationV09>(
+                doc_content,
+            )?
+        }
         _ => {
             error!("Invalid message type: {}", message_type);
             return Err(DataflowError::Validation(format!(
@@ -471,7 +498,7 @@ where
 
     // Use serde_path_to_error for detailed path information
     let json_str = data.to_string();
-    println!("json_str: {}", json_str);
+    println!("MT101 Document JSON being serialized: {}", json_str);
     let mut deserializer = serde_json::Deserializer::from_str(&json_str);
     match serde_path_to_error::deserialize::<_, T>(&mut deserializer) {
         Ok(document_data) => {

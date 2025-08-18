@@ -285,3 +285,4 @@ Common issues when creating/fixing MX scenarios:
 - The application is stateless and can scale horizontally
 - Workflow engines are initialized once and reused
 - JSON parsing is a potential bottleneck for large messages
+- The condition field in workflow gets the entire metadata field as the context so no need to add metadata. in variable access

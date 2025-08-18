@@ -2,11 +2,11 @@
     "id": "mt101-bah-mapper",
     "name": "MT101 Business Application Header Mapping for CBPR+",
     "description": "Maps MT101 message to ISO 20022 Business Application Header (AppHdr) using head.001.001.02 schema for pain.001",
-    "priority": 2,
+    "priority": 3,
     "condition": { "and": [
         {"==": [{"var": "SwiftMT.message_type"}, "101"]},
-        {"==": [{"var": "progress.workflow_id"}, "parser"]},
-        {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
+        {"==": [{"var": "progress.workflow_id"}, "mt101-precondition"]},
+        {"==": [{"var": "progress.task_id"}, "validate_cbpr_requirements"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
@@ -79,14 +79,27 @@
                                 "MsgDefIdr": "pain.001.001.09",
                                 "BizSvc": "cbpr.plus.01",
                                 "CreDt": { "if": [
-                                    {"var": "data.SwiftMT.fields.30.date"},
-                                    {"cat": [{"var": "data.SwiftMT.fields.30.date"}, "T12:00:00Z"]},
+                                    {"var": "data.SwiftMT.fields.30.execution_date"},
+                                    {"cat": [{"var": "data.SwiftMT.fields.30.execution_date"}, "T12:00:00Z"]},
                                     {"cat": [{"substr": [{"var": "_timestamp"}, 0, 10]}, "T12:00:00Z"]}
                                 ]},
                                 "Sgntr": null
                             }
                         }
                     ]
+                }
+            }
+        },
+        {
+            "id": "generate_header_xml",
+            "name": "Generate Header XML",
+            "description": "Generates the Business Application Header XML output using the PublishMX function",
+            "function": {
+                "name": "PublishMX",
+                "input": {
+                    "input_field_name": "AppHdr",
+                    "output_field_name": "header_xml",
+                    "source_format": "MT101.Header"
                 }
             }
         }

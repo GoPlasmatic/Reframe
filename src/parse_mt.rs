@@ -136,6 +136,21 @@ impl ParseMT {
                 "return".to_string()
             } else if mt202_message.is_cover_message() {
                 "cover".to_string()
+            } else if mt202_message.user_header.as_ref()
+                .and_then(|h| h.validation_flag.as_ref())
+                .map(|flag| flag.as_str() == "COV")
+                .unwrap_or(false) {
+                "cover".to_string()
+            } else if mt202_message.user_header.as_ref()
+                .and_then(|h| h.validation_flag.as_ref())
+                .map(|flag| flag.as_str() == "RETN")
+                .unwrap_or(false) {
+                "return".to_string()
+            } else if mt202_message.user_header.as_ref()
+                .and_then(|h| h.validation_flag.as_ref())
+                .map(|flag| flag.as_str() == "REJT")
+                .unwrap_or(false) {
+                "reject".to_string()
             } else {
                 "normal".to_string()
             };
@@ -160,6 +175,21 @@ impl ParseMT {
                 "return".to_string()
             } else if mt205_message.is_cover_message() {
                 "cover".to_string()
+            } else if mt205_message.user_header.as_ref()
+                .and_then(|h| h.validation_flag.as_ref())
+                .map(|flag| flag.as_str() == "COV")
+                .unwrap_or(false) {
+                "cover".to_string()
+            } else if mt205_message.user_header.as_ref()
+                .and_then(|h| h.validation_flag.as_ref())
+                .map(|flag| flag.as_str() == "RETN")
+                .unwrap_or(false) {
+                "return".to_string()
+            } else if mt205_message.user_header.as_ref()
+                .and_then(|h| h.validation_flag.as_ref())
+                .map(|flag| flag.as_str() == "REJT")
+                .unwrap_or(false) {
+                "reject".to_string()
             } else {
                 "normal".to_string()
             };

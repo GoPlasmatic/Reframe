@@ -204,6 +204,10 @@ fn handle_mt_to_mx_header(
             debug!("Serializing MT101 to MX header");
             serialize_mt_to_mx_header::<bah_pain_001_001_09::BusinessApplicationHeaderV02>(data)?
         }
+        "200" => {
+            debug!("Serializing MT200 to MX header");
+            serialize_mt_to_mx_header::<bah_pacs_009_001_08::BusinessApplicationHeaderV02>(data)?
+        }
         _ => {
             error!("Invalid message type: {}", message_type);
             return Err(DataflowError::Validation(format!(
@@ -428,6 +432,25 @@ fn handle_mt_to_mx_document(
             };
             serialize_mt_to_mx_document::<pain_001_001_09::CustomerCreditTransferInitiationV09>(
                 doc_content,
+            )?
+        }
+        "200" => {
+            debug!("Processing MT200 document for pacs.009");
+            
+            // For MT200, we need to get the FIToFICdtTrf structure
+            let fi_to_fi_cdt_trf = data
+                .get("FIToFICdtTrf")
+                .ok_or_else(|| {
+                    error!("Missing FIToFICdtTrf field for MT200");
+                    DataflowError::Validation(
+                        "Invalid Document structure for MT200 - missing FIToFICdtTrf".to_string(),
+                    )
+                })?
+                .clone();
+            
+            debug!("MT200 FIToFICdtTrf structure: {:?}", fi_to_fi_cdt_trf);
+            serialize_mt_to_mx_document::<pacs_009_001_08::FinancialInstitutionCreditTransferV08>(
+                fi_to_fi_cdt_trf,
             )?
         }
         _ => {

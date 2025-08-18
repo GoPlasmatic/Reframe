@@ -25,6 +25,7 @@ pub fn is_supported_mt_type(message_type: &str) -> bool {
             | "MT192"
             | "MT196"
             | "MT199"
+            | "MT200"
             | "MT202"
             | "MT205"
             | "MT210"

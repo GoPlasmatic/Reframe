@@ -55,6 +55,7 @@ pub fn generate_mt_from_json(
         "MT192" => parse_mt_message!(MT192, "MT192", json_data),
         "MT196" => parse_mt_message!(MT196, "MT196", json_data),
         "MT199" => parse_mt_message!(MT199, "MT199", json_data),
+        "MT200" => parse_mt_message!(MT200, "MT200", json_data),
         "MT202" => parse_mt_message!(MT202, "MT202", json_data),
         "MT205" => parse_mt_message!(MT205, "MT205", json_data),
         "MT210" => parse_mt_message!(MT210, "MT210", json_data),

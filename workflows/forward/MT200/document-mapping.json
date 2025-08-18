@@ -95,9 +95,9 @@
                 "name": "map",
                 "input": {
                     "mappings": [
-                        {"path": "data.Document.FIToFICdtTrf.CdtTrfTxInf", "logic": []},
+                        {"path": "data.Document.FIToFICdtTrf.CdtTrfTxInf", "logic": {}},
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0",
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf",
                             "logic": {
                                 "PmtId": {
                                     "InstrId": { "if": [
@@ -113,24 +113,45 @@
                                     "UETR": { "if": [
                                         {"var": "data.SwiftMT.user_header.unique_end_to_end_transaction_reference"},
                                         {"var": "data.SwiftMT.user_header.unique_end_to_end_transaction_reference"},
-                                        null
+                                        "00000000-0000-4000-8000-000000000000"
                                     ]}
                                 },
                                 "PmtTpInf": {
                                     "SvcLvl": { "if": [
                                         {"var": "data.SwiftMT.user_header.service_type_identifier"},
-                                        {"Cd": {"var": "data.SwiftMT.user_header.service_type_identifier"}},
+                                        [{ "if": [
+                                            {"regex_match": [{"var": "data.SwiftMT.user_header.service_type_identifier"}, "^00[1-9]$"]},
+                                            {"Cd": {"cat": ["G", {"var": "data.SwiftMT.user_header.service_type_identifier"}]}},
+                                            {"Cd": {"var": "data.SwiftMT.user_header.service_type_identifier"}}
+                                        ]}],
                                         null
                                     ]},
                                     "ClrChanl": { "if": [
                                         { "or": [
-                                            {"var": "data.SwiftMT.fields.56.A"},
-                                            {"var": "data.SwiftMT.fields.56.D"},
-                                            {"var": "data.SwiftMT.fields.57.A"},
-                                            {"var": "data.SwiftMT.fields.57.B"},
-                                            {"var": "data.SwiftMT.fields.57.D"}
+                                            { "and": [
+                                                {"var": "data.SwiftMT.fields.56.A.party_identifier"},
+                                                { "or": [
+                                                    {"starts_with": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, "//RT"]},
+                                                    {"starts_with": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, "//FW"]}
+                                                ]}
+                                            ]},
+                                            { "and": [
+                                                {"var": "data.SwiftMT.fields.56.D.party_identifier"},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.56.D.party_identifier"}, "//RT"]}
+                                            ]},
+                                            { "and": [
+                                                {"var": "data.SwiftMT.fields.57.A.party_identifier"},
+                                                { "or": [
+                                                    {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//RT"]},
+                                                    {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//FW"]}
+                                                ]}
+                                            ]},
+                                            { "and": [
+                                                {"var": "data.SwiftMT.fields.57.D.party_identifier"},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.57.D.party_identifier"}, "//RT"]}
+                                            ]}
                                         ]},
-                                        "BOOK",
+                                        "RTGS",
                                         null
                                     ]}
                                 },
@@ -154,7 +175,12 @@
                                 "InstgAgt": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}},
                                 "InstdAgt": {"FinInstnId": {"BICFI": {"var": "temp_data.Receiver"}}},
                                 "Dbtr": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}},
-                                "Cdtr": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}}
+                                "Cdtr": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}},
+                                "CdtrAgt": { "if": [
+                                    {"var": "data.SwiftMT.fields.57.A.bic"},
+                                    {"FinInstnId": {"BICFI": {"var": "data.SwiftMT.fields.57.A.bic"}}},
+                                    null
+                                ]}
                             }
                         }
                     ]
@@ -378,6 +404,55 @@
             }
         },
         {
+            "id": "map_field72_new_codes",
+            "name": "Map Field 72 New Code Words",
+            "description": "Maps new MX-originated codes from field 72 to appropriate pacs.009 fields",
+            "condition": {"var": "data.SwiftMT.fields.72"},
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0.PmtTpInf.SvcLvl",
+                            "condition": {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/SVCLVL/"]},
+                            "logic": { "if": [
+                                {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/SVCLVL/([^/]+)"]},
+                                {"Prtry": {"regex_extract": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/SVCLVL/([^/]+)", 1]}},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0.PmtTpInf.LclInstrm",
+                            "condition": {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/LOCINS/"]},
+                            "logic": { "if": [
+                                {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/LOCINS/([^/]+)"]},
+                                {"Prtry": {"regex_extract": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/LOCINS/([^/]+)", 1]}},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0.PmtTpInf.CtgyPurp",
+                            "condition": {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/CATPURP/"]},
+                            "logic": { "if": [
+                                {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/CATPURP/([^/]+)"]},
+                                {"Prtry": {"regex_extract": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/CATPURP/([^/]+)", 1]}},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0.Purp",
+                            "condition": {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/PURP/"]},
+                            "logic": { "if": [
+                                {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/PURP/([^/]+)"]},
+                                {"Prtry": {"regex_extract": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/PURP/([^/]+)", 1]}},
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
             "id": "map_sender_to_receiver_info",
             "name": "Map Sender to Receiver Information",
             "description": "Maps field 72 to various instruction fields in pacs.009",
@@ -390,46 +465,46 @@
                             "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0.InstrForCdtrAgt",
                             "condition": { "or": [
                                 {
-                                    "regex_match": [{"var": "data.SwiftMT.fields.72.sender_to_receiver_info"}, "/ACC/"]
+                                    "regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/ACC/"]
                                 },
                                 {
-                                    "regex_match": [{"var": "data.SwiftMT.fields.72.sender_to_receiver_info"}, "/UDLC/"]
+                                    "regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/UDLC/"]
                                 },
                                 {
-                                    "regex_match": [{"var": "data.SwiftMT.fields.72.sender_to_receiver_info"}, "/PHONBEN/"]
+                                    "regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/PHONBEN/"]
                                 },
                                 {
-                                    "regex_match": [{"var": "data.SwiftMT.fields.72.sender_to_receiver_info"}, "/TELEBEN/"]
+                                    "regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/TELEBEN/"]
                                 }
                             ]},
                             "logic": {
                                 "InstrInf": { "if": [
                                     {
-                                        "regex_match": [{"var": "data.SwiftMT.fields.72.sender_to_receiver_info"}, "/ACC/([^/]+)"]
+                                        "regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/ACC/([^/]+)"]
                                     },
                                     {
-                                        "regex_extract": [{"var": "data.SwiftMT.fields.72.sender_to_receiver_info"}, "/ACC/([^/]+)", 1]
+                                        "regex_extract": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/ACC/([^/]+)", 1]
                                     },
                                     { "if": [
                                         {
-                                            "regex_match": [{"var": "data.SwiftMT.fields.72.sender_to_receiver_info"}, "/UDLC/([^/]+)"]
+                                            "regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/UDLC/([^/]+)"]
                                         },
                                         {
-                                            "regex_extract": [{"var": "data.SwiftMT.fields.72.sender_to_receiver_info"}, "/UDLC/([^/]+)", 1]
+                                            "regex_extract": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/UDLC/([^/]+)", 1]
                                         },
                                         { "if": [
                                             {
-                                                "regex_match": [{"var": "data.SwiftMT.fields.72.sender_to_receiver_info"}, "/PHONBEN/([^/]+)"]
+                                                "regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/PHONBEN/([^/]+)"]
                                             },
                                             {
-                                                "regex_extract": [{"var": "data.SwiftMT.fields.72.sender_to_receiver_info"}, "/PHONBEN/([^/]+)", 1]
+                                                "regex_extract": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/PHONBEN/([^/]+)", 1]
                                             },
                                             { "if": [
                                                 {
-                                                    "regex_match": [{"var": "data.SwiftMT.fields.72.sender_to_receiver_info"}, "/TELEBEN/([^/]+)"]
+                                                    "regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/TELEBEN/([^/]+)"]
                                                 },
                                                 {
-                                                    "regex_extract": [{"var": "data.SwiftMT.fields.72.sender_to_receiver_info"}, "/TELEBEN/([^/]+)", 1]
+                                                    "regex_extract": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/TELEBEN/([^/]+)", 1]
                                                 },
                                                 null
                                             ]}
@@ -441,20 +516,20 @@
                         {
                             "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0.RmtInf",
                             "condition": {
-                                "regex_match": [{"var": "data.SwiftMT.fields.72.sender_to_receiver_info"}, "/BNF/"]
+                                "regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/BNF/"]
                             },
                             "logic": {
                                 "Ustrd": [
                                     { "if": [
                                         {
                                             "regex_match": [
-                                                {"var": "data.SwiftMT.fields.72.sender_to_receiver_info"},
+                                                {"cat": [{"var": "data.SwiftMT.fields.72.information"}]},
                                                 "/BNF/(.+?)(?=/[A-Z]{3,}|$)"
                                             ]
                                         },
                                         {
                                             "regex_extract": [
-                                                {"var": "data.SwiftMT.fields.72.sender_to_receiver_info"},
+                                                {"cat": [{"var": "data.SwiftMT.fields.72.information"}]},
                                                 "/BNF/(.+?)(?=/[A-Z]{3,}|$)",
                                                 1
                                             ]
@@ -468,18 +543,24 @@
                             "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0.InstrForNxtAgt",
                             "condition": {
                                 "and": [
-                                    {"var": "data.SwiftMT.fields.72.sender_to_receiver_info"},
+                                    {"var": "data.SwiftMT.fields.72"},
                                     {
                                         "!": {
                                             "regex_match": [
-                                                {"var": "data.SwiftMT.fields.72.sender_to_receiver_info"},
-                                                "^/(ACC|UDLC|PHONBEN|TELEBEN|BNF|INTA|SVCLVL|LOCINS|CATPURP|PURP)/"
+                                                {"cat": [{"var": "data.SwiftMT.fields.72.information"}]},
+                                                "/(ACC|UDLC|PHONBEN|TELEBEN|BNF|TSU|INTA|SVCLVL|LOCINS|CATPURP|PURP)/"
                                             ]
                                         }
                                     }
                                 ]
                             },
-                            "logic": {"InstrInf": {"var": "data.SwiftMT.fields.72.sender_to_receiver_info"}}
+                            "logic": [
+                                {"InstrInf": { "if": [
+                                    {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/([A-Z0-9]{1,8})/([^/]+)"]},
+                                    {"regex_extract": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/([A-Z0-9]{1,8})/([^/]+)", 0]},
+                                    {"cat": [{"var": "data.SwiftMT.fields.72.information"}]}
+                                ]}}
+                            ]
                         }
                     ]
                 }

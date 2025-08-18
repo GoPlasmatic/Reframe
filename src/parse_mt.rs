@@ -107,6 +107,21 @@ impl ParseMT {
                 error!(error = ?e, "MT103 JSON conversion failed");
                 DataflowError::Validation(format!("MT103 JSON conversion failed: {e}"))
             })?
+        } else if message_type == "200" {
+            let Some(mt200_message) = parsed_message.into_mt200() else {
+                error!("Failed to convert SwiftMessage to MT200");
+                return Err(DataflowError::Validation(
+                    "MT200 message not found in SwiftMT message".to_string(),
+                ));
+            };
+
+            method = "normal".to_string();
+            debug!("Processing MT200 with normal method");
+
+            serde_json::to_value(&mt200_message).map_err(|e| {
+                error!(error = ?e, "MT200 JSON conversion failed");
+                DataflowError::Validation(format!("MT200 JSON conversion failed: {e}"))
+            })?
         } else if message_type == "202" {
             let Some(mt202_message) = parsed_message.into_mt202() else {
                 error!("Failed to convert SwiftMessage to MT202");

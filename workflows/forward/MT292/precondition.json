@@ -12,44 +12,60 @@
     ]},
     "tasks": [
         {
-            "id": "PREC001_validate_uetr_presence",
-            "name": "PREC001: Validate UETR Presence",
-            "description": "Check if UETR is present in Block3 or Field 79 pattern",
+            "id": "extract_uetr_from_field_79",
+            "name": "Extract UETR from Field 79",
+            "description": "Extract UETR value from Field 79 if present",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.prec001_uetr_check",
+                            "path": "temp_data.field_79_uetr_line",
                             "logic": {
-                                "or": [
-                                    {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                "if": [
+                                    {"var": "data.SwiftMT.fields.79.information"},
                                     {
-                                        "and": [
+                                        "reduce": [
                                             {"var": "data.SwiftMT.fields.79.information"},
                                             {
-                                                "some": [{"var": "data.SwiftMT.fields.79.information"}, {"in": ["/UETR/", {"var": ""}]}]
-                                            }
+                                                "if": [
+                                                    {"in": ["/UETR/", {"var": "current"}]},
+                                                    {"var": "current"},
+                                                    {"var": "accumulator"}
+                                                ]
+                                            },
+                                            null
                                         ]
-                                    }
+                                    },
+                                    null
                                 ]
                             }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC002_validate_field_32a",
-            "name": "PREC002: Validate Field 32A Presence",
-            "description": "Check if Field 32A is present (optional based on specification)",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
+                        },
                         {
-                            "path": "temp_data.field_32a_present",
-                            "logic": {"if": [{"var": "data.SwiftMT.fields.32A"}, true, false]}
+                            "path": "temp_data.extracted_uetr_from_79",
+                            "logic": {
+                                "if": [
+                                    {"var": "temp_data.field_79_uetr_line"},
+                                    {
+                                        "substr": [
+                                            {"var": "temp_data.field_79_uetr_line"},
+                                            6,
+                                            36
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.final_uetr",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                    {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                    {"var": "temp_data.extracted_uetr_from_79"}
+                                ]
+                            }
                         }
                     ]
                 }
@@ -220,11 +236,7 @@
                         {"path": "temp_data.request_status", "logic": "CANC"},
                         {
                             "path": "temp_data.extracted_uetr",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
-                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
-                                {"if": [{"var": "temp_data.has_uetr_in_field_79"}, "EXTRACTED_FROM_FIELD_79", ""]}
-                            ]}
+                            "logic": {"var": "temp_data.final_uetr"}
                         },
                         {
                             "path": "temp_data.cancellation_reason",

@@ -2,105 +2,61 @@
     "id": "mt202-rejt-document-mapper",
     "name": "MT202 REJT to pacs.002 Document Mapping for CBPR+",
     "description": "Maps MT202 REJT message to ISO 20022 pacs.002.001.10 FIToFIPaymentStatusReportV10 document structure according to CBPR+ rejection translation specification",
-    "priority": 4,
+    "priority": 5,
     "condition": { "and": [
         {"==": [{"var": "SwiftMT.message_type"}, "202"]},
         {"==": [{"var": "SwiftMT.method"}, "reject"]},
         {"==": [{"var": "progress.workflow_id"}, "mt202-rejt-precondition"]},
-        {
-            "in": [
-                {"var": "progress.task_id"},
-                [
-                    "PREC001_validate_temp_variables",
-                    "validate_field72_rejt",
-                    "validate_uetr_present"
-                ]
-            ]
-        },
+        {"==": [{"var": "progress.task_id"}, "validate_uetr_present"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "TR007_extract_rejection_data_from_field72",
-            "name": "TR007: Extract Rejection Data from Field 72",
-            "description": "Implements TR007 MREF extraction and extracts rejection reason code and additional text information from MT202 REJT field 72 lines using structural output",
+            "id": "TR007_prepare_rejection_data",
+            "name": "TR007: Prepare Rejection Data",
+            "description": "Prepares rejection data using pre-extracted values from precondition and categorizes reason codes",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data",
-                            "logic": {
-                                "instruction_id": { "if": [
-                                    {"var": "data.SwiftMT.fields.72.information"},
-                                    {
-                                        "reduce": [
-                                            {"var": "data.SwiftMT.fields.72.information"},
-                                            { "if": [
-                                                {"starts_with": [{"var": "current"}, "/MREF/"]},
-                                                {"substr": [{"var": "current"}, 6]},
-                                                {"var": "accumulator"}
-                                            ]},
-                                            "NOTPROVIDED"
-                                        ]
-                                    },
-                                    "NOTPROVIDED"
+                            "path": "temp_data.standard_reason_codes",
+                            "logic": [
+                                "AC01", "AC04", "AC06", "AG01", "AG02", "AM05",
+                                "BE05", "MS03", "RR01", "RR02", "RR03", "RR04"
+                            ]
+                        },
+                        {
+                            "path": "temp_data.is_standard_code",
+                            "logic": { "and": [
+                                {"var": "temp_data.rejection_code"},
+                                {"!=": [{"var": "temp_data.rejection_code"}, ""]},
+                                {"in": [{"var": "temp_data.rejection_code"}, {"var": "temp_data.standard_reason_codes"}]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.message_type_variant",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.user_header.validation_flag"},
+                                { "if": [
+                                    {"==": [{"var": "data.SwiftMT.user_header.validation_flag"}, "COV"]},
+                                    { "if": [
+                                        {"==": [{"var": "data.SwiftMT.message_type"}, "202"]},
+                                        "MT202 COVE",
+                                        "MT205 COVE"
+                                    ]},
+                                    { "if": [
+                                        {"==": [{"var": "data.SwiftMT.message_type"}, "202"]},
+                                        "MT202",
+                                        "MT205"
+                                    ]}
                                 ]},
-                                "reason_code": { "if": [
-                                    {"var": "data.SwiftMT.fields.72.information"},
-                                    {
-                                        "reduce": [
-                                            {"var": "data.SwiftMT.fields.72.information"},
-                                            { "if": [
-                                                { "and": [
-                                                    {"!": {"starts_with": [{"var": "current"}, "/REJT/"]}},
-                                                    {"!": {"starts_with": [{"var": "current"}, "/MREF/"]}},
-                                                    {"!": {"starts_with": [{"var": "current"}, "/TEXT/"]}},
-                                                    {"!=": [{"var": "current"}, ""]}
-                                                ]},
-                                                {"var": "current"},
-                                                {"var": "accumulator"}
-                                            ]},
-                                            ""
-                                        ]
-                                    },
-                                    ""
-                                ]},
-                                "additional_info": { "if": [
-                                    {"var": "data.SwiftMT.fields.72.information"},
-                                    {
-                                        "reduce": [
-                                            {"var": "data.SwiftMT.fields.72.information"},
-                                            { "if": [
-                                                {"starts_with": [{"var": "current"}, "/TEXT/"]},
-                                                {"cat": [{"var": "accumulator"}, " ", {"substr": [{"var": "current"}, 6]}]},
-                                                {"var": "accumulator"}
-                                            ]},
-                                            ""
-                                        ]
-                                    },
-                                    ""
-                                ]},
-                                "standard_reason_codes": [
-                                    "AC01",
-                                    "AC04",
-                                    "AC06",
-                                    "AG01",
-                                    "AG02",
-                                    "AM05",
-                                    "BE05",
-                                    "MS03",
-                                    "RR01",
-                                    "RR02",
-                                    "RR03",
-                                    "RR04"
-                                ],
-                                "is_standard_code": { "and": [
-                                    {"var": "temp_data.reason_code"},
-                                    {"!=": [{"var": "temp_data.reason_code"}, ""]},
-                                    {"in": [{"var": "temp_data.reason_code"}, {"var": "temp_data.standard_reason_codes"}]}
+                                { "if": [
+                                    {"==": [{"var": "data.SwiftMT.message_type"}, "202"]},
+                                    "MT202",
+                                    "MT205"
                                 ]}
-                            }
+                            ]}
                         }
                     ]
                 }
@@ -138,15 +94,15 @@
                                 "TxInfAndSts": {
                                     "OrgnlGrpInf": {
                                         "OrgnlMsgId": { "if": [
-                                            {"var": "temp_data.instruction_id"},
-                                            {"var": "temp_data.instruction_id"},
+                                            {"var": "temp_data.original_instruction_id"},
+                                            {"var": "temp_data.original_instruction_id"},
                                             "NOTPROVIDED"
                                         ]},
-                                        "OrgnlMsgNmId": {"if": [{"==": [{"var": "data.SwiftMT.message_type"}, "202"]}, "MT202", "MT205"]}
+                                        "OrgnlMsgNmId": {"var": "temp_data.message_type_variant"}
                                     },
                                     "OrgnlInstrId": { "if": [
-                                        {"var": "temp_data.instruction_id"},
-                                        {"var": "temp_data.instruction_id"},
+                                        {"var": "temp_data.original_instruction_id"},
+                                        {"var": "temp_data.original_instruction_id"},
                                         "NOTPROVIDED"
                                     ]},
                                     "OrgnlEndToEndId": { "if": [
@@ -191,35 +147,44 @@
                                         "Rsn": {
                                             "Cd": { "if": [
                                                 {"var": "temp_data.is_standard_code"},
-                                                {"var": "temp_data.reason_code"},
+                                                {"var": "temp_data.rejection_code"},
                                                 null
                                             ]},
                                             "Prtry": { "if": [
                                                 { "and": [
-                                                    {"var": "temp_data.reason_code"},
-                                                    {"!=": [{"var": "temp_data.reason_code"}, ""]},
+                                                    {"var": "temp_data.rejection_code"},
+                                                    {"!=": [{"var": "temp_data.rejection_code"}, ""]},
                                                     {"!": {"var": "temp_data.is_standard_code"}}
                                                 ]},
-                                                {"var": "temp_data.reason_code"},
+                                                {"var": "temp_data.rejection_code"},
                                                 null
                                             ]}
                                         },
                                         "AddtlInf": { "if": [
-                                            { "and": [
-                                                {"var": "temp_data.additional_info"},
-                                                {"!=": [{"var": "temp_data.additional_info"}, ""]},
-                                                {"!=": [{"var": "temp_data.additional_info"}, null]}
+                                            { "or": [
+                                                { "and": [
+                                                    {"var": "temp_data.additional_information"},
+                                                    {"!=": [{"var": "temp_data.additional_information"}, ""]}
+                                                ]},
+                                                {"var": "temp_data.rejection_code"}
                                             ]},
-                                            [{"var": "temp_data.additional_info"}],
+                                            [
+                                                { "if": [
+                                                    {"var": "temp_data.rejection_code"},
+                                                    {"cat": ["/", {"var": "temp_data.rejection_code"}, "/"]},
+                                                    ""
+                                                ]},
+                                                { "if": [
+                                                    {"var": "temp_data.additional_information"},
+                                                    {"var": "temp_data.additional_information"},
+                                                    ""
+                                                ]}
+                                            ],
                                             null
                                         ]}
                                     },
                                     "OrgnlGrpInfAndSts": {
-                                        "OrgnlMsgNmId": { "if": [
-                                            {"==": [{"var": "data.SwiftMT.message_type"}, "202"]},
-                                            "MT202",
-                                            {"if": [{"==": [{"var": "data.SwiftMT.message_type"}, "205"]}, "MT205", "MT202"]}
-                                        ]},
+                                        "OrgnlMsgNmId": {"var": "temp_data.message_type_variant"},
                                         "GrpSts": "RJCT"
                                     }
                                 }

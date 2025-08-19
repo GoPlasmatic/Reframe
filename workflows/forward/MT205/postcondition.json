@@ -1,0 +1,238 @@
+{
+    "id": "mt205-postcondition",
+    "name": "MT205 to pacs.009 Post-condition Validation",
+    "description": "Post-condition validation for MT205 to pacs.009 CBPR+ transformation ensuring output compliance",
+    "priority": 5,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "205"]},
+        {"==": [{"var": "SwiftMT.method"}, "normal"]},
+        {"==": [{"var": "progress.workflow_id"}, "mt205-document-mapper"]},
+        {"==": [{"var": "progress.task_id"}, "publish_document_xml"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "POSTC001_validate_settlement_method",
+            "name": "POSTC001: Validate Settlement Method",
+            "description": "Ensure settlement method is correctly set based on METAFCT003 logic",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf",
+                            "logic": { "and": [
+                                {"var": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmMtd"},
+                                {
+                                    "in": [
+                                        {"var": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmMtd"},
+                                        ["INDA", "INGA"]
+                                    ]
+                                }
+                            ]},
+                            "message": "T20065: Settlement method must be either INDA or INGA"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC002_validate_required_fields",
+            "name": "POSTC002: Validate Required Fields",
+            "description": "Ensure all required fields are present in the output",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICdtTrf",
+                            "logic": { "and": [
+                                {"exists": ["data", "Document", "FIToFICdtTrf", "GrpHdr", "MsgId"]},
+                                {"exists": ["data", "Document", "FIToFICdtTrf", "GrpHdr", "CreDtTm"]},
+                                {"exists": ["data", "Document", "FIToFICdtTrf", "GrpHdr", "NbOfTxs"]},
+                                {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "PmtId", "InstrId"]},
+                                {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "IntrBkSttlmAmt"]},
+                                {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "InstgAgt"]},
+                                {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "InstdAgt"]},
+                                {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "Dbtr"]},
+                                {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "Cdtr"]}
+                            ]},
+                            "message": "T20066: Required fields are missing in the pacs.009 output"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC003_validate_agent_consistency",
+            "name": "POSTC003: Validate Agent Consistency",
+            "description": "Validate that agents are properly mapped according to METAFCT003",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf",
+                            "logic": { "if": [
+                                {"==": [{"var": "temp_data.settlement_method"}, "INGA"]},
+                                {
+                                    "and": [
+                                        {"var": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmAcct"},
+                                        {"var": "temp_data.instructing_reimbursement_agent_bic"}
+                                    ]
+                                },
+                                true
+                            ]},
+                            "message": "T20067: INGA settlement method requires settlement account and instructing reimbursement agent"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC004_validate_clearing_channel",
+            "name": "POSTC004: Validate Clearing Channel",
+            "description": "Ensure clearing channel is set to RTGS when required identifiers are present",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf",
+                            "logic": { "if": [
+                                {
+                                    "or": [
+                                        {
+                                            "and": [
+                                                {"var": "data.SwiftMT.fields.52.A.party_identifier"},
+                                                {
+                                                    "in": [
+                                                        {"substr": [{"var": "data.SwiftMT.fields.52.A.party_identifier"}, 0, 4]},
+                                                        ["//RT", "//FW"]
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "and": [
+                                                {"var": "data.SwiftMT.fields.56.A.party_identifier"},
+                                                {
+                                                    "in": [
+                                                        {"substr": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, 0, 4]},
+                                                        ["//RT", "//FW"]
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "and": [
+                                                {"var": "data.SwiftMT.fields.57.A.party_identifier"},
+                                                {
+                                                    "in": [
+                                                        {"substr": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, 0, 4]},
+                                                        ["//RT", "//FW"]
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "and": [
+                                                {"var": "data.SwiftMT.fields.58.A.party_identifier"},
+                                                {
+                                                    "in": [
+                                                        {"substr": [{"var": "data.SwiftMT.fields.58.A.party_identifier"}, 0, 4]},
+                                                        ["//RT", "//FW"]
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {"==": [{"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
+                                true
+                            ]},
+                            "message": "T20068: Clearing channel should be RTGS when RT or FW identifiers are present"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC005_validate_service_level",
+            "name": "POSTC005: Validate Service Level",
+            "description": "Ensure service level codes are properly generated from TR002",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.user_header.service_type_identifier"},
+                                {
+                                    "and": [
+                                        {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl"},
+                                        {">": [{"length": {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl"}}, 0]},
+                                        {
+                                            "==": [
+                                                {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl.0.Cd"},
+                                                {"cat": ["G", {"var": "data.SwiftMT.user_header.service_type_identifier"}]}
+                                            ]
+                                        }
+                                    ]
+                                },
+                                true
+                            ]},
+                            "message": "T20069: Service level code not properly generated from service type identifier"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC006_validate_previous_instructing_agents",
+            "name": "POSTC006: Validate Previous Instructing Agents",
+            "description": "Ensure /INS/ codes from Field 72 are properly mapped to PreviousInstructingAgent fields",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf",
+                            "logic": { "if": [
+                                {"var": "temp_data.field_72_ins_lines"},
+                                {
+                                    "or": [
+                                        {
+                                            "and": [
+                                                {">": [{"length": {"var": "temp_data.field_72_ins_lines"}}, 0]},
+                                                {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PrvsInstgAgt1"}
+                                            ]
+                                        },
+                                        {"==": [{"length": {"var": "temp_data.field_72_ins_lines"}}, 0]}
+                                    ]
+                                },
+                                true
+                            ]},
+                            "message": "T20070: Previous instructing agents not properly mapped from Field 72 /INS/ codes"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "set_postcondition_success",
+            "name": "Set Post-condition Success",
+            "description": "Mark post-condition validation as successful",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {"path": "temp_data.postcondition_validation", "logic": "SUCCESS"},
+                        {"path": "temp_data.mt205_compliance_version", "logic": "1.0.0"}
+                    ]
+                }
+            }
+        }
+    ]
+}

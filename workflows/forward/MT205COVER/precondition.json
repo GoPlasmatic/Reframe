@@ -31,7 +31,7 @@
                                 {"!=": [{"var": "temp_data.Sender"}, "NOTPROVIDED"]},
                                 {"!=": [{"var": "temp_data.Receiver"}, "NOTPROVIDED"]}
                             ]},
-                            "message": "Translation stopped: TempSender or TempReceiver is not properly provided from TR001"
+                            "message": "T20001: Translation stopped: TempSender or TempReceiver is not properly provided from TR001"
                         }
                     ]
                 }
@@ -59,16 +59,54 @@
                                 },
                                 true
                             ]},
-                            "message": "Translation stopped: Rejection or Return message detected in Field 72"
+                            "message": "T20063: Translation stopped: Rejection or Return message detected in Field 72"
                         }
                     ]
                 }
             }
         },
         {
-            "id": "PREC003_validate_mandatory_fields",
-            "name": "PREC003: Validate Mandatory MT205 COV Fields",
-            "description": "Ensure mandatory fields for MT205 COV are present and valid - field 52A is mandatory in MT205 COV",
+            "id": "PREC003_validate_mandatory_field_52a",
+            "name": "PREC003: Validate Mandatory Field 52a for MT205 COV",
+            "description": "Field 52a is mandatory in MT205 COV - enforce strict validation",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {
+                                "or": [
+                                    {
+                                        "and": [
+                                            {"var": "data.SwiftMT.fields.52.A.bic"},
+                                            {"!=": [{"var": "data.SwiftMT.fields.52.A.bic"}, ""]}
+                                        ]
+                                    },
+                                    {
+                                        "and": [
+                                            {"var": "data.SwiftMT.fields.52.B"},
+                                            {"var": "data.SwiftMT.fields.52.B.bic"}
+                                        ]
+                                    },
+                                    {
+                                        "and": [
+                                            {"var": "data.SwiftMT.fields.52.D.name_and_address"},
+                                            {">=": [{"length": {"var": "data.SwiftMT.fields.52.D.name_and_address"}}, 1]}
+                                        ]
+                                    }
+                                ]
+                            },
+                            "message": "T20068: Field 52a (Ordering Institution) is mandatory in MT205 COV"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC004_validate_mandatory_fields",
+            "name": "PREC004: Validate Other Mandatory MT205 COV Fields",
+            "description": "Ensure other mandatory fields for MT205 COV are present and valid",
             "function": {
                 "name": "validate",
                 "input": {
@@ -80,29 +118,51 @@
                                 {"var": "data.SwiftMT.fields.32A.value_date"},
                                 {"var": "data.SwiftMT.fields.32A.currency"},
                                 {"var": "data.SwiftMT.fields.32A.amount"},
-                                {"or": [{"var": "data.SwiftMT.fields.52.A"}, {"var": "data.SwiftMT.fields.52.D"}]},
                                 {"or": [{"var": "data.SwiftMT.fields.58.A"}, {"var": "data.SwiftMT.fields.58.D"}]},
                                 {"!=": [{"var": "data.SwiftMT.fields.20.reference"}, ""]},
                                 {"!=": [{"var": "data.SwiftMT.fields.32A.currency"}, ""]},
-                                {">": [{"var": "data.SwiftMT.fields.32A.amount"}, 0]},
-                                {
-                                    "or": [
-                                        {
-                                            "and": [
-                                                {"var": "data.SwiftMT.fields.52.A.bic"},
-                                                {"!=": [{"var": "data.SwiftMT.fields.52.A.bic"}, ""]}
-                                            ]
-                                        },
-                                        {
-                                            "and": [
-                                                {"var": "data.SwiftMT.fields.52.D.name_and_address"},
-                                                {">=": [{"length": {"var": "data.SwiftMT.fields.52.D.name_and_address"}}, 1]}
-                                            ]
-                                        }
-                                    ]
-                                }
+                                {">": [{"var": "data.SwiftMT.fields.32A.amount"}, 0]}
                             ]},
-                            "message": "Translation stopped: Mandatory MT205 COV fields (20, 32A, 52A, 58A) are missing or invalid"
+                            "message": "T20069: Mandatory MT205 COV fields (20, 32A, 58A) are missing or invalid"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC005_extract_field_72_codes",
+            "name": "PREC005: Extract Field 72 Codes for Processing",
+            "description": "Extract and process field 72 codes for later use in mapping (no field 54a codes for MT205)",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field_72_has_ins",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.72.information"},
+                                {"some": [{"var": "data.SwiftMT.fields.72.information"}, {"starts_with": [{"var": ""}, "/INS/"]}]},
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field_72_has_phon",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.72.information"},
+                                {"or": [
+                                    {"some": [{"var": "data.SwiftMT.fields.72.information"}, {"starts_with": [{"var": ""}, "/PHONBEN/"]}]},
+                                    {"some": [{"var": "data.SwiftMT.fields.72.information"}, {"starts_with": [{"var": ""}, "/TELEBEN/"]}]}
+                                ]},
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.warning_T20200",
+                            "logic": { "if": [
+                                {"var": "temp_data.field_72_has_phon"},
+                                "T20200: Field 72 contains phone/telephone beneficiary information",
+                                null
+                            ]}
                         }
                     ]
                 }

@@ -34,9 +34,45 @@
             }
         },
         {
-            "id": "validate_field72_rejt",
-            "name": "Validate Field 72 Contains /REJT/",
-            "description": "Ensure field 72 line 1 starts with /REJT/ for rejection messages",
+            "id": "PREC002_validate_uetr_present",
+            "name": "PREC002: Validate UETR Present",
+            "description": "Ensure UETR is present as required for MT205 REJT messages",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": { "or": [
+                                {
+                                    "and": [
+                                        {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                        {"!=": [{"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}, ""]}
+                                    ]
+                                },
+                                {
+                                    "and": [
+                                        {"var": "data.SwiftMT.user_header.121"},
+                                        {"!=": [{"var": "data.SwiftMT.user_header.121"}, ""]}
+                                    ]
+                                },
+                                {
+                                    "and": [
+                                        {"var": "data.SwiftMT.user_header.field_121"},
+                                        {"!=": [{"var": "data.SwiftMT.user_header.field_121"}, ""]}
+                                    ]
+                                }
+                            ]},
+                            "message": "T20007: Translation stopped: UETR is required for MT205 REJT messages"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC002_complete_field72_validation",
+            "name": "PREC002: Complete Field 72 Format Validation",
+            "description": "Validates Field 72 lines 1-3 format according to specification",
             "function": {
                 "name": "validate",
                 "input": {
@@ -46,10 +82,164 @@
                             "logic": {
                                 "and": [
                                     {"var": "data.SwiftMT.fields.72.information"},
+                                    {">=": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 3]},
                                     {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/REJT/"]}
                                 ]
                             },
-                            "message": "Invalid MT205 REJT: Field 72 line 1 must start with /REJT/"
+                            "message": "T20315: Invalid MT205 REJT format - Field 72 must have at least 3 lines starting with /REJT/"
+                        },
+                        {
+                            "path": "data",
+                            "logic": {
+                                "if": [
+                                    {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/REJT/"]},
+                                    {
+                                        "match": [
+                                            {"var": "data.SwiftMT.fields.72.information.1"},
+                                            "^/[A-Z]{2}[0-9]{2}/"
+                                        ]
+                                    },
+                                    true
+                                ]
+                            },
+                            "message": "T20315: Field 72 line 2 must match pattern /2!c2!n/ when line 1 is /REJT/"
+                        },
+                        {
+                            "path": "data",
+                            "logic": {
+                                "if": [
+                                    {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/REJT/"]},
+                                    {"starts_with": [{"var": "data.SwiftMT.fields.72.information.2"}, "/MREF/"]},
+                                    true
+                                ]
+                            },
+                            "message": "T20315: Field 72 line 3 must start with /MREF/ when line 1 is /REJT/"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC003_extract_and_validate_mref",
+            "name": "PREC003: Extract and Validate MREF Format",
+            "description": "Extract MREF and validate it doesn't start/end with '/' or contain '//'",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.original_instruction_id",
+                            "logic": {
+                                "if": [
+                                    {
+                                        "and": [
+                                            {"var": "data.SwiftMT.fields.72.information.2"},
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.72.information.2"}, "/MREF/"]}
+                                        ]
+                                    },
+                                    {"substr": [{"var": "data.SwiftMT.fields.72.information.2"}, 6]},
+                                    "NOTPROVIDED"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.rejection_reason_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.SwiftMT.fields.72.information.1"},
+                                    {"substr": [{"var": "data.SwiftMT.fields.72.information.1"}, 1, 4]},
+                                    "G000"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC003_validate_mref_format",
+            "name": "PREC003: Validate MREF Format",
+            "description": "Validate MREF doesn't start/end with '/' or contain '//'",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "temp_data",
+                            "logic": {
+                                "if": [
+                                    {
+                                        "and": [
+                                            {"var": "temp_data.original_instruction_id"},
+                                            {"!=": [{"var": "temp_data.original_instruction_id"}, "NOTPROVIDED"]},
+                                            {">": [{"length": {"var": "temp_data.original_instruction_id"}}, 0]}
+                                        ]
+                                    },
+                                    {
+                                        "!": {
+                                            "or": [
+                                                {"starts_with": [{"var": "temp_data.original_instruction_id"}, "/"]},
+                                                {"ends_with": [{"var": "temp_data.original_instruction_id"}, "/"]},
+                                                {"in": ["//", {"var": "temp_data.original_instruction_id"}]}
+                                            ]
+                                        }
+                                    },
+                                    true
+                                ]
+                            },
+                            "message": "T20316: Invalid MREF format - original instruction ID must not start/end with '/' or contain '//'"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "extract_field72_components",
+            "name": "Extract Field 72 Components",
+            "description": "Extract TREF, CHGS, and TEXT components from field 72",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field_72_tref",
+                            "logic": {
+                                "reduce": [
+                                    {"var": "data.SwiftMT.fields.72.information"},
+                                    {
+                                        "if": [
+                                            {"starts_with": [{"var": "current"}, "/TREF/"]},
+                                            {"substr": [{"var": "current"}, 6]},
+                                            {"var": "accumulator"}
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.field_72_text_lines",
+                            "logic": {
+                                "filter": [
+                                    {"var": "data.SwiftMT.fields.72.information"},
+                                    {"starts_with": [{"var": ""}, "/TEXT/"]}
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.additional_information",
+                            "logic": {
+                                "if": [
+                                    {">": [{"length": {"var": "temp_data.field_72_text_lines"}}, 0]},
+                                    {
+                                        "map": [
+                                            {"var": "temp_data.field_72_text_lines"},
+                                            {"substr": [{"var": ""}, 6]}
+                                        ]
+                                    },
+                                    []
+                                ]
+                            }
                         }
                     ]
                 }

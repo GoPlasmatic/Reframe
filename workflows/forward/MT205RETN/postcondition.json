@@ -1,0 +1,292 @@
+{
+    "id": "mt205retn-postcondition",
+    "name": "MT205 RETN to pacs.004 Post-condition Validation",
+    "description": "Post-condition validation for MT205 RETN to pacs.004 CBPR+ transformation ensuring output compliance",
+    "priority": 5,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "205"]},
+        {"==": [{"var": "SwiftMT.method"}, "return"]},
+        {"==": [{"var": "progress.workflow_id"}, "mt205retn-document-mapper"]},
+        {"==": [{"var": "progress.task_id"}, "publish_retn_document_xml"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "POSTC001_validate_returned_amount",
+            "name": "POSTC001: Validate Returned Instructed Amount Logic",
+            "description": "Ensure ReturnedInstructedAmount is handled properly when ChargesInformation is present",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.PmtRtr.TxInf",
+                            "logic": { "and": [
+                                {"var": "data.Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt"},
+                                {
+                                    "or": [
+                                        {"!": {"var": "data.Document.PmtRtr.TxInf.ChrgsInf"}},
+                                        {
+                                            "and": [
+                                                {"var": "data.Document.PmtRtr.TxInf.ChrgsInf"},
+                                                {"var": "data.Document.PmtRtr.TxInf.RtrdInstdAmt"}
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]},
+                            "message": "T22006: When ChargesInformation is present, ReturnedInstructedAmount must be populated"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC002_validate_required_fields",
+            "name": "POSTC002: Validate Required Fields",
+            "description": "Ensure all required fields are present in the pacs.004 output",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.PmtRtr",
+                            "logic": { "and": [
+                                {"var": "data.Document.PmtRtr.GrpHdr.MsgId"},
+                                {"var": "data.Document.PmtRtr.GrpHdr.CreDtTm"},
+                                {"var": "data.Document.PmtRtr.GrpHdr.NbOfTxs"},
+                                {"var": "data.Document.PmtRtr.GrpHdr.InstgAgt"},
+                                {"var": "data.Document.PmtRtr.GrpHdr.InstdAgt"},
+                                {"var": "data.Document.PmtRtr.TxInf.RtrId"},
+                                {"var": "data.Document.PmtRtr.TxInf.OrgnlUETR"},
+                                {"var": "data.Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt"},
+                                {"var": "data.Document.PmtRtr.TxInf.RtrRsnInf"}
+                            ]},
+                            "message": "T20096: Required fields are missing in the pacs.004 output"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC003_validate_original_instruction",
+            "name": "POSTC003: Validate Original Instruction Reference",
+            "description": "Ensure original instruction ID from MREF is properly mapped",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.PmtRtr.TxInf",
+                            "logic": { "if": [
+                                {
+                                    "and": [
+                                        {"var": "temp_data.original_instruction_id"},
+                                        {"!=": [{"var": "temp_data.original_instruction_id"}, "NOTPROVIDED"]},
+                                        {"!=": [{"var": "temp_data.original_instruction_id"}, ""]}
+                                    ]
+                                },
+                                {
+                                    "and": [
+                                        {"var": "data.Document.PmtRtr.TxInf.OrgnlInstrId"},
+                                        {"==": [{"var": "data.Document.PmtRtr.TxInf.OrgnlInstrId"}, {"var": "temp_data.original_instruction_id"}]}
+                                    ]
+                                },
+                                true
+                            ]},
+                            "message": "T20099: Original instruction ID from MREF not properly mapped"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC004_validate_return_reason",
+            "name": "POSTC004: Validate Return Reason Code",
+            "description": "Ensure return reason code from field 72 line 2 is properly extracted and mapped",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.PmtRtr.TxInf.RtrRsnInf",
+                            "logic": { "and": [
+                                {"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn"},
+                                {"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Cd"},
+                                {
+                                    "in": [
+                                        {"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Cd"},
+                                        ["AC01", "AC02", "AC03", "AC04", "AC05", "AC06", "AC07", "AC08", "AC09", "AC10", "AG01", "AG02", "AG03", "AG04", "AG05", "AG06", "AG07", "AG08", "AG09", "AG10", "AM01", "AM02", "AM03", "AM04", "AM05", "AM06", "AM07", "AM08", "AM09", "AM10", "BE01", "BE02", "BE03", "BE04", "BE05", "BE06", "BE07", "BE08", "BE09", "BE10", "DT01", "DT02", "DT03", "DT04", "DT05", "ED01", "ED02", "ED03", "ED04", "ED05", "FF01", "FF02", "FF03", "FF04", "FF05", "MD01", "MD02", "MD03", "MD04", "MD05", "MD06", "MD07", "NARR", "RC01", "RC02", "RC03", "RC04", "RF01", "RR01", "RR02", "RR03", "RR04", "SL01", "SL02", "SL03", "SL11", "SL12", "SL13", "SL14", "TM01", "XT01", "XT02", "XT03", "XT04", "XT05", "XT06"]
+                                    ]
+                                }
+                            ]},
+                            "message": "T20100: Return reason code must be a valid ISO 20022 return reason code"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC005_validate_settlement_method",
+            "name": "POSTC005: Validate Settlement Method",
+            "description": "Ensure settlement method is correctly set based on METAFCT005 logic",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.PmtRtr.GrpHdr.SttlmInf",
+                            "logic": { "and": [
+                                {"var": "data.Document.PmtRtr.GrpHdr.SttlmInf.SttlmMtd"},
+                                {
+                                    "in": [
+                                        {"var": "data.Document.PmtRtr.GrpHdr.SttlmInf.SttlmMtd"},
+                                        ["INDA", "INGA"]
+                                    ]
+                                }
+                            ]},
+                            "message": "T20234: Settlement method must be either INDA or INGA based on field 53a"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC006_validate_clearing_system_exclusions",
+            "name": "POSTC006: Validate Clearing System Member ID Exclusions",
+            "description": "Ensure clearing system member IDs properly exclude //CH, //FW, //RT patterns",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.PmtRtr.TxInf.RtrChain",
+                            "logic": { "if": [
+                                {
+                                    "or": [
+                                        {
+                                            "and": [
+                                                {"var": "data.SwiftMT.fields.52A.party_identifier"},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.52A.party_identifier"}, "//CH"]}
+                                            ]
+                                        },
+                                        {
+                                            "and": [
+                                                {"var": "data.SwiftMT.fields.56A.party_identifier"},
+                                                {
+                                                    "or": [
+                                                        {"starts_with": [{"var": "data.SwiftMT.fields.56A.party_identifier"}, "//CH"]},
+                                                        {"starts_with": [{"var": "data.SwiftMT.fields.56A.party_identifier"}, "//FW"]},
+                                                        {"starts_with": [{"var": "data.SwiftMT.fields.56A.party_identifier"}, "//RT"]}
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "and": [
+                                                {"var": "data.SwiftMT.fields.57A.party_identifier"},
+                                                {
+                                                    "or": [
+                                                        {"starts_with": [{"var": "data.SwiftMT.fields.57A.party_identifier"}, "//CH"]},
+                                                        {"starts_with": [{"var": "data.SwiftMT.fields.57A.party_identifier"}, "//FW"]},
+                                                        {"starts_with": [{"var": "data.SwiftMT.fields.57A.party_identifier"}, "//RT"]}
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "and": [
+                                                {"var": "data.SwiftMT.fields.58A.party_identifier"},
+                                                {
+                                                    "or": [
+                                                        {"starts_with": [{"var": "data.SwiftMT.fields.58A.party_identifier"}, "//CH"]},
+                                                        {"starts_with": [{"var": "data.SwiftMT.fields.58A.party_identifier"}, "//FW"]},
+                                                        {"starts_with": [{"var": "data.SwiftMT.fields.58A.party_identifier"}, "//RT"]}
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "and": [
+                                        {"!": {"var": "data.Document.PmtRtr.TxInf.RtrChain.DbtrAgt.FinInstnId.ClrSysMmbId"}},
+                                        {"!": {"var": "data.Document.PmtRtr.TxInf.RtrChain.IntrmyAgt1.FinInstnId.ClrSysMmbId"}},
+                                        {"!": {"var": "data.Document.PmtRtr.TxInf.RtrChain.CdtrAgt.FinInstnId.ClrSysMmbId"}},
+                                        {"!": {"var": "data.Document.PmtRtr.TxInf.RtrChain.Cdtr.Agt.FinInstnId.ClrSysMmbId"}}
+                                    ]
+                                },
+                                true
+                            ]},
+                            "message": "T11001: Clearing system member IDs must not be populated for //CH, //FW, //RT patterns"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC007_validate_additional_info",
+            "name": "POSTC007: Validate Additional Information from TEXT",
+            "description": "Ensure /TEXT/ lines from field 72 are properly extracted and mapped",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.PmtRtr.TxInf.RtrRsnInf",
+                            "logic": { "if": [
+                                {
+                                    "and": [
+                                        {"var": "temp_data.additional_information"},
+                                        {">": [{"length": {"var": "temp_data.additional_information"}}, 0]}
+                                    ]
+                                },
+                                {
+                                    "and": [
+                                        {"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.AddtlInf"},
+                                        {">": [{"length": {"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.AddtlInf"}}, 0]}
+                                    ]
+                                },
+                                true
+                            ]},
+                            "message": "T11015: Additional information from /TEXT/ not properly mapped"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC008_validate_no_field_54a",
+            "name": "POSTC008: Validate No Field 54a in MT205",
+            "description": "Ensure no field 54a processing as MT205 doesn't have field 54a",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {
+                                "!": {"var": "data.SwiftMT.fields.54"}
+                            },
+                            "message": "T20087: MT205 should not have field 54a"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "set_postcondition_success",
+            "name": "Set Post-condition Success",
+            "description": "Mark post-condition validation as successful",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {"path": "temp_data.postcondition_validation", "logic": "SUCCESS"},
+                        {"path": "temp_data.mt205retn_compliance_version", "logic": "1.0.0"}
+                    ]
+                }
+            }
+        }
+    ]
+}

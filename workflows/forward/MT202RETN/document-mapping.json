@@ -2,21 +2,12 @@
     "id": "mt202-retn-document-mapper",
     "name": "MT202 RETN to pacs.004 Document Mapping for CBPR+",
     "description": "Maps MT202 RETN message to ISO 20022 pacs.004.001.09 PaymentReturnV09 document structure according to CBPR+ translation specification",
-    "priority": 4,
+    "priority": 5,
     "condition": { "and": [
         {"==": [{"var": "SwiftMT.message_type"}, "202"]},
         {"==": [{"var": "SwiftMT.method"}, "return"]},
         {"==": [{"var": "progress.workflow_id"}, "mt202-retn-precondition"]},
-        {
-            "in": [
-                {"var": "progress.task_id"},
-                [
-                    "PREC001_validate_temp_variables",
-                    "PREC002_validate_uetr_present",
-                    "validate_field72_retn"
-                ]
-            ]
-        },
+        {"==": [{"var": "progress.task_id"}, "extract_field72_components"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
@@ -46,46 +37,6 @@
                                     {"cat": ["G", {"var": "data.SwiftMT.user_header.service_type_identifier"}]},
                                     ""
                                 ]},
-                                ""
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.original_instruction_id",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.72.information"},
-                                {
-                                    "reduce": [
-                                        {"var": "data.SwiftMT.fields.72.information"},
-                                        { "if": [
-                                            {"starts_with": [{"var": "current"}, "/MREF/"]},
-                                            {"substr": [{"var": "current"}, 6]},
-                                            {"var": "accumulator"}
-                                        ]},
-                                        ""
-                                    ]
-                                },
-                                ""
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.return_reason_code",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.72.information"},
-                                {
-                                    "reduce": [
-                                        {"var": "data.SwiftMT.fields.72.information"},
-                                        { "if": [
-                                            {"starts_with": [{"var": "current"}, "/RETN/"]},
-                                            { "if": [
-                                                {">": [{"length": {"var": "current"}}, 6]},
-                                                {"substr": [{"var": "current"}, 6]},
-                                                {"var": "accumulator"}
-                                            ]},
-                                            {"var": "accumulator"}
-                                        ]},
-                                        ""
-                                    ]
-                                },
                                 ""
                             ]}
                         },
@@ -573,7 +524,7 @@
             }
         },
         {
-            "id": "publish_document_xml",
+            "id": "publish_return_document_xml",
             "name": "Publish RETN Document XML",
             "description": "Publish the RETN Document XML to the output field",
             "function": {

@@ -1,0 +1,54 @@
+{
+    "id": "mt202-rejt-method-detector",
+    "name": "MT202 REJT Method Detection",
+    "description": "Detects MT202 rejection messages by checking Field 72 for /REJT/ pattern",
+    "priority": 2,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "202"]},
+        {"==": [{"var": "progress.workflow_id"}, "parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "detect_rejection_method",
+            "name": "Detect Rejection Method",
+            "description": "Check if Field 72 contains /REJT/ to identify rejection message",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.method",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "data.SwiftMT.fields.72.information"},
+                                    {"var": "data.SwiftMT.fields.72.information.0"},
+                                    {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/REJT/"]}
+                                ]},
+                                "reject",
+                                { "if": [
+                                    { "and": [
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        {"var": "data.SwiftMT.fields.72.information.0"},
+                                        {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]}
+                                    ]},
+                                    "return",
+                                    { "if": [
+                                        {"var": "data.SwiftMT.user_header.validation_flag"},
+                                        { "if": [
+                                            {"==": [{"var": "data.SwiftMT.user_header.validation_flag"}, "COV"]},
+                                            "cover",
+                                            "core"
+                                        ]},
+                                        "core"
+                                    ]}
+                                ]}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

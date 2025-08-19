@@ -51,7 +51,7 @@
                                 {"!=": [{"var": "temp_data.Sender"}, "NOTPROVIDED"]},
                                 {"!=": [{"var": "temp_data.Receiver"}, "NOTPROVIDED"]}
                             ]},
-                            "message": "Translation stopped: TempSender or TempReceiver is not properly provided from TR001"
+                            "message": "T20001: Translation stopped: TempSender or TempReceiver is not properly provided from TR001"
                         }
                     ]
                 }
@@ -79,7 +79,7 @@
                                 },
                                 true
                             ]},
-                            "message": "Translation stopped: Rejection or Return message detected in Field 72"
+                            "message": "T20063: Translation stopped: Rejection or Return message detected in Field 72"
                         }
                     ]
                 }
@@ -122,7 +122,46 @@
                                     ]
                                 }
                             ]},
-                            "message": "Translation stopped: Mandatory MT205 fields (20, 32A, 52A, 58A) are missing or invalid"
+                            "message": "T20064: Translation stopped: Mandatory MT205 fields (20, 32A, 52A, 58A) are missing or invalid"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC004_extract_field_72_codes",
+            "name": "PREC004: Extract Field 72 Codes for Processing",
+            "description": "Extract and process field 72 codes for validation and warning generation",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field_72_has_ins",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.72.information"},
+                                {"some": [{"var": "data.SwiftMT.fields.72.information"}, {"starts_with": [{"var": ""}, "/INS/"]}]},
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field_72_has_phon",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.72.information"},
+                                {"or": [
+                                    {"some": [{"var": "data.SwiftMT.fields.72.information"}, {"starts_with": [{"var": ""}, "/PHONBEN/"]}]},
+                                    {"some": [{"var": "data.SwiftMT.fields.72.information"}, {"starts_with": [{"var": ""}, "/TELEBEN/"]}]}
+                                ]},
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.warning_T20200",
+                            "logic": { "if": [
+                                {"var": "temp_data.field_72_has_phon"},
+                                "T20200: Field 72 contains phone/telephone beneficiary information",
+                                null
+                            ]}
                         }
                     ]
                 }

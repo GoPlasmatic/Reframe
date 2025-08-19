@@ -58,7 +58,7 @@
                                     {"starts_with": [{"var": "data.SwiftMT.fields.76.information.0"}, "/RJCR/"]}
                                 ]}
                             ]},
-                            "message": "T20093: Translation stopped - Field 76 first line must start with /CNCL/, /PDCR/, or /RJCR/"
+                            "message": "T20093: Field 76 first line must start with /CNCL/, /PDCR/, or /RJCR/"
                         }
                     ]
                 }
@@ -89,7 +89,7 @@
         {
             "id": "TR003_map_message_type",
             "name": "TR003: Map MT Message Type to MX Equivalent",
-            "description": "Map field 11R message type to corresponding MX message type using TR003 logic",
+            "description": "Map field 11R message type to corresponding MX message type using TR003 logic with pattern matching",
             "function": {
                 "name": "map",
                 "input": {
@@ -99,28 +99,55 @@
                             "logic": { "if": [
                                 {"var": "data.SwiftMT.fields.11.R.message_type"},
                                 { "if": [
-                                    {"==": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "103"]},
-                                    "pacs.008",
+                                    {"match": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "^10[0-9]$"]},
                                     { "if": [
-                                        {"==": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "104"]},
-                                        "pacs.003",
+                                        {"==": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "103"]},
+                                        "pacs.008",
                                         { "if": [
-                                            {
-                                                "or": [
-                                                    {"==": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "202"]},
-                                                    {"==": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "205"]}
-                                                ]
-                                            },
+                                            {"==": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "104"]},
+                                            "pacs.003",
+                                            "pacs.008"
+                                        ]}
+                                    ]},
+                                    { "if": [
+                                        {"match": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "^20[0-9]$"]},
+                                        { "if": [
+                                            {"or": [
+                                                {"==": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "202"]},
+                                                {"==": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "205"]}
+                                            ]},
                                             "pacs.009",
                                             { "if": [
                                                 {"==": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "204"]},
                                                 "pacs.010",
-                                                {"cat": ["MT", {"var": "data.SwiftMT.fields.11.R.message_type"}]}
+                                                "pacs.009"
                                             ]}
-                                        ]}
+                                        ]},
+                                        {"cat": ["MT", {"var": "data.SwiftMT.fields.11.R.message_type"}]}
                                     ]}
                                 ]},
                                 "NOTPROVIDED"
+                            ]}
+                        },
+                        {
+                            "path": "warnings",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"var": "data.SwiftMT.fields.11.R.message_type"},
+                                    {"not": {"match": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "^[12]0[0-9]$"]}}
+                                ]},
+                                {"cat": [
+                                    {"var": "warnings"},
+                                    [
+                                        {
+                                            "code": "T20089",
+                                            "message": {"cat": ["Unknown message type: ", {"var": "data.SwiftMT.fields.11.R.message_type"}]},
+                                            "severity": "WARNING",
+                                            "field": "11R"
+                                        }
+                                    ]
+                                ]},
+                                {"var": "warnings"}
                             ]}
                         }
                     ]
@@ -136,22 +163,65 @@
                 "input": {
                     "mappings": [
                         {
+                            "path": "temp_data.field77a_concatenated",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.77A.information"},
+                                {
+                                    "reduce": [
+                                        {"var": "data.SwiftMT.fields.77A.information"},
+                                        { "if": [
+                                            {"starts_with": [{"var": "current"}, "//"]},
+                                            {"cat": [{"var": "accumulator"}, {"substr": [{"var": "current"}, 2]}]},
+                                            {"cat": [{"var": "accumulator"}, {"var": "current"}]}
+                                        ]},
+                                        ""
+                                    ]
+                                },
+                                ""
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.uetr_match",
+                            "logic": { "if": [
+                                {"var": "temp_data.field77a_concatenated"},
+                                {
+                                    "match": [
+                                        {"var": "temp_data.field77a_concatenated"},
+                                        "[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}"
+                                    ]
+                                },
+                                null
+                            ]}
+                        },
+                        {
                             "path": "temp_data.extracted_uetr",
                             "logic": { "if": [
                                 {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
                                 {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
                                 { "if": [
-                                    {
-                                        "and": [
-                                            {"var": "data.SwiftMT.fields.77A.information"},
-                                            {
-                                                "some": [{"var": "data.SwiftMT.fields.77A.information"}, {"in": ["/UETR/", {"var": ""}]}]
-                                            }
-                                        ]
-                                    },
-                                    "EXTRACTED_FROM_FIELD_77A",
+                                    {"var": "temp_data.uetr_match"},
+                                    {"var": "temp_data.uetr_match"},
                                     ""
                                 ]}
+                            ]}
+                        },
+                        {
+                            "path": "warnings",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"var": "temp_data.uetr_match"},
+                                    {"var": "temp_data.field77a_concatenated"},
+                                    {">": [{"length": {"var": "temp_data.field77a_concatenated"}}, {"+ ": [{"length": {"var": "temp_data.uetr_match"}}, 10]}]}
+                                ]},
+                                [
+                                    {
+                                        "code": "T20094",
+                                        "message": "Field 77A truncation warning - additional content after UETR extraction",
+                                        "severity": "WARNING",
+                                        "field": "77A"
+                                    }
+                                ],
+                                []
                             ]}
                         },
                         {
@@ -179,9 +249,33 @@
                             "logic": { "if": [
                                 {"var": "data.SwiftMT.fields.76.information"},
                                 {
-                                    "filter": [
-                                        {"var": "data.SwiftMT.fields.76.information"},
-                                        {"and": [{"!=": [{"var": ""}, ""]}, {"!": {"starts_with": [{"var": ""}, "//"]}}]}
+                                    "map": [
+                                        {
+                                            "filter": [
+                                                {"var": "data.SwiftMT.fields.76.information"},
+                                                {"and": [
+                                                    {"!=": [{"var": ""}, ""]},
+                                                    {"!": {"starts_with": [{"var": ""}, "//"]}}
+                                                ]}
+                                            ]
+                                        },
+                                        { "if": [
+                                            {"and": [
+                                                {"==": [{"var": "index"}, 0]},
+                                                {"or": [
+                                                    {"in": ["/ARPL/", {"var": ""}]},
+                                                    {"starts_with": [{"var": ""}, "/ARPL/"]}
+                                                ]}
+                                            ]},
+                                            {
+                                                "replace": [
+                                                    {"replace": [{"var": ""}, "/ARPL/", ""]},
+                                                    "/ARPL",
+                                                    ""
+                                                ]
+                                            },
+                                            {"var": ""}
+                                        ]}
                                     ]
                                 },
                                 []

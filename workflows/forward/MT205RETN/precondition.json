@@ -27,7 +27,7 @@
                                 {"!=": [{"var": "temp_data.Sender"}, "NOTPROVIDED"]},
                                 {"!=": [{"var": "temp_data.Receiver"}, "NOTPROVIDED"]}
                             ]},
-                            "message": "Translation stopped: TempSender or TempReceiver is not properly provided from TR001"
+                            "message": "T20087: Translation stopped: TempSender or TempReceiver is not properly provided from TR001"
                         }
                     ]
                 }
@@ -63,16 +63,16 @@
                                     ]
                                 }
                             ]},
-                            "message": "Translation stopped: UETR is required for MT205 RETN messages"
+                            "message": "T20007: Translation stopped: UETR is required for MT205 RETN messages"
                         }
                     ]
                 }
             }
         },
         {
-            "id": "validate_field72_retn",
-            "name": "Validate Field 72 Contains /RETN/",
-            "description": "Ensure field 72 line 1 starts with /RETN/ for return messages",
+            "id": "PREC003_validate_field72_structure",
+            "name": "PREC003: Validate Field 72 Structure for RETN",
+            "description": "Validate field 72 has proper structure: Line 1 /RETN/, Line 2 /2!c2!n/, Line 3 /MREF/",
             "function": {
                 "name": "validate",
                 "input": {
@@ -82,10 +82,164 @@
                             "logic": {
                                 "and": [
                                     {"var": "data.SwiftMT.fields.72.information"},
+                                    {">=": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 3]},
                                     {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]}
                                 ]
                             },
-                            "message": "Invalid MT205 RETN: Field 72 line 1 must start with /RETN/"
+                            "message": "T20314: Field 72 line 1 must start with /RETN/ for return messages"
+                        },
+                        {
+                            "path": "data",
+                            "logic": {
+                                "if": [
+                                    {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]},
+                                    {
+                                        "match": [
+                                            {"var": "data.SwiftMT.fields.72.information.1"},
+                                            "^/[A-Z]{2}[0-9]{2}/"
+                                        ]
+                                    },
+                                    true
+                                ]
+                            },
+                            "message": "T20314: Field 72 line 2 must start with pattern /2!c2!n/ when line 1 is /RETN/"
+                        },
+                        {
+                            "path": "data",
+                            "logic": {
+                                "if": [
+                                    {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]},
+                                    {"starts_with": [{"var": "data.SwiftMT.fields.72.information.2"}, "/MREF/"]},
+                                    true
+                                ]
+                            },
+                            "message": "T20314: Field 72 line 3 must start with /MREF/ when line 1 is /RETN/"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC004_extract_and_validate_mref",
+            "name": "PREC004: Extract and Validate Original Instruction ID from MREF",
+            "description": "Extract MREF and validate it doesn't start/end with '/' or contain '//'",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.original_instruction_id",
+                            "logic": {
+                                "if": [
+                                    {
+                                        "and": [
+                                            {"var": "data.SwiftMT.fields.72.information.2"},
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.72.information.2"}, "/MREF/"]}
+                                        ]
+                                    },
+                                    {"substr": [{"var": "data.SwiftMT.fields.72.information.2"}, 6]},
+                                    "NOTPROVIDED"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.return_reason_code",
+                            "logic": {
+                                "if": [
+                                    {"var": "data.SwiftMT.fields.72.information.1"},
+                                    {"substr": [{"var": "data.SwiftMT.fields.72.information.1"}, 1, 4]},
+                                    "NARR"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC004_validate_mref_format",
+            "name": "PREC004: Validate MREF Format",
+            "description": "Validate MREF doesn't start/end with '/' or contain '//' ",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "temp_data",
+                            "logic": {
+                                "if": [
+                                    {
+                                        "and": [
+                                            {"var": "temp_data.original_instruction_id"},
+                                            {"!=": [{"var": "temp_data.original_instruction_id"}, "NOTPROVIDED"]},
+                                            {">": [{"length": {"var": "temp_data.original_instruction_id"}}, 0]}
+                                        ]
+                                    },
+                                    {
+                                        "!": {
+                                            "or": [
+                                                {"starts_with": [{"var": "temp_data.original_instruction_id"}, "/"]},
+                                                {"ends_with": [{"var": "temp_data.original_instruction_id"}, "/"]},
+                                                {"in": ["//", {"var": "temp_data.original_instruction_id"}]}
+                                            ]
+                                        }
+                                    },
+                                    true
+                                ]
+                            },
+                            "message": "T20316: Original instruction ID must not start/end with '/' or contain '//'"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "extract_field72_components",
+            "name": "Extract Field 72 Components",
+            "description": "Extract TREF, CHGS, and TEXT components from field 72",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field_72_tref",
+                            "logic": {
+                                "reduce": [
+                                    {"var": "data.SwiftMT.fields.72.information"},
+                                    {
+                                        "if": [
+                                            {"starts_with": [{"var": "current"}, "/TREF/"]},
+                                            {"substr": [{"var": "current"}, 6]},
+                                            {"var": "accumulator"}
+                                        ]
+                                    },
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.field_72_text_lines",
+                            "logic": {
+                                "filter": [
+                                    {"var": "data.SwiftMT.fields.72.information"},
+                                    {"starts_with": [{"var": ""}, "/TEXT/"]}
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.additional_information",
+                            "logic": {
+                                "if": [
+                                    {">": [{"length": {"var": "temp_data.field_72_text_lines"}}, 0]},
+                                    {
+                                        "map": [
+                                            {"var": "temp_data.field_72_text_lines"},
+                                            {"substr": [{"var": ""}, 6]}
+                                        ]
+                                    },
+                                    []
+                                ]
+                            }
                         }
                     ]
                 }

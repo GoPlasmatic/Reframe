@@ -1,0 +1,321 @@
+{
+    "id": "mt202-retn-postcondition",
+    "name": "MT202 RETN to pacs.004 Post-condition Validation",
+    "description": "Post-condition validation for MT202 RETN to pacs.004 CBPR+ transformation ensuring output compliance",
+    "priority": 6,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "202"]},
+        {"==": [{"var": "SwiftMT.method"}, "return"]},
+        {"==": [{"var": "progress.workflow_id"}, "mt202-retn-document-mapper"]},
+        {"==": [{"var": "progress.task_id"}, "publish_return_document_xml"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "POSTC001_returned_instructed_amount_logic",
+            "name": "POSTC001: ReturnedInstructedAmount Logic",
+            "description": "Create dummy ReturnedInstructedAmount when ChargesInformation is present",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.has_charges",
+                            "logic": { "and": [
+                                {"var": "temp_data.chgs_line"},
+                                {"var": "temp_data.chgs_info"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.has_exchange_rate",
+                            "logic": { "or": [
+                                {"var": "data.Document.PmtRtr.TxInf.XchgRateInf"},
+                                {"var": "data.Document.PmtRtr.TxInf.XchgRate"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.dummy_currency",
+                            "logic": { "if": [
+                                {"var": "temp_data.has_exchange_rate"},
+                                { "if": [
+                                    {"==": [{"var": "data.Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt.@Ccy"}, "EUR"]},
+                                    "USD",
+                                    "EUR"
+                                ]},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.Document.PmtRtr.TxInf.RtrdInstdAmt",
+                            "logic": { "if": [
+                                { "or": [
+                                    {"var": "temp_data.has_charges"},
+                                    {"var": "temp_data.has_exchange_rate"}
+                                ]},
+                                {
+                                    "@Ccy": { "if": [
+                                        {"var": "temp_data.dummy_currency"},
+                                        {"var": "temp_data.dummy_currency"},
+                                        {"var": "data.Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt.@Ccy"}
+                                    ]},
+                                    "$value": {"var": "data.Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt.$value"}
+                                },
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.postc001_warnings",
+                            "logic": { "if": [
+                                {"var": "temp_data.has_charges"},
+                                ["T20099: Dummy ReturnedInstructedAmount created due to ChargesInformation presence"],
+                                { "if": [
+                                    {"var": "temp_data.has_exchange_rate"},
+                                    ["T20100: Dummy currency selected for ReturnedInstructedAmount due to ExchangeRate presence"],
+                                    []
+                                ]}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC002_validate_return_reason",
+            "name": "POSTC002: Validate Return Reason",
+            "description": "Ensure return reason code is properly mapped",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn",
+                            "logic": { "or": [
+                                { "and": [
+                                    {"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Cd"},
+                                    {"!=": [{"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Cd"}, "NARR"]}
+                                ]},
+                                {"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Prtry"}
+                            ]},
+                            "message": "Return reason code must be present in either Cd or Prtry field (not NARR)"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC003_validate_original_instruction_id",
+            "name": "POSTC003: Validate Original Instruction ID",
+            "description": "Ensure OriginalInstructionID is properly extracted from MREF",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.PmtRtr.TxInf",
+                            "logic": { "and": [
+                                {"var": "data.Document.PmtRtr.TxInf.OrgnlInstrId"},
+                                {"!=": [{"var": "data.Document.PmtRtr.TxInf.OrgnlInstrId"}, ""]},
+                                {"!=": [{"var": "data.Document.PmtRtr.TxInf.OrgnlInstrId"}, "NOTPROVIDED"]}
+                            ]},
+                            "message": "Original Instruction ID must be present (extracted from MREF)"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC004_validate_settlement_method",
+            "name": "POSTC004: Validate Settlement Method",
+            "description": "Ensure settlement method is correctly set based on METAFCT005",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.PmtRtr.GrpHdr.SttlmInf",
+                            "logic": { "and": [
+                                {"var": "data.Document.PmtRtr.GrpHdr.SttlmInf.SttlmMtd"},
+                                {
+                                    "in": [
+                                        {"var": "data.Document.PmtRtr.GrpHdr.SttlmInf.SttlmMtd"},
+                                        ["INDA", "INGA", "CLRG"]
+                                    ]
+                                }
+                            ]},
+                            "message": "T22006: Settlement method must be INDA, INGA, or CLRG based on METAFCT005"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC005_validate_agents",
+            "name": "POSTC005: Validate Instructing and Instructed Agents",
+            "description": "Ensure agents are properly mapped from Temp variables",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.PmtRtr.TxInf",
+                            "logic": { "and": [
+                                {"var": "data.Document.PmtRtr.TxInf.InstgAgt.FinInstnId.BICFI"},
+                                {"var": "data.Document.PmtRtr.TxInf.InstdAgt.FinInstnId.BICFI"},
+                                {"!=": [{"var": "data.Document.PmtRtr.TxInf.InstgAgt.FinInstnId.BICFI"}, "NOTPROVIDED"]},
+                                {"!=": [{"var": "data.Document.PmtRtr.TxInf.InstdAgt.FinInstnId.BICFI"}, "NOTPROVIDED"]}
+                            ]},
+                            "message": "Instructing and Instructed agents must be properly set from BAH translation"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC006_validate_uetr",
+            "name": "POSTC006: Validate UETR Mapping",
+            "description": "Ensure UETR is properly mapped to OriginalUETR field",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                {"==": [
+                                    {"var": "data.Document.PmtRtr.TxInf.OrgnlUETR"},
+                                    {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}
+                                ]},
+                                true
+                            ]},
+                            "message": "UETR must be properly mapped to OriginalUETR field"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC007_validate_amount_currency",
+            "name": "POSTC007: Validate Returned Amount and Currency",
+            "description": "Ensure returned interbank settlement amount and currency are properly mapped",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.32A"},
+                                { "and": [
+                                    {"==": [
+                                        {"var": "data.Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt.@Ccy"},
+                                        {"var": "data.SwiftMT.fields.32A.currency"}
+                                    ]},
+                                    {"==": [
+                                        {"var": "data.Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt.$value"},
+                                        {"var": "data.SwiftMT.fields.32A.amount"}
+                                    ]}
+                                ]},
+                                true
+                            ]},
+                            "message": "Returned amount and currency must match Field 32A values"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC008_validate_no_instruction_for_next_agent",
+            "name": "POSTC008: Validate No InstructionForNextAgent",
+            "description": "Ensure InstructionForNextAgent is not present for pacs.004",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.PmtRtr.TxInf",
+                            "logic": {"!": {"var": "data.Document.PmtRtr.TxInf.InstrForNxtAgt"}},
+                            "message": "InstructionForNextAgent must not be present in pacs.004 return messages"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC009_validate_clearing_channel",
+            "name": "POSTC009: Validate Clearing Channel Detection",
+            "description": "Ensure RTGS clearing channel is properly detected from field patterns",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.PmtRtr.TxInf.PmtTpInf",
+                            "logic": { "if": [
+                                { "or": [
+                                    {
+                                        "and": [
+                                            {"var": "data.SwiftMT.fields.57.A.party_identifier"},
+                                            { "or": [
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//RT"]},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//FW"]}
+                                            ]}
+                                        ]
+                                    },
+                                    {
+                                        "and": [
+                                            {"var": "data.SwiftMT.fields.57.B.party_identifier"},
+                                            { "or": [
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.57.B.party_identifier"}, "//RT"]},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.57.B.party_identifier"}, "//FW"]}
+                                            ]}
+                                        ]
+                                    }
+                                ]},
+                                {"==": [{"var": "data.Document.PmtRtr.TxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
+                                true
+                            ]},
+                            "message": "RTGS clearing channel not properly detected from //RT or //FW patterns"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC010_validate_charge_bearer",
+            "name": "POSTC010: Validate Charge Bearer Default",
+            "description": "Ensure ChargeBearer is set to SHAR when defaulted",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.PmtRtr.TxInf",
+                            "logic": { "if": [
+                                {"!": {"var": "data.SwiftMT.fields.71A"}},
+                                {"==": [{"var": "data.Document.PmtRtr.TxInf.ChrgBr"}, "SHAR"]},
+                                true
+                            ]},
+                            "message": "T20096: ChargeBearer should default to SHAR when field 71A is not present"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "set_postcondition_success",
+            "name": "Set Post-condition Success",
+            "description": "Mark post-condition validation as successful",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {"path": "temp_data.postcondition_validation", "logic": "SUCCESS"},
+                        {"path": "temp_data.mt202retn_compliance_version", "logic": "1.0.0"},
+                        {"path": "temp_data.postc001_executed", "logic": {"var": "temp_data.has_charges"}}
+                    ]
+                }
+            }
+        }
+    ]
+}

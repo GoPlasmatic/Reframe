@@ -147,7 +147,11 @@
                             "path": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry",
                             "logic": [
                                 {
-                                    "NtryRef": "NOTPROVIDED",
+                                    "NtryRef": { "if": [
+                                        {"var": "data.SwiftMT.fields.20.reference"},
+                                        {"var": "data.SwiftMT.fields.20.reference"},
+                                        "NOTPROVIDED"
+                                    ]},
                                     "Amt": {
                                         "@Ccy": { "if": [
                                             {"var": "data.SwiftMT.fields.32A.currency"},
@@ -293,52 +297,123 @@
                                                 ]}
                                             },
                                             "RltdPties": {
-                                                "DbtrAcct": {
-                                                    "Id": {
-                                                        "Othr": {
-                                                            "Id": { "if": [
+                                                "DbtrAcct": { "if": [
+                                                    {"var": "data.SwiftMT.fields.52.A.party_identifier"},
+                                                    { "if": [
+                                                        {"and": [
+                                                            {"starts_with": [{"var": "data.SwiftMT.fields.52.A.party_identifier"}, "//"]},
+                                                            {"not": {"starts_with": [{"var": "data.SwiftMT.fields.52.A.party_identifier"}, "//CH"]}},
+                                                            {"not": {"starts_with": [{"var": "data.SwiftMT.fields.52.A.party_identifier"}, "//FW"]}}
+                                                        ]},
+                                                        null,
+                                                        {
+                                                            "Id": {
+                                                                "Othr": {
+                                                                    "Id": {"var": "data.SwiftMT.fields.52.A.party_identifier"}
+                                                                }
+                                                            }
+                                                        }
+                                                    ]},
+                                                    { "if": [
+                                                        {"var": "data.SwiftMT.fields.52.D.party_identifier"},
+                                                        {
+                                                            "Id": {
+                                                                "Othr": {
+                                                                    "Id": {"var": "data.SwiftMT.fields.52.D.party_identifier"}
+                                                                }
+                                                            }
+                                                        },
+                                                        null
+                                                    ]}
+                                                ]},
+                                                "DbtrAgt": {
+                                                    "FinInstnId": { "if": [
+                                                        {"var": "data.SwiftMT.fields.52.A"},
+                                                        { "if": [
+                                                            {"and": [
                                                                 {"var": "data.SwiftMT.fields.52.A.party_identifier"},
-                                                                {"var": "data.SwiftMT.fields.52.A.party_identifier"},
+                                                                {"starts_with": [{"var": "data.SwiftMT.fields.52.A.party_identifier"}, "//"]},
+                                                                {"not": {"starts_with": [{"var": "data.SwiftMT.fields.52.A.party_identifier"}, "//CH"]}},
+                                                                {"not": {"starts_with": [{"var": "data.SwiftMT.fields.52.A.party_identifier"}, "//FW"]}}
+                                                            ]},
+                                                            { "if": [
+                                                                {"starts_with": [{"var": "data.SwiftMT.fields.52.A.party_identifier"}, "//RT"]},
+                                                                {
+                                                                    "ClrSysMmbId": {
+                                                                        "ClrSysId": {"Cd": "ATBLZ"},
+                                                                        "MmbId": {"substr": [{"var": "data.SwiftMT.fields.52.A.party_identifier"}, 4]}
+                                                                    }
+                                                                },
+                                                                {
+                                                                    "ClrSysMmbId": {
+                                                                        "ClrSysId": {"Cd": "NOTPROVIDED"},
+                                                                        "MmbId": {"substr": [{"var": "data.SwiftMT.fields.52.A.party_identifier"}, 2]}
+                                                                    }
+                                                                }
+                                                            ]},
+                                                            { "if": [
+                                                                {"starts_with": [{"var": "data.SwiftMT.fields.52.A.party_identifier"}, "//CH"]},
+                                                                {
+                                                                    "ClrSysMmbId": {
+                                                                        "ClrSysId": {"Cd": "CHSIC"},
+                                                                        "MmbId": {"substr": [{"var": "data.SwiftMT.fields.52.A.party_identifier"}, 4]}
+                                                                    }
+                                                                },
                                                                 { "if": [
-                                                                    {"var": "data.SwiftMT.fields.52.D.party_identifier"},
-                                                                    {"var": "data.SwiftMT.fields.52.D.party_identifier"},
-                                                                    "NOTPROVIDED"
+                                                                    {"starts_with": [{"var": "data.SwiftMT.fields.52.A.party_identifier"}, "//FW"]},
+                                                                    {
+                                                                        "ClrSysMmbId": {
+                                                                            "ClrSysId": {"Cd": "USABA"},
+                                                                            "MmbId": {"substr": [{"var": "data.SwiftMT.fields.52.A.party_identifier"}, 4]}
+                                                                        }
+                                                                    },
+                                                                    {"BICFI": {"var": "data.SwiftMT.fields.52.A.bic"}}
                                                                 ]}
                                                             ]}
-                                                        }
-                                                    }
-                                                },
-                                                "DbtrAgt": {
-                                                    "FinInstnId": {
-                                                        "BICFI": { "if": [
-                                                            {"var": "data.SwiftMT.fields.52.A.bic"},
-                                                            {"var": "data.SwiftMT.fields.52.A.bic"},
-                                                            {"var": "temp_data.Sender"}
                                                         ]},
-                                                        "Nm": { "if": [
-                                                            {"var": "data.SwiftMT.fields.52.D.name_and_address.0"},
-                                                            {"var": "data.SwiftMT.fields.52.D.name_and_address.0"},
-                                                            null
+                                                        { "if": [
+                                                            {"var": "data.SwiftMT.fields.52.D"},
+                                                            {
+                                                                "Nm": {"var": "data.SwiftMT.fields.52.D.name_and_address.0"},
+                                                                "PstlAdr": {
+                                                                    "AdrLine": {"var": "data.SwiftMT.fields.52.D.name_and_address"}
+                                                                }
+                                                            },
+                                                            {"BICFI": {"var": "temp_data.Sender"}}
                                                         ]}
-                                                    }
+                                                    ]}
                                                 }
                                             },
                                             "AddtlTxInf": { "if": [
                                                 {"var": "data.SwiftMT.fields.72.information"},
                                                 {
-                                                    "reduce": [
-                                                        {"var": "data.SwiftMT.fields.72.information"},
-                                                        { "if": [
-                                                            {"starts_with": [{"var": "current"}, "//"]},
-                                                            {"cat": [{"var": "accumulator"}, {"substr": [{"var": "current"}, 2]}]},
+                                                    "trim": {
+                                                        "reduce": [
+                                                            {"var": "data.SwiftMT.fields.72.information"},
                                                             { "if": [
-                                                                {"<": [{"length": {"var": "current"}}, 35]},
-                                                                {"cat": [{"var": "accumulator"}, {"var": "current"}, " "]},
-                                                                {"cat": [{"var": "accumulator"}, {"var": "current"}]}
-                                                            ]}
-                                                        ]},
-                                                        ""
-                                                    ]
+                                                                {"==": [{"var": "index"}, 0]},
+                                                                { "if": [
+                                                                    {"<": [{"length": {"var": "current"}}, 35]},
+                                                                    {"cat": [{"var": "current"}, " "]},
+                                                                    {"var": "current"}
+                                                                ]},
+                                                                { "if": [
+                                                                    {"starts_with": [{"var": "current"}, "//"]},
+                                                                    { "if": [
+                                                                        {"<": [{"length": {"substr": [{"var": "current"}, 2]}}, 33]},
+                                                                        {"cat": [{"var": "accumulator"}, {"substr": [{"var": "current"}, 2]}, " "]},
+                                                                        {"cat": [{"var": "accumulator"}, {"substr": [{"var": "current"}, 2]}]}
+                                                                    ]},
+                                                                    { "if": [
+                                                                        {"<": [{"length": {"var": "current"}}, 35]},
+                                                                        {"cat": [{"var": "accumulator"}, {"var": "current"}, " "]},
+                                                                        {"cat": [{"var": "accumulator"}, {"var": "current"}]}
+                                                                    ]}
+                                                                ]}
+                                                            ]},
+                                                            ""
+                                                        ]
+                                                    }
                                                 },
                                                 "MT900 Confirmation of Debit"
                                             ]}

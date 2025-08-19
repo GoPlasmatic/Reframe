@@ -1,0 +1,58 @@
+{
+    "id": "mt202-retn-method-detector",
+    "name": "MT202 RETN Method Detection",
+    "description": "Detects MT202 return messages by checking Field 72 for /RETN/ pattern",
+    "priority": 2,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "202"]},
+        {"==": [{"var": "progress.workflow_id"}, "parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "detect_return_method",
+            "name": "Detect Return Method",
+            "description": "Check if Field 72 contains /RETN/ to identify return message",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.method",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.method"},
+                                {"var": "data.SwiftMT.method"},
+                                { "if": [
+                                    { "and": [
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        {"var": "data.SwiftMT.fields.72.information.0"},
+                                        {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]}
+                                    ]},
+                                    "return",
+                                    { "if": [
+                                        { "and": [
+                                            {"var": "data.SwiftMT.fields.72.information"},
+                                            {"var": "data.SwiftMT.fields.72.information.0"},
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/REJT/"]}
+                                        ]},
+                                        "reject",
+                                        { "if": [
+                                            {"var": "data.SwiftMT.user_header.validation_flag"},
+                                            { "if": [
+                                                {"==": [{"var": "data.SwiftMT.user_header.validation_flag"}, "COV"]},
+                                                "cover",
+                                                "core"
+                                            ]},
+                                            "core"
+                                        ]}
+                                    ]}
+                                ]}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

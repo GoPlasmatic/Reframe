@@ -55,7 +55,46 @@
                                 },
                                 true
                             ]},
-                            "message": "Translation stopped: Rejection or Return message detected in Field 72"
+                            "message": "T20063: Translation stopped: Rejection or Return message detected in Field 72"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC003_extract_field72_codes",
+            "name": "PREC003: Extract Field 72 Codes for METAFCT002",
+            "description": "Extract field 72 codes for /INS/, /PHONBEN/, /TELEBEN/ for use in METAFCT002 logic",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field_72_has_ins",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.72.information"},
+                                {"some": [{"var": "data.SwiftMT.fields.72.information"}, {"starts_with": [{"var": ""}, "/INS/"]}]},
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field_72_has_phon",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.72.information"},
+                                {"or": [
+                                    {"some": [{"var": "data.SwiftMT.fields.72.information"}, {"starts_with": [{"var": ""}, "/PHONBEN/"]}]},
+                                    {"some": [{"var": "data.SwiftMT.fields.72.information"}, {"starts_with": [{"var": ""}, "/TELEBEN/"]}]}
+                                ]},
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.warning_T20200",
+                            "logic": { "if": [
+                                {"var": "temp_data.field_72_has_phon"},
+                                "T20200: Field 72 contains phone/telephone beneficiary information",
+                                null
+                            ]}
                         }
                     ]
                 }
@@ -88,63 +127,75 @@
             }
         },
         {
-            "id": "PREC004_determine_payment_type",
-            "name": "PREC004: Determine Serial vs Cover Payment Type",
-            "description": "Implements CBPR+ METAFCT002 logic to determine if payment is SERIAL or COVER based on fields 53a/54a BIC relationships",
+            "id": "PREC004_implement_complete_metafct002",
+            "name": "PREC004: Complete METAFCT002 Implementation",
+            "description": "Implements complete METAFCT002 logic with all 4 tables for Serial/Cover detection and settlement method determination",
             "condition": {"!=": [{"var": "SwiftMT.message_type"}, "205"]},
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.payment_scenario",
+                            "path": "temp_data.sender_bic_8char",
+                            "logic": {"substr": [{"var": "temp_data.Sender"}, 0, 8]}
+                        },
+                        {
+                            "path": "temp_data.receiver_bic_8char",
+                            "logic": {"substr": [{"var": "temp_data.Receiver"}, 0, 8]}
+                        },
+                        {
+                            "path": "temp_data.field_53a_bic_8char",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.53.A.bic"},
+                                {"substr": [{"var": "data.SwiftMT.fields.53.A.bic"}, 0, 8]},
+                                { "if": [
+                                    {"var": "data.SwiftMT.fields.53.B.bic"},
+                                    {"substr": [{"var": "data.SwiftMT.fields.53.B.bic"}, 0, 8]},
+                                    { "if": [
+                                        {"var": "data.SwiftMT.fields.53.D.bic"},
+                                        {"substr": [{"var": "data.SwiftMT.fields.53.D.bic"}, 0, 8]},
+                                        null
+                                    ]}
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field_54a_bic_8char",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.54.A.bic"},
+                                {"substr": [{"var": "data.SwiftMT.fields.54.A.bic"}, 0, 8]},
+                                { "if": [
+                                    {"var": "data.SwiftMT.fields.54.B.bic"},
+                                    {"substr": [{"var": "data.SwiftMT.fields.54.B.bic"}, 0, 8]},
+                                    { "if": [
+                                        {"var": "data.SwiftMT.fields.54.D.bic"},
+                                        {"substr": [{"var": "data.SwiftMT.fields.54.D.bic"}, 0, 8]},
+                                        null
+                                    ]}
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.metafct002_table",
                             "logic": { "if": [
                                 { "and": [
-                                    {"!": {"var": "data.SwiftMT.fields.53.A"}},
-                                    {"!": {"var": "data.SwiftMT.fields.53.B"}},
-                                    {"!": {"var": "data.SwiftMT.fields.53.D"}},
-                                    {"!": {"var": "data.SwiftMT.fields.54.A"}},
-                                    {"!": {"var": "data.SwiftMT.fields.54.B"}},
-                                    {"!": {"var": "data.SwiftMT.fields.54.D"}}
+                                    {"!": {"var": "temp_data.field_53a_bic_8char"}},
+                                    {"!": {"var": "temp_data.field_54a_bic_8char"}}
                                 ]},
-                                "NO_CORRESPONDENTS",
+                                "TABLE1",
                                 { "if": [
-                                    {
-                                        "and": [
-                                            { "or": [
-                                                {"var": "data.SwiftMT.fields.53.A"},
-                                                {"var": "data.SwiftMT.fields.53.B"},
-                                                {"var": "data.SwiftMT.fields.53.D"}
-                                            ]},
-                                            {
-                                                "!": { "or": [
-                                                    {"var": "data.SwiftMT.fields.54.A"},
-                                                    {"var": "data.SwiftMT.fields.54.B"},
-                                                    {"var": "data.SwiftMT.fields.54.D"}
-                                                ]}
-                                            }
-                                        ]
-                                    },
-                                    "SENDER_CORRESPONDENT_ONLY",
+                                    { "and": [
+                                        {"var": "temp_data.field_53a_bic_8char"},
+                                        {"!": {"var": "temp_data.field_54a_bic_8char"}}
+                                    ]},
+                                    "TABLE2",
                                     { "if": [
-                                        {
-                                            "and": [
-                                                {
-                                                    "!": { "or": [
-                                                        {"var": "data.SwiftMT.fields.53.A"},
-                                                        {"var": "data.SwiftMT.fields.53.B"},
-                                                        {"var": "data.SwiftMT.fields.53.D"}
-                                                    ]}
-                                                },
-                                                { "or": [
-                                                    {"var": "data.SwiftMT.fields.54.A"},
-                                                    {"var": "data.SwiftMT.fields.54.B"},
-                                                    {"var": "data.SwiftMT.fields.54.D"}
-                                                ]}
-                                            ]
-                                        },
-                                        "RECEIVER_CORRESPONDENT_ONLY",
-                                        "BOTH_CORRESPONDENTS"
+                                        { "and": [
+                                            {"!": {"var": "temp_data.field_53a_bic_8char"}},
+                                            {"var": "temp_data.field_54a_bic_8char"}
+                                        ]},
+                                        "TABLE3",
+                                        "TABLE4"
                                     ]}
                                 ]}
                             ]}
@@ -152,28 +203,32 @@
                         {
                             "path": "temp_data.MTType",
                             "logic": { "if": [
-                                {"==": [{"var": "temp_data.payment_scenario"}, "BOTH_CORRESPONDENTS"]},
+                                {"==": [{"var": "temp_data.metafct002_table"}, "TABLE1"]},
+                                "SERIAL",
                                 { "if": [
-                                    { "and": [
-                                        {"var": "data.SwiftMT.fields.53.A.bic"},
-                                        {"var": "data.SwiftMT.fields.54.A.bic"},
-                                        {
-                                            "!=": [
-                                                {"substr": [{"var": "data.SwiftMT.fields.53.A.bic"}, 0, 6]},
-                                                {"substr": [{"var": "temp_data.Sender"}, 0, 6]}
-                                            ]
-                                        },
-                                        {
-                                            "!=": [
-                                                {"substr": [{"var": "data.SwiftMT.fields.54.A.bic"}, 0, 6]},
-                                                {"substr": [{"var": "temp_data.Receiver"}, 0, 6]}
-                                            ]
-                                        }
+                                    {"==": [{"var": "temp_data.metafct002_table"}, "TABLE2"]},
+                                    { "if": [
+                                        {"==": [{"var": "temp_data.field_53a_bic_8char"}, {"var": "temp_data.sender_bic_8char"}]},
+                                        "SERIAL",
+                                        "COVER"
                                     ]},
-                                    "COVER",
-                                    "SERIAL"
-                                ]},
-                                "SERIAL"
+                                    { "if": [
+                                        {"==": [{"var": "temp_data.metafct002_table"}, "TABLE3"]},
+                                        { "if": [
+                                            {"==": [{"var": "temp_data.field_54a_bic_8char"}, {"var": "temp_data.receiver_bic_8char"}]},
+                                            "SERIAL",
+                                            "COVER"
+                                        ]},
+                                        { "if": [
+                                            { "or": [
+                                                {"==": [{"var": "temp_data.field_53a_bic_8char"}, {"var": "temp_data.sender_bic_8char"}]},
+                                                {"==": [{"var": "temp_data.field_54a_bic_8char"}, {"var": "temp_data.receiver_bic_8char"}]}
+                                            ]},
+                                            "SERIAL",
+                                            "COVER"
+                                        ]}
+                                    ]}
+                                ]}
                             ]}
                         },
                         {

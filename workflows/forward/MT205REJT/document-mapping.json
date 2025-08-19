@@ -12,72 +12,38 @@
     ]},
     "tasks": [
         {
-            "id": "TR007_extract_field72_mref",
-            "name": "TR007: Extract Field 72 /MREF/ Data",
-            "description": "Extract original instruction ID from field 72 /MREF/ line as per TR007 specification",
+            "id": "TR007_simplified_mref_extraction",
+            "name": "TR007: Simplified MREF Extraction",
+            "description": "Simplified extraction of original instruction ID from field 72 as per TR007 specification",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.original_instruction_id",
+                            "path": "temp_data.original_instruction_id_final",
                             "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.72.information"},
                                 {
-                                    "reduce": [
-                                        {"var": "data.SwiftMT.fields.72.information"},
-                                        { "if": [
-                                            {"starts_with": [{"var": "current"}, "/MREF/"]},
-                                            {"substr": [{"var": "current"}, 6]},
-                                            {"var": "accumulator"}
-                                        ]},
-                                        ""
+                                    "and": [
+                                        {"var": "temp_data.original_instruction_id"},
+                                        {"!=": [{"var": "temp_data.original_instruction_id"}, "NOTPROVIDED"]},
+                                        {">": [{"length": {"var": "temp_data.original_instruction_id"}}, 0]}
                                     ]
                                 },
+                                {"var": "temp_data.original_instruction_id"},
                                 "NOTPROVIDED"
                             ]}
                         },
                         {
-                            "path": "temp_data.rejection_reason_code",
+                            "path": "temp_data.rejection_reason_final",
                             "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.72.information"},
                                 {
-                                    "reduce": [
-                                        {"var": "data.SwiftMT.fields.72.information"},
-                                        { "if": [
-                                            { "and": [
-                                                {"!": {"starts_with": [{"var": "current"}, "/REJT/"]}},
-                                                {"!": {"starts_with": [{"var": "current"}, "/MREF/"]}},
-                                                {"!": {"starts_with": [{"var": "current"}, "/TREF/"]}},
-                                                {"!": {"starts_with": [{"var": "current"}, "/CHGS/"]}},
-                                                {"!": {"starts_with": [{"var": "current"}, "/TEXT/"]}},
-                                                {"!=": [{"var": "current"}, ""]}
-                                            ]},
-                                            {"var": "current"},
-                                            {"var": "accumulator"}
-                                        ]},
-                                        "G000"
+                                    "and": [
+                                        {"var": "temp_data.rejection_reason_code"},
+                                        {"!=": [{"var": "temp_data.rejection_reason_code"}, "G000"]}
                                     ]
                                 },
+                                {"var": "temp_data.rejection_reason_code"},
                                 "G000"
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.additional_info",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.72.information"},
-                                {
-                                    "map": [
-                                        {
-                                            "filter": [
-                                                {"var": "data.SwiftMT.fields.72.information"},
-                                                {"starts_with": [{"var": ""}, "/TEXT/"]}
-                                            ]
-                                        },
-                                        {"substr": [{"var": ""}, 6]}
-                                    ]
-                                },
-                                []
                             ]}
                         }
                     ]
@@ -119,16 +85,20 @@
                                 "TxInfAndSts": {
                                     "OrgnlGrpInf": {
                                         "OrgnlMsgId": { "if": [
-                                            {"!=": [{"var": "temp_data.original_instruction_id"}, "NOTPROVIDED"]},
-                                            {"var": "temp_data.original_instruction_id"},
-                                            {"var": "data.SwiftMT.fields.21.reference"}
+                                            {"!=": [{"var": "temp_data.original_instruction_id_final"}, "NOTPROVIDED"]},
+                                            {"var": "temp_data.original_instruction_id_final"},
+                                            "NOTPROVIDED"
                                         ]},
-                                        "OrgnlMsgNmId": "pacs.008.001.08"
+                                        "OrgnlMsgNmId": { "if": [
+                                            {"==": [{"var": "data.SwiftMT.message_type"}, "205"]},
+                                            "MT205",
+                                            "pacs.009.001.09"
+                                        ]}
                                     },
                                     "OrgnlInstrId": { "if": [
-                                        {"!=": [{"var": "temp_data.original_instruction_id"}, "NOTPROVIDED"]},
-                                        {"var": "temp_data.original_instruction_id"},
-                                        {"var": "data.SwiftMT.fields.21.reference"}
+                                        {"!=": [{"var": "temp_data.original_instruction_id_final"}, "NOTPROVIDED"]},
+                                        {"var": "temp_data.original_instruction_id_final"},
+                                        "NOTPROVIDED"
                                     ]},
                                     "OrgnlEndToEndId": { "if": [
                                         {"var": "data.SwiftMT.fields.21.reference"},
@@ -144,14 +114,14 @@
                                     "StsRsnInf": {
                                         "Rsn": {
                                             "Cd": { "if": [
-                                                {"!=": [{"var": "temp_data.rejection_reason_code"}, ""]},
-                                                {"var": "temp_data.rejection_reason_code"},
+                                                {"!=": [{"var": "temp_data.rejection_reason_final"}, "G000"]},
+                                                {"var": "temp_data.rejection_reason_final"},
                                                 "G000"
                                             ]}
                                         },
                                         "AddtlInf": { "if": [
-                                            {">=": [{"length": {"var": "temp_data.additional_info"}}, 1]},
-                                            {"var": "temp_data.additional_info"},
+                                            {">=": [{"length": {"var": "temp_data.additional_information"}}, 1]},
+                                            {"var": "temp_data.additional_information"},
                                             []
                                         ]}
                                     },

@@ -12,6 +12,71 @@
     ]},
     "tasks": [
         {
+            "id": "METAFCT005_settlement_method_determination",
+            "name": "METAFCT005: Settlement Method and Agents Determination",
+            "description": "Determines settlement method and agents based on field 53a presence and values",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field_53a_present",
+                            "logic": { "or": [
+                                {"var": "data.SwiftMT.fields.53.A"},
+                                {"var": "data.SwiftMT.fields.53.B"},
+                                {"var": "data.SwiftMT.fields.53.D"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field_53b_has_C_prefix",
+                            "logic": { "and": [
+                                {"var": "data.SwiftMT.fields.53.B"},
+                                {"var": "data.SwiftMT.fields.53.B.party_identifier"},
+                                {"starts_with": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, "/C"]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.settlement_method",
+                            "logic": { "if": [
+                                {"!": {"var": "temp_data.field_53a_present"}},
+                                "INDA",
+                                { "if": [
+                                    {"var": "temp_data.field_53b_has_C_prefix"},
+                                    "INGA",
+                                    "INDA"
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.settlement_account",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "temp_data.field_53b_has_C_prefix"},
+                                    {"==": [{"var": "temp_data.settlement_method"}, "INGA"]}
+                                ]},
+                                {"substr": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, 2]},
+                                { "if": [
+                                    { "and": [
+                                        {"var": "data.SwiftMT.fields.53.B.party_identifier"},
+                                        {"starts_with": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, "/"]}
+                                    ]},
+                                    {"substr": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, 1]},
+                                    { "if": [
+                                        { "and": [
+                                            {"var": "data.SwiftMT.fields.53.A.party_identifier"},
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.53.A.party_identifier"}, "/"]}
+                                        ]},
+                                        {"substr": [{"var": "data.SwiftMT.fields.53.A.party_identifier"}, 1]},
+                                        null
+                                    ]}
+                                ]}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
             "id": "TR006_TR007_extract_field72_data",
             "name": "TR006/TR007: Extract Field 72 Data",
             "description": "Extract service level code from ServiceTypeIdentifier and instruction ID from field 72 /MREF/",
@@ -50,67 +115,6 @@
                                 ]},
                                 ""
                             ]}
-                        },
-                        {
-                            "path": "temp_data.original_instruction_id",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.72.information"},
-                                {
-                                    "reduce": [
-                                        {"var": "data.SwiftMT.fields.72.information"},
-                                        { "if": [
-                                            {"starts_with": [{"var": "current"}, "/MREF/"]},
-                                            {"substr": [{"var": "current"}, 6]},
-                                            {"var": "accumulator"}
-                                        ]},
-                                        ""
-                                    ]
-                                },
-                                ""
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.return_reason_code",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.72.information"},
-                                {
-                                    "reduce": [
-                                        {"var": "data.SwiftMT.fields.72.information"},
-                                        { "if": [
-                                            { "and": [
-                                                {"!": {"starts_with": [{"var": "current"}, "/RETN/"]}},
-                                                {"!": {"starts_with": [{"var": "current"}, "/MREF/"]}},
-                                                {"!": {"starts_with": [{"var": "current"}, "/TREF/"]}},
-                                                {"!": {"starts_with": [{"var": "current"}, "/CHGS/"]}},
-                                                {"!": {"starts_with": [{"var": "current"}, "/TEXT/"]}},
-                                                {"!=": [{"var": "current"}, ""]}
-                                            ]},
-                                            {"var": "current"},
-                                            {"var": "accumulator"}
-                                        ]},
-                                        ""
-                                    ]
-                                },
-                                ""
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.additional_info",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.72.information"},
-                                {
-                                    "reduce": [
-                                        {"var": "data.SwiftMT.fields.72.information"},
-                                        { "if": [
-                                            {"starts_with": [{"var": "current"}, "/TEXT/"]},
-                                            {"cat": [{"var": "accumulator"}, " ", {"substr": [{"var": "current"}, 6]}]},
-                                            {"var": "accumulator"}
-                                        ]},
-                                        ""
-                                    ]
-                                },
-                                ""
-                            ]}
                         }
                     ]
                 }
@@ -146,7 +150,23 @@
                                         "9999-12-31T00:00:00+00:00"
                                     ]},
                                     "NbOfTxs": "1",
-                                    "SttlmInf": {"SttlmMtd": "INDA"},
+                                    "SttlmInf": {
+                                        "SttlmMtd": { "if": [
+                                            {"var": "temp_data.settlement_method"},
+                                            {"var": "temp_data.settlement_method"},
+                                            "INDA"
+                                        ]},
+                                        "SttlmAcct": { "if": [
+                                            {
+                                                "and": [
+                                                    {"var": "temp_data.settlement_account"},
+                                                    {"!=": [{"var": "temp_data.settlement_account"}, ""]}
+                                                ]
+                                            },
+                                            {"Id": {"Othr": {"Id": {"var": "temp_data.settlement_account"}}}},
+                                            null
+                                        ]}
+                                    },
                                     "InstgAgt": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}},
                                     "InstdAgt": {"FinInstnId": {"BICFI": {"var": "temp_data.Receiver"}}}
                                 },
@@ -321,17 +341,38 @@
                                                     {
                                                         "or": [
                                                             {"var": "data.SwiftMT.fields.57D.name_and_address"},
-                                                            {"var": "data.SwiftMT.fields.57B.location"}
+                                                            {"var": "data.SwiftMT.fields.57B"}
                                                         ]
                                                     },
                                                     {
                                                         "AdrLine": { "if": [
                                                             {"var": "data.SwiftMT.fields.57D.name_and_address"},
-                                                            {"var": "data.SwiftMT.fields.57D.name_and_address"},
+                                                            {
+                                                                "slice": [
+                                                                    {"var": "data.SwiftMT.fields.57D.name_and_address"},
+                                                                    1,
+                                                                    {"min": [{"length": {"var": "data.SwiftMT.fields.57D.name_and_address"}}, 8]}
+                                                                ]
+                                                            },
                                                             { "if": [
-                                                                {"var": "data.SwiftMT.fields.57B.location"},
-                                                                [{"var": "data.SwiftMT.fields.57B.location"}],
-                                                                ["NOTPROVIDED"]
+                                                                { "and": [
+                                                                    {"var": "data.SwiftMT.fields.57B"},
+                                                                    {"var": "data.SwiftMT.fields.57B.location"},
+                                                                    {"var": "data.SwiftMT.fields.57B.name_and_address"}
+                                                                ]},
+                                                                {
+                                                                    "cat": [
+                                                                        {
+                                                                            "slice": [
+                                                                                {"var": "data.SwiftMT.fields.57B.name_and_address"},
+                                                                                1,
+                                                                                {"min": [{"length": {"var": "data.SwiftMT.fields.57B.name_and_address"}}, 4]}
+                                                                            ]
+                                                                        },
+                                                                        [{"var": "data.SwiftMT.fields.57B.location"}]
+                                                                    ]
+                                                                },
+                                                                []
                                                             ]}
                                                         ]}
                                                     },
@@ -432,14 +473,21 @@
                                     "RtrRsnInf": {
                                         "Rsn": {
                                             "Cd": { "if": [
-                                                {"!=": [{"var": "temp_data.return_reason_code"}, ""]},
+                                                { "and": [
+                                                    {"var": "temp_data.return_reason_code"},
+                                                    {"!=": [{"var": "temp_data.return_reason_code"}, ""]},
+                                                    {"!=": [{"var": "temp_data.return_reason_code"}, "NARR"]}
+                                                ]},
                                                 {"var": "temp_data.return_reason_code"},
                                                 "NARR"
                                             ]}
                                         },
                                         "AddtlInf": { "if": [
-                                            {"!=": [{"var": "temp_data.additional_info"}, ""]},
-                                            [{"var": "temp_data.additional_info"}],
+                                            { "and": [
+                                                {"var": "temp_data.additional_information"},
+                                                {">": [{"length": {"var": "temp_data.additional_information"}}, 0]}
+                                            ]},
+                                            {"var": "temp_data.additional_information"},
                                             []
                                         ]}
                                     }

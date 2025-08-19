@@ -1,0 +1,123 @@
+{
+    "id": "mt296-postcondition",
+    "name": "MT296 to camt.029 Post-Condition Validation",
+    "description": "Post-condition validation for MT296 to camt.029 transformation ensuring output message correctness and compliance",
+    "priority": 5,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "296"]},
+        {"==": [{"var": "SwiftMT.method"}, "normal"]},
+        {"==": [{"var": "progress.workflow_id"}, "mt296-document-mapper"]},
+        {"==": [{"var": "progress.task_id"}, "publish_document_xml"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "POSTC001_validate_mandatory_fields",
+            "name": "POSTC001: Validate Mandatory camt.029 Fields",
+            "description": "Ensure all mandatory fields for camt.029 ResolutionOfInvestigation are properly populated",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.RsltnOfInvstgtn",
+                            "logic": { "and": [
+                                {"exists": ["data", "Document", "RsltnOfInvstgtn", "Assgnmt", "Id"]},
+                                {"exists": ["data", "Document", "RsltnOfInvstgtn", "Assgnmt", "Assgnr", "Agt", "FinInstnId", "BICFI"]},
+                                {"exists": ["data", "Document", "RsltnOfInvstgtn", "Assgnmt", "Assgne", "Agt", "FinInstnId", "BICFI"]},
+                                {"exists": ["data", "Document", "RsltnOfInvstgtn", "Assgnmt", "CreDtTm"]},
+                                {"!=": [{"var": "data.Document.RsltnOfInvstgtn.Assgnmt.Id"}, "NOTPROVIDED"]}
+                            ]},
+                            "message": "POSTC001: camt.029 mandatory Assignment fields validation failed"
+                        },
+                        {
+                            "path": "data.Document.RsltnOfInvstgtn",
+                            "logic": { "and": [
+                                {"var": "data.Document.RsltnOfInvstgtn.Sts.Conf"},
+                                {"in": [{"var": "data.Document.RsltnOfInvstgtn.Sts.Conf"}, ["CNCL", "PDCR", "RJCR"]]}
+                            ]},
+                            "message": "POSTC001: camt.029 Status/Confirmation must be CNCL, PDCR, or RJCR"
+                        },
+                        {
+                            "path": "data",
+                            "logic": { "and": [
+                                {"exists": ["data", "Document", "RsltnOfInvstgtn", "CxlDtls", "TxInfAndSts", "CxlStsId"]},
+                                {"exists": ["data", "Document", "RsltnOfInvstgtn", "CxlDtls", "TxInfAndSts", "OrgnlGrpInf", "OrgnlMsgId"]},
+                                {"exists": ["data", "Document", "RsltnOfInvstgtn", "CxlDtls", "TxInfAndSts", "RslvdCase", "Id"]}
+                            ]},
+                            "message": "POSTC001: camt.029 CancellationDetails mandatory fields validation failed"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC002_validate_uetr",
+            "name": "POSTC002: Validate UETR",
+            "description": "Ensure UETR is properly extracted when present",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": true,
+                            "message": "POSTC002: UETR extraction failed"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC003_validate_reason_codes",
+            "name": "POSTC003: Validate Cancellation Reason Codes",
+            "description": "Ensure cancellation reason codes are properly mapped according to specification",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": { "if": [
+                                {"==": [{"var": "data.Document.RsltnOfInvstgtn.Sts.Conf"}, "CNCL"]},
+                                {"==": [{"var": "data.Document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsRsnInf.Rsn.Cd"}, "CUST"]},
+                                { "if": [
+                                    {"==": [{"var": "data.Document.RsltnOfInvstgtn.Sts.Conf"}, "PDCR"]},
+                                    {"==": [{"var": "data.Document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsRsnInf.Rsn.Cd"}, "AGNT"]},
+                                    { "if": [
+                                        {"==": [{"var": "data.Document.RsltnOfInvstgtn.Sts.Conf"}, "RJCR"]},
+                                        {"==": [{"var": "data.Document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsRsnInf.Rsn.Cd"}, "NOOR"]},
+                                        true
+                                    ]}
+                                ]}
+                            ]},
+                            "message": "POSTC003: Cancellation reason code does not match status confirmation"
+                        },
+                        {
+                            "path": "data",
+                            "logic": true,
+                            "message": "POSTC003: Field 76 content not properly mapped to AdditionalInformation"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC004_validate_field76_arpl_removal",
+            "name": "POSTC004: Validate Field 76 ARPL Code Removal",
+            "description": "Ensure ARPL code is properly removed from Field 76 for CBPR+ compliance",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": true,
+                            "message": "POSTC004: ARPL code not properly removed from Field 76 (CBPR+ compliance)"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

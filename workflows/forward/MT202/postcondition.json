@@ -1,0 +1,290 @@
+{
+    "id": "mt202-postcondition",
+    "name": "MT202 to pacs.009 Post-condition Validation",
+    "description": "Post-condition validation for MT202 to pacs.009 CBPR+ transformation ensuring output compliance",
+    "priority": 5,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "202"]},
+        {"==": [{"var": "SwiftMT.method"}, "normal"]},
+        {"==": [{"var": "progress.workflow_id"}, "mt202-document-mapper"]},
+        {"==": [{"var": "progress.task_id"}, "publish_document_xml"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "POSTC001_validate_settlement_method",
+            "name": "POSTC001: Validate Settlement Method Determination",
+            "description": "Ensure settlement method is correctly set based on METAFCT002 logic",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf",
+                            "logic": { "and": [
+                                {"var": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmMtd"},
+                                {
+                                    "in": [
+                                        {"var": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmMtd"},
+                                        ["INDA", "INGA", "COVE"]
+                                    ]
+                                }
+                            ]},
+                            "message": "T20001: Settlement method must be INDA, INGA, or COVE based on METAFCT002"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC002_validate_serial_cover_routing",
+            "name": "POSTC002: Validate Serial/Cover Routing",
+            "description": "Ensure SERIAL payments are in CORE workflow and COVER payments are routed to ADV",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "temp_data",
+                            "logic": { "if": [
+                                {"==": [{"var": "temp_data.MTType"}, "COVER"]},
+                                false,
+                                true
+                            ]},
+                            "message": "T20089: COVER payment detected - must be routed to pacs.009 ADV workflow"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC003_validate_clearing_channel",
+            "name": "POSTC003: Validate Clearing Channel Detection",
+            "description": "Ensure RTGS clearing channel is properly detected from field patterns",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf",
+                            "logic": { "if": [
+                                { "or": [
+                                    {
+                                        "and": [
+                                            {"var": "data.SwiftMT.fields.56.A.party_identifier"},
+                                            { "or": [
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, "//RT"]},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, "//FW"]}
+                                            ]}
+                                        ]
+                                    },
+                                    {
+                                        "and": [
+                                            {"var": "data.SwiftMT.fields.57.A.party_identifier"},
+                                            { "or": [
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//RT"]},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//FW"]}
+                                            ]}
+                                        ]
+                                    },
+                                    {
+                                        "and": [
+                                            {"var": "data.SwiftMT.fields.58.A.party_identifier"},
+                                            { "or": [
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.58.A.party_identifier"}, "//RT"]},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.58.A.party_identifier"}, "//FW"]}
+                                            ]}
+                                        ]
+                                    }
+                                ]},
+                                {"==": [{"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
+                                true
+                            ]},
+                            "message": "T20230: RTGS clearing channel not properly detected from //RT or //FW patterns"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC004_validate_time_indications",
+            "name": "POSTC004: Validate Time Indication Processing",
+            "description": "Ensure all time indication types are properly processed from field 13C",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.13.C.time_indication"},
+                                { "or": [
+                                    {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"},
+                                    {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"},
+                                    {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.SttlmTmIndctn.ClsTm"},
+                                    {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.SttlmTmIndctn.TillTm"},
+                                    {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.SttlmTmIndctn.FrTm"},
+                                    {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.SttlmTmIndctn.RjctTm"}
+                                ]},
+                                true
+                            ]},
+                            "message": "T20232: Time indication from field 13C not properly mapped"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC005_validate_instruction_for_next_agent",
+            "name": "POSTC005: Validate InstructionForNextAgent Processing",
+            "description": "Ensure field 72 instructions are properly processed with priority logic",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "temp_data.field_72_has_ins"},
+                                    { "or": [
+                                        {"var": "temp_data.field_53a_bic_8char"},
+                                        {"var": "temp_data.field_54a_bic_8char"}
+                                    ]}
+                                ]},
+                                {
+                                    "some": [
+                                        {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.InstrForNxtAgt"},
+                                        {"starts_with": [{"var": "InstrInf"}, "/INS/"]}
+                                    ]
+                                },
+                                true
+                            ]},
+                            "message": "T20235: Field 72 /INS/ instruction not properly prioritized for field 53a/54a"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC006_validate_clearing_system_exclusions",
+            "name": "POSTC006: Validate Clearing System Member ID Exclusions",
+            "description": "Ensure clearing system member IDs properly exclude //CH, //FW, //RT patterns",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf",
+                            "logic": { "if": [
+                                { "or": [
+                                    {
+                                        "and": [
+                                            {"var": "data.SwiftMT.fields.56.A.party_identifier"},
+                                            { "or": [
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, "//CH"]},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, "//FW"]},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, "//RT"]}
+                                            ]}
+                                        ]
+                                    },
+                                    {
+                                        "and": [
+                                            {"var": "data.SwiftMT.fields.57.A.party_identifier"},
+                                            { "or": [
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//CH"]},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//FW"]},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//RT"]}
+                                            ]}
+                                        ]
+                                    },
+                                    {
+                                        "and": [
+                                            {"var": "data.SwiftMT.fields.58.A.party_identifier"},
+                                            { "or": [
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.58.A.party_identifier"}, "//CH"]},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.58.A.party_identifier"}, "//FW"]},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.58.A.party_identifier"}, "//RT"]}
+                                            ]}
+                                        ]
+                                    }
+                                ]},
+                                { "and": [
+                                    {"!": {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId"}},
+                                    {"!": {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId"}},
+                                    {"!": {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.Cdtr.FinInstnId.ClrSysMmbId"}}
+                                ]},
+                                true
+                            ]},
+                            "message": "T11001: Clearing system member IDs must not be populated for //CH, //FW, //RT patterns"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC007_validate_service_level",
+            "name": "POSTC007: Validate Service Level Code",
+            "description": "Ensure service level code pattern G00n is properly validated",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf",
+                            "logic": { "if": [
+                                {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"},
+                                {
+                                    "match": [
+                                        {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"},
+                                        "^G00[1-9]$"
+                                    ]
+                                },
+                                true
+                            ]},
+                            "message": "T20240: Service level code must match pattern G00n where n is 1-9"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC008_validate_field_72_truncation",
+            "name": "POSTC008: Validate Field 72 Truncation",
+            "description": "Ensure field 72 concatenation is properly truncated to 210 characters",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "temp_data.field_72_concatenated"},
+                                    {">": [{"length": {"var": "temp_data.field_72_concatenated"}}, 210]}
+                                ]},
+                                {"<=": [{"length": {"var": "temp_data.instruction_for_next_agent"}}, 210]},
+                                true
+                            ]},
+                            "message": "T20250: Field 72 instructions must be truncated to 210 characters (6*35)"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "set_postcondition_success",
+            "name": "Set Post-condition Success",
+            "description": "Mark post-condition validation as successful",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {"path": "temp_data.postcondition_validation", "logic": "SUCCESS"},
+                        {"path": "temp_data.mt202_compliance_version", "logic": "1.0.0"}
+                    ]
+                }
+            }
+        }
+    ]
+}

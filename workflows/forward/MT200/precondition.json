@@ -50,10 +50,14 @@
                             "path": "data",
                             "logic": { "if": [
                                 {"var": "SwiftMT.fields.72.information"},
-                                {"!": { "or": [
-                                    {"starts_with": [{"var": "SwiftMT.fields.72.information.0"}, "/REJT/"]},
-                                    {"starts_with": [{"var": "SwiftMT.fields.72.information.0"}, "/RETN/"]}
-                                ]}},
+                                {
+                                    "!": {
+                                        "or": [
+                                            {"starts_with": [{"var": "SwiftMT.fields.72.information.0"}, "/REJT/"]},
+                                            {"starts_with": [{"var": "SwiftMT.fields.72.information.0"}, "/RETN/"]}
+                                        ]
+                                    }
+                                },
                                 true
                             ]},
                             "message": "T20063: Field 72 cannot start with /REJT/ or /RETN/ for MT200 FI Transfer for Own Account"
@@ -72,13 +76,9 @@
                     "rules": [
                         {
                             "path": "data.SwiftMT",
-                            "logic": { "and": [
-                                {"var": "user_header.unique_end_to_end_transaction_reference"},
-                                {">": [{"length": {"var": "user_header.unique_end_to_end_transaction_reference"}}, 0]},
-                                {"match": [
-                                    {"var": "user_header.unique_end_to_end_transaction_reference"},
-                                    "^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
-                                ]}
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                {">=": [{"length": {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}}, 36]}
                             ]},
                             "message": "T20087: UETR is mandatory in Block3 for CBPR+ pacs.009 and must be a valid UUID v4"
                         }
@@ -97,10 +97,18 @@
                         {
                             "path": "data.SwiftMT.fields",
                             "logic": { "and": [
-                                {"var": "20.reference"},
-                                {"var": "32A.value_date"},
-                                {"var": "32A.currency"},
-                                {"var": "32A.amount"}
+                                {
+                                    "exists": ["data", "SwiftMT", "fields", "20", "reference"]
+                                },
+                                {
+                                    "exists": ["data", "SwiftMT", "fields", "32A", "value_date"]
+                                },
+                                {
+                                    "exists": ["data", "SwiftMT", "fields", "32A", "currency"]
+                                },
+                                {
+                                    "exists": ["data", "SwiftMT", "fields", "32A", "amount"]
+                                }
                             ]},
                             "message": "Missing mandatory MT200 fields (20, 32A)"
                         }
@@ -127,10 +135,12 @@
                         {
                             "path": "temp_data.field53b_account_indicator",
                             "logic": { "if": [
-                                {"and": [
-                                    {"var": "temp_data.field53b_is_account"},
-                                    {">": [{"length": {"var": "data.SwiftMT.fields.53.B.party_identifier"}}, 2]}
-                                ]},
+                                {
+                                    "and": [
+                                        {"var": "temp_data.field53b_is_account"},
+                                        {">": [{"length": {"var": "data.SwiftMT.fields.53.B.party_identifier"}}, 2]}
+                                    ]
+                                },
                                 {"substr": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, 1, 1]},
                                 null
                             ]}
@@ -138,17 +148,19 @@
                         {
                             "path": "warnings",
                             "logic": { "if": [
-                                {"and": [
+                                { "and": [
                                     {"var": "data.SwiftMT.fields.53.B"},
                                     {"var": "data.SwiftMT.fields.53.B.location"},
                                     {"var": "temp_data.field53b_is_account"}
                                 ]},
                                 ["T20070: Field 53B Location present with account - no translation possible"],
                                 { "if": [
-                                    {"and": [
-                                        {"var": "data.SwiftMT.fields.53.B"},
-                                        {"!": {"var": "temp_data.field53b_is_account"}}
-                                    ]},
+                                    {
+                                        "and": [
+                                            {"var": "data.SwiftMT.fields.53.B"},
+                                            {"!": {"var": "temp_data.field53b_is_account"}}
+                                        ]
+                                    },
                                     ["T20001: Field 53B PartyIdentifier is not an account - field not translated"],
                                     []
                                 ]}

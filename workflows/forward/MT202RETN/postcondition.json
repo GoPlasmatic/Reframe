@@ -21,17 +21,16 @@
                     "mappings": [
                         {
                             "path": "temp_data.has_charges",
-                            "logic": { "and": [
-                                {"var": "temp_data.chgs_line"},
-                                {"var": "temp_data.chgs_info"}
-                            ]}
+                            "logic": {"and": [{"var": "temp_data.chgs_line"}, {"var": "temp_data.chgs_info"}]}
                         },
                         {
                             "path": "temp_data.has_exchange_rate",
-                            "logic": { "or": [
-                                {"var": "data.Document.PmtRtr.TxInf.XchgRateInf"},
-                                {"var": "data.Document.PmtRtr.TxInf.XchgRate"}
-                            ]}
+                            "logic": {
+                                "or": [
+                                    {"var": "data.Document.PmtRtr.TxInf.XchgRateInf"},
+                                    {"var": "data.Document.PmtRtr.TxInf.XchgRate"}
+                                ]
+                            }
                         },
                         {
                             "path": "temp_data.dummy_currency",
@@ -48,10 +47,7 @@
                         {
                             "path": "data.Document.PmtRtr.TxInf.RtrdInstdAmt",
                             "logic": { "if": [
-                                { "or": [
-                                    {"var": "temp_data.has_charges"},
-                                    {"var": "temp_data.has_exchange_rate"}
-                                ]},
+                                {"or": [{"var": "temp_data.has_charges"}, {"var": "temp_data.has_exchange_rate"}]},
                                 {
                                     "@Ccy": { "if": [
                                         {"var": "temp_data.dummy_currency"},
@@ -67,10 +63,14 @@
                             "path": "temp_data.postc001_warnings",
                             "logic": { "if": [
                                 {"var": "temp_data.has_charges"},
-                                ["T20099: Dummy ReturnedInstructedAmount created due to ChargesInformation presence"],
+                                [
+                                    "T20099: Dummy ReturnedInstructedAmount created due to ChargesInformation presence"
+                                ],
                                 { "if": [
                                     {"var": "temp_data.has_exchange_rate"},
-                                    ["T20100: Dummy currency selected for ReturnedInstructedAmount due to ExchangeRate presence"],
+                                    [
+                                        "T20100: Dummy currency selected for ReturnedInstructedAmount due to ExchangeRate presence"
+                                    ],
                                     []
                                 ]}
                             ]}
@@ -89,13 +89,17 @@
                     "rules": [
                         {
                             "path": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn",
-                            "logic": { "or": [
-                                { "and": [
-                                    {"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Cd"},
-                                    {"!=": [{"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Cd"}, "NARR"]}
-                                ]},
-                                {"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Prtry"}
-                            ]},
+                            "logic": {
+                                "or": [
+                                    {
+                                        "and": [
+                                            {"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Cd"},
+                                            {"!=": [{"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Cd"}, "NARR"]}
+                                        ]
+                                    },
+                                    {"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Prtry"}
+                                ]
+                            },
                             "message": "Return reason code must be present in either Cd or Prtry field (not NARR)"
                         }
                     ]
@@ -133,15 +137,12 @@
                     "rules": [
                         {
                             "path": "data.Document.PmtRtr.GrpHdr.SttlmInf",
-                            "logic": { "and": [
-                                {"var": "data.Document.PmtRtr.GrpHdr.SttlmInf.SttlmMtd"},
-                                {
-                                    "in": [
-                                        {"var": "data.Document.PmtRtr.GrpHdr.SttlmInf.SttlmMtd"},
-                                        ["INDA", "INGA", "CLRG"]
-                                    ]
-                                }
-                            ]},
+                            "logic": {
+                                "and": [
+                                    {"var": "data.Document.PmtRtr.GrpHdr.SttlmInf.SttlmMtd"},
+                                    {"in": [{"var": "data.Document.PmtRtr.GrpHdr.SttlmInf.SttlmMtd"}, ["INDA", "INGA", "CLRG"]]}
+                                ]
+                            },
                             "message": "T22006: Settlement method must be INDA, INGA, or CLRG based on METAFCT005"
                         }
                     ]
@@ -182,10 +183,12 @@
                             "path": "data",
                             "logic": { "if": [
                                 {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
-                                {"==": [
-                                    {"var": "data.Document.PmtRtr.TxInf.OrgnlUETR"},
-                                    {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}
-                                ]},
+                                {
+                                    "==": [
+                                        {"var": "data.Document.PmtRtr.TxInf.OrgnlUETR"},
+                                        {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}
+                                    ]
+                                },
                                 true
                             ]},
                             "message": "UETR must be properly mapped to OriginalUETR field"
@@ -206,16 +209,22 @@
                             "path": "data",
                             "logic": { "if": [
                                 {"var": "data.SwiftMT.fields.32A"},
-                                { "and": [
-                                    {"==": [
-                                        {"var": "data.Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt.@Ccy"},
-                                        {"var": "data.SwiftMT.fields.32A.currency"}
-                                    ]},
-                                    {"==": [
-                                        {"var": "data.Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt.$value"},
-                                        {"var": "data.SwiftMT.fields.32A.amount"}
-                                    ]}
-                                ]},
+                                {
+                                    "and": [
+                                        {
+                                            "==": [
+                                                {"var": "data.Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt.@Ccy"},
+                                                {"var": "data.SwiftMT.fields.32A.currency"}
+                                            ]
+                                        },
+                                        {
+                                            "==": [
+                                                {"var": "data.Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt.$value"},
+                                                {"var": "data.SwiftMT.fields.32A.amount"}
+                                            ]
+                                        }
+                                    ]
+                                },
                                 true
                             ]},
                             "message": "Returned amount and currency must match Field 32A values"
@@ -252,26 +261,32 @@
                         {
                             "path": "data.Document.PmtRtr.TxInf.PmtTpInf",
                             "logic": { "if": [
-                                { "or": [
-                                    {
-                                        "and": [
-                                            {"var": "data.SwiftMT.fields.57.A.party_identifier"},
-                                            { "or": [
-                                                {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//RT"]},
-                                                {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//FW"]}
-                                            ]}
-                                        ]
-                                    },
-                                    {
-                                        "and": [
-                                            {"var": "data.SwiftMT.fields.57.B.party_identifier"},
-                                            { "or": [
-                                                {"starts_with": [{"var": "data.SwiftMT.fields.57.B.party_identifier"}, "//RT"]},
-                                                {"starts_with": [{"var": "data.SwiftMT.fields.57.B.party_identifier"}, "//FW"]}
-                                            ]}
-                                        ]
-                                    }
-                                ]},
+                                {
+                                    "or": [
+                                        {
+                                            "and": [
+                                                {"var": "data.SwiftMT.fields.57.A.party_identifier"},
+                                                {
+                                                    "or": [
+                                                        {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//RT"]},
+                                                        {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//FW"]}
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "and": [
+                                                {"var": "data.SwiftMT.fields.57.B.party_identifier"},
+                                                {
+                                                    "or": [
+                                                        {"starts_with": [{"var": "data.SwiftMT.fields.57.B.party_identifier"}, "//RT"]},
+                                                        {"starts_with": [{"var": "data.SwiftMT.fields.57.B.party_identifier"}, "//FW"]}
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
                                 {"==": [{"var": "data.Document.PmtRtr.TxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
                                 true
                             ]},

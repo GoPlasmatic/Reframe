@@ -43,13 +43,11 @@
                     "rules": [
                         {
                             "path": "data",
-                            "logic": {
-                                "if": [
-                                    {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
-                                    {">=": [{"length": {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}}, 36]},
-                                    false
-                                ]
-                            },
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                {">=": [{"length": {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}}, 36]},
+                                false
+                            ]},
                             "message": "T20087: UETR is required and must be properly formatted for MT202 RETN messages"
                         }
                     ]
@@ -70,7 +68,9 @@
                                 {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 0]},
                                 {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]},
                                 {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 1]},
-                                {"match": [{"var": "data.SwiftMT.fields.72.information.1"}, "^/[A-Z]{2}[0-9]{2}/$"]},
+                                {
+                                    "match": [{"var": "data.SwiftMT.fields.72.information.1"}, "^/[A-Z]{2}[0-9]{2}/$"]
+                                },
                                 {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 2]},
                                 {"starts_with": [{"var": "data.SwiftMT.fields.72.information.2"}, "/MREF/"]}
                             ]},
@@ -91,10 +91,12 @@
                         {
                             "path": "temp_data.original_instruction_id_raw",
                             "logic": { "if": [
-                                {"and": [
-                                    {"var": "data.SwiftMT.fields.72.information.2"},
-                                    {"starts_with": [{"var": "data.SwiftMT.fields.72.information.2"}, "/MREF/"]}
-                                ]},
+                                {
+                                    "and": [
+                                        {"var": "data.SwiftMT.fields.72.information.2"},
+                                        {"starts_with": [{"var": "data.SwiftMT.fields.72.information.2"}, "/MREF/"]}
+                                    ]
+                                },
                                 {"substr": [{"var": "data.SwiftMT.fields.72.information.2"}, 6]},
                                 ""
                             ]}
@@ -105,7 +107,13 @@
                                 {"var": "temp_data.original_instruction_id_raw"},
                                 { "if": [
                                     {"ends_with": [{"var": "temp_data.original_instruction_id_raw"}, "/"]},
-                                    {"substr": [{"var": "temp_data.original_instruction_id_raw"}, 0, {"subtract": [{"length": {"var": "temp_data.original_instruction_id_raw"}}, 1]}]},
+                                    {
+                                        "substr": [
+                                            {"var": "temp_data.original_instruction_id_raw"},
+                                            0,
+                                            {"subtract": [{"length": {"var": "temp_data.original_instruction_id_raw"}}, 1]}
+                                        ]
+                                    },
                                     {"var": "temp_data.original_instruction_id_raw"}
                                 ]},
                                 "NOTPROVIDED"
@@ -126,16 +134,18 @@
                         {
                             "path": "temp_data.original_instruction_id",
                             "logic": { "if": [
-                                {"and": [
+                                { "and": [
                                     {"var": "temp_data.original_instruction_id"},
                                     {"!=": [{"var": "temp_data.original_instruction_id"}, "NOTPROVIDED"]},
                                     {">": [{"length": {"var": "temp_data.original_instruction_id"}}, 0]}
                                 ]},
-                                {"!": {"or": [
-                                    {"starts_with": [{"var": "temp_data.original_instruction_id"}, "/"]},
-                                    {"ends_with": [{"var": "temp_data.original_instruction_id"}, "/"]},
-                                    {"in": ["//", {"var": "temp_data.original_instruction_id"}]}
-                                ]}},
+                                {
+                                    "!": { "or": [
+                                        {"starts_with": [{"var": "temp_data.original_instruction_id"}, "/"]},
+                                        {"ends_with": [{"var": "temp_data.original_instruction_id"}, "/"]},
+                                        {"in": ["//", {"var": "temp_data.original_instruction_id"}]}
+                                    ]}
+                                },
                                 true
                             ]},
                             "message": "T20316: Invalid MREF format - cannot start/end with / or contain //"
@@ -176,10 +186,12 @@
                             "path": "temp_data.chgs_line",
                             "logic": { "if": [
                                 {"var": "data.SwiftMT.fields.72.information"},
-                                {"some": [
-                                    {"var": "data.SwiftMT.fields.72.information"},
-                                    {"starts_with": [{"var": ""}, "/CHGS/"]}
-                                ]},
+                                {
+                                    "some": [
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        {"starts_with": [{"var": ""}, "/CHGS/"]}
+                                    ]
+                                },
                                 false
                             ]}
                         },
@@ -187,10 +199,12 @@
                             "path": "temp_data.chgs_info",
                             "logic": { "if": [
                                 {"var": "temp_data.chgs_line"},
-                                {"find": [
-                                    {"var": "data.SwiftMT.fields.72.information"},
-                                    {"starts_with": [{"var": ""}, "/CHGS/"]}
-                                ]},
+                                {
+                                    "find": [
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        {"starts_with": [{"var": ""}, "/CHGS/"]}
+                                    ]
+                                },
                                 null
                             ]}
                         },
@@ -198,10 +212,12 @@
                             "path": "temp_data.text_lines",
                             "logic": { "if": [
                                 {"var": "data.SwiftMT.fields.72.information"},
-                                {"filter": [
-                                    {"var": "data.SwiftMT.fields.72.information"},
-                                    {"starts_with": [{"var": ""}, "/TEXT/"]}
-                                ]},
+                                {
+                                    "filter": [
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        {"starts_with": [{"var": ""}, "/TEXT/"]}
+                                    ]
+                                },
                                 []
                             ]}
                         },
@@ -209,15 +225,19 @@
                             "path": "temp_data.additional_information",
                             "logic": { "if": [
                                 {">": [{"length": {"var": "temp_data.text_lines"}}, 0]},
-                                {"reduce": [
-                                    {"var": "temp_data.text_lines"},
-                                    {"cat": [
-                                        {"var": "accumulator"},
-                                        { "if": [{"var": "accumulator"}, " ", ""]},
-                                        {"substr": [{"var": "current"}, 6]}
-                                    ]},
-                                    ""
-                                ]},
+                                {
+                                    "reduce": [
+                                        {"var": "temp_data.text_lines"},
+                                        {
+                                            "cat": [
+                                                {"var": "accumulator"},
+                                                {"if": [{"var": "accumulator"}, " ", ""]},
+                                                {"substr": [{"var": "current"}, 6]}
+                                            ]
+                                        },
+                                        ""
+                                    ]
+                                },
                                 ""
                             ]}
                         }

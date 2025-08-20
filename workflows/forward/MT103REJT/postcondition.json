@@ -21,18 +21,12 @@
                     "rules": [
                         {
                             "path": "data.Document.FIToFIPmtStsRpt.GrpHdr",
-                            "logic": { "and": [
-                                {"var": "MsgId"},
-                                {"var": "CreDtTm"}
-                            ]},
+                            "logic": {"and": [{"var": "MsgId"}, {"var": "CreDtTm"}]},
                             "message": "POSTC001: Missing mandatory Group Header fields"
                         },
                         {
                             "path": "data.Document.FIToFIPmtStsRpt",
-                            "logic": { "and": [
-                                {"var": "OrgnlGrpInfAndSts"},
-                                {"var": "TxInfAndSts"}
-                            ]},
+                            "logic": {"and": [{"var": "OrgnlGrpInfAndSts"}, {"var": "TxInfAndSts"}]},
                             "message": "POSTC001: Missing mandatory Status Report sections"
                         }
                     ]
@@ -49,13 +43,12 @@
                     "rules": [
                         {
                             "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts",
-                            "logic": { "and": [
-                                {"var": "TxSts"},
-                                { "or": [
-                                    {"var": "StsRsnInf.Rsn.Cd"},
-                                    {"var": "StsRsnInf.Rsn.Prtry"}
-                                ]}
-                            ]},
+                            "logic": {
+                                "and": [
+                                    {"var": "TxSts"},
+                                    {"or": [{"var": "StsRsnInf.Rsn.Cd"}, {"var": "StsRsnInf.Rsn.Prtry"}]}
+                                ]
+                            },
                             "message": "POSTC002: Missing rejection reason code in transaction status"
                         }
                     ]
@@ -110,10 +103,12 @@
                     "rules": [
                         {
                             "path": "data",
-                            "logic": { "and": [
-                                {"==": [{"var": "AppHdr.BizSvc"}, "swift.cbprplus.01"]},
-                                {"==": [{"var": "AppHdr.MsgDefIdr"}, "pacs.002.001.10"]}
-                            ]},
+                            "logic": {
+                                "and": [
+                                    {"==": [{"var": "AppHdr.BizSvc"}, "swift.cbprplus.01"]},
+                                    {"==": [{"var": "AppHdr.MsgDefIdr"}, "pacs.002.001.10"]}
+                                ]
+                            },
                             "message": "POSTC005: Invalid CBPR+ service or message definition identifier"
                         }
                     ]
@@ -132,13 +127,17 @@
                             "path": "data",
                             "logic": { "if": [
                                 {"var": "SwiftMT.user_header.unique_end_to_end_reference"},
-                                { "or": [
-                                    {"==": [
-                                        {"var": "Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlUETR"},
-                                        {"var": "SwiftMT.user_header.unique_end_to_end_reference"}
-                                    ]},
-                                    {"!": {"var": "Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlUETR"}}
-                                ]},
+                                {
+                                    "or": [
+                                        {
+                                            "==": [
+                                                {"var": "Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlUETR"},
+                                                {"var": "SwiftMT.user_header.unique_end_to_end_reference"}
+                                            ]
+                                        },
+                                        {"!": {"var": "Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlUETR"}}
+                                    ]
+                                },
                                 true
                             ]},
                             "message": "POSTC006: UETR from user header not properly mapped to OriginalUETR"
@@ -159,10 +158,7 @@
                             "path": "data",
                             "logic": { "if": [
                                 {"var": "SwiftMT.fields.72.information"},
-                                { "and": [
-                                    {"var": "temp_data.InstructionID"},
-                                    {"var": "temp_data.ReasonCode"}
-                                ]},
+                                {"and": [{"var": "temp_data.InstructionID"}, {"var": "temp_data.ReasonCode"}]},
                                 true
                             ]},
                             "message": "POSTC007: Field 72 rejection information not properly extracted"

@@ -60,6 +60,62 @@ The script provides comprehensive testing with the following components:
 - **ScenarioMapping** - Maps scenario names to generation templates
 - **TestResult** - Individual test result tracking
 
+### `generate_sample.py` - Sample Message Generation
+
+Generates sample SWIFT MT or ISO 20022 messages using the Reframe API's `/generate/sample` endpoint.
+
+#### Features
+- Generate samples for any supported message type
+- Specify scenarios for different message variations
+- Pretty-print XML output
+- Save generated messages to files
+- Debug mode for troubleshooting
+
+#### Usage Examples
+```bash
+# Generate MT103 with standard scenario
+python3 generate_sample.py MT103 -s standard
+
+# Generate pacs.008 with pretty XML formatting
+python3 generate_sample.py pacs.008 -s cbpr_standard -p
+
+# Save generated message to file
+python3 generate_sample.py camt.052 -o sample.xml
+
+# Generate with debug output
+python3 generate_sample.py MT202 -s correspondent -d
+```
+
+### `validate_sample.py` - Generate and Validate Messages
+
+Combines generation and validation in a single workflow - generates a sample message and immediately validates it.
+
+#### Features
+- Generates sample messages using scenarios
+- Auto-detects MT vs MX message types
+- Validates with configurable options (business rules, canonical format)
+- Displays formatted validation results
+- Shows validation errors and warnings
+- Returns appropriate exit codes for CI/CD
+
+#### Usage Examples
+```bash
+# Generate and validate MT101 with single_payment scenario
+python3 validate_sample.py MT101 -s single_payment
+
+# Validate with business rules enabled
+python3 validate_sample.py pacs.008 -s cbpr_standard -b
+
+# Show generated message before validation (verbose mode)
+python3 validate_sample.py MT103 -s standard -v
+
+# Get raw JSON validation response
+python3 validate_sample.py MT202 -j
+
+# Full validation with all options
+python3 validate_sample.py camt.052 -s account_statement -v -b -f
+```
+
 ## Usage
 
 ### Basic Commands
@@ -89,6 +145,8 @@ python test_scenarios.py -m camt.054 --export
 
 ### Command-line Options
 
+#### test_scenarios.py Options
+
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--message-type` | `-m` | Message type to test (e.g., MT103, pacs.008) |
@@ -99,6 +157,32 @@ python test_scenarios.py -m camt.054 --export
 | `--base-url` | `-u` | Base URL of the service (default: http://localhost:3000) |
 | `--list-types` | `-l` | List all available message types |
 | `--list-scenarios` | | List scenarios for a message type |
+
+#### generate_sample.py Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `message_type` | | Message type to generate (positional argument) |
+| `--scenario` | `-s` | Scenario to use for generation |
+| `--host` | `-H` | API host URL (default: http://localhost:3000) |
+| `--debug` | `-d` | Enable debug output |
+| `--validation` | `-v` | Enable validation |
+| `--output` | `-o` | Output file (default: stdout) |
+| `--pretty` | `-p` | Pretty print XML output |
+
+#### validate_sample.py Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `message_type` | | Message type to generate and validate (positional argument) |
+| `--scenario` | `-s` | Scenario to use for generation |
+| `--host` | `-H` | API host URL (default: http://localhost:3000) |
+| `--debug` | `-d` | Enable debug output for generation |
+| `--business-validation` | `-b` | Enable business rule validation |
+| `--no-canonical` | `-nc` | Disable canonical format |
+| `--fail-fast` | `-f` | Stop validation on first error |
+| `--json` | `-j` | Output raw JSON response |
+| `--verbose` | `-v` | Show generated message before validation |
 
 ## Understanding Test Results
 
@@ -169,6 +253,8 @@ Each transformation entry specifies:
 test/
 ├── README.md              # This file
 ├── test_scenarios.py      # Main test script
+├── generate_sample.py     # Sample message generator
+├── validate_sample.py     # Generate and validate messages
 └── logs/                  # Test results (created automatically)
     └── test_results_*.json  # Timestamped test results
 ```

@@ -11,31 +11,6 @@
     ]},
     "tasks": [
         {
-            "id": "debug_data",
-            "name": "Debug Data Structure",
-            "description": "Debug to see what data is available",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.debug_info",
-                            "logic": {
-                                "has_swift": {"!!": [{"var": "data.SwiftMT"}]},
-                                "has_fields": {"!!": [{"var": "data.SwiftMT.fields"}]},
-                                "has_field_20": {"!!": [{"var": "data.SwiftMT.fields.20"}]},
-                                "field_20_value": {"var": "data.SwiftMT.fields.20"},
-                                "has_field_50H": {"!!": [{"var": "data.SwiftMT.fields.50H"}]},
-                                "field_50H_value": {"var": "data.SwiftMT.fields.50H"},
-                                "has_transactions": {"!!": [{"var": "data.SwiftMT.fields.#"}]},
-                                "transaction_count": {"length": {"var": "data.SwiftMT.fields.#"}}
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
             "id": "validate_cbpr_requirements",
             "name": "Validate CBPR+ Requirements",
             "description": "Validates CBPR+ specific requirements for MT101",
@@ -60,12 +35,22 @@
                         },
                         {
                             "path": "data",
-                            "logic": {">": [{"length": {"var": "data.SwiftMT.fields.#"}}, 0]},
+                            "logic": {
+                                "and": [
+                                    {"!!": {"var": "data.SwiftMT.fields.#"}},
+                                    {">": [{"length": {"var": "data.SwiftMT.fields.#"}}, 0]}
+                                ]
+                            },
                             "message": "Missing transaction blocks"
                         },
                         {
-                            "path": "data",
-                            "logic": {"==": [{"length": {"var": "data.SwiftMT.fields.#"}}, 1]},
+                            "path": "data", 
+                            "logic": {
+                                "and": [
+                                    {"!!": {"var": "data.SwiftMT.fields.#"}},
+                                    {"==": [{"length": {"var": "data.SwiftMT.fields.#"}}, 1]}
+                                ]
+                            },
                             "message": "CBPR+ requires exactly one transaction (PREC002 - T20053)"
                         },
                         {
@@ -75,31 +60,61 @@
                         },
                         {
                             "path": "data",
-                            "logic": {"!!": [{"var": "data.SwiftMT.fields.#.0.21"}]},
+                            "logic": {
+                                "if": [
+                                    {"var": "data.SwiftMT.fields.#.0"},
+                                    {"!!": [{"var": "data.SwiftMT.fields.#.0.21"}]},
+                                    true
+                                ]
+                            },
                             "message": "Missing required field 21 in transaction"
                         },
                         {
                             "path": "data",
-                            "logic": {"!!": [{"var": "data.SwiftMT.fields.#.0.32B"}]},
+                            "logic": {
+                                "if": [
+                                    {"var": "data.SwiftMT.fields.#.0"},
+                                    {"!!": [{"var": "data.SwiftMT.fields.#.0.32B"}]},
+                                    true
+                                ]
+                            },
                             "message": "Missing required field 32B in transaction"
                         },
                         {
                             "path": "data",
-                            "logic": {"!!": [{"var": "data.SwiftMT.fields.#.0.59"}]},
+                            "logic": {
+                                "if": [
+                                    {"var": "data.SwiftMT.fields.#.0"},
+                                    {"!!": [{"var": "data.SwiftMT.fields.#.0.59"}]},
+                                    true
+                                ]
+                            },
                             "message": "Missing required field 59 in transaction"
                         },
                         {
                             "path": "data",
-                            "logic": {"!!": [{"var": "data.SwiftMT.fields.#.0.71A"}]},
+                            "logic": {
+                                "if": [
+                                    {"var": "data.SwiftMT.fields.#.0"},
+                                    {"!!": [{"var": "data.SwiftMT.fields.#.0.71A"}]},
+                                    true
+                                ]
+                            },
                             "message": "Missing required field 71A in transaction"
                         },
                         {
                             "path": "data",
                             "logic": {
-                                "or": [
-                                    {"!": {"var": "data.SwiftMT.fields.#.0.59.NoOption"}},
-                                    {"var": "data.SwiftMT.fields.#.0.59A"},
-                                    {"var": "data.SwiftMT.fields.#.0.59F"}
+                                "if": [
+                                    {"var": "data.SwiftMT.fields.#.0"},
+                                    {
+                                        "or": [
+                                            {"!": {"var": "data.SwiftMT.fields.#.0.59.NoOption"}},
+                                            {"var": "data.SwiftMT.fields.#.0.59A"},
+                                            {"var": "data.SwiftMT.fields.#.0.59F"}
+                                        ]
+                                    },
+                                    true
                                 ]
                             },
                             "message": "Field 59 without letter option not allowed (PREC004 - T20313)"

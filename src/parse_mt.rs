@@ -58,6 +58,7 @@ impl ParseMT {
         debug!("Parsing SwiftMT message for forward transformation");
 
         let payload = ParseMT::manual_unescape(payload);
+        debug!("Parsing MT message with payload length: {}", payload.len());
         let parsed_message = SwiftParser::parse_auto(&payload).map_err(|e| {
             error!(error = ?e, "SwiftMT parsing failed");
             DataflowError::Validation(format!("SwiftMT parser error: {e:?}"))
@@ -78,11 +79,36 @@ impl ParseMT {
 
             method = "normal".to_string();
             debug!(method = %method, "Determined MT101 processing method");
+            
+            // Debug: Check transaction count
+            debug!(
+                "MT101 has {} transactions", 
+                mt101_message.fields.transactions.len()
+            );
+            
+            // Debug: Print first transaction if exists
+            if let Some(first_tx) = mt101_message.fields.transactions.first() {
+                debug!("First transaction field_21: {:?}", first_tx.field_21);
+                debug!("First transaction field_32b: {:?}", first_tx.field_32b);
+            }
 
-            serde_json::to_value(&mt101_message).map_err(|e| {
+            let json_value = serde_json::to_value(&mt101_message).map_err(|e| {
                 error!(error = ?e, "MT101 JSON conversion failed");
                 DataflowError::Validation(format!("MT101 JSON conversion failed: {e}"))
-            })?
+            })?;
+            
+            // Debug: Check if "#" key exists in JSON
+            if let Some(obj) = json_value.as_object() {
+                debug!("MT101 JSON keys: {:?}", obj.keys().collect::<Vec<_>>());
+                if let Some(hash_field) = obj.get("#") {
+                    debug!("Found '#' field with type: {:?}", hash_field);
+                    if let Some(arr) = hash_field.as_array() {
+                        debug!("'#' field is an array with {} items", arr.len());
+                    }
+                }
+            }
+            
+            json_value
         } else if message_type == "103" {
             let Some(mt103_message) = parsed_message.into_mt103() else {
                 error!("Failed to convert SwiftMessage to MT103");

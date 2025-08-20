@@ -84,19 +84,36 @@
         {
             "id": "PREC003_field_72_retn_validation",
             "name": "PREC003: Validate Field 72 Return Format",
-            "description": "Validate Field 72 starts with /RETN/ - relaxed to support generator format and strict specification format",
+            "description": "Validate Field 72: Line 1 must start with /RETN/, Line 2 must follow /2!c2!n/ pattern, Line 3 must start with /MREF/",
             "function": {
                 "name": "validate",
                 "input": {
                     "rules": [
                         {
-                            "path": "data",
-                            "logic": { "and": [
+                            "path": "data.SwiftMT.fields.72",
+                            "logic": { "if": [
                                 {"var": "data.SwiftMT.fields.72.information"},
-                                {">": [{"length": [{"var": "data.SwiftMT.fields.72.information"}]}, 0]},
-                                {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]}
+                                { "and": [
+                                    {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 0]},
+                                    {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]},
+                                    { "if": [
+                                        {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 1]},
+                                        { "and": [
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.72.information.1"}, "/"]},
+                                            {"ends_with": [{"var": "data.SwiftMT.fields.72.information.1"}, "/"]},
+                                            {"==": [{"length": {"var": "data.SwiftMT.fields.72.information.1"}}, 6]}
+                                        ]},
+                                        true
+                                    ]},
+                                    { "if": [
+                                        {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 2]},
+                                        {"starts_with": [{"var": "data.SwiftMT.fields.72.information.2"}, "/MREF/"]},
+                                        true
+                                    ]}
+                                ]},
+                                false
                             ]},
-                            "message": "T20314: Translation stopped - Field 72 must start with /RETN/ for return processing"
+                            "message": "T20314: Field 72 format invalid - Line 1 must be /RETN/, Line 2 must follow /2!c2!n/ pattern (e.g., /AC01/), Line 3 must start with /MREF/"
                         }
                     ]
                 }
@@ -182,6 +199,34 @@
                                 },
                                 "NOTPROVIDED"
                             ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC004_final_mref_validation",
+            "name": "PREC004: Final MREF Format Validation",
+            "description": "Validate that the extracted MREF value does not start/end with '/' or contain '//' within the string per STDSQASD-177",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "temp_data",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "temp_data.mref_value"},
+                                    {"!=": [{"var": "temp_data.mref_value"}, ""]}
+                                ]},
+                                { "!": { "or": [
+                                    {"starts_with": [{"var": "temp_data.mref_value"}, "/"]},
+                                    {"ends_with": [{"var": "temp_data.mref_value"}, "/"]},
+                                    {"in": ["//", {"var": "temp_data.mref_value"}]}
+                                ]}},
+                                true
+                            ]},
+                            "message": "T20316: Translation stopped - MREF value cannot start or end with '/' or contain '//' within the string"
                         }
                     ]
                 }

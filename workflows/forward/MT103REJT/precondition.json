@@ -63,8 +63,30 @@
         {
             "id": "PREC002_rejection_validation",
             "name": "PREC002: Validate Rejection Message Format",
-            "description": "Validate that Field 72 contains rejection codes",
-            "function": {"name": "validate", "input": {"rules": []}}
+            "description": "Validate that Field 72 follows the required rejection format: Line 1 starts with /REJT/, Line 2 has pattern /2!c2!n/, Line 3 starts with /MREF/",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.SwiftMT.fields.72",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.72.information"},
+                                { "and": [
+                                    {">=": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 3]},
+                                    {"==": [{"var": "data.SwiftMT.fields.72.information.0"}, "/REJT/"]},
+                                    {"starts_with": [{"var": "data.SwiftMT.fields.72.information.1"}, "/"]},
+                                    {"ends_with": [{"var": "data.SwiftMT.fields.72.information.1"}, "/"]},
+                                    {"==": [{"length": {"var": "data.SwiftMT.fields.72.information.1"}}, 6]},
+                                    {"starts_with": [{"var": "data.SwiftMT.fields.72.information.2"}, "/MREF/"]}
+                                ]},
+                                false
+                            ]},
+                            "message": "T20315: Field 72 format invalid - Line 1 must be /REJT/, Line 2 must follow /2!c2!n/ pattern (e.g., /AC04/), Line 3 must start with /MREF/"
+                        }
+                    ]
+                }
+            }
         },
         {
             "id": "TR007_extract_mref",
@@ -130,7 +152,15 @@
                     "rules": [
                         {
                             "path": "temp_data",
-                            "logic": true,
+                            "logic": { "if": [
+                                {"var": "temp_data.InstructionID"},
+                                { "!": { "or": [
+                                    {"starts_with": [{"var": "temp_data.InstructionID"}, "/"]},
+                                    {"ends_with": [{"var": "temp_data.InstructionID"}, "/"]},
+                                    {"in": ["//", {"var": "temp_data.InstructionID"}]}
+                                ]}},
+                                true
+                            ]},
                             "message": "T20316: Translation stopped: MREF value cannot start or end with '/' or contain '//' within the string"
                         }
                     ]

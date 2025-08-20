@@ -1,0 +1,263 @@
+{
+    "id": "mt103-postcondition",
+    "name": "MT103 to pacs.008 Postcondition Validation",
+    "description": "CBPR+ postcondition validation for MT103 to pacs.008 transformation ensuring compliance and data integrity",
+    "priority": 5,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "103"]},
+        {"in": [{"var": "SwiftMT.method"}, ["normal", "stp"]]},
+        {"==": [{"var": "progress.workflow_id"}, "mt103-document-mapper"]},
+        {"in": [{"var": "progress.task_id"}, ["generate_document_xml", "generate_stp_document_xml"]]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "POSTC001_validate_mandatory_fields",
+            "name": "Validate Mandatory MX Fields",
+            "description": "Ensures all mandatory pacs.008 fields are present and not empty",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICstmrCdtTrf.GrpHdr",
+                            "logic": { "and": [
+                                {"var": "MsgId"},
+                                {"var": "CreDtTm"},
+                                {"var": "NbOfTxs"},
+                                {"var": "TtlIntrBkSttlmAmt"}
+                            ]},
+                            "message": "POSTC001: Missing mandatory Group Header fields"
+                        },
+                        {
+                            "path": "data.Document.FIToFICstmrCdtTrf.CdtTrfTxInf",
+                            "logic": { "and": [
+                                {"var": "PmtId"},
+                                {"var": "IntrBkSttlmAmt"},
+                                {"var": "Dbtr"},
+                                {"var": "Cdtr"},
+                                {"var": "DbtrAgt"},
+                                {"var": "CdtrAgt"}
+                            ]},
+                            "message": "POSTC001: Missing mandatory Credit Transfer Transaction Information fields"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC002_validate_settlement_method",
+            "name": "Validate Settlement Method Compliance",
+            "description": "Validates CBPR+ settlement method rules for reimbursement agents",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICstmrCdtTrf",
+                            "logic": { "if": [
+                                {"in": [{"var": "SttlmInf.SttlmMtd"}, ["INDA", "INGA"]]},
+                                { "and": [
+                                    {"!": {"var": "SttlmInf.InstgRmbrsmntAgt"}},
+                                    {"!": {"var": "SttlmInf.InstdRmbrsmntAgt"}},
+                                    {"!": {"var": "SttlmInf.ThrdRmbrsmntAgt"}}
+                                ]},
+                                true
+                            ]},
+                            "message": "POSTC002: Settlement method INDA/INGA cannot have reimbursement agents"
+                        },
+                        {
+                            "path": "data.Document.FIToFICstmrCdtTrf",
+                            "logic": { "if": [
+                                {"==": [{"var": "SttlmInf.SttlmMtd"}, "COVE"]},
+                                { "or": [
+                                    {"var": "SttlmInf.InstgRmbrsmntAgt"},
+                                    {"var": "SttlmInf.InstdRmbrsmntAgt"}
+                                ]},
+                                true
+                            ]},
+                            "message": "POSTC002: Settlement method COVE requires at least one reimbursement agent"
+                        },
+                        {
+                            "path": "data.Document.FIToFICstmrCdtTrf",
+                            "logic": { "if": [
+                                {"var": "SttlmInf.ThrdRmbrsmntAgt"},
+                                { "and": [
+                                    {"var": "SttlmInf.InstgRmbrsmntAgt"},
+                                    {"var": "SttlmInf.InstdRmbrsmntAgt"}
+                                ]},
+                                true
+                            ]},
+                            "message": "POSTC002: Third reimbursement agent requires both instructing and instructed agents"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC003_validate_charges_consistency",
+            "name": "Validate Charges Consistency",
+            "description": "Ensures charges information is consistent with details of charges field",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICstmrCdtTrf.CdtTrfTxInf",
+                            "logic": { "if": [
+                                {"var": "ChrgBr"},
+                                { "or": [
+                                    {"in": [{"var": "ChrgBr"}, ["CRED", "DEBT", "SHAR"]]},
+                                    {"and": [
+                                        {"==": [{"var": "ChrgBr"}, "SLEV"]},
+                                        {"var": "SvcLvl"}
+                                    ]}
+                                ]},
+                                true
+                            ]},
+                            "message": "POSTC003: Invalid charge bearer code or missing service level for SLEV"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC004_validate_agent_identifications",
+            "name": "Validate Agent Identifications",
+            "description": "Ensures all financial institution agents have proper identification",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICstmrCdtTrf.CdtTrfTxInf",
+                            "logic": { "and": [
+                                { "if": [
+                                    {"var": "DbtrAgt.FinInstnId"},
+                                    { "or": [
+                                        {"var": "DbtrAgt.FinInstnId.BICFI"},
+                                        {"and": [
+                                            {"var": "DbtrAgt.FinInstnId.Nm"},
+                                            {"var": "DbtrAgt.FinInstnId.PstlAdr"}
+                                        ]}
+                                    ]},
+                                    true
+                                ]},
+                                { "if": [
+                                    {"var": "CdtrAgt.FinInstnId"},
+                                    { "or": [
+                                        {"var": "CdtrAgt.FinInstnId.BICFI"},
+                                        {"and": [
+                                            {"var": "CdtrAgt.FinInstnId.Nm"},
+                                            {"var": "CdtrAgt.FinInstnId.PstlAdr"}
+                                        ]}
+                                    ]},
+                                    true
+                                ]}
+                            ]},
+                            "message": "POSTC004: Agent must have either BIC or Name and Postal Address"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC005_validate_instruction_codes",
+            "name": "Validate Instruction Codes Processing",
+            "description": "Ensures field 72 codes are properly extracted and field 23E instruction codes are mapped",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICstmrCdtTrf.CdtTrfTxInf",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.72.information"},
+                                { "if": [
+                                    {"some": [
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        {"starts_with": [{"var": ""}, "/INS/"]}
+                                    ]},
+                                    {"!": {"in": ["/INS/", {"var": "InstrForNxtAgt.InstrInf"}]}},
+                                    true
+                                ]},
+                                true
+                            ]},
+                            "message": "POSTC005: Field 72 /INS/ code not properly excluded from InstructionForNextAgent"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC006_validate_stp_restrictions",
+            "name": "Validate STP Message Restrictions",
+            "description": "Ensures STP messages comply with additional restrictions",
+            "condition": {"==": [{"var": "SwiftMT.method"}, "stp"]},
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.SwiftMT.fields",
+                            "logic": { "and": [
+                                { "if": [{"var": "52"}, {"in": [{"var": "52.option"}, ["A", "D"]]}, true]},
+                                { "if": [{"var": "53"}, {"in": [{"var": "53.option"}, ["A", "B"]]}, true]},
+                                { "if": [{"var": "54"}, {"==": [{"var": "54.option"}, "A"]}, true]},
+                                { "if": [{"var": "55"}, {"==": [{"var": "55.option"}, "A"]}, true]},
+                                { "if": [{"var": "56"}, {"==": [{"var": "56.option"}, "A"]}, true]},
+                                { "if": [{"var": "57"}, {"==": [{"var": "57.option"}, "A"]}, true]},
+                                {"!": {"var": "51A"}}
+                            ]},
+                            "message": "POSTC006: STP message contains invalid field options"
+                        },
+                        {
+                            "path": "data.SwiftMT.fields",
+                            "logic": { "if": [
+                                {"var": "23E"},
+                                { "all": [
+                                    {"var": "23E"},
+                                    {"in": [{"var": "code"}, ["CORT", "INTC", "SDVA", "REPA"]]}
+                                ]},
+                                true
+                            ]},
+                            "message": "POSTC006: STP message contains invalid instruction code in field 23E"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC007_validate_cbpr_compliance",
+            "name": "Validate CBPR+ Compliance",
+            "description": "Ensures transformation meets CBPR+ specific requirements",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": { "and": [
+                                {"==": [{"var": "AppHdr.BizSvc"}, "swift.cbprplus.01"]},
+                                {"==": [{"var": "AppHdr.MsgDefIdr"}, "pacs.008.001.08"]}
+                            ]},
+                            "message": "POSTC007: Invalid CBPR+ service or message definition identifier"
+                        },
+                        {
+                            "path": "data.Document.FIToFICstmrCdtTrf.CdtTrfTxInf",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                {"==": [
+                                    {"var": "PmtId.UETR"},
+                                    {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}
+                                ]},
+                                true
+                            ]},
+                            "message": "POSTC007: UETR from user header not properly mapped"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

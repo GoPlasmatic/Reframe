@@ -12,9 +12,9 @@
     ]},
     "tasks": [
         {
-            "id": "extract_and_process_field77A",
-            "name": "Extract and Process Field 77A",
-            "description": "Extract UETR from Field 77A if present, handling // prefix on second line",
+            "id": "TR004_extract_and_process_field77A",
+            "name": "TR004: Extract and Process Field 77A",
+            "description": "Extract UETR from Field 77A if present, handling // prefix on second line per specification",
             "function": {
                 "name": "map",
                 "input": {
@@ -56,7 +56,7 @@
                                                     {"starts_with": [{"var": "current"}, "//"]},
                                                     {">": [{"length": {"var": "accumulator"}}, 0]}
                                                 ]},
-                                                {"substr": [{"var": "current"}, 2]},
+                                                {"cat": [{"var": "accumulator"}, {"substr": [{"var": "current"}, 2]}]},
                                                 {"var": "accumulator"}
                                             ]}
                                         ]},
@@ -64,6 +64,36 @@
                                     ]
                                 },
                                 null
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field77A_remaining_lines",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"var": "data.SwiftMT.fields.77A.narrative"},
+                                    {"var": "temp_data.has_uetr_in_field77A"}
+                                ]},
+                                {
+                                    "filter": [
+                                        {"var": "data.SwiftMT.fields.77A.narrative"},
+                                        {"and": [
+                                            {"!": {"in": ["/UETR/", {"var": ""}]}},
+                                            {"!": {"starts_with": [{"var": ""}, "//"]}}
+                                        ]}
+                                    ]
+                                },
+                                {"var": "data.SwiftMT.fields.77A.narrative"}
+                            ]}
+                        },
+                        {
+                            "path": "warnings",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"var": "temp_data.field77A_remaining_lines"},
+                                    {">": [{"length": {"var": "temp_data.field77A_remaining_lines"}}, 0]}
+                                ]},
+                                ["T20094: Field 77A contains additional information after UETR extraction that will not be translated"],
+                                []
                             ]}
                         }
                     ]
@@ -73,7 +103,7 @@
         {
             "id": "PREC001_validate_uetr_presence",
             "name": "PREC001: Validate UETR Presence",
-            "description": "Ensure UETR is present in Block3 or Field 77A, otherwise raise T20087",
+            "description": "Ensure UETR is present in Block3 or Field 77A with valid UUID v4 format, otherwise raise T20087",
             "function": {
                 "name": "map",
                 "input": {
@@ -94,7 +124,13 @@
                             "path": "temp_data.has_valid_uetr",
                             "logic": { "if": [
                                 {"var": "temp_data.extracted_uetr"},
-                                {">": [{"length": {"var": "temp_data.extracted_uetr"}}, 0]},
+                                { "and": [
+                                    {">": [{"length": {"var": "temp_data.extracted_uetr"}}, 0]},
+                                    {"match": [
+                                        {"var": "temp_data.extracted_uetr"},
+                                        "^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+                                    ]}
+                                ]},
                                 false
                             ]}
                         },
@@ -103,7 +139,11 @@
                             "logic": { "if": [
                                 {"var": "temp_data.has_valid_uetr"},
                                 null,
-                                "T20087: UETR is mandatory but missing in Block3 and Field 77A"
+                                { "if": [
+                                    {"var": "temp_data.extracted_uetr"},
+                                    "T20087: UETR has invalid UUID v4 format",
+                                    "T20087: UETR is mandatory but missing in Block3 and Field 77A"
+                                ]}
                             ]}
                         }
                     ]
@@ -299,7 +339,10 @@
                                         "T00:00:00+00:00"
                                     ]
                                 },
-                                "9999-12-31T00:00:00+00:00"
+                                {"cat": [
+                                    {"substr": [{"var": "data.AppHdr.CreDt"}, 0, 10]},
+                                    "T00:00:00+00:00"
+                                ]}
                             ]}
                         }
                     ]
@@ -337,6 +380,23 @@
                                     ]}
                                 ]}
                             ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_preconditions",
+            "name": "Validate All Preconditions",
+            "description": "Stop processing if any precondition errors were found",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "temp_data",
+                            "logic": {"!": {"var": "temp_data.has_errors"}},
+                            "message": {"var": "temp_data.error_message"}
                         }
                     ]
                 }

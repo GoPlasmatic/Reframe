@@ -11,35 +11,150 @@
     ]},
     "tasks": [
         {
+            "id": "TR001_define_temp_variables",
+            "name": "TR001: Define Global Variables",
+            "description": "Sets up global variables Temp~Sender and Temp~Receiver from BAH for use in transformation",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.Sender",
+                            "logic": { "if": [
+                                {"var": "data.AppHdr.Fr.FIId.FinInstnId.BICFI"},
+                                {"var": "data.AppHdr.Fr.FIId.FinInstnId.BICFI"},
+                                {"var": "temp_data.Sender"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.Receiver",
+                            "logic": { "if": [
+                                {"var": "data.AppHdr.To.FIId.FinInstnId.BICFI"},
+                                {"var": "data.AppHdr.To.FIId.FinInstnId.BICFI"},
+                                {"var": "temp_data.Receiver"}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
             "id": "PREC002_validate_no_rejection_return",
-            "name": "Validate No Rejection or Return Indicators",
+            "name": "PREC002: Validate No Rejection or Return Indicators",
             "description": "Ensures field 72 does not start with /REJT/ or /RETN/ codes which are not allowed in CBPR+ MT200 transformation",
             "function": {
                 "name": "validate",
                 "input": {
-                    "rules": []
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": { "if": [
+                                {"var": "SwiftMT.fields.72.information"},
+                                {"!": { "or": [
+                                    {"starts_with": [{"var": "SwiftMT.fields.72.information.0"}, "/REJT/"]},
+                                    {"starts_with": [{"var": "SwiftMT.fields.72.information.0"}, "/RETN/"]}
+                                ]}},
+                                true
+                            ]},
+                            "message": "T20063: Field 72 cannot start with /REJT/ or /RETN/ for MT200 FI Transfer for Own Account"
+                        }
+                    ]
                 }
             }
         },
         {
             "id": "PREC003_validate_uetr_presence",
-            "name": "Validate UETR Presence",
+            "name": "PREC003: Validate UETR Presence",
             "description": "Ensures UETR (Unique End-to-End Transaction Reference) is present in block 3 as mandatory for CBPR+ pacs.009",
             "function": {
                 "name": "validate",
                 "input": {
-                    "rules": []
+                    "rules": [
+                        {
+                            "path": "data.SwiftMT",
+                            "logic": { "and": [
+                                {"var": "user_header.unique_end_to_end_transaction_reference"},
+                                {">": [{"length": {"var": "user_header.unique_end_to_end_transaction_reference"}}, 0]},
+                                {"match": [
+                                    {"var": "user_header.unique_end_to_end_transaction_reference"},
+                                    "^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+                                ]}
+                            ]},
+                            "message": "T20087: UETR is mandatory in Block3 for CBPR+ pacs.009 and must be a valid UUID v4"
+                        }
+                    ]
                 }
             }
         },
         {
-            "id": "validate_core_compatibility",
-            "name": "Validate Core Compatibility",
-            "description": "Validates MT200 message is compatible with CORE workflow for FI Transfer for Own Account",
+            "id": "validate_mandatory_fields",
+            "name": "Validate Mandatory MT200 Fields",
+            "description": "Ensures all mandatory MT200 fields are present and valid",
             "function": {
                 "name": "validate",
                 "input": {
-                    "rules": []
+                    "rules": [
+                        {
+                            "path": "data.SwiftMT.fields",
+                            "logic": { "and": [
+                                {"var": "20.reference"},
+                                {"var": "32A.value_date"},
+                                {"var": "32A.currency"},
+                                {"var": "32A.amount"}
+                            ]},
+                            "message": "Missing mandatory MT200 fields (20, 32A)"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "determine_settlement_method_prec",
+            "name": "Determine Settlement Method for Precondition",
+            "description": "Determines settlement method based on field 53B presence and validates according to specification",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field53b_is_account",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.53.B.party_identifier"},
+                                {"starts_with": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, "/"]},
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field53b_account_indicator",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"var": "temp_data.field53b_is_account"},
+                                    {">": [{"length": {"var": "data.SwiftMT.fields.53.B.party_identifier"}}, 2]}
+                                ]},
+                                {"substr": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, 1, 1]},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "warnings",
+                            "logic": { "if": [
+                                {"and": [
+                                    {"var": "data.SwiftMT.fields.53.B"},
+                                    {"var": "data.SwiftMT.fields.53.B.location"},
+                                    {"var": "temp_data.field53b_is_account"}
+                                ]},
+                                ["T20070: Field 53B Location present with account - no translation possible"],
+                                { "if": [
+                                    {"and": [
+                                        {"var": "data.SwiftMT.fields.53.B"},
+                                        {"!": {"var": "temp_data.field53b_is_account"}}
+                                    ]},
+                                    ["T20001: Field 53B PartyIdentifier is not an account - field not translated"],
+                                    []
+                                ]}
+                            ]}
+                        }
+                    ]
                 }
             }
         }

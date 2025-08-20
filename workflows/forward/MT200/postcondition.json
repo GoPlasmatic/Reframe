@@ -1,0 +1,283 @@
+{
+    "id": "mt200-postcondition",
+    "name": "MT200 to pacs.009 Postcondition Validation",
+    "description": "CBPR+ postcondition validation for MT200 to pacs.009 transformation ensuring compliance and data integrity",
+    "priority": 5,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "200"]},
+        {"==": [{"var": "progress.workflow_id"}, "combine-header-document-xml"]},
+        {"==": [{"var": "progress.task_id"}, "combine_xml_strings"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "POSTC001_validate_mandatory_fields",
+            "name": "Validate Mandatory pacs.009 Fields",
+            "description": "Ensures all mandatory pacs.009 fields are present and not empty",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICdtTrf.GrpHdr",
+                            "logic": { "and": [
+                                {"var": "MsgId"},
+                                {"var": "CreDtTm"},
+                                {"==": [{"var": "NbOfTxs"}, "1"]},
+                                {"var": "SttlmInf.SttlmMtd"}
+                            ]},
+                            "message": "POSTC001: Missing mandatory Group Header fields in pacs.009"
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf",
+                            "logic": { "and": [
+                                {"var": "PmtId.InstrId"},
+                                {"var": "PmtId.EndToEndId"},
+                                {"var": "PmtId.UETR"},
+                                {"var": "IntrBkSttlmAmt"},
+                                {"var": "IntrBkSttlmDt"}
+                            ]},
+                            "message": "POSTC001: Missing mandatory Credit Transfer Transaction Information fields"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC002_validate_uetr_mapping",
+            "name": "Validate UETR Mapping",
+            "description": "Ensures UETR is properly mapped to PaymentIdentification field",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": { "and": [
+                                {"var": "SwiftMT.user_header.unique_end_to_end_transaction_reference"},
+                                {"==": [
+                                    {"var": "Document.FIToFICdtTrf.CdtTrfTxInf.PmtId.UETR"},
+                                    {"var": "SwiftMT.user_header.unique_end_to_end_transaction_reference"}
+                                ]}
+                            ]},
+                            "message": "POSTC002: UETR not properly mapped from Block3 to PaymentIdentification"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC003_validate_own_account_transfer",
+            "name": "Validate Own Account Transfer",
+            "description": "Ensures Debtor and Creditor are the same for FI Transfer for Own Account",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf",
+                            "logic": { "and": [
+                                {"var": "Dbtr.FinInstnId.BICFI"},
+                                {"var": "Cdtr.FinInstnId.BICFI"},
+                                {"==": [
+                                    {"var": "Dbtr.FinInstnId.BICFI"},
+                                    {"var": "Cdtr.FinInstnId.BICFI"}
+                                ]},
+                                {"==": [
+                                    {"var": "Dbtr.FinInstnId.BICFI"},
+                                    {"var": "data.temp_data.Sender"}
+                                ]}
+                            ]},
+                            "message": "POSTC003: For MT200 Own Account Transfer, Debtor and Creditor must be the same (Sender)"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC004_validate_agent_mappings",
+            "name": "Validate Agent Mappings",
+            "description": "Ensures InstructingAgent and InstructedAgent are properly mapped",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf",
+                            "logic": { "and": [
+                                {"==": [
+                                    {"var": "InstgAgt.FinInstnId.BICFI"},
+                                    {"var": "data.temp_data.Sender"}
+                                ]},
+                                {"==": [
+                                    {"var": "InstdAgt.FinInstnId.BICFI"},
+                                    {"var": "data.temp_data.Receiver"}
+                                ]}
+                            ]},
+                            "message": "POSTC004: InstructingAgent and InstructedAgent not properly mapped from Sender/Receiver"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC005_validate_settlement_method",
+            "name": "Validate Settlement Method",
+            "description": "Ensures settlement method is correctly determined based on Field 53B",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": { "if": [
+                                {"var": "SwiftMT.fields.53.B"},
+                                { "if": [
+                                    {"var": "temp_data.field53b_is_account"},
+                                    { "if": [
+                                        {"==": [{"var": "temp_data.field53b_account_indicator"}, "C"]},
+                                        {"==": [{"var": "Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmMtd"}, "INGA"]},
+                                        {"==": [{"var": "Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmMtd"}, "INDA"]}
+                                    ]},
+                                    {"==": [{"var": "Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmMtd"}, "INDA"]}
+                                ]},
+                                {"==": [{"var": "Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmMtd"}, "INDA"]}
+                            ]},
+                            "message": "POSTC005: Settlement method not correctly determined from Field 53B"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC006_validate_service_level",
+            "name": "Validate Service Level Code",
+            "description": "Ensures service level code is properly transformed from Block3",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": { "if": [
+                                {"var": "SwiftMT.user_header.service_type_identifier"},
+                                { "if": [
+                                    {"match": [{"var": "SwiftMT.user_header.service_type_identifier"}, "^00[1-9]$"]},
+                                    {"==": [
+                                        {"var": "Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"},
+                                        {"cat": ["G", {"var": "SwiftMT.user_header.service_type_identifier"}]}
+                                    ]},
+                                    true
+                                ]},
+                                true
+                            ]},
+                            "message": "POSTC006: Service level code not properly transformed from Block3 ServiceTypeIdentifier"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC007_validate_clearing_channel",
+            "name": "Validate Clearing Channel",
+            "description": "Ensures RTGS clearing channel is set when appropriate",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": { "if": [
+                                { "or": [
+                                    { "and": [
+                                        {"var": "SwiftMT.fields.56.A.party_identifier"},
+                                        { "or": [
+                                            {"starts_with": [{"var": "SwiftMT.fields.56.A.party_identifier"}, "//RT"]},
+                                            {"starts_with": [{"var": "SwiftMT.fields.56.A.party_identifier"}, "//FW"]}
+                                        ]}
+                                    ]},
+                                    { "and": [
+                                        {"var": "SwiftMT.fields.57.A.party_identifier"},
+                                        { "or": [
+                                            {"starts_with": [{"var": "SwiftMT.fields.57.A.party_identifier"}, "//RT"]},
+                                            {"starts_with": [{"var": "SwiftMT.fields.57.A.party_identifier"}, "//FW"]}
+                                        ]}
+                                    ]}
+                                ]},
+                                {"==": [{"var": "Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
+                                true
+                            ]},
+                            "message": "POSTC007: Clearing channel not properly set to RTGS when //RT or //FW present"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC008_validate_amount_mapping",
+            "name": "Validate Amount Mapping",
+            "description": "Ensures amount and currency from Field 32A are properly mapped",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": { "and": [
+                                {"==": [
+                                    {"var": "Document.FIToFICdtTrf.CdtTrfTxInf.IntrBkSttlmAmt.@Ccy"},
+                                    {"var": "SwiftMT.fields.32A.currency"}
+                                ]},
+                                {"==": [
+                                    {"var": "Document.FIToFICdtTrf.CdtTrfTxInf.IntrBkSttlmAmt.$value"},
+                                    {"var": "SwiftMT.fields.32A.amount"}
+                                ]}
+                            ]},
+                            "message": "POSTC008: Amount and currency from Field 32A not properly mapped"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC009_validate_cbpr_compliance",
+            "name": "Validate CBPR+ Compliance",
+            "description": "Ensures transformation meets CBPR+ specific requirements",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": { "and": [
+                                {"==": [{"var": "AppHdr.BizSvc"}, "swift.cbprplus.02"]},
+                                {"==": [{"var": "AppHdr.MsgDefIdr"}, "pacs.009.001.08"]}
+                            ]},
+                            "message": "POSTC009: Invalid CBPR+ service or message definition identifier"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC010_validate_date_formatting",
+            "name": "Validate Date Formatting",
+            "description": "Ensures dates are properly formatted according to ISO standard",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.FIToFICdtTrf",
+                            "logic": { "and": [
+                                {"match": [{"var": "GrpHdr.CreDtTm"}, "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}[+-]\\d{2}:\\d{2}$"]},
+                                {"match": [{"var": "CdtTrfTxInf.IntrBkSttlmDt"}, "^\\d{4}-\\d{2}-\\d{2}$"]}
+                            ]},
+                            "message": "POSTC010: Date/time fields not properly formatted to ISO standard"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

@@ -40,6 +40,34 @@
                             "description": "NotificationType must be present",
                             "condition": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.NtfctnTp"},
                             "error": {"code": "T20002", "message": "NotificationType is required for field 79"}
+                        },
+                        {
+                            "name": "sender_notification_id_length",
+                            "description": "SenderNotificationIdentification must not exceed 16 characters after processing",
+                            "condition": { "or": [
+                                {"!": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.SndrNtfctnId"}},
+                                {"<=": [{"strlen": [{"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.SndrNtfctnId"}]}, 16]}
+                            ]},
+                            "error": {
+                                "code": "T14002",
+                                "message": "SenderNotificationIdentification length exceeds 16 characters and will be truncated"
+                            }
+                        },
+                        {
+                            "name": "sender_notification_id_charset",
+                            "description": "SenderNotificationIdentification should be SWIFT compatible",
+                            "condition": { "or": [
+                                {"!": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.SndrNtfctnId"}},
+                                {"not": { "or": [
+                                    {"match": [{"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.SndrNtfctnId"}, "^/"]},
+                                    {"match": [{"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.SndrNtfctnId"}, "/$"]},
+                                    {"match": [{"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.SndrNtfctnId"}, "//"]}
+                                ]}}
+                            ]},
+                            "error": {
+                                "code": "T14001",
+                                "message": "SenderNotificationIdentification contains invalid characters (starts/ends with / or contains //)"
+                            }
                         }
                     ]
                 }

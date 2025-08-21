@@ -21,23 +21,25 @@
                     "mappings": [
                         {
                             "path": "data.SwiftMT.fields.#20",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.Rpt.Id"},
-                                { "if": [
-                                    {">": [{"length": {"var": "data.ISO20022_MX.document.Rpt.Id"}}, 16]},
-                                    {"cat": [{"substr": [{"var": "data.ISO20022_MX.document.Rpt.Id"}, 0, 15]}, "+"]},
+                            "logic": { 
+                                "reference": { "if": [
+                                    {"var": "data.ISO20022_MX.document.Rpt.Id"},
                                     { "if": [
-                                        { "or": [
-                                            {"starts_with": [{"var": "data.ISO20022_MX.document.Rpt.Id"}, "/"]},
-                                            {"ends_with": [{"var": "data.ISO20022_MX.document.Rpt.Id"}, "/"]},
-                                            {"in": ["//", {"var": "data.ISO20022_MX.document.Rpt.Id"}]}
-                                        ]},
-                                        "NOTPROVIDED",
-                                        {"var": "data.ISO20022_MX.document.Rpt.Id"}
-                                    ]}
-                                ]},
-                                "NOTPROVIDED"
-                            ]}
+                                        {">": [{"length": {"var": "data.ISO20022_MX.document.Rpt.Id"}}, 16]},
+                                        {"cat": [{"substr": [{"var": "data.ISO20022_MX.document.Rpt.Id"}, 0, 15]}, "+"]},
+                                        { "if": [
+                                            { "or": [
+                                                {"starts_with": [{"var": "data.ISO20022_MX.document.Rpt.Id"}, "/"]},
+                                                {"ends_with": [{"var": "data.ISO20022_MX.document.Rpt.Id"}, "/"]},
+                                                {"in": ["//", {"var": "data.ISO20022_MX.document.Rpt.Id"}]}
+                                            ]},
+                                            "NOTPROVIDED",
+                                            {"var": "data.ISO20022_MX.document.Rpt.Id"}
+                                        ]}
+                                    ]},
+                                    "NOTPROVIDED"
+                                ]}
+                            }
                         },
                         {
                             "path": "data.SwiftMT.fields.#25",
@@ -51,24 +53,17 @@
                                 {
                                     "P": {
                                         "account": {"var": "temp_data.account_id"},
-                                        "identifier_code": {"var": "temp_data.account_owner_bic"}
+                                        "bic": {"var": "temp_data.account_owner_bic"}
                                     }
                                 },
-                                {"NoOption": {"account": {"var": "temp_data.account_id"}}}
+                                {"NoOption": {"authorisation": {"var": "temp_data.account_id"}}}
                             ]}
                         },
                         {
                             "path": "data.SwiftMT.fields.28C",
                             "logic": {
-                                "cat": [
-                                    { "if": [
-                                        {"var": "data.ISO20022_MX.document.Rpt.LglSeqNb"},
-                                        {"var": "data.ISO20022_MX.document.Rpt.LglSeqNb"},
-                                        {"var": "data.ISO20022_MX.document.Rpt.ElctrncSeqNb"}
-                                    ]},
-                                    "/",
-                                    {"var": "temp_data.page_number"}
-                                ]
+                                "statement_number": 1,
+                                "sequence_number": 1
                             }
                         },
                         {
@@ -76,38 +71,34 @@
                             "logic": { "if": [
                                 {"var": "data.ISO20022_MX.document.Rpt.CreDtTm"},
                                 {
-                                    "cat": [
-                                        {"substr": [{"replace": [{"var": "data.ISO20022_MX.document.Rpt.CreDtTm"}, "-", ""]}, 2, 6]},
-                                        {"substr": [{"replace": [{"var": "data.ISO20022_MX.document.Rpt.CreDtTm"}, ":", ""]}, 11, 4]},
-                                        {"if": [{"in": ["+", {"var": "data.ISO20022_MX.document.Rpt.CreDtTm"}]}, "+", "-"]},
-                                        {
-                                            "substr": [
-                                                {
-                                                    "replace": [{"replace": [{"var": "data.ISO20022_MX.document.Rpt.CreDtTm"}, "+", ""]}, "-", ""]
-                                                },
-                                                -4,
-                                                4
-                                            ]
-                                        }
-                                    ]
+                                    "date": {"substr": [{"var": "data.ISO20022_MX.document.Rpt.CreDtTm"}, 0, 10]},
+                                    "time": {"substr": [{"var": "data.ISO20022_MX.document.Rpt.CreDtTm"}, 11, 8]},
+                                    "offset_sign": {"if": [{"in": ["+", {"var": "data.ISO20022_MX.document.Rpt.CreDtTm"}]}, "+", "-"]},
+                                    "offset_seconds": {
+                                        "substr": [
+                                            {
+                                                "replace": [{"replace": [{"var": "data.ISO20022_MX.document.Rpt.CreDtTm"}, "+", ""]}, "-", ""]
+                                            },
+                                            -5,
+                                            5
+                                        ]
+                                    }
                                 },
                                 { "if": [
                                     {"var": "data.ISO20022_MX.document.GrpHdr.CreDtTm"},
                                     {
-                                        "cat": [
-                                            {"substr": [{"replace": [{"var": "data.ISO20022_MX.document.GrpHdr.CreDtTm"}, "-", ""]}, 2, 6]},
-                                            {"substr": [{"replace": [{"var": "data.ISO20022_MX.document.GrpHdr.CreDtTm"}, ":", ""]}, 11, 4]},
-                                            {"if": [{"in": ["+", {"var": "data.ISO20022_MX.document.GrpHdr.CreDtTm"}]}, "+", "-"]},
-                                            {
-                                                "substr": [
-                                                    {
-                                                        "replace": [{"replace": [{"var": "data.ISO20022_MX.document.GrpHdr.CreDtTm"}, "+", ""]}, "-", ""]
-                                                    },
-                                                    -4,
-                                                    4
-                                                ]
-                                            }
-                                        ]
+                                        "date": {"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.CreDtTm"}, 0, 10]},
+                                        "time": {"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.CreDtTm"}, 11, 8]},
+                                        "offset_sign": {"if": [{"in": ["+", {"var": "data.ISO20022_MX.document.GrpHdr.CreDtTm"}]}, "+", "-"]},
+                                        "offset_seconds": {
+                                            "substr": [
+                                                {
+                                                    "replace": [{"replace": [{"var": "data.ISO20022_MX.document.GrpHdr.CreDtTm"}, "+", ""]}, "-", ""]
+                                                },
+                                                -5,
+                                                5
+                                            ]
+                                        }
                                     },
                                     null
                                 ]}
@@ -117,7 +108,10 @@
                             "path": "data.SwiftMT.fields.34F",
                             "logic": { "if": [
                                 {"var": "temp_data.account_currency"},
-                                {"cat": [{"var": "temp_data.account_currency"}, "0,"]},
+                                {
+                                    "currency": {"var": "temp_data.account_currency"},
+                                    "amount": 0.00
+                                },
                                 null
                             ]}
                         }

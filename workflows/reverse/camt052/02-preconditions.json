@@ -12,12 +12,189 @@
     ]},
     "tasks": [
         {
-            "id": "validate_preconditions",
-            "name": "Pass Through Validation",
-            "description": "Temporarily bypass validation - LglSeqNb and TxsSummry are present",
+            "id": "PREC001_validate_sequence_numbers",
+            "name": "Validate Sequence Numbers",
+            "description": "PREC001: Check legal and electronic sequence numbers",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": {
+                        "or": [
+                            {
+                                "and": [
+                                    {"exists": ["Rpt", "LglSeqNb", {"var": "data.ISO20022_MX.document"}]},
+                                    {"<=": [{"length": {"var": "data.ISO20022_MX.document.Rpt.LglSeqNb"}}, 5]}
+                                ]
+                            },
+                            {
+                                "and": [
+                                    {"exists": ["Rpt", "ElctrncSeqNb", {"var": "data.ISO20022_MX.document"}]},
+                                    {"<=": [{"length": {"var": "data.ISO20022_MX.document.Rpt.ElctrncSeqNb"}}, 5]}
+                                ]
+                            }
+                        ]
+                    },
+                    "error_message": "PREC001: Either LegalSequenceNumber or ElectronicSequenceNumber must be present and not exceed 5 characters"
+                }
+            }
+        },
+        {
+            "id": "PREC002_validate_entry_count",
+            "name": "Validate Entry Count",
+            "description": "PREC002: Check that number of entries does not exceed 190",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": {
+                        "or": [
+                            {"!": {"exists": ["Rpt", "Ntry", {"var": "data.ISO20022_MX.document"}]}},
+                            {"<=": [{"length": {"var": "data.ISO20022_MX.document.Rpt.Ntry"}}, 190]}
+                        ]
+                    },
+                    "error_message": "PREC002: Number of entries exceeds 190 (maximum for 10K message size)"
+                }
+            }
+        },
+        {
+            "id": "PREC003_validate_content_presence",
+            "name": "Validate Content Presence",
+            "description": "PREC003: Check that entries or transaction summary is present",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": {
+                        "or": [
+                            {"exists": ["Rpt", "Ntry", {"var": "data.ISO20022_MX.document"}]},
+                            {
+                                "and": [
+                                    {"exists": ["Rpt", "TxsSummry", "TtlCdtNtries", "NbOfNtries", {"var": "data.ISO20022_MX.document"}]},
+                                    {"exists": ["Rpt", "TxsSummry", "TtlCdtNtries", "Sum", {"var": "data.ISO20022_MX.document"}]}
+                                ]
+                            },
+                            {
+                                "and": [
+                                    {"exists": ["Rpt", "TxsSummry", "TtlDbtNtries", "NbOfNtries", {"var": "data.ISO20022_MX.document"}]},
+                                    {"exists": ["Rpt", "TxsSummry", "TtlDbtNtries", "Sum", {"var": "data.ISO20022_MX.document"}]}
+                                ]
+                            }
+                        ]
+                    },
+                    "error_message": "PREC003: Neither entries nor transaction summary with required fields is present"
+                }
+            }
+        },
+        {
+            "id": "PREC004_validate_entry_amounts",
+            "name": "Validate Entry Amounts and Currency",
+            "description": "PREC004: Check entry amount currency and digit count",
             "function": {
                 "name": "map",
-                "input": {"mappings": [{"path": "temp_data.validation_passed", "logic": true}]}
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.account_currency",
+                            "logic": {"var": "data.ISO20022_MX.document.Rpt.Acct.Ccy"}
+                        },
+                        {
+                            "path": "temp_data.prec004_valid",
+                            "logic": {
+                                "if": [
+                                    {"exists": ["Rpt", "Ntry", {"var": "data.ISO20022_MX.document"}]},
+                                    {
+                                        "reduce": [
+                                            {"var": "data.ISO20022_MX.document.Rpt.Ntry"},
+                                            {
+                                                "and": [
+                                                    {"var": "accumulator"},
+                                                    {
+                                                        "and": [
+                                                            {"==": [{"var": "current.Amt.@Ccy"}, {"var": "temp_data.account_currency"}]},
+                                                            {"<=": [
+                                                                {"length": [
+                                                                    {"replace": [
+                                                                        {"replace": [{"str": {"var": "current.Amt.$value"}}, ".", ""]},
+                                                                        "-", ""
+                                                                    ]}
+                                                                ]},
+                                                                14
+                                                            ]}
+                                                        ]
+                                                    }
+                                                ]
+                                            },
+                                            true
+                                        ]
+                                    },
+                                    true
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC004_validate_result",
+            "name": "Validate PREC004 Result",
+            "description": "Check PREC004 validation result",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": {"var": "temp_data.prec004_valid"},
+                    "error_message": "PREC004: Entry amount currency does not match account currency or exceeds 14 digits"
+                }
+            }
+        },
+        {
+            "id": "store_precondition_data",
+            "name": "Store Precondition Data",
+            "description": "Store data extracted during preconditions for later use",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.page_number",
+                            "logic": {
+                                "if": [
+                                    {"exists": ["Rpt", "RptPgntn", "PgNb", {"var": "data.ISO20022_MX.document"}]},
+                                    {"var": "data.ISO20022_MX.document.Rpt.RptPgntn.PgNb"},
+                                    "1"
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.account_id",
+                            "logic": {
+                                "if": [
+                                    {"exists": ["Rpt", "Acct", "Id", "IBAN", {"var": "data.ISO20022_MX.document"}]},
+                                    {"var": "data.ISO20022_MX.document.Rpt.Acct.Id.IBAN"},
+                                    {
+                                        "if": [
+                                            {"exists": ["Rpt", "Acct", "Id", "Othr", "Id", {"var": "data.ISO20022_MX.document"}]},
+                                            {"var": "data.ISO20022_MX.document.Rpt.Acct.Id.Othr.Id"},
+                                            null
+                                        ]
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.account_owner_bic",
+                            "logic": {
+                                "if": [
+                                    {"exists": ["Rpt", "Acct", "Ownr", "Id", "OrgId", "AnyBIC", {"var": "data.ISO20022_MX.document"}]},
+                                    {"var": "data.ISO20022_MX.document.Rpt.Acct.Ownr.Id.OrgId.AnyBIC"},
+                                    null
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.validation_passed",
+                            "logic": true
+                        }
+                    ]
+                }
             }
         }
     ]

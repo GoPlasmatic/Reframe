@@ -19,23 +19,35 @@
                     "mappings": [
                         {
                             "path": "temp_data.prec.cancellation_status_id_present",
-                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.CxlStsId"}
+                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsId"}
                         },
                         {
                             "path": "temp_data.prec.resolved_case_id_present",
-                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.RslvdCase.Id"}
+                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.RslvdCase.Id"}
                         },
                         {
                             "path": "temp_data.prec.original_uetr_present",
-                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.OrgnlUETR"}
+                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlUETR"}
                         },
                         {
                             "path": "temp_data.prec.confirmation_present",
-                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Sts.Conf"}
+                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.Sts.Conf"}
                         },
                         {
                             "path": "temp_data.prec.original_message_name_present",
-                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}
+                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}
+                        },
+                        {
+                            "path": "temp_data.prec.status_reason_present",
+                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsRsnInf"}
+                        },
+                        {
+                            "path": "temp_data.prec.assignee_present",
+                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.Assgnmt.Assgne"}
+                        },
+                        {
+                            "path": "temp_data.prec.assigner_present",
+                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.Assgnmt.Assgnr"}
                         }
                     ]
                 }
@@ -56,19 +68,19 @@
                                 "not": { "or": [
                                     {
                                         "match": [
-                                            {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.CxlStsId"},
+                                            {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsId"},
                                             "^/"
                                         ]
                                     },
                                     {
                                         "match": [
-                                            {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.CxlStsId"},
+                                            {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsId"},
                                             "/$"
                                         ]
                                     },
                                     {
                                         "match": [
-                                            {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.CxlStsId"},
+                                            {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsId"},
                                             "//"
                                         ]
                                     }
@@ -82,24 +94,44 @@
                                 "not": { "or": [
                                     {
                                         "match": [
-                                            {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.RslvdCase.Id"},
+                                            {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.RslvdCase.Id"},
                                             "^/"
                                         ]
                                     },
                                     {
                                         "match": [
-                                            {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.RslvdCase.Id"},
+                                            {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.RslvdCase.Id"},
                                             "/$"
                                         ]
                                     },
                                     {
                                         "match": [
-                                            {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.RslvdCase.Id"},
+                                            {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.RslvdCase.Id"},
                                             "//"
                                         ]
                                     }
                                 ]}
                             }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_status_reason_code",
+            "name": "Validate Status Reason Code",
+            "description": "Validates status reason code when RJCR status",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.prec.status_reason_code_valid",
+                            "logic": { "if": [
+                                {"==": [{"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.Sts.Conf"}, "RJCR"]},
+                                {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsRsnInf.Rsn.Cd"},
+                                true
+                            ]}
                         }
                     ]
                 }
@@ -122,7 +154,8 @@
                                 {"var": "temp_data.prec.confirmation_present"},
                                 {"var": "temp_data.prec.original_message_name_present"},
                                 {"!=": [{"var": "temp_data.prec.cancellation_status_id_valid"}, false]},
-                                {"!=": [{"var": "temp_data.prec.resolved_case_id_valid"}, false]}
+                                {"!=": [{"var": "temp_data.prec.resolved_case_id_valid"}, false]},
+                                {"var": "temp_data.prec.status_reason_code_valid"}
                             ]}
                         },
                         {

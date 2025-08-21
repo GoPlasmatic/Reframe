@@ -10,60 +10,63 @@
     ]},
     "tasks": [
         {
-            "id": "map_narrative_field",
-            "name": "Map Narrative Field (Field 77A)",
-            "description": "Maps additional information and UETR to Field 77A",
+            "id": "map_narrative_field_enhanced",
+            "name": "Map Narrative Field (Field 77A) Enhanced",
+            "description": "Maps overflow from Field 76 and UETR to Field 77A",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
                             "path": "temp_data.uetr_for_77a",
-                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.OrgnlUETR"}
+                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlUETR"}
                         },
                         {
-                            "path": "temp_data.additional_info_array",
+                            "path": "temp_data.field77a_base_lines",
                             "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"},
-                                {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"},
+                                {"var": "temp_data.field77a_overflow"},
+                                {"var": "temp_data.field77a_overflow"},
                                 []
                             ]}
                         },
                         {
-                            "path": "temp_data.field77a_lines",
-                            "logic": { "if": [
-                                {
-                                    "and": [
-                                        {"var": "temp_data.additional_info_array"},
-                                        {"gt": [{"count": [{"var": "temp_data.additional_info_array"}]}, 0]}
-                                    ]
-                                },
-                                {"var": "temp_data.additional_info_array"},
-                                []
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.field77a_with_uetr",
+                            "path": "temp_data.field77a_with_uetr_lines",
                             "logic": { "if": [
                                 {"var": "temp_data.uetr_for_77a"},
-                                {
-                                    "push": [
-                                        {"var": "temp_data.field77a_lines"},
+                                { "if": [
+                                    { "and": [
+                                        {"var": "temp_data.field77a_base_lines"},
+                                        {">": [{"count": [{"var": "temp_data.field77a_base_lines"}]}, 0]}
+                                    ]},
+                                    {"push": [
+                                        {"var": "temp_data.field77a_base_lines"},
                                         {"cat": ["/UETR/", {"var": "temp_data.uetr_for_77a"}]}
-                                    ]
-                                },
-                                {"var": "temp_data.field77a_lines"}
+                                    ]},
+                                    [{"cat": ["/UETR/", {"var": "temp_data.uetr_for_77a"}]}]
+                                ]},
+                                {"var": "temp_data.field77a_base_lines"}
                             ]}
                         },
                         {
                             "path": "data.SwiftMT.fields.77A",
                             "condition": {
                                 "and": [
-                                    {"var": "temp_data.field77a_with_uetr"},
-                                    {"gt": [{"count": [{"var": "temp_data.field77a_with_uetr"}]}, 0]}
+                                    {"var": "temp_data.field77a_with_uetr_lines"},
+                                    {">": [{"count": [{"var": "temp_data.field77a_with_uetr_lines"}]}, 0]}
                                 ]
                             },
-                            "logic": {"join": [{"var": "temp_data.field77a_with_uetr"}, "\n"]}
+                            "logic": { "if": [
+                                {"<=": [{"count": [{"var": "temp_data.field77a_with_uetr_lines"}]}, 20]},
+                                {"join": [{"var": "temp_data.field77a_with_uetr_lines"}, "\n"]},
+                                {"join": [{"slice": [{"var": "temp_data.field77a_with_uetr_lines"}, 0, 20]}, "\n"]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field79_needed",
+                            "logic": { "and": [
+                                {"var": "temp_data.field77a_with_uetr_lines"},
+                                {">": [{"count": [{"var": "temp_data.field77a_with_uetr_lines"}]}, 20]}
+                            ]}
                         }
                     ]
                 }

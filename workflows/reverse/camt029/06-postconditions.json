@@ -10,6 +10,37 @@
     ]},
     "tasks": [
         {
+            "id": "validate_uetr_extraction",
+            "name": "Validate UETR Extraction",
+            "description": "Validates that UETR was properly extracted and placed",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.uetr_in_block3",
+                            "logic": {"var": "data.SwiftMT.user_header.unique_end_to_end_transaction_reference"}
+                        },
+                        {
+                            "path": "temp_data.uetr_in_77a",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.77A"},
+                                {"match": [{"var": "data.SwiftMT.fields.77A"}, "/UETR/"]},
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.uetr_valid",
+                            "logic": { "or": [
+                                {"var": "temp_data.uetr_in_block3"},
+                                {"var": "temp_data.uetr_in_77a"}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
             "id": "apply_charset_conversion",
             "name": "Apply Character Set Conversion (POSTC001)",
             "description": "Removes all characters that are not FIN compliant",
@@ -105,6 +136,13 @@
                             "logic": {"split": [{"var": "data.SwiftMT.fields.76"}, "\n"]}
                         },
                         {
+                            "path": "temp_data.field76_line_lengths_valid",
+                            "logic": { "all": [
+                                {"var": "temp_data.field76_lines"},
+                                {"<=": [{"strlen": [{"var": ""}]}, 35]}
+                            ]}
+                        },
+                        {
                             "path": "data.SwiftMT.fields.76",
                             "condition": {
                                 "and": [
@@ -118,6 +156,13 @@
                             "path": "temp_data.field77a_lines",
                             "condition": {"var": "data.SwiftMT.fields.77A"},
                             "logic": {"split": [{"var": "data.SwiftMT.fields.77A"}, "\n"]}
+                        },
+                        {
+                            "path": "temp_data.field77a_line_lengths_valid",
+                            "logic": { "all": [
+                                {"var": "temp_data.field77a_lines"},
+                                {"<=": [{"strlen": [{"var": ""}]}, 35]}
+                            ]}
                         },
                         {
                             "path": "data.SwiftMT.fields.77A",
@@ -134,6 +179,59 @@
             }
         },
         {
+            "id": "validate_narrative_coherence",
+            "name": "Validate Narrative Coherence",
+            "description": "Validates narrative fields contain coherent information",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field76_has_status",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.76"},
+                                {"match": [{"var": "data.SwiftMT.fields.76"}, "^/(CANC|PDCR|RJCR)/"]},
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.rjcr_has_reason",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "data.SwiftMT.fields.76"},
+                                    {"match": [{"var": "data.SwiftMT.fields.76"}, "^/RJCR/"]}
+                                ]},
+                                {"match": [{"var": "data.SwiftMT.fields.76"}, "^/RJCR/[A-Z0-9]{4}"]},
+                                true
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "final_validation",
+            "name": "Final Validation",
+            "description": "Performs final validation checks",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": { "and": [
+                        {"var": "temp_data.uetr_valid"},
+                        {"var": "temp_data.field76_has_status"},
+                        {"var": "temp_data.field76_line_lengths_valid"},
+                        { "if": [
+                            {"var": "temp_data.field77a_lines"},
+                            {"var": "temp_data.field77a_line_lengths_valid"},
+                            true
+                        ]},
+                        {"var": "temp_data.rjcr_has_reason"}
+                    ]},
+                    "error_message": "POSTC002: Final validation failed - check UETR, field lengths, and narrative coherence"
+                }
+            }
+        },
+        {
             "id": "finalize_transformation",
             "name": "Finalize Transformation",
             "description": "Sets final transformation status",
@@ -143,7 +241,8 @@
                     "mappings": [
                         {"path": "data.SwiftMT.transformation_complete", "logic": true},
                         {"path": "data.SwiftMT.source_message_type", "logic": "camt.029"},
-                        {"path": "data.SwiftMT.source_message_version", "logic": "001.09"}
+                        {"path": "data.SwiftMT.source_message_version", "logic": "001.09"},
+                        {"path": "data.SwiftMT.cbpr_compliance", "logic": true}
                     ]
                 }
             }

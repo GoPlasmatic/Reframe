@@ -421,6 +421,28 @@ impl ParseMX {
                     }
                 }
             }
+            "admi.024.001.01" => {
+                let header = match from_str::<bah_admi_024_001_01::BusinessApplicationHeaderV02>(
+                    app_hdr_content,
+                ) {
+                    Ok(header) => header,
+                    Err(e) => {
+                        error!("Failed to parse admi.024 header: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse admi.024 header: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(header) {
+                    Ok(value) => Ok(value),
+                    Err(e) => {
+                        error!("Failed to convert header: {:?}", e);
+                        Err(DataflowError::Validation(format!(
+                            "Failed to convert header to value: {e}"
+                        )))
+                    }
+                }
+            }
             _ => {
                 let header = match from_str::<bah_pacs_008_001_08::BusinessApplicationHeaderV02>(
                     app_hdr_content,
@@ -638,6 +660,25 @@ impl ParseMX {
                     Ok(value) => Ok(value),
                     Err(e) => Err(DataflowError::Validation(format!(
                         "Failed to convert camt.053 document to value: {e}"
+                    ))),
+                }
+            }
+            "admi.024.001.01" => {
+                let document = match from_str::<admi_024_001_01::NotificationOfCorrespondenceV01>(
+                    document_content,
+                ) {
+                    Ok(document) => document,
+                    Err(e) => {
+                        error!("Failed to parse admi.024 document: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse admi.024 document: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(document) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(DataflowError::Validation(format!(
+                        "Failed to convert admi.024 document to value: {e}"
                     ))),
                 }
             }

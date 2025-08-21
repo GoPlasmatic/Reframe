@@ -46,25 +46,31 @@ pub fn is_supported_mt_type(message_type: &str) -> bool {
 pub fn is_supported_mx_type(message_type: &str) -> bool {
     matches!(
         message_type,
-        "pacs.008"
-            | "pacs.009"
+        "admi.024"
             | "pacs.002"
             | "pacs.003"
             | "pacs.004"
+            | "pacs.008"
+            | "pacs.009"
+            | "pacs.010"
+            | "camt.025"
+            | "camt.029"
             | "camt.052"
             | "camt.053"
             | "camt.054"
             | "camt.056"
-            | "camt.029"
-            | "camt.025"
             | "camt.057"
+            | "camt.058"
             | "camt.060"
+            | "camt.105"
+            | "camt.106"
             | "camt.107"
             | "camt.108"
             | "camt.109"
+            | "camt.110"
             | "pain.001"
-            | "pain.008"
             | "pain.002"
+            | "pain.008"
     )
 }
 

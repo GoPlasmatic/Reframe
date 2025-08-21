@@ -1,0 +1,79 @@
+{
+    "description": "pacs.003 CBPR+ to MT104 Direct Debit",
+    "source_type": "pacs.003",
+    "target_type": "MT104",
+    "variant": "CBPR+_DIRECT_DEBIT",
+    "variables": {
+        "msg_id": {"cat": ["DDBT", {"fake": ["i64", 10000000, 99999999]}]},
+        "uetr": {"cat": ["UETR", {"fake": ["i64", 100000000000, 999999999999]}]},
+        "creation_datetime": {"fake": ["iso8601_datetime"]},
+        "sender_bic": {"fake": ["bic"]},
+        "receiver_bic": {"fake": ["bic"]},
+        "num_transactions": 1,
+        "currency": "EUR",
+        "total_amount": {"fake": ["f64", 5000.0, 50000.0]},
+        "amount1": {"fake": ["f64", 1000.0, 25000.0]},
+        "amount2": {"fake": ["f64", 1000.0, 25000.0]},
+        "debtor1": {"fake": ["name"]},
+        "debtor2": {"fake": ["name"]},
+        "creditor": {"fake": ["name"]},
+        "value_date": {"fake": ["date", "%Y-%m-%d", "2d", "2d"]}
+    },
+    "schema": {
+        "AppHdr": {
+            "Fr": {"FIId": {"FinInstnId": {"BICFI": {"var": "sender_bic"}}}},
+            "To": {"FIId": {"FinInstnId": {"BICFI": {"var": "receiver_bic"}}}},
+            "BizMsgIdr": {"var": "msg_id"},
+            "MsgDefIdr": "pacs.003.001.08",
+            "BizSvc": "swift.cbprplus.01",
+            "CreDt": {"var": "creation_datetime"}
+        },
+        "Document": {
+            "FIToFICstmrDrctDbt": {
+                "GrpHdr": {
+                    "MsgId": {"var": "msg_id"},
+                    "CreDtTm": {"var": "creation_datetime"},
+                    "NbOfTxs": {"cat": [{"var": "num_transactions"}]},
+                    "TtlIntrBkSttlmAmt": {
+                        "@Ccy": {"var": "currency"},
+                        "$value": {"var": "total_amount"}
+                    },
+                    "IntrBkSttlmDt": {"var": "value_date"},
+                    "SttlmInf": {
+                        "SttlmMtd": "INDA"
+                    },
+                    "InstgAgt": {"FinInstnId": {"BICFI": {"var": "sender_bic"}}},
+                    "InstdAgt": {"FinInstnId": {"BICFI": {"var": "receiver_bic"}}}
+                },
+                "DrctDbtTxInf": {
+                    "PmtId": {
+                        "InstrId": {"cat": ["INSTR", {"fake": ["i64", 100000, 999999]}]},
+                        "EndToEndId": {"cat": ["E2E", {"fake": ["i64", 100000, 999999]}]},
+                        "TxId": {"cat": ["TX", {"fake": ["i64", 100000, 999999]}]}
+                    },
+                    "IntrBkSttlmAmt": {
+                        "@Ccy": {"var": "currency"},
+                        "$value": {"var": "amount1"}
+                    },
+                    "IntrBkSttlmDt": {"var": "value_date"},
+                    "ChrgBr": "SHAR",
+                    "ReqdColltnDt": {"var": "value_date"},
+                    "Cdtr": {"Nm": {"var": "creditor"}},
+                    "CdtrAcct": {
+                        "Id": {"IBAN": {"cat": ["FR14", {"fake": ["i64", 10000000000000, 99999999999999]}]}}
+                    },
+                    "CdtrAgt": {"FinInstnId": {"BICFI": {"var": "receiver_bic"}}},
+                    "UltmtCdtr": {"Nm": {"var": "creditor"}},
+                    "Dbtr": {"Nm": {"var": "debtor1"}},
+                    "DbtrAcct": {
+                        "Id": {"IBAN": {"cat": ["DE89", {"fake": ["i64", 10000000000000, 99999999999999]}]}}
+                    },
+                    "DbtrAgt": {"FinInstnId": {"BICFI": {"var": "sender_bic"}}},
+                    "UltmtDbtr": {"Nm": {"var": "debtor1"}},
+                    "InstgAgt": {"FinInstnId": {"BICFI": {"var": "sender_bic"}}},
+                    "InstdAgt": {"FinInstnId": {"BICFI": {"var": "receiver_bic"}}}
+                }
+            }
+        }
+    }
+}

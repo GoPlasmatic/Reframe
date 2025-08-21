@@ -1,0 +1,60 @@
+{
+    "description": "pain.001 CBPR+ to MT101 Simple Payment",
+    "source_type": "pain.001",
+    "target_type": "MT101",
+    "variant": "CBPR+_SIMPLE_PAYMENT",
+    "variables": {
+        "msg_id": {"cat": ["INIT", {"fake": ["i64", 100000000000, 999999999999]}]},
+        "creation_datetime": {"fake": ["iso8601_datetime"]},
+        "sender_bic": {"fake": ["bic"]},
+        "receiver_bic": {"fake": ["bic"]},
+        "amount": {"fake": ["f64", 1000.0, 50000.0]},
+        "currency": "USD",
+        "exec_date": {"fake": ["date", "%Y-%m-%d", "1d", "1d"]},
+        "debtor": {"fake": ["name"]},
+        "creditor": {"fake": ["name"]}
+    },
+    "schema": {
+        "AppHdr": {
+            "Fr": {"FIId": {"FinInstnId": {"BICFI": {"var": "sender_bic"}}}},
+            "To": {"FIId": {"FinInstnId": {"BICFI": {"var": "receiver_bic"}}}},
+            "BizMsgIdr": {"var": "msg_id"},
+            "MsgDefIdr": "pain.001.001.09",
+            "BizSvc": "swift.cbprplus.01",
+            "CreDt": {"var": "creation_datetime"}
+        },
+        "Document": {
+            "CstmrCdtTrfInitn": {
+                "GrpHdr": {
+                    "MsgId": {"var": "msg_id"},
+                    "CreDtTm": {"var": "creation_datetime"},
+                    "NbOfTxs": "1",
+                    "InitgPty": {"Nm": {"var": "debtor"}}
+                },
+                "PmtInf": {
+                    "PmtInfId": {"cat": ["PMT", {"fake": ["i64", 100000, 999999]}]},
+                    "PmtMtd": "TRF",
+                    "ReqdExctnDt": {"Dt": {"var": "exec_date"}},
+                    "Dbtr": {"Nm": {"var": "debtor"}},
+                    "DbtrAcct": {
+                        "Id": {"Othr": {"Id": {"cat": ["ACC", {"fake": ["i64", 100000, 999999]}]}}}
+                    },
+                    "DbtrAgt": {"FinInstnId": {"BICFI": {"var": "sender_bic"}}},
+                    "CdtTrfTxInf": {
+                        "PmtId": {
+                            "EndToEndId": {"fake": ["uuid"]}
+                        },
+                        "Amt": {
+                            "InstdAmt": {
+                                "@Ccy": {"var": "currency"},
+                                "$value": {"var": "amount"}
+                            }
+                        },
+                        "CdtrAgt": {"FinInstnId": {"BICFI": {"var": "receiver_bic"}}},
+                        "Cdtr": {"Nm": {"var": "creditor"}}
+                    }
+                }
+            }
+        }
+    }
+}

@@ -567,6 +567,40 @@ fn generate_pacs003_xml(app_hdr: &Value, document: &Value) -> Result<String, Box
     Ok(format!("{}\n{}", xml_declaration, xml_body))
 }
 
+/// Generate admi.024 XML from parsed JSON
+fn generate_admi024_xml(app_hdr: &Value, document: &Value) -> Result<String, Box<dyn std::error::Error>> {
+    debug!("Parsing admi.024 header");
+    let header_str = serde_json::to_string(app_hdr)?;
+    let hd = &mut serde_json::Deserializer::from_str(&header_str);
+    let header: bah_admi_024_001_01::BusinessApplicationHeaderV02 = deserialize(hd)
+        .map_err(|e| {
+            let path = e.path().to_string();
+            let inner_err = e.into_inner().to_string();
+            format!("Failed to parse admi.024 header at path '{}': {}", path, inner_err)
+        })?;
+    
+    debug!("Parsing admi.024 document");
+    let doc_content = document
+        .get("NtfctnOfCorr")
+        .ok_or_else(|| "Missing NtfctnOfCorr in Document")?;
+    
+    let doc_str = serde_json::to_string(doc_content)?;
+    let dd = &mut serde_json::Deserializer::from_str(&doc_str);
+    let doc: admi_024_001_01::NotificationOfCorrespondenceV01 = deserialize(dd)
+        .map_err(|e| {
+            let path = e.path().to_string();
+            let inner_err = e.into_inner().to_string();
+            error!("Failed to parse admi.024 document at path '{}': {}", path, inner_err);
+            format!("Failed to parse admi.024 document at path '{}': {}", path, inner_err)
+        })?;
+    
+    let envelope = MxEnvelope::new(header, doc, "urn:iso:std:iso:20022:tech:xsd:admi.024.001.01".to_string());
+    let xml_declaration = r#"<?xml version="1.0" encoding="UTF-8"?>"#;
+    let xml_body = xml_to_string(&envelope)?;
+    
+    Ok(format!("{}\n{}", xml_declaration, xml_body))
+}
+
 /// Generate MX message XML from JSON data
 pub fn generate_mx_from_json(
     message_type: &str,
@@ -588,6 +622,7 @@ pub fn generate_mx_from_json(
     
     // Generate XML based on message type
     let xml_string = match message_type {
+        "admi.024" => generate_admi024_xml(&envelope.app_hdr, &envelope.document)?,
         "pacs.002" => generate_pacs002_xml(&envelope.app_hdr, &envelope.document)?,
         "pacs.003" => generate_pacs003_xml(&envelope.app_hdr, &envelope.document)?,
         "pacs.004" => generate_pacs004_xml(&envelope.app_hdr, &envelope.document)?,

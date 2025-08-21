@@ -42,19 +42,43 @@
         {
             "id": "map_application_header",
             "name": "Map Application Header",
-            "description": "Maps application header specific to message type",
+            "description": "Maps application header specific to message type with CBPR+ priority",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
+                        {
+                            "path": "temp_data.priority_mapping",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.header.BusinessService"},
+                                { "if": [
+                                    {"in": [".001", {"var": "data.ISO20022_MX.header.BusinessService"}]},
+                                    "U",
+                                    "N"
+                                ]},
+                                "N"
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.poss_duplicate",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.header.CopyDuplicate"},
+                                { "if": [
+                                    {"==": [{"var": "data.ISO20022_MX.header.CopyDuplicate"}, "DUPL"]},
+                                    "3",
+                                    ""
+                                ]},
+                                ""
+                            ]}
+                        },
                         {
                             "path": "data.SwiftMT.application_header",
                             "logic": {
                                 "input_output_identifier": "O",
                                 "message_type": {"var": "data.SwiftMT.message_type"},
                                 "receiver_bic": {"var": "data.SwiftMT.basic_header.receiver_bic"},
-                                "priority": "N",
-                                "delivery_monitoring": "",
+                                "priority": {"var": "temp_data.priority_mapping"},
+                                "delivery_monitoring": {"var": "temp_data.poss_duplicate"},
                                 "obsolescence_period": ""
                             }
                         }
@@ -73,7 +97,7 @@
                         {
                             "path": "data.SwiftMT.user_header",
                             "logic": {
-                                "unique_end_to_end_transaction_reference": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.OrgnlUETR"}
+                                "unique_end_to_end_transaction_reference": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlUETR"}
                             }
                         }
                     ]

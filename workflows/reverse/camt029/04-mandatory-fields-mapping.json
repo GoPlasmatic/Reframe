@@ -19,7 +19,7 @@
                     "mappings": [
                         {
                             "path": "temp_data.field20_raw",
-                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.CxlStsId"}
+                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsId"}
                         },
                         {
                             "path": "temp_data.field20_truncated",
@@ -58,7 +58,7 @@
                     "mappings": [
                         {
                             "path": "temp_data.field21_raw",
-                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.RslvdCase.Id"}
+                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.RslvdCase.Id"}
                         },
                         {
                             "path": "temp_data.field21_truncated",
@@ -125,7 +125,7 @@
                         },
                         {
                             "path": "temp_data.field11r_mx_date",
-                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlCreDtTm"}
+                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlCreDtTm"}
                         },
                         {
                             "path": "temp_data.field11r_date",
@@ -136,78 +136,132 @@
                             ]}
                         },
                         {
+                            "path": "temp_data.field11r_boolean1",
+                            "logic": { "and": [
+                                {"==": [{"var": "temp_data.field11r_mt_type"}, "202"]},
+                                { "not": { "or": [
+                                    {"in": ["pacs.009", {"var": "temp_data.original_message_name"}]},
+                                    {"in": ["pacs.010", {"var": "temp_data.original_message_name"}]},
+                                    {"match": [{"var": "temp_data.original_message_name"}, "^MT20[0-9]$"]}
+                                ]}}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field11r_boolean2",
+                            "logic": {"==": [{"var": "temp_data.field11r_date"}, "991231"]}
+                        },
+                        {
                             "path": "data.SwiftMT.fields.11R",
+                            "condition": { "not": { "and": [
+                                {"var": "temp_data.field11r_boolean1"},
+                                {"var": "temp_data.field11r_boolean2"}
+                            ]}},
                             "logic": {"cat": [{"var": "temp_data.field11r_mt_type"}, "\n", {"var": "temp_data.field11r_date"}]}
+                        },
+                        {
+                            "path": "temp_data.field11s_warning",
+                            "condition": {"var": "temp_data.field11r_boolean1"},
+                            "logic": {"code": "T20083", "message": "Original message type not recognized, defaulting to MT202 for Field 11R"}
                         }
                     ]
                 }
             }
         },
         {
-            "id": "map_answers_field",
-            "name": "Map Answers Field (Field 76)",
-            "description": "Maps cancellation status confirmation to Field 76",
+            "id": "map_answers_field_enhanced",
+            "name": "Map Answers Field (Field 76) Enhanced",
+            "description": "Maps cancellation status to Field 76 using MX_To_MT76RCANC logic",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
                             "path": "temp_data.confirmation_code",
-                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Sts.Conf"}
+                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.Sts.Conf"}
                         },
                         {
                             "path": "temp_data.reason_code",
-                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.CxlStsRsnInf.Rsn.Cd"}
+                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsRsnInf.Rsn.Cd"}
                         },
                         {
-                            "path": "temp_data.additional_info",
-                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"}
+                            "path": "temp_data.additional_info_array",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"},
+                                {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"},
+                                []
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.additional_info_combined",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "temp_data.additional_info_array"},
+                                    {">": [{"count": [{"var": "temp_data.additional_info_array"}]}, 0]}
+                                ]},
+                                { "if": [
+                                    {">": [{"count": [{"var": "temp_data.additional_info_array"}]}, 1]},
+                                    { "if": [
+                                        {">": [{"strlen": [{"val": ["temp_data.additional_info_array", 0]}]}, 104]},
+                                        {"cat": [
+                                            {"val": ["temp_data.additional_info_array", 0]},
+                                            {"val": ["temp_data.additional_info_array", 1]}
+                                        ]},
+                                        {"cat": [
+                                            {"val": ["temp_data.additional_info_array", 0]},
+                                            " ",
+                                            {"val": ["temp_data.additional_info_array", 1]}
+                                        ]}
+                                    ]},
+                                    {"val": ["temp_data.additional_info_array", 0]}
+                                ]},
+                                ""
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field76_status_code",
+                            "logic": { "if": [
+                                {"==": [{"var": "temp_data.confirmation_code"}, "CNCL"]},
+                                "CANC",
+                                {"var": "temp_data.confirmation_code"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field76_string",
+                            "logic": { "cat": [
+                                "/",
+                                {"var": "temp_data.field76_status_code"},
+                                "/",
+                                { "if": [
+                                    {"var": "temp_data.reason_code"},
+                                    { "if": [
+                                        {"var": "temp_data.additional_info_combined"},
+                                        {"cat": [{"var": "temp_data.reason_code"}, "/", {"var": "temp_data.additional_info_combined"}]},
+                                        {"var": "temp_data.reason_code"}
+                                    ]},
+                                    {"var": "temp_data.additional_info_combined"}
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field76_lines",
+                            "logic": {"split_lines": [
+                                {"var": "temp_data.field76_string"},
+                                35,
+                                "//"
+                            ]}
                         },
                         {
                             "path": "data.SwiftMT.fields.76",
                             "logic": { "if": [
-                                {"==": [{"var": "temp_data.confirmation_code"}, "CNCL"]},
-                                {
-                                    "cat": [
-                                        "/CANC/",
-                                        {"if": [{"var": "temp_data.reason_code"}, {"var": "temp_data.reason_code"}, ""]},
-                                        { "if": [
-                                            {"var": "temp_data.additional_info"},
-                                            {"cat": ["\n", {"var": "temp_data.additional_info"}]},
-                                            ""
-                                        ]}
-                                    ]
-                                },
-                                { "if": [
-                                    {"==": [{"var": "temp_data.confirmation_code"}, "PDCR"]},
-                                    {
-                                        "cat": [
-                                            "/PDCR/",
-                                            {"if": [{"var": "temp_data.reason_code"}, {"var": "temp_data.reason_code"}, ""]},
-                                            { "if": [
-                                                {"var": "temp_data.additional_info"},
-                                                {"cat": ["\n", {"var": "temp_data.additional_info"}]},
-                                                ""
-                                            ]}
-                                        ]
-                                    },
-                                    { "if": [
-                                        {"==": [{"var": "temp_data.confirmation_code"}, "RJCR"]},
-                                        {
-                                            "cat": [
-                                                "/RJCR/",
-                                                {"if": [{"var": "temp_data.reason_code"}, {"var": "temp_data.reason_code"}, ""]},
-                                                { "if": [
-                                                    {"var": "temp_data.additional_info"},
-                                                    {"cat": ["\n", {"var": "temp_data.additional_info"}]},
-                                                    ""
-                                                ]}
-                                            ]
-                                        },
-                                        "/NOTPROVIDED/"
-                                    ]}
-                                ]}
+                                {"<=": [{"count": [{"var": "temp_data.field76_lines"}]}, 6]},
+                                {"join": [{"var": "temp_data.field76_lines"}, "\n"]},
+                                {"join": [{"slice": [{"var": "temp_data.field76_lines"}, 0, 6]}, "\n"]}
                             ]}
+                        },
+                        {
+                            "path": "temp_data.field77a_overflow",
+                            "condition": {">": [{"count": [{"var": "temp_data.field76_lines"}]}, 6]},
+                            "logic": {"slice": [{"var": "temp_data.field76_lines"}, 6]}
                         }
                     ]
                 }

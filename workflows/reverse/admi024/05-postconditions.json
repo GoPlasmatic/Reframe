@@ -5,7 +5,10 @@
     "priority": 5,
     "condition": { "and": [
         {"==": [{"var": "data.SwiftMT.message_type"}, "199"]},
-        {"==": [{"var": "progress.workflow_id"}, "admi024-mandatory-fields-mapping"]},
+        { "or": [
+            {"==": [{"var": "progress.workflow_id"}, "admi024-mandatory-fields-mapping"]},
+            {"==": [{"var": "progress.workflow_id"}, "admi024-optional-fields-mapping"]}
+        ]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
@@ -78,7 +81,100 @@
             "description": "Ensures fields are in correct order",
             "function": {
                 "name": "transform",
-                "input": {"transformations": [{"path": "data.SwiftMT.field_order", "logic": ["20", "79"]}]}
+                "input": {
+                    "transformations": [
+                        {
+                            "path": "data.SwiftMT.field_order",
+                            "logic": {
+                                "filter": [
+                                    ["20", "11S", "21", "79", "77E"],
+                                    {
+                                        "in": [
+                                            {"var": ""},
+                                            {"keys": [{"var": "data.SwiftMT.fields"}]}
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_swift_charset_compliance",
+            "name": "Validate SWIFT Character Set Compliance",
+            "description": "Ensures all fields comply with SWIFT character set",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "name": "field_20_charset",
+                            "description": "Field 20 must contain only SWIFT-compliant characters",
+                            "condition": {
+                                "not": {"match": [{"var": "data.SwiftMT.fields.20"}, "[^A-Za-z0-9 ().,+\\-/:?'\\n]"]}
+                            },
+                            "error": {"code": "T20013", "message": "Field 20 contains non-SWIFT compliant characters"}
+                        },
+                        {
+                            "name": "field_79_charset",
+                            "description": "Field 79 must contain only SWIFT-compliant characters",
+                            "condition": {
+                                "not": {"match": [{"var": "data.SwiftMT.fields.79"}, "[^A-Za-z0-9 ().,+\\-/:?'\\n]"]}
+                            },
+                            "error": {"code": "T20014", "message": "Field 79 contains non-SWIFT compliant characters"}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_message_length",
+            "name": "Validate Total Message Length",
+            "description": "Ensures total message doesn't exceed SWIFT limits",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.total_message_length",
+                            "logic": {
+                                "reduce": [
+                                    {"keys": [{"var": "data.SwiftMT.fields"}]},
+                                    {"+": [
+                                        {"var": "accumulator"},
+                                        {"strlen": [{"var": "data.SwiftMT.fields[current]"}]},
+                                        10
+                                    ]},
+                                    100
+                                ]
+                            }
+                        },
+                        {
+                            "path": "temp_data.message_length_valid",
+                            "logic": {"<=": [{"var": "temp_data.total_message_length"}, 10000]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_message_length_result",
+            "name": "Validate Message Length Result",
+            "description": "Check message length validation",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "name": "message_length",
+                            "description": "Total message must not exceed 10K characters",
+                            "condition": {"var": "temp_data.message_length_valid"},
+                            "error": {"code": "T20015", "message": "Total message exceeds 10K character limit"}
+                        }
+                    ]
+                }
             }
         },
         {

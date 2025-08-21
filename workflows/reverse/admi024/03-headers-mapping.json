@@ -27,7 +27,28 @@
                             "path": "data.SwiftMT.receiver",
                             "logic": {"var": "data.ISO20022_MX.header.To.FINSTId.FinInstnId.BICFI"}
                         },
-                        {"path": "data.SwiftMT.message_priority", "logic": "N"}
+                        {
+                            "path": "data.SwiftMT.message_priority",
+                            "logic": { "if": [
+                                {"==": [{"var": "data.ISO20022_MX.header.Prty"}, "HIGH"]},
+                                "U",
+                                "N"
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.delivery_monitoring",
+                            "condition": {"var": "data.ISO20022_MX.header.MsgRcpt"},
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.header.MsgRcpt"},
+                                "2",
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.possible_duplicate",
+                            "condition": {"==": [{"var": "data.ISO20022_MX.header.PssblDplct"}, true]},
+                            "logic": "PDE"
+                        }
                     ]
                 }
             }
@@ -57,6 +78,61 @@
                                 }
                             ]},
                             "logic": {"var": "temp_data.uetr_from_group_header"}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_cbpr_plus_elements",
+            "name": "Map CBPR+ Specific Elements",
+            "description": "Maps CBPR+ compliance elements from BAH",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.service_level_code",
+                            "logic": {"var": "data.ISO20022_MX.header.BizSvc"}
+                        },
+                        {
+                            "path": "data.SwiftMT.block3.119",
+                            "condition": { "and": [
+                                {"var": "temp_data.service_level_code"},
+                                {"match": [{"var": "temp_data.service_level_code"}, "^swift\\.cbprplus\\."]}
+                            ]},
+                            "logic": {"substr": [{"var": "temp_data.service_level_code"}, 16]}
+                        },
+                        {
+                            "path": "temp_data.clearing_system",
+                            "logic": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.ClrSys"}
+                        },
+                        {
+                            "path": "data.SwiftMT.block3.422",
+                            "condition": {"var": "temp_data.clearing_system"},
+                            "logic": { "if": [
+                                {"==": [{"var": "temp_data.clearing_system.Cd"}, "RTG"]},
+                                {"var": "temp_data.clearing_system.MmbId"},
+                                { "if": [
+                                    {"var": "temp_data.clearing_system.Prtry"},
+                                    {"cat": [
+                                        {"var": "temp_data.clearing_system.Prtry.Id"},
+                                        ":",
+                                        {"var": "temp_data.clearing_system.MmbId"}
+                                    ]},
+                                    null
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.block3.424",
+                            "condition": {"var": "data.ISO20022_MX.header.Rltd.Fr"},
+                            "logic": {"var": "data.ISO20022_MX.header.Rltd.Fr"}
+                        },
+                        {
+                            "path": "data.SwiftMT.block3.425",
+                            "condition": {"var": "data.ISO20022_MX.header.Rltd.To"},
+                            "logic": {"var": "data.ISO20022_MX.header.Rltd.To"}
                         }
                     ]
                 }

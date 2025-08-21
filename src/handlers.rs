@@ -573,6 +573,7 @@ fn detect_message_category(message_type: &str) -> MessageCategory {
     } else if message_type.starts_with("pacs")
         || message_type.starts_with("camt")
         || message_type.starts_with("pain")
+        || message_type.starts_with("admi")
     {
         MessageCategory::MX
     } else {

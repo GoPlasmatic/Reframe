@@ -13,19 +13,34 @@
     "tasks": [
         {
             "id": "validate_field_32a_presence",
-            "name": "Check Field 32A Presence",
-            "description": "Field 32A is optional (0..1) per specification mapping table, despite PREC002 note",
+            "name": "Check Field 32A Presence (PREC002)",
+            "description": "Validate Field 32A presence according to PREC002, raise T20088 if absent",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
                             "path": "temp_data.has_field_32a",
-                            "logic": {"if": [{"var": "data.SwiftMT.fields.32A"}, true, false]}
+                            "logic": {"if": [
+                                {
+                                    "and": [
+                                        {"var": "data.SwiftMT.fields.32A"},
+                                        {"var": "data.SwiftMT.fields.32A.value_date"},
+                                        {"var": "data.SwiftMT.fields.32A.currency"},
+                                        {"var": "data.SwiftMT.fields.32A.amount"}
+                                    ]
+                                },
+                                true,
+                                false
+                            ]}
                         },
                         {
-                            "path": "temp_data.prec002_note",
-                            "logic": "Field 32A is optional per MT192 structure and mapping table (0..1 multiplicity)"
+                            "path": "temp_data.prec002_error",
+                            "logic": { "if": [
+                                {"var": "temp_data.has_field_32a"},
+                                null,
+                                "T20088: Field 32A is mandatory but missing (PREC002)"
+                            ]}
                         }
                     ]
                 }
@@ -310,6 +325,20 @@
                                 {"substr": [{"var": "temp_data.extracted_origamt_str"}, 3]},
                                 null
                             ]}
+                        },
+                        {
+                            "path": "temp_data.extracted_origamt_val",
+                            "logic": { "if": [
+                                {"var": "temp_data.extracted_origamt_val_str"},
+                                {
+                                    "if": [
+                                        {">": [{"length": {"var": "temp_data.extracted_origamt_val_str"}}, 0]},
+                                        {"+": [{"var": "temp_data.extracted_origamt_val_str"}, 0]},
+                                        0.0
+                                    ]
+                                },
+                                null
+                            ]}
                         }
                     ]
                 }
@@ -359,7 +388,11 @@
                     "mappings": [
                         {
                             "path": "temp_data.has_errors",
-                            "logic": {"or": [{"var": "temp_data.prec001_error"}, {"var": "temp_data.prec004_error"}]}
+                            "logic": {"or": [
+                                {"var": "temp_data.prec001_error"}, 
+                                {"var": "temp_data.prec002_error"},
+                                {"var": "temp_data.prec004_error"}
+                            ]}
                         },
                         {
                             "path": "temp_data.error_message",
@@ -367,9 +400,13 @@
                                 {"var": "temp_data.prec001_error"},
                                 {"var": "temp_data.prec001_error"},
                                 { "if": [
-                                    {"var": "temp_data.prec004_error"},
-                                    {"var": "temp_data.prec004_error"},
-                                    null
+                                    {"var": "temp_data.prec002_error"},
+                                    {"var": "temp_data.prec002_error"},
+                                    { "if": [
+                                        {"var": "temp_data.prec004_error"},
+                                        {"var": "temp_data.prec004_error"},
+                                        null
+                                    ]}
                                 ]}
                             ]}
                         }

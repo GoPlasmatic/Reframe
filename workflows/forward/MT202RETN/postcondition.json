@@ -88,28 +88,34 @@
                 "input": {
                     "rules": [
                         {
-                            "path": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn",
+                            "path": "data.Document.PmtRtr.TxInf",
                             "logic": {
-                                "or": [
+                                "and": [
+                                    {"exists": ["data", "Document", "PmtRtr", "TxInf", "RtrRsnInf"]},
                                     {
-                                        "and": [
-                                            {"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Cd"},
-                                            {"!=": [{"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Cd"}, "NARR"]}
+                                        "or": [
+                                            {
+                                                "if": [
+                                                    {"exists": ["data", "Document", "PmtRtr", "TxInf", "RtrRsnInf", "Rsn", "Cd"]},
+                                                    {"in": [{"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Cd"}, ["CUST", "TECH", "RQST", "DUPL", "AGNT"]]},
+                                                    false
+                                                ]
+                                            },
+                                            {"exists": ["data", "Document", "PmtRtr", "TxInf", "RtrRsnInf", "Rsn", "Prtry"]}
                                         ]
-                                    },
-                                    {"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Prtry"}
+                                    }
                                 ]
                             },
-                            "message": "Return reason code must be present in either Cd or Prtry field (not NARR)"
+                            "message": "Return reason code must be present with valid CBPR+ code (CUST, TECH, RQST, DUPL, AGNT) or proprietary code"
                         }
                     ]
                 }
             }
         },
         {
-            "id": "POSTC003_validate_original_instruction_id",
-            "name": "POSTC003: Validate Original Instruction ID",
-            "description": "Ensure OriginalInstructionID is properly extracted from MREF",
+            "id": "POSTC003_validate_transaction_status",
+            "name": "POSTC003: Validate Transaction Status",
+            "description": "Ensure transaction status is properly set for return messages",
             "function": {
                 "name": "validate",
                 "input": {
@@ -117,11 +123,10 @@
                         {
                             "path": "data.Document.PmtRtr.TxInf",
                             "logic": { "and": [
-                                {"var": "data.Document.PmtRtr.TxInf.OrgnlInstrId"},
-                                {"!=": [{"var": "data.Document.PmtRtr.TxInf.OrgnlInstrId"}, ""]},
-                                {"!=": [{"var": "data.Document.PmtRtr.TxInf.OrgnlInstrId"}, "NOTPROVIDED"]}
+                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "TxSts"]},
+                                {"==": [{"var": "data.Document.PmtRtr.TxInf.TxSts"}, "PDNG"]}
                             ]},
-                            "message": "Original Instruction ID must be present (extracted from MREF)"
+                            "message": "Transaction status must be PDNG for return messages"
                         }
                     ]
                 }
@@ -312,6 +317,74 @@
                                 true
                             ]},
                             "message": "T20096: ChargeBearer should default to SHAR when field 71A is not present"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC011_validate_return_chain_agents",
+            "name": "POSTC011: Validate Return Chain Agents",
+            "description": "Ensure all agent fields in return chain are properly mapped",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.PmtRtr.TxInf",
+                            "logic": { "and": [
+                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "RtrChain"]},
+                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "RtrChain", "DbtrAgt"]},
+                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "RtrChain", "CdtrAgt"]},
+                                {"!=": [{"var": "data.Document.PmtRtr.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"}, ""]},
+                                {"!=": [{"var": "data.Document.PmtRtr.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"}, ""]}
+                            ]},
+                            "message": "Return chain must have complete debtor and creditor agent information"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC012_validate_cbpr_compliance",
+            "name": "POSTC012: Validate CBPR+ Compliance",
+            "description": "Ensure CBPR+ specific requirements are met",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.AppHdr",
+                            "logic": { "and": [
+                                {"exists": ["data", "AppHdr", "Fr", "FIId", "FinInstnId", "BICFI"]},
+                                {"exists": ["data", "AppHdr", "To", "FIId", "FinInstnId", "BICFI"]},
+                                {"==": [{"var": "data.AppHdr.BizSvc"}, "swift.cbprplus.02"]},
+                                {"==": [{"var": "data.AppHdr.MsgDefIdr"}, "pacs.004.001.09"]}
+                            ]},
+                            "message": "CBPR+ compliance: BAH must have correct BizSvc and MsgDefIdr values"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC013_validate_original_transaction_reference",
+            "name": "POSTC013: Validate Original Transaction Reference",
+            "description": "Ensure original transaction details are properly preserved",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.PmtRtr.TxInf.OrgnlTxRef",
+                            "logic": { "and": [
+                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "OrgnlTxRef"]},
+                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "OrgnlTxRef", "IntrBkSttlmAmt"]},
+                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "OrgnlTxRef", "IntrBkSttlmDt"]},
+                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "OrgnlTxRef", "DbtrAgt"]},
+                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "OrgnlTxRef", "CdtrAgt"]}
+                            ]},
+                            "message": "Original transaction reference must include amount, date, and agent information"
                         }
                     ]
                 }

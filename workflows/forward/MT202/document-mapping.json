@@ -200,6 +200,11 @@
                                         {"var": "temp_data.settlement_method"},
                                         "INDA"
                                     ]},
+                                    "ClrChanl": { "if": [
+                                        {"var": "temp_data.clearing_channel"},
+                                        {"var": "temp_data.clearing_channel"},
+                                        null
+                                    ]},
                                     "SttlmAcct": { "if": [
                                         {
                                             "and": [
@@ -428,9 +433,81 @@
             }
         },
         {
+            "id": "map_intermediary_agent",
+            "name": "Map Intermediary Agent",
+            "description": "Maps intermediary agent from field 56A/C/D",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.IntrmyAgt1",
+                            "logic": { "if": [
+                                {"or": [
+                                    {"var": "data.SwiftMT.fields.56.A"},
+                                    {"var": "data.SwiftMT.fields.56.C"},
+                                    {"var": "data.SwiftMT.fields.56.D"}
+                                ]},
+                                {
+                                    "FinInstnId": {
+                                        "BICFI": { "if": [
+                                            {"var": "data.SwiftMT.fields.56.A.bic"},
+                                            {"var": "data.SwiftMT.fields.56.A.bic"},
+                                            null
+                                        ]},
+                                        "ClrSysMmbId": { "if": [
+                                            {"var": "data.SwiftMT.fields.56.C.party_identifier"},
+                                            {
+                                                "ClrSysId": {
+                                                    "Cd": { "if": [
+                                                        {"starts_with": [{"var": "data.SwiftMT.fields.56.C.party_identifier"}, "//CH"]},
+                                                        "CHBCC",
+                                                        { "if": [
+                                                            {"starts_with": [{"var": "data.SwiftMT.fields.56.C.party_identifier"}, "//SC"]},
+                                                            "SESBA",
+                                                            "NOTPROVIDED"
+                                                        ]}
+                                                    ]}
+                                                },
+                                                "MmbId": { "if": [
+                                                    {"starts_with": [{"var": "data.SwiftMT.fields.56.C.party_identifier"}, "//"]},
+                                                    {"substr": [{"var": "data.SwiftMT.fields.56.C.party_identifier"}, 4]},
+                                                    {"var": "data.SwiftMT.fields.56.C.party_identifier"}
+                                                ]}
+                                            },
+                                            null
+                                        ]},
+                                        "Nm": { "if": [
+                                            {"var": "data.SwiftMT.fields.56.D.name_and_address.0"},
+                                            {"var": "data.SwiftMT.fields.56.D.name_and_address.0"},
+                                            null
+                                        ]},
+                                        "PstlAdr": { "if": [
+                                            {">": [{"length": {"var": "data.SwiftMT.fields.56.D.name_and_address"}}, 1]},
+                                            {
+                                                "AdrLine": {
+                                                    "slice": [
+                                                        {"var": "data.SwiftMT.fields.56.D.name_and_address"},
+                                                        1,
+                                                        {"min": [5, {"length": {"var": "data.SwiftMT.fields.56.D.name_and_address"}}]}
+                                                    ]
+                                                }
+                                            },
+                                            null
+                                        ]}
+                                    }
+                                },
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
             "id": "map_creditor_agent",
             "name": "Map Creditor Agent",
-            "description": "Maps creditor agent from field 57",
+            "description": "Maps creditor agent from field 57A/B/C/D - simplified for standard case",
             "function": {
                 "name": "map",
                 "input": {

@@ -1,0 +1,243 @@
+{
+    "id": "mt900-postcondition",
+    "name": "MT900 to camt.054 Post-Transformation Validation",
+    "description": "Validates the transformed camt.054 message for CBPR+ compliance after MT900 transformation",
+    "priority": 5,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "900"]},
+        {"==": [{"var": "SwiftMT.method"}, "normal"]},
+        {"==": [{"var": "progress.workflow_id"}, "mt900-document-mapper"]},
+        {"==": [{"var": "progress.task_id"}, "publish_document_xml"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "POSTC001_validate_group_header",
+            "name": "POSTC001: Validate Group Header",
+            "description": "Ensure GroupHeader contains all mandatory fields",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.BkToCstmrDbtCdtNtfctn.GrpHdr",
+                            "logic": { "and": [
+                                {"exists": ["data", "Document", "BkToCstmrDbtCdtNtfctn", "GrpHdr", "MsgId"]},
+                                {"exists": ["data", "Document", "BkToCstmrDbtCdtNtfctn", "GrpHdr", "CreDtTm"]},
+                                {"exists": ["data", "Document", "BkToCstmrDbtCdtNtfctn", "GrpHdr", "MsgRcpt"]},
+                                {"!=": [{"var": "data.Document.BkToCstmrDbtCdtNtfctn.GrpHdr.MsgId"}, ""]},
+                                {"!=": [{"var": "data.Document.BkToCstmrDbtCdtNtfctn.GrpHdr.CreDtTm"}, ""]}
+                            ]},
+                            "message": "POSTC001: GroupHeader is missing mandatory fields"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC002_validate_notification_structure",
+            "name": "POSTC002: Validate Notification Structure",
+            "description": "Ensure notification contains mandatory fields for debit confirmation",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn",
+                            "logic": { "and": [
+                                {"exists": ["data", "Document", "BkToCstmrDbtCdtNtfctn", "Ntfctn"]},
+                                {"==": [{"length": {"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn"}}, 1]},
+                                {"exists": ["data", "Document", "BkToCstmrDbtCdtNtfctn", "Ntfctn", "0", "Id"]},
+                                {"exists": ["data", "Document", "BkToCstmrDbtCdtNtfctn", "Ntfctn", "0", "CreDtTm"]},
+                                {"exists": ["data", "Document", "BkToCstmrDbtCdtNtfctn", "Ntfctn", "0", "Acct"]}
+                            ]},
+                            "message": "POSTC002: Notification structure is invalid or missing mandatory fields"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC003_validate_account_information",
+            "name": "POSTC003: Validate Account Information",
+            "description": "Ensure account identification and currency are properly set",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Acct",
+                            "logic": { "and": [
+                                {"exists": ["data", "Document", "BkToCstmrDbtCdtNtfctn", "Ntfctn", "0", "Acct", "Id"]},
+                                {"exists": ["data", "Document", "BkToCstmrDbtCdtNtfctn", "Ntfctn", "0", "Acct", "Ccy"]},
+                                {"exists": ["data", "Document", "BkToCstmrDbtCdtNtfctn", "Ntfctn", "0", "Acct", "Svcr"]},
+                                {"!=": [{"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Acct.Ccy"}, ""]}
+                            ]},
+                            "message": "POSTC003: Account information is missing mandatory fields"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC004_validate_entry_structure",
+            "name": "POSTC004: Validate Entry Structure",
+            "description": "Ensure entry contains correct debit confirmation details",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry",
+                            "logic": { "and": [
+                                {"exists": ["data", "Document", "BkToCstmrDbtCdtNtfctn", "Ntfctn", "0", "Ntry"]},
+                                {"==": [{"length": {"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry"}}, 1]},
+                                {"exists": ["data", "Document", "BkToCstmrDbtCdtNtfctn", "Ntfctn", "0", "Ntry", "0", "NtryRef"]},
+                                {"exists": ["data", "Document", "BkToCstmrDbtCdtNtfctn", "Ntfctn", "0", "Ntry", "0", "Amt"]},
+                                {"==": [{"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.CdtDbtInd"}, "DBIT"]},
+                                {"==": [{"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.Sts.Cd"}, "BOOK"]}
+                            ]},
+                            "message": "POSTC004: Entry structure is invalid or missing debit confirmation details"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC005_validate_entry_amounts",
+            "name": "POSTC005: Validate Entry Amounts",
+            "description": "Ensure entry amount details are properly set",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0",
+                            "logic": { "and": [
+                                {"exists": ["data", "Document", "BkToCstmrDbtCdtNtfctn", "Ntfctn", "0", "Ntry", "0", "Amt", "@Ccy"]},
+                                {"exists": ["data", "Document", "BkToCstmrDbtCdtNtfctn", "Ntfctn", "0", "Ntry", "0", "Amt", "$value"]},
+                                {">": [{"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.Amt.$value"}, 0]},
+                                {"exists": ["data", "Document", "BkToCstmrDbtCdtNtfctn", "Ntfctn", "0", "Ntry", "0", "ValDt"]}
+                            ]},
+                            "message": "POSTC005: Entry amount or value date is invalid"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC006_validate_transaction_details",
+            "name": "POSTC006: Validate Transaction Details",
+            "description": "Ensure transaction details contain proper references and amounts",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls",
+                            "logic": { "and": [
+                                {"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls"},
+                                {"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls"},
+                                {"==": [{"length": {"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls"}}, 1]},
+                                {"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls.0.Refs"},
+                                {"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls.0.Amt"}
+                            ]},
+                            "message": "POSTC006: Transaction details structure is invalid"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC007_validate_transaction_references",
+            "name": "POSTC007: Validate Transaction References",
+            "description": "Ensure all required reference fields are present",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls.0.Refs",
+                            "logic": { "and": [
+                                {"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls.0.Refs.MsgId"},
+                                {"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls.0.Refs.AcctSvcrRef"},
+                                {"!=": [{"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls.0.Refs.MsgId"}, ""]},
+                                {"!=": [{"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls.0.Refs.AcctSvcrRef"}, ""]}
+                            ]},
+                            "message": "POSTC007: Transaction references are missing mandatory fields"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC008_validate_transaction_amounts",
+            "name": "POSTC008: Validate Transaction Amounts",
+            "description": "Ensure transaction amounts match entry amounts and have correct indicators",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls.0",
+                            "logic": { "and": [
+                                {"==": [{"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls.0.CdtDbtInd"}, "DBIT"]},
+                                {"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls.0.Amt.@Ccy"},
+                                {"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls.0.Amt.$value"},
+                                {"==": [
+                                    {"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls.0.Amt.$value"},
+                                    {"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.Amt.$value"}
+                                ]}
+                            ]},
+                            "message": "POSTC008: Transaction amounts do not match entry amounts or have incorrect indicators"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC009_validate_cbpr_compliance",
+            "name": "POSTC009: Validate CBPR+ Compliance",
+            "description": "Ensure CBPR+ specific requirements are met",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.AppHdr",
+                            "logic": { "and": [
+                                {"var": "data.AppHdr.BizSvc"},
+                                {"==": [{"var": "data.AppHdr.BizSvc"}, "swift.cbprplus.02"]},
+                                {"var": "data.AppHdr.MsgDefIdr"},
+                                {"==": [{"var": "data.AppHdr.MsgDefIdr"}, "camt.054.001.08"]}
+                            ]},
+                            "message": "POSTC009: Message does not meet CBPR+ compliance requirements"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC010_validate_related_parties",
+            "name": "POSTC010: Validate Related Parties",
+            "description": "Ensure related parties (field 52) are properly mapped when present",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {
+                                "or": [
+                                    {"!": {"var": "data.SwiftMT.fields.52"}},
+                                    {"var": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls.0.RltdPties.DbtrAgt"}
+                                ]
+                            },
+                            "message": "POSTC010: Field 52 (Ordering Institution) present but not mapped to related parties"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

@@ -60,7 +60,7 @@
                             "path": "data.Document.RsltnOfInvstgtn",
                             "logic": {
                                 "and": [
-                                    {"var": "data.Document.RsltnOfInvstgtn.Sts.Conf"},
+                                    {"exists": ["data", "Document", "RsltnOfInvstgtn", "Sts", "Conf"]},
                                     {"in": [{"var": "data.Document.RsltnOfInvstgtn.Sts.Conf"}, ["CNCL", "PDCR", "RJCR"]]}
                                 ]
                             },
@@ -104,11 +104,20 @@
         {
             "id": "POSTC002_validate_uetr",
             "name": "POSTC002: Validate UETR",
-            "description": "Ensure UETR is properly extracted when present",
+            "description": "Ensure UETR is properly extracted when present in Block3 or Field 77A",
             "function": {
                 "name": "validate",
                 "input": {
-                    "rules": [{"path": "data", "logic": true, "message": "POSTC002: UETR extraction failed"}]
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": { "or": [
+                                {"!": {"var": "temp_data.prec001_uetr_check"}},
+                                {"exists": ["data", "Document", "RsltnOfInvstgtn", "CxlDtls", "TxInfAndSts", "OrgnlUETR"]}
+                            ]},
+                            "message": "POSTC002: UETR was present but not properly mapped to OrgnlUETR"
+                        }
+                    ]
                 }
             }
         },
@@ -154,7 +163,10 @@
                         },
                         {
                             "path": "data",
-                            "logic": true,
+                            "logic": { "or": [
+                                {"!": {"exists": ["data", "SwiftMT", "fields", "76", "information"]}},
+                                {"exists": ["data", "Document", "RsltnOfInvstgtn", "CxlDtls", "TxInfAndSts", "CxlStsRsnInf", "AddtlInf"]}
+                            ]},
                             "message": "POSTC003: Field 76 content not properly mapped to AdditionalInformation"
                         }
                     ]
@@ -171,7 +183,14 @@
                     "rules": [
                         {
                             "path": "data",
-                            "logic": true,
+                            "logic": { "if": [
+                                {"and": [
+                                    {"exists": ["data", "SwiftMT", "fields", "76", "information", "0"]},
+                                    {"in": ["/ARPL/", {"var": "data.SwiftMT.fields.76.information.0"}]}
+                                ]},
+                                {"!": {"in": ["ARPL", {"var": "data.Document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"}]}},
+                                true
+                            ]},
                             "message": "POSTC004: ARPL code not properly removed from Field 76 (CBPR+ compliance)"
                         }
                     ]

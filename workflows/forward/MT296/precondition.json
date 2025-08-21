@@ -50,7 +50,7 @@
                         {
                             "path": "data",
                             "logic": { "and": [
-                                {"var": "data.SwiftMT.fields.76.information"},
+                                {"exists": ["data", "SwiftMT", "fields", "76", "information"]},
                                 {">": [{"length": {"var": "data.SwiftMT.fields.76.information"}}, 0]},
                                 { "or": [
                                     {"starts_with": [{"var": "data.SwiftMT.fields.76.information.0"}, "/CNCL/"]},
@@ -87,9 +87,45 @@
             }
         },
         {
+            "id": "TR001_extract_field_11S",
+            "name": "TR001: Extract Field 11S Components",
+            "description": "Extract MT type and date from Field 11S for original message identification",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field11s_mt_type",
+                            "logic": { "if": [
+                                {"exists": ["data", "SwiftMT", "fields", "11", "S", "message_type"]},
+                                {"var": "data.SwiftMT.fields.11.S.message_type"},
+                                { "if": [
+                                    {"exists": ["data", "SwiftMT", "fields", "11", "R", "message_type"]},
+                                    {"var": "data.SwiftMT.fields.11.R.message_type"},
+                                    null
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field11s_date",
+                            "logic": { "if": [
+                                {"exists": ["data", "SwiftMT", "fields", "11", "S", "date"]},
+                                {"var": "data.SwiftMT.fields.11.S.date"},
+                                { "if": [
+                                    {"exists": ["data", "SwiftMT", "fields", "11", "R", "date"]},
+                                    {"var": "data.SwiftMT.fields.11.R.date"},
+                                    null
+                                ]}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
             "id": "TR003_map_message_type",
             "name": "TR003: Map MT Message Type to MX Equivalent",
-            "description": "Map field 11R message type to corresponding MX message type using TR003 logic with pattern matching",
+            "description": "Map field 11S/11R message type to corresponding MX message type using TR003 logic with pattern matching",
             "function": {
                 "name": "map",
                 "input": {
@@ -97,35 +133,35 @@
                         {
                             "path": "temp_data.original_message_type",
                             "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.11.R.message_type"},
+                                {"var": "temp_data.field11s_mt_type"},
                                 { "if": [
-                                    {"match": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "^10[0-9]$"]},
+                                    {"match": [{"var": "temp_data.field11s_mt_type"}, "^10[0-9]$"]},
                                     { "if": [
-                                        {"==": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "103"]},
+                                        {"==": [{"var": "temp_data.field11s_mt_type"}, "103"]},
                                         "pacs.008",
                                         { "if": [
-                                            {"==": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "104"]},
+                                            {"==": [{"var": "temp_data.field11s_mt_type"}, "104"]},
                                             "pacs.003",
                                             "pacs.008"
                                         ]}
                                     ]},
                                     { "if": [
-                                        {"match": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "^20[0-9]$"]},
+                                        {"match": [{"var": "temp_data.field11s_mt_type"}, "^20[0-9]$"]},
                                         { "if": [
                                             {
                                                 "or": [
-                                                    {"==": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "202"]},
-                                                    {"==": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "205"]}
+                                                    {"==": [{"var": "temp_data.field11s_mt_type"}, "202"]},
+                                                    {"==": [{"var": "temp_data.field11s_mt_type"}, "205"]}
                                                 ]
                                             },
                                             "pacs.009",
                                             { "if": [
-                                                {"==": [{"var": "data.SwiftMT.fields.11.R.message_type"}, "204"]},
+                                                {"==": [{"var": "temp_data.field11s_mt_type"}, "204"]},
                                                 "pacs.010",
                                                 "pacs.009"
                                             ]}
                                         ]},
-                                        {"cat": ["MT", {"var": "data.SwiftMT.fields.11.R.message_type"}]}
+                                        {"cat": ["MT", {"var": "temp_data.field11s_mt_type"}]}
                                     ]}
                                 ]},
                                 "NOTPROVIDED"
@@ -278,6 +314,76 @@
                                     ]
                                 },
                                 []
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field76_reason_code",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.76.information.0"},
+                                { "if": [
+                                    {"in": ["/AC04", {"var": "data.SwiftMT.fields.76.information.0"}]},
+                                    "AC04",
+                                    { "if": [
+                                        {"in": ["/AGNT", {"var": "data.SwiftMT.fields.76.information.0"}]},
+                                        "AGNT",
+                                        { "if": [
+                                            {"in": ["/AM04", {"var": "data.SwiftMT.fields.76.information.0"}]},
+                                            "AM04",
+                                            { "if": [
+                                                {"in": ["/ARDT", {"var": "data.SwiftMT.fields.76.information.0"}]},
+                                                "ARDT",
+                                                { "if": [
+                                                    {"in": ["/CUST", {"var": "data.SwiftMT.fields.76.information.0"}]},
+                                                    "CUST",
+                                                    { "if": [
+                                                        {"in": ["/INDM", {"var": "data.SwiftMT.fields.76.information.0"}]},
+                                                        "INDM",
+                                                        { "if": [
+                                                            {"in": ["/LEGL", {"var": "data.SwiftMT.fields.76.information.0"}]},
+                                                            "LEGL",
+                                                            { "if": [
+                                                                {"in": ["/NOAS", {"var": "data.SwiftMT.fields.76.information.0"}]},
+                                                                "NOAS",
+                                                                { "if": [
+                                                                    {"in": ["/NOOR", {"var": "data.SwiftMT.fields.76.information.0"}]},
+                                                                    "NOOR",
+                                                                    { "if": [
+                                                                        {"in": ["/PTNA", {"var": "data.SwiftMT.fields.76.information.0"}]},
+                                                                        "PTNA",
+                                                                        { "if": [
+                                                                            {"in": ["/RQDA", {"var": "data.SwiftMT.fields.76.information.0"}]},
+                                                                            "RQDA",
+                                                                            null
+                                                                        ]}
+                                                                    ]}
+                                                                ]}
+                                                            ]}
+                                                        ]}
+                                                    ]}
+                                                ]}
+                                            ]}
+                                        ]}
+                                    ]}
+                                ]},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field76_additional_info",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.76.information"},
+                                {
+                                    "reduce": [
+                                        {"slice": [{"var": "data.SwiftMT.fields.76.information"}, 1]},
+                                        { "if": [
+                                            {"starts_with": [{"var": "current"}, "//"]},
+                                            {"cat": [{"var": "accumulator"}, " ", {"substr": [{"var": "current"}, 2]}]},
+                                            {"cat": [{"var": "accumulator"}, " ", {"var": "current"}]}
+                                        ]},
+                                        ""
+                                    ]
+                                },
+                                ""
                             ]}
                         }
                     ]

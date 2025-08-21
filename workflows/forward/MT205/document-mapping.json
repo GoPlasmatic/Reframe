@@ -212,6 +212,11 @@
                                         },
                                         {"Id": {"Othr": {"Id": {"var": "temp_data.settlement_account"}}}},
                                         null
+                                    ]},
+                                    "ClrChanl": { "if": [
+                                        {"var": "temp_data.clearing_channel"},
+                                        {"var": "temp_data.clearing_channel"},
+                                        null
                                     ]}
                                 }
                             }
@@ -701,50 +706,73 @@
         },
         {
             "id": "map_instructions",
-            "name": "Map Instructions",
-            "description": "Maps instructions for next agent and creditor agent from field 72",
+            "name": "Map Instructions with TR008 Implementation",
+            "description": "Maps instructions for next agent as per TR008 including /FIN54/ for serial payments and field 72 codes",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.InstrForNxtAgt",
+                            "path": "temp_data.instructions_for_next_agent",
                             "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.72.information"},
+                                {"or": [
+                                    {"var": "temp_data.field_54_for_serial"},
+                                    {"var": "data.SwiftMT.fields.72.information"}
+                                ]},
                                 {
-                                    "map": [
-                                        {
-                                            "filter": [
-                                                {"var": "data.SwiftMT.fields.72.information"},
-                                                {
-                                                    "and": [
-                                                        {"!=": [{"var": ""}, ""]},
-                                                        {
-                                                            "!": { "or": [
-                                                                {"starts_with": [{"var": ""}, "/ACC/"]},
-                                                                {"starts_with": [{"var": ""}, "/BNF/"]},
-                                                                {"starts_with": [{"var": ""}, "/TSU/"]},
-                                                                {"starts_with": [{"var": ""}, "/UDLC/"]},
-                                                                {"starts_with": [{"var": ""}, "/PHONBEN/"]},
-                                                                {"starts_with": [{"var": ""}, "/TELEBEN/"]},
-                                                                {"starts_with": [{"var": ""}, "/LOCINS/"]},
-                                                                {"starts_with": [{"var": ""}, "/CATPURP/"]},
-                                                                {"starts_with": [{"var": ""}, "/PURP/"]}
-                                                            ]}
-                                                        }
-                                                    ]
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            "InstrInf": { "if": [
-                                                {">=": [{"length": {"var": ""}}, 35]},
-                                                {"substr": [{"var": ""}, 0, 35]},
-                                                {"var": ""}
-                                            ]}
-                                        }
+                                    "cat": [
+                                        {"if": [{"var": "temp_data.field_54_for_serial"}, {"var": "temp_data.field_54_for_serial"}, ""]},
+                                        {"if": [
+                                            {"var": "data.SwiftMT.fields.72.information"},
+                                            {
+                                                "join": [
+                                                    "",
+                                                    {
+                                                        "filter": [
+                                                            {"var": "data.SwiftMT.fields.72.information"},
+                                                            {
+                                                                "and": [
+                                                                    {"!=": [{"var": ""}, ""]},
+                                                                    {
+                                                                        "!": { "or": [
+                                                                            {"starts_with": [{"var": ""}, "/ACC/"]},
+                                                                            {"starts_with": [{"var": ""}, "/BNF/"]},
+                                                                            {"starts_with": [{"var": ""}, "/TSU/"]},
+                                                                            {"starts_with": [{"var": ""}, "/UDLC/"]},
+                                                                            {"starts_with": [{"var": ""}, "/PHONBEN/"]},
+                                                                            {"starts_with": [{"var": ""}, "/TELEBEN/"]},
+                                                                            {"starts_with": [{"var": ""}, "/INS/"]}
+                                                                        ]}
+                                                                    }
+                                                                ]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            },
+                                            ""
+                                        ]}
                                     ]
                                 },
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.InstrForNxtAgt",
+                            "logic": { "if": [
+                                {
+                                    "and": [
+                                        {"var": "temp_data.instructions_for_next_agent"},
+                                        {"!=": [{"var": "temp_data.instructions_for_next_agent"}, ""]}
+                                    ]
+                                },
+                                [{
+                                    "InstrInf": { "if": [
+                                        {">": [{"length": {"var": "temp_data.instructions_for_next_agent"}}, 35]},
+                                        {"substr": [{"var": "temp_data.instructions_for_next_agent"}, 0, 35]},
+                                        {"var": "temp_data.instructions_for_next_agent"}
+                                    ]}
+                                }],
                                 null
                             ]}
                         },

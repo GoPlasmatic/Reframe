@@ -109,16 +109,23 @@
                         {
                             "path": "data",
                             "logic": { "and": [
-                                {"var": "data.SwiftMT.fields.20.reference"},
-                                {"var": "data.SwiftMT.fields.32A.value_date"},
-                                {"var": "data.SwiftMT.fields.32A.currency"},
-                                {"var": "data.SwiftMT.fields.32A.amount"},
-                                {"or": [{"var": "data.SwiftMT.fields.58.A"}, {"var": "data.SwiftMT.fields.58.D"}]},
+                                {"exists": ["data", "SwiftMT", "fields", "20", "reference"]},
+                                {"exists": ["data", "SwiftMT", "fields", "21", "reference"]},
+                                {"exists": ["data", "SwiftMT", "fields", "32A"]},
+                                {"exists": ["data", "SwiftMT", "fields", "32A", "value_date"]},
+                                {"exists": ["data", "SwiftMT", "fields", "32A", "currency"]},
+                                {"exists": ["data", "SwiftMT", "fields", "32A", "amount"]},
+                                {"or": [
+                                    {"exists": ["data", "SwiftMT", "fields", "58", "A"]},
+                                    {"exists": ["data", "SwiftMT", "fields", "58", "D"]}
+                                ]},
                                 {"!=": [{"var": "data.SwiftMT.fields.20.reference"}, ""]},
+                                {"!=": [{"var": "data.SwiftMT.fields.21.reference"}, ""]},
                                 {"!=": [{"var": "data.SwiftMT.fields.32A.currency"}, ""]},
-                                {">": [{"var": "data.SwiftMT.fields.32A.amount"}, 0]}
+                                {"!=": [{"var": "data.SwiftMT.fields.32A.value_date"}, ""]},
+                                {">=": [{"var": "data.SwiftMT.fields.32A.amount"}, 0]}
                             ]},
-                            "message": "T20069: Mandatory MT205 COV fields (20, 32A, 58A) are missing or invalid"
+                            "message": "T20069: Mandatory MT205 COV fields (20, 21, 32A, 58A/D) are missing or invalid"
                         }
                     ]
                 }
@@ -181,6 +188,57 @@
             }
         },
         {
+            "id": "PREC006_validate_sequence_b",
+            "name": "PREC006: Validate Sequence B (Underlying Customer Credit Transfer)",
+            "description": "Validate sequence B fields for underlying customer information",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.has_sequence_b",
+                            "logic": { "or": [
+                                {"exists": ["data", "SwiftMT", "fields", "50A"]},
+                                {"exists": ["data", "SwiftMT", "fields", "50F"]},
+                                {"exists": ["data", "SwiftMT", "fields", "50K"]},
+                                {"exists": ["data", "SwiftMT", "fields", "59"]},
+                                {"exists": ["data", "SwiftMT", "fields", "59A"]},
+                                {"exists": ["data", "SwiftMT", "fields", "59F"]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.has_reimbursement_agents",
+                            "logic": { "or": [
+                                {"exists": ["data", "SwiftMT", "fields", "53B"]},
+                                {"exists": ["data", "SwiftMT", "fields", "54B"]},
+                                {"exists": ["data", "SwiftMT", "fields", "55B"]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.serial_payment_type",
+                            "logic": { "if": [
+                                {"var": "temp_data.has_reimbursement_agents"},
+                                "SERIAL",
+                                "DIRECT"
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.amount_value",
+                            "logic": {"var": "data.SwiftMT.fields.32A.amount"}
+                        },
+                        {
+                            "path": "temp_data.value_date",
+                            "logic": {"var": "data.SwiftMT.fields.32A.value_date"}
+                        },
+                        {
+                            "path": "temp_data.currency",
+                            "logic": {"var": "data.SwiftMT.fields.32A.currency"}
+                        }
+                    ]
+                }
+            }
+        },
+        {
             "id": "MT205COV_set_cover_translation",
             "name": "MT205 COV: Set to ADV Cover Translation",
             "description": "MT205 COV translates to pacs.009 ADV (cover payment) - implements METAFCT003 for cover scenarios",
@@ -190,7 +248,33 @@
                     "mappings": [
                         {"path": "temp_data.payment_scenario", "logic": "MT205_COV_ALWAYS_COVER"},
                         {"path": "temp_data.MTType", "logic": "COVER"},
-                        {"path": "temp_data.translation_target", "logic": "pacs.009.ADV"}
+                        {"path": "temp_data.translation_target", "logic": "pacs.009.ADV"},
+                        {
+                            "path": "warnings",
+                            "logic": { "if": [
+                                {"var": "temp_data.has_sequence_b"},
+                                [{
+                                    "code": "T20237",
+                                    "message": "Sequence B (Underlying Customer Credit Transfer) detected. Ensure proper mapping of customer fields.",
+                                    "severity": "WARNING",
+                                    "field": "50/59"
+                                }],
+                                []
+                            ]}
+                        },
+                        {
+                            "path": "warnings",
+                            "logic": { "if": [
+                                {"var": "temp_data.has_reimbursement_agents"},
+                                [{
+                                    "code": "T20238",
+                                    "message": "Serial payment with reimbursement agents detected. Ensure proper mapping of fields 53B, 54B, 55B",
+                                    "severity": "WARNING",
+                                    "field": "53B/54B/55B"
+                                }],
+                                []
+                            ]}
+                        }
                     ]
                 }
             }

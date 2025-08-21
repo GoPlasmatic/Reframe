@@ -1,0 +1,263 @@
+{
+    "id": "mt292-postcondition",
+    "name": "MT292 to camt.056 Postcondition Validation",
+    "description": "Validates the camt.056 output from MT292 transformation for CBPR+ compliance",
+    "priority": 5,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "292"]},
+        {"==": [{"var": "SwiftMT.method"}, "normal"]},
+        {"==": [{"var": "progress.workflow_id"}, "mt292-document-mapper"]},
+        {"==": [{"var": "progress.task_id"}, "publish_document_xml"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "validate_document_structure",
+            "name": "Validate Document Structure",
+            "description": "Ensure the Document and FIToFIPmtCxlReq elements exist",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {"exists": ["data", "Document", "FIToFIPmtCxlReq"]},
+                            "message": "Document.FIToFIPmtCxlReq structure is missing"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_assignment",
+            "name": "Validate Assignment Section",
+            "description": "Ensure Assignment section has required fields",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {"exists": ["data", "Document", "FIToFIPmtCxlReq", "Assgnmt", "Id"]},
+                            "message": "Assignment Id is missing (Field 20)"
+                        },
+                        {
+                            "path": "data",
+                            "logic": {"exists": ["data", "Document", "FIToFIPmtCxlReq", "Assgnmt", "Assgnr", "Agt", "FinInstnId", "BICFI"]},
+                            "message": "Assigner BICFI is missing"
+                        },
+                        {
+                            "path": "data",
+                            "logic": {"exists": ["data", "Document", "FIToFIPmtCxlReq", "Assgnmt", "Assgne", "Agt", "FinInstnId", "BICFI"]},
+                            "message": "Assignee BICFI is missing"
+                        },
+                        {
+                            "path": "data",
+                            "logic": {"exists": ["data", "Document", "FIToFIPmtCxlReq", "Assgnmt", "CreDtTm"]},
+                            "message": "Assignment CreationDateTime is missing"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_underlying_transaction",
+            "name": "Validate Underlying Transaction Information",
+            "description": "Ensure underlying transaction has required fields for CBPR+ compliance",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {"exists": ["data", "Document", "FIToFIPmtCxlReq", "Undrlyg", "TxInf"]},
+                            "message": "Underlying TransactionInformation is missing"
+                        },
+                        {
+                            "path": "data",
+                            "logic": {"exists": ["data", "Document", "FIToFIPmtCxlReq", "Undrlyg", "TxInf", "OrgnlGrpInf", "OrgnlMsgId"]},
+                            "message": "Original Message Id is missing (Field 21)"
+                        },
+                        {
+                            "path": "data",
+                            "logic": {"exists": ["data", "Document", "FIToFIPmtCxlReq", "Undrlyg", "TxInf", "OrgnlGrpInf", "OrgnlMsgNmId"]},
+                            "message": "Original Message Name Id is missing"
+                        },
+                        {
+                            "path": "data",
+                            "logic": {"exists": ["data", "Document", "FIToFIPmtCxlReq", "Undrlyg", "TxInf", "OrgnlUETR"]},
+                            "message": "Original UETR is missing - required for CBPR+"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_cancellation_reason",
+            "name": "Validate Cancellation Reason Information",
+            "description": "Ensure cancellation reason is properly set",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {"exists": ["data", "Document", "FIToFIPmtCxlReq", "Undrlyg", "TxInf", "CxlRsnInf"]},
+                            "message": "Cancellation Reason Information is missing"
+                        },
+                        {
+                            "path": "data",
+                            "logic": {"exists": ["data", "Document", "FIToFIPmtCxlReq", "Undrlyg", "TxInf", "CxlRsnInf", "Rsn", "Cd"]},
+                            "message": "Cancellation Reason Code is missing"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_original_amount",
+            "name": "Validate Original Transaction Amount",
+            "description": "Ensure original interbank settlement amount is present",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {"exists": ["data", "Document", "FIToFIPmtCxlReq", "Undrlyg", "TxInf", "OrgnlIntrBkSttlmAmt"]},
+                            "message": "Original Interbank Settlement Amount is missing"
+                        },
+                        {
+                            "path": "data",
+                            "logic": {"exists": ["data", "Document", "FIToFIPmtCxlReq", "Undrlyg", "TxInf", "OrgnlIntrBkSttlmAmt", "@Ccy"]},
+                            "message": "Original Amount Currency is missing"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_case_information",
+            "name": "Validate Case Information",
+            "description": "Ensure case information is properly structured",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {"exists": ["data", "Document", "FIToFIPmtCxlReq", "Undrlyg", "TxInf", "Case", "Id"]},
+                            "message": "Case Id is missing"
+                        },
+                        {
+                            "path": "data",
+                            "logic": {"exists": ["data", "Document", "FIToFIPmtCxlReq", "Undrlyg", "TxInf", "Case", "Cretr", "Agt", "FinInstnId"]},
+                            "message": "Case Creator Agent is missing"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_cbpr_compliance",
+            "name": "Validate CBPR+ Specific Requirements",
+            "description": "Check CBPR+ specific compliance rules",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {
+                                "and": [
+                                    {"exists": ["data", "Document", "FIToFIPmtCxlReq", "Undrlyg", "TxInf", "OrgnlUETR"]},
+                                    {"!=": [{"var": "data.Document.FIToFIPmtCxlReq.Undrlyg.TxInf.OrgnlUETR"}, ""]}
+                                ]
+                            },
+                            "message": "CBPR+ requires valid UETR in Original UETR field"
+                        },
+                        {
+                            "path": "data",
+                            "logic": {
+                                "in": [
+                                    {"var": "data.Document.FIToFIPmtCxlReq.Undrlyg.TxInf.OrgnlGrpInf.OrgnlMsgNmId"},
+                                    ["pacs.008", "pacs.009", "pacs.003", "pacs.010", "MT103", "MT202", "MT205", "MT104", "MT204"]
+                                ]
+                            },
+                            "message": "Original Message Name Id must be a valid payment message type"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_reason_code_values",
+            "name": "Validate Cancellation Reason Code Values",
+            "description": "Ensure cancellation reason code is from valid list",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {
+                                "in": [
+                                    {"var": "data.Document.FIToFIPmtCxlReq.Undrlyg.TxInf.CxlRsnInf.Rsn.Cd"},
+                                    ["AGNT", "AM09", "COVR", "CURR", "CUST", "CUTA", "DUPL", "FRAD", "TECH", "UPAY", "NARR"]
+                                ]
+                            },
+                            "message": "Cancellation reason code must be a valid ISO 20022 code or NARR"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_date_formats",
+            "name": "Validate Date Formats",
+            "description": "Ensure dates are in ISO format",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": {
+                                "or": [
+                                    {"==": [{"var": "data.Document.FIToFIPmtCxlReq.Undrlyg.TxInf.OrgnlIntrBkSttlmDt"}, "9999-12-31"]},
+                                    {
+                                        "match": [
+                                            {"var": "data.Document.FIToFIPmtCxlReq.Undrlyg.TxInf.OrgnlIntrBkSttlmDt"},
+                                            "^20[0-9]{2}-[0-1][0-9]-[0-3][0-9]$"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "message": "Original Interbank Settlement Date must be in ISO format (YYYY-MM-DD)"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "set_validation_complete",
+            "name": "Set Validation Complete",
+            "description": "Mark MT292 postcondition validation as complete",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "postcondition_validation",
+                            "logic": {
+                                "mt292_postcondition": "complete",
+                                "cbpr_compliant": true,
+                                "validation_timestamp": {"now": []}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

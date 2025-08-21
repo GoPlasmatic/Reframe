@@ -36,7 +36,7 @@
         {
             "id": "PREC002_validate_mandatory_fields",
             "name": "PREC002: Validate Mandatory MT900 Fields",
-            "description": "Ensure mandatory fields for MT900 are present",
+            "description": "Ensure mandatory fields for MT900 are present and valid",
             "function": {
                 "name": "validate",
                 "input": {
@@ -44,12 +44,30 @@
                         {
                             "path": "data",
                             "logic": { "and": [
-                                {"var": "data.SwiftMT.fields.20.reference"},
-                                {"var": "data.SwiftMT.fields.32A"},
+                                {"exists": ["data", "SwiftMT", "fields", "20", "reference"]},
+                                {"exists": ["data", "SwiftMT", "fields", "21", "reference"]},
+                                {"exists": ["data", "SwiftMT", "fields", "32A"]},
+                                {"exists": ["data", "SwiftMT", "fields", "32A", "amount"]},
+                                {"exists": ["data", "SwiftMT", "fields", "32A", "currency"]},
+                                {"exists": ["data", "SwiftMT", "fields", "32A", "value_date"]},
                                 {"!=": [{"var": "data.SwiftMT.fields.20.reference"}, ""]},
-                                {"!=": [{"var": "data.SwiftMT.fields.32A.amount"}, null]}
+                                {"!=": [{"var": "data.SwiftMT.fields.21.reference"}, ""]},
+                                {"!=": [{"var": "data.SwiftMT.fields.32A.amount"}, null]},
+                                {"!=": [{"var": "data.SwiftMT.fields.32A.currency"}, ""]},
+                                {"!=": [{"var": "data.SwiftMT.fields.32A.value_date"}, ""]},
+                                {">=": [{"var": "data.SwiftMT.fields.32A.amount"}, 0]}
                             ]},
-                            "message": "Translation stopped: Mandatory MT900 fields (20, 32A) are missing or invalid"
+                            "message": "Translation stopped: Mandatory MT900 fields (20, 21, 32A) are missing or invalid"
+                        },
+                        {
+                            "path": "data",
+                            "logic": {
+                                "or": [
+                                    {"exists": ["data", "SwiftMT", "fields", "25", "NoOption", "authorisation"]},
+                                    {"exists": ["data", "SwiftMT", "fields", "25", "P", "account"]}
+                                ]
+                            },
+                            "message": "Translation stopped: Field 25 or 25P (Account Identification) is mandatory but missing"
                         }
                     ]
                 }
@@ -72,6 +90,14 @@
                                 {"var": "data.SwiftMT.fields.32A.currency"},
                                 "USD"
                             ]}
+                        },
+                        {
+                            "path": "temp_data.amount_value",
+                            "logic": {"var": "data.SwiftMT.fields.32A.amount"}
+                        },
+                        {
+                            "path": "temp_data.value_date",
+                            "logic": {"var": "data.SwiftMT.fields.32A.value_date"}
                         },
                         {
                             "path": "warnings",

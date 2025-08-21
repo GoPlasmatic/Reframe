@@ -129,13 +129,56 @@
             }
         },
         {
-            "id": "PREC004_extract_field_72_codes",
-            "name": "PREC004: Extract Field 72 Codes for Processing",
-            "description": "Extract and process field 72 codes for validation and warning generation",
+            "id": "PREC004_extract_field_54_and_72_codes",
+            "name": "PREC004: Extract Field 54 and Field 72 Codes",
+            "description": "Extract receiver's correspondent from Field 54 and process field 72 codes as per TR008",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
+                        {
+                            "path": "temp_data.field_54b_present",
+                            "logic": {"!!": {"var": "data.SwiftMT.fields.54.B"}}
+                        },
+                        {
+                            "path": "temp_data.field_54b_party_identifier",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.54.B.party_identifier"},
+                                {"var": "data.SwiftMT.fields.54.B.party_identifier"},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field_54b_location",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.54.B.location"},
+                                {"var": "data.SwiftMT.fields.54.B.location"},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field_54_for_serial",
+                            "logic": { "if": [
+                                {"var": "temp_data.field_54b_present"},
+                                {
+                                    "cat": ["/FIN54/", {"substr": [{"var": "temp_data.Receiver"}, 0, 8]}]
+                                },
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field_72_has_acc",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.72.information"},
+                                {
+                                    "some": [
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        {"starts_with": [{"var": ""}, "/ACC/"]}
+                                    ]
+                                },
+                                false
+                            ]}
+                        },
                         {
                             "path": "temp_data.field_72_has_ins",
                             "logic": { "if": [
@@ -144,6 +187,58 @@
                                     "some": [
                                         {"var": "data.SwiftMT.fields.72.information"},
                                         {"starts_with": [{"var": ""}, "/INS/"]}
+                                    ]
+                                },
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field_72_has_rec",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.72.information"},
+                                {
+                                    "some": [
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        {"starts_with": [{"var": ""}, "/REC/"]}
+                                    ]
+                                },
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field_72_has_bnf",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.72.information"},
+                                {
+                                    "some": [
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        {"starts_with": [{"var": ""}, "/BNF/"]}
+                                    ]
+                                },
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field_72_has_tsu",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.72.information"},
+                                {
+                                    "some": [
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        {"starts_with": [{"var": ""}, "/TSU/"]}
+                                    ]
+                                },
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field_72_has_udlc",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.72.information"},
+                                {
+                                    "some": [
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        {"starts_with": [{"var": ""}, "/UDLC/"]}
                                     ]
                                 },
                                 false
@@ -177,6 +272,76 @@
                             "logic": { "if": [
                                 {"var": "temp_data.field_72_has_phon"},
                                 "T20200: Field 72 contains phone/telephone beneficiary information",
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "PREC005_clearing_channel_detection",
+            "name": "PREC005: Detect Clearing Channel (TR006)",
+            "description": "Detect RTGS clearing channel based on //RT or //FW in agent fields",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.has_rtgs_indicator",
+                            "logic": { "or": [
+                                {
+                                    "and": [
+                                        {"var": "data.SwiftMT.fields.56.A.party_identifier"},
+                                        { "or": [
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, "//RT"]},
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, "//FW"]}
+                                        ]}
+                                    ]
+                                },
+                                {
+                                    "and": [
+                                        {"var": "data.SwiftMT.fields.56.D.party_identifier"},
+                                        {"starts_with": [{"var": "data.SwiftMT.fields.56.D.party_identifier"}, "//RT"]}
+                                    ]
+                                },
+                                {
+                                    "and": [
+                                        {"var": "data.SwiftMT.fields.57.A.party_identifier"},
+                                        { "or": [
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//RT"]},
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//FW"]}
+                                        ]}
+                                    ]
+                                },
+                                {
+                                    "and": [
+                                        {"var": "data.SwiftMT.fields.57.D.party_identifier"},
+                                        {"starts_with": [{"var": "data.SwiftMT.fields.57.D.party_identifier"}, "//RT"]}
+                                    ]
+                                },
+                                {
+                                    "and": [
+                                        {"var": "data.SwiftMT.fields.58.A.party_identifier"},
+                                        { "or": [
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.58.A.party_identifier"}, "//RT"]},
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.58.A.party_identifier"}, "//FW"]}
+                                        ]}
+                                    ]
+                                },
+                                {
+                                    "and": [
+                                        {"var": "data.SwiftMT.fields.58.D.party_identifier"},
+                                        {"starts_with": [{"var": "data.SwiftMT.fields.58.D.party_identifier"}, "//RT"]}
+                                    ]
+                                }
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.clearing_channel",
+                            "logic": { "if": [
+                                {"var": "temp_data.has_rtgs_indicator"},
+                                "RTGS",
                                 null
                             ]}
                         }

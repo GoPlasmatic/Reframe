@@ -114,27 +114,27 @@
                             "logic": {"!!": {"var": "temp_data.field_79_origamt_line"}}
                         },
                         {
-                            "path": "temp_data.origamt_parts",
+                            "path": "temp_data.origamt_value",
                             "logic": { "if": [
                                 {"var": "temp_data.field_79_origamt_line"},
-                                {"split": [{"substr": [{"var": "temp_data.field_79_origamt_line"}, 9]}, " "]},
-                                []
+                                {"substr": [{"var": "temp_data.field_79_origamt_line"}, 9]},
+                                ""
                             ]}
                         },
                         {
                             "path": "temp_data.original_currency",
                             "logic": { "if": [
-                                {"var": "temp_data.origamt_parts.0"},
-                                {"var": "temp_data.origamt_parts.0"},
+                                {"var": "temp_data.origamt_value"},
+                                {"substr": [{"var": "temp_data.origamt_value"}, 0, 3]},
                                 "USD"
                             ]}
                         },
                         {
                             "path": "temp_data.original_amount",
                             "logic": { "if": [
-                                {"var": "temp_data.origamt_parts.1"},
-                                {"var": "temp_data.origamt_parts.1"},
-                                0.0
+                                {"var": "temp_data.origamt_value"},
+                                {"substr": [{"var": "temp_data.origamt_value"}, 3]},
+                                "0.00"
                             ]}
                         }
                     ]
@@ -268,11 +268,34 @@
                             ]}
                         },
                         {
-                            "path": "temp_data.field_79_narrative",
+                            "path": "temp_data.field_79_without_origamt",
                             "logic": { "if": [
-                                {">": [{"length": {"var": "temp_data.field_79_without_uetr"}}, 0]},
                                 {"var": "temp_data.field_79_without_uetr"},
-                                {"if": [{"var": "data.SwiftMT.fields.79.information"}, [], []]}
+                                {
+                                    "filter": [
+                                        {"var": "temp_data.field_79_without_uetr"},
+                                        {"not": {"in": ["/ORIGAMT/", {"var": ""}]}}
+                                    ]
+                                },
+                                []
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field_79_reason_line",
+                            "logic": { "if": [
+                                {"var": "temp_data.field_79_without_origamt"},
+                                {
+                                    "reduce": [
+                                        {"var": "temp_data.field_79_without_origamt"},
+                                        { "if": [
+                                            {"in": ["/REASON/", {"var": "current"}]},
+                                            {"var": "current"},
+                                            {"var": "accumulator"}
+                                        ]},
+                                        null
+                                    ]
+                                },
+                                null
                             ]}
                         }
                     ]
@@ -280,24 +303,51 @@
             }
         },
         {
-            "id": "set_basic_values",
-            "name": "Set Basic Values",
-            "description": "Set basic temp data values including UETR and cancellation info",
+            "id": "MT_To_MXField79_extract_cancellation_reason",
+            "name": "Extract Cancellation Reason from Field 79",
+            "description": "Implement MT_To_MXField79 logic to extract cancellation reason code and additional information",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
-                        {"path": "temp_data.cancellation_type", "logic": "FULL"},
-                        {"path": "temp_data.request_status", "logic": "CANC"},
+                        {
+                            "path": "temp_data.extracted_reason_code",
+                            "logic": { "if": [
+                                {"var": "temp_data.field_79_reason_line"},
+                                {"substr": [{"var": "temp_data.field_79_reason_line"}, 8]},
+                                null
+                            ]}
+                        },
                         {
                             "path": "temp_data.cancellation_reason",
-                            "logic": {"if": [{"var": "data.SwiftMT.fields.79"}, "NARR", "NARR"]}
+                            "logic": { "if": [
+                                {"var": "temp_data.extracted_reason_code"},
+                                { "if": [
+                                    {"in": [{"var": "temp_data.extracted_reason_code"}, ["AGNT", "AM09", "COVR", "CURR", "CUST", "CUTA", "DUPL", "FRAD", "TECH", "UPAY"]]},
+                                    {"var": "temp_data.extracted_reason_code"},
+                                    "NARR"
+                                ]},
+                                "NARR"
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field79_lines_for_additional_info",
+                            "logic": { "if": [
+                                {"var": "temp_data.field_79_without_origamt"},
+                                {
+                                    "filter": [
+                                        {"var": "temp_data.field_79_without_origamt"},
+                                        {"not": {"in": ["/REASON/", {"var": ""}]}}
+                                    ]
+                                },
+                                []
+                            ]}
                         },
                         {
                             "path": "temp_data.cancellation_additional_info",
                             "logic": { "if": [
-                                {">": [{"length": {"var": "temp_data.field_79_without_uetr"}}, 0]},
-                                {"var": "temp_data.field_79_without_uetr"},
+                                {"var": "temp_data.field79_lines_for_additional_info"},
+                                {"var": "temp_data.field79_lines_for_additional_info"},
                                 ["NOTPROVIDED"]
                             ]}
                         }

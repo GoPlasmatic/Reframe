@@ -241,8 +241,86 @@
             }
         },
         {
-            "id": "POSTC007_validate_service_level",
-            "name": "POSTC007: Validate Service Level",
+            "id": "POSTC007_validate_cbpr_compliance",
+            "name": "POSTC007: Validate CBPR+ Compliance",
+            "description": "Ensure CBPR+ specific requirements are met",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.AppHdr",
+                            "logic": { "and": [
+                                {"var": "data.AppHdr.BizSvc"},
+                                {"==": [{"var": "data.AppHdr.BizSvc"}, "swift.cbprplus.02"]},
+                                {"var": "data.AppHdr.MsgDefIdr"},
+                                {"==": [{"var": "data.AppHdr.MsgDefIdr"}, "pacs.009.001.09"]}
+                            ]},
+                            "message": "POSTC007: Message does not meet CBPR+ compliance requirements"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC008_validate_sequence_b_mapping",
+            "name": "POSTC008: Validate Sequence B Mapping",
+            "description": "Ensure sequence B (underlying customer credit transfer) is properly mapped when present",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": { "if": [
+                                {"var": "temp_data.has_sequence_b"},
+                                { "and": [
+                                    {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "UndrlygCstmrCdtTrf"]},
+                                    { "or": [
+                                        {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "UndrlygCstmrCdtTrf", "Dbtr"]},
+                                        {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "UndrlygCstmrCdtTrf", "UltmtDbtr"]}
+                                    ]},
+                                    { "or": [
+                                        {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "UndrlygCstmrCdtTrf", "Cdtr"]},
+                                        {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "UndrlygCstmrCdtTrf", "UltmtCdtr"]}
+                                    ]}
+                                ]},
+                                true
+                            ]},
+                            "message": "POSTC008: Sequence B fields present but not properly mapped to underlying customer credit transfer"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC009_validate_reimbursement_agents",
+            "name": "POSTC009: Validate Reimbursement Agents",
+            "description": "Ensure reimbursement agents are properly mapped for serial payments",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data",
+                            "logic": { "if": [
+                                {"var": "temp_data.has_reimbursement_agents"},
+                                { "or": [
+                                    {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "InstgRmbrsmntAgt"]},
+                                    {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "InstdRmbrsmntAgt"]},
+                                    {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "ThrdRmbrsmntAgt"]}
+                                ]},
+                                true
+                            ]},
+                            "message": "POSTC009: Serial payment reimbursement agents not properly mapped"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "POSTC010_validate_service_level",
+            "name": "POSTC010: Validate Service Level",
             "description": "Ensure service level codes are properly generated from TR002",
             "function": {
                 "name": "validate",

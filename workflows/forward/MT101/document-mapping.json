@@ -182,13 +182,45 @@
                             "path": "data.Document.CstmrCdtTrfInitn.PmtInf.InstrForDbtrAgt",
                             "logic": { "if": [
                                 {"var": "data.SwiftMT.fields.23E"},
-                                {
-                                    "reduce": [
-                                        {"var": "data.SwiftMT.fields.23E"},
-                                        {"cat": [{"var": "accumulator"}, " ", {"substr": [{"var": "current.instruction_code"}, 5]}]},
-                                        ""
-                                    ]
-                                },
+                                { "if": [
+                                    {
+                                        "some": [
+                                            {"var": "data.SwiftMT.fields.23E"},
+                                            {"==": [{"substr": [{"var": "current.instruction_code"}, 0, 4]}, "OTHR"]}
+                                        ]
+                                    },
+                                    {
+                                        "substr": [
+                                            {
+                                                "reduce": [
+                                                    {
+                                                        "filter": [
+                                                            {"var": "data.SwiftMT.fields.23E"},
+                                                            {"==": [{"substr": [{"var": "current.instruction_code"}, 0, 4]}, "OTHR"]}
+                                                        ]
+                                                    },
+                                                    { "if": [
+                                                        {">": [{"length": {"var": "current.instruction_code"}}, 5]},
+                                                        { "if": [
+                                                            {"==": [{"var": "accumulator"}, ""]},
+                                                            {"substr": [{"var": "current.instruction_code"}, 5]},
+                                                            { "if": [
+                                                                {"<": [{"length": {"substr": [{"var": "accumulator"}, {"*": [{"length": {"var": "accumulator"}}, -1]}, 30]}}, 30]},
+                                                                {"cat": [{"var": "accumulator"}, " ", {"substr": [{"var": "current.instruction_code"}, 5]}]},
+                                                                {"cat": [{"var": "accumulator"}, {"substr": [{"var": "current.instruction_code"}, 5]}]}
+                                                            ]}
+                                                        ]},
+                                                        {"var": "accumulator"}
+                                                    ]},
+                                                    ""
+                                                ]
+                                            },
+                                            0,
+                                            140
+                                        ]
+                                    },
+                                    null
+                                ]},
                                 null
                             ]}
                         },

@@ -31,7 +31,10 @@
                         },
                         {
                             "path": "data.Document.PmtRtr",
-                            "logic": {"and": [{"var": "TxInf"}, {">": [{"length": {"var": "TxInf"}}, 0]}]},
+                            "logic": { "and": [
+                                {"var": "TxInf"},
+                                {">": [{"length": {"var": "TxInf"}}, 0]}
+                            ]},
                             "message": "POSTC001: Missing mandatory Transaction Information in pacs.004"
                         }
                     ]
@@ -50,17 +53,10 @@
                             "path": "data",
                             "logic": { "if": [
                                 {"var": "SwiftMT.user_header.unique_end_to_end_reference"},
-                                {
-                                    "and": [
-                                        {"var": "Document.PmtRtr.TxInf.0.OrgnlUETR"},
-                                        {
-                                            "==": [
-                                                {"var": "Document.PmtRtr.TxInf.0.OrgnlUETR"},
-                                                {"var": "SwiftMT.user_header.unique_end_to_end_reference"}
-                                            ]
-                                        }
-                                    ]
-                                },
+                                { "and": [
+                                    {"var": "Document.PmtRtr.TxInf.0.OrgnlUETR"},
+                                    {"==": [{"var": "Document.PmtRtr.TxInf.0.OrgnlUETR"}, {"var": "SwiftMT.user_header.unique_end_to_end_reference"}]}
+                                ]},
                                 true
                             ]},
                             "message": "POSTC002: UETR from user header not properly mapped to OriginalUETR"
@@ -146,12 +142,10 @@
                     "rules": [
                         {
                             "path": "data",
-                            "logic": {
-                                "and": [
-                                    {"==": [{"var": "AppHdr.BizSvc"}, "swift.cbprplus.01"]},
-                                    {"==": [{"var": "AppHdr.MsgDefIdr"}, "pacs.004.001.09"]}
-                                ]
-                            },
+                            "logic": { "and": [
+                                {"==": [{"var": "AppHdr.BizSvc"}, "swift.cbprplus.01"]},
+                                {"==": [{"var": "AppHdr.MsgDefIdr"}, "pacs.004.001.09"]}
+                            ]},
                             "message": "POSTC006: Invalid CBPR+ service or message definition identifier"
                         }
                     ]
@@ -168,9 +162,10 @@
                     "rules": [
                         {
                             "path": "data.Document.PmtRtr.TxInf.0",
-                            "logic": {
-                                "and": [{"var": "InstgAgt.FinInstnId.BICFI"}, {"var": "InstdAgt.FinInstnId.BICFI"}]
-                            },
+                            "logic": { "and": [
+                                {"var": "InstgAgt.FinInstnId.BICFI"},
+                                {"var": "InstdAgt.FinInstnId.BICFI"}
+                            ]},
                             "message": "POSTC007: Missing instructing or instructed agent BIC"
                         }
                     ]
@@ -188,20 +183,14 @@
                         {
                             "path": "data",
                             "logic": { "if": [
-                                {
-                                    "and": [
-                                        {"var": "SwiftMT.user_header.service_type_identifier"},
-                                        {"match": [{"var": "SwiftMT.user_header.service_type_identifier"}, "^00[1-9]$"]}
-                                    ]
-                                },
-                                {
-                                    "and": [
-                                        {"var": "Document.PmtRtr.TxInf.0.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"},
-                                        {
-                                            "starts_with": [{"var": "Document.PmtRtr.TxInf.0.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"}, "G00"]
-                                        }
-                                    ]
-                                },
+                                { "and": [
+                                    {"var": "SwiftMT.user_header.service_type_identifier"},
+                                    {"match": [{"var": "SwiftMT.user_header.service_type_identifier"}, "^00[1-9]$"]}
+                                ]},
+                                { "and": [
+                                    {"var": "Document.PmtRtr.TxInf.0.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"},
+                                    {"starts_with": [{"var": "Document.PmtRtr.TxInf.0.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"}, "G00"]}
+                                ]},
                                 true
                             ]},
                             "message": "POSTC008: Service level code not properly mapped from Block 3"
@@ -222,12 +211,10 @@
                             "path": "data",
                             "logic": { "if": [
                                 {"var": "SwiftMT.fields.72.information"},
-                                {
-                                    "and": [
-                                        {"var": "temp_data.original_instruction_id"},
-                                        {"!=": [{"var": "temp_data.original_instruction_id"}, "NOTPROVIDED"]}
-                                    ]
-                                },
+                                { "and": [
+                                    {"var": "temp_data.original_instruction_id"},
+                                    {"!=": [{"var": "temp_data.original_instruction_id"}, "NOTPROVIDED"]}
+                                ]},
                                 true
                             ]},
                             "message": "POSTC009: Field 72 return information not properly extracted"
@@ -246,7 +233,11 @@
                     "rules": [
                         {
                             "path": "data.Document.PmtRtr.TxInf.0",
-                            "logic": {"if": [{"var": "ChrgsInf"}, {"var": "RtrdInstdAmt"}, true]},
+                            "logic": { "if": [
+                                {"var": "ChrgsInf"},
+                                {"var": "RtrdInstdAmt"},
+                                true
+                            ]},
                             "message": "POSTC010: Missing dummy ReturnedInstructedAmount when ChargesInformation is present"
                         }
                     ]

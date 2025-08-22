@@ -1,7 +1,7 @@
 {
     "id": "admi024-optional-fields-mapping",
     "name": "admi.024 to MT199 Optional Fields Mapping",
-    "description": "Maps optional fields for MT199 transformation",
+    "description": "Maps optional field 21 (Related Reference) for MT199 transformation",
     "priority": 5,
     "condition": { "and": [
         {"==": [{"var": "ISO20022_MX.message_type"}, "admi.024.001.01"]},
@@ -11,52 +11,6 @@
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
-        {
-            "id": "map_original_message_reference",
-            "name": "Map Original Message Reference (Field 11S)",
-            "description": "Maps original message type and date if available",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.original_msg_type",
-                            "logic": {"var": "data.ISO20022_MX.document.NtfctnData.OrgnlMsgTp"}
-                        },
-                        {
-                            "path": "temp_data.original_msg_date",
-                            "logic": {"var": "data.ISO20022_MX.document.NtfctnData.OrgnlCrtnDtTm"}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.11S",
-                            "condition": { "and": [
-                                {"var": "temp_data.original_msg_type"},
-                                {"var": "temp_data.original_msg_date"}
-                            ]},
-                            "logic": { "if": [
-                                { "and": [
-                                    {"var": "temp_data.original_msg_type"},
-                                    {"var": "temp_data.original_msg_date"}
-                                ]},
-                                {
-                                    "cat": [
-                                        {"var": "temp_data.original_msg_type"},
-                                        "\n",
-                                        {
-                                            "dateformat": [
-                                                {"var": "temp_data.original_msg_date"},
-                                                "%y%m%d"
-                                            ]
-                                        }
-                                    ]
-                                },
-                                null
-                            ]}
-                        }
-                    ]
-                }
-            }
-        },
         {
             "id": "store_related_reference",
             "name": "Store Related Reference",
@@ -95,73 +49,6 @@
                                 },
                                 {"cat": [{"substr": [{"var": "temp_data.related_ref"}, 0, 15]}, "+"]}
                             ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_proprietary_message",
-            "name": "Map Proprietary Message (Field 77E)",
-            "description": "Maps structured data to proprietary message field",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.has_structured_data",
-                            "logic": { "or": [
-                                {"var": "data.ISO20022_MX.document.NtfctnData.AddtlData"},
-                                {"var": "data.ISO20022_MX.document.NtfctnData.SplmtryData"}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.structured_data_text",
-                            "condition": {"var": "temp_data.has_structured_data"},
-                            "logic": {
-                                "cat": [
-                                    { "if": [
-                                        {"var": "data.ISO20022_MX.document.NtfctnData.AddtlData"},
-                                        {
-                                            "reduce": [
-                                                {"var": "data.ISO20022_MX.document.NtfctnData.AddtlData"},
-                                                {"cat": [{"var": "accumulator"}, "\n", {"var": "current"}]},
-                                                ""
-                                            ]
-                                        },
-                                        ""
-                                    ]},
-                                    { "if": [
-                                        { "and": [
-                                            {"var": "data.ISO20022_MX.document.NtfctnData.AddtlData"},
-                                            {"var": "data.ISO20022_MX.document.NtfctnData.SplmtryData"}
-                                        ]},
-                                        "\n",
-                                        ""
-                                    ]},
-                                    { "if": [
-                                        {"var": "data.ISO20022_MX.document.NtfctnData.SplmtryData"},
-                                        {
-                                            "map": [
-                                                {"var": "data.ISO20022_MX.document.NtfctnData.SplmtryData"},
-                                                {
-                                                    "cat": [
-                                                        {"var": "PlcAndNm"},
-                                                        ":",
-                                                        {"var": "Envlp.Any"}
-                                                    ]
-                                                }
-                                            ]
-                                        },
-                                        ""
-                                    ]}
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.77E",
-                            "condition": {"var": "temp_data.structured_data_text"},
-                            "logic": {"var": "temp_data.structured_data_text"}
                         }
                     ]
                 }

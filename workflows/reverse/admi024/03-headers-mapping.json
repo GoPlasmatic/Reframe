@@ -4,31 +4,60 @@
     "description": "Maps message headers for MT199 transformation",
     "priority": 3,
     "condition": { "and": [
-        {"==": [{"var": "data.SwiftMT.message_type"}, "199"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "admi.024.001.01"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "admi024-preconditions"]},
+        {"==": [{"var": "progress.task_id"}, "validate_message_structure"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "map_basic_headers",
-            "name": "Map Basic Headers",
+            "id": "set_message_type",
+            "name": "Set Message Type",
+            "description": "Sets the MT message type to 199",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {"path": "data.SwiftMT.message_type", "logic": "199"}
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_basic_header",
+            "name": "Map Basic Header",
             "description": "Maps basic header information from BAH",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
-                        {"path": "data.SwiftMT.application_id", "logic": "F"},
-                        {"path": "data.SwiftMT.service_id", "logic": "01"},
                         {
-                            "path": "data.SwiftMT.sender",
-                            "logic": {"var": "data.ISO20022_MX.header.From.FINSTId.FinInstnId.BICFI"}
-                        },
+                            "path": "data.SwiftMT.basic_header",
+                            "logic": {
+                                "application_id": "F",
+                                "service_id": "01",
+                                "sender_bic": {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                "receiver_bic": {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                "logical_terminal": {"cat": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, "AXXX"]},
+                                "session_number": "0000",
+                                "sequence_number": "000000"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_application_header",
+            "name": "Map Application Header",
+            "description": "Maps application header for MT199",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
                         {
-                            "path": "data.SwiftMT.receiver",
-                            "logic": {"var": "data.ISO20022_MX.header.To.FINSTId.FinInstnId.BICFI"}
-                        },
-                        {
-                            "path": "data.SwiftMT.message_priority",
+                            "path": "temp_data.priority",
                             "logic": { "if": [
                                 {"==": [{"var": "data.ISO20022_MX.header.Prty"}, "HIGH"]},
                                 "U",
@@ -36,48 +65,83 @@
                             ]}
                         },
                         {
-                            "path": "data.SwiftMT.delivery_monitoring",
-                            "condition": {"var": "data.ISO20022_MX.header.MsgRcpt"},
+                            "path": "temp_data.delivery_monitoring",
                             "logic": { "if": [
                                 {"var": "data.ISO20022_MX.header.MsgRcpt"},
                                 "2",
-                                null
+                                ""
                             ]}
                         },
                         {
-                            "path": "data.SwiftMT.possible_duplicate",
-                            "condition": {"==": [{"var": "data.ISO20022_MX.header.PssblDplct"}, true]},
-                            "logic": "PDE"
+                            "path": "data.SwiftMT.application_header",
+                            "logic": {
+                                "direction": "O",
+                                "message_type": "199",
+                                "destination_address": {"cat": [{"var": "data.SwiftMT.basic_header.receiver_bic"}, "AXXX"]},
+                                "receiver_bic": {"var": "data.SwiftMT.basic_header.receiver_bic"},
+                                "priority": {"var": "temp_data.priority"},
+                                "delivery_monitoring": {"var": "temp_data.delivery_monitoring"},
+                                "obsolescence_period": ""
+                            }
                         }
                     ]
                 }
             }
         },
         {
-            "id": "map_uetr_if_present",
-            "name": "Map UETR if Present",
-            "description": "Maps UETR to Block 3 if available",
+            "id": "map_user_header",
+            "name": "Map User Header",
+            "description": "Maps user header with UETR if available",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
                             "path": "temp_data.uetr_from_group_header",
-                            "logic": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.GrpHdr.MsgId"}
+                            "logic": {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}
                         },
                         {
-                            "path": "data.SwiftMT.block3.121",
-                            "condition": { "and": [
+                            "path": "temp_data.valid_uetr",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "temp_data.uetr_from_group_header"},
+                                    {"==": [{"length": {"var": "temp_data.uetr_from_group_header"}}, 36]},
+                                    {
+                                        "match": [
+                                            {"var": "temp_data.uetr_from_group_header"},
+                                            "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"
+                                        ]
+                                    }
+                                ]},
                                 {"var": "temp_data.uetr_from_group_header"},
-                                {"==": [{"strlen": [{"var": "temp_data.uetr_from_group_header"}]}, 36]},
-                                {
-                                    "match": [
-                                        {"var": "temp_data.uetr_from_group_header"},
-                                        "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"
-                                    ]
-                                }
-                            ]},
-                            "logic": {"var": "temp_data.uetr_from_group_header"}
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.user_header",
+                            "logic": {
+                                "unique_end_to_end_transaction_reference": {"var": "temp_data.valid_uetr"}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "store_service_level",
+            "name": "Store Service Level Code",
+            "description": "Stores service level code in temp data",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.service_level_code",
+                            "logic": {"var": "data.ISO20022_MX.header.BizSvc"}
+                        },
+                        {
+                            "path": "temp_data.clearing_system",
+                            "logic": {"var": "data.ISO20022_MX.document.NtfctnData.ClrSys"}
                         }
                     ]
                 }
@@ -92,47 +156,12 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.service_level_code",
-                            "logic": {"var": "data.ISO20022_MX.header.BizSvc"}
-                        },
-                        {
-                            "path": "data.SwiftMT.block3.119",
+                            "path": "data.SwiftMT.validation_flag",
                             "condition": { "and": [
                                 {"var": "temp_data.service_level_code"},
                                 {"match": [{"var": "temp_data.service_level_code"}, "^swift\\.cbprplus\\."]}
                             ]},
                             "logic": {"substr": [{"var": "temp_data.service_level_code"}, 16]}
-                        },
-                        {
-                            "path": "temp_data.clearing_system",
-                            "logic": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.ClrSys"}
-                        },
-                        {
-                            "path": "data.SwiftMT.block3.422",
-                            "condition": {"var": "temp_data.clearing_system"},
-                            "logic": { "if": [
-                                {"==": [{"var": "temp_data.clearing_system.Cd"}, "RTG"]},
-                                {"var": "temp_data.clearing_system.MmbId"},
-                                { "if": [
-                                    {"var": "temp_data.clearing_system.Prtry"},
-                                    {"cat": [
-                                        {"var": "temp_data.clearing_system.Prtry.Id"},
-                                        ":",
-                                        {"var": "temp_data.clearing_system.MmbId"}
-                                    ]},
-                                    null
-                                ]}
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.block3.424",
-                            "condition": {"var": "data.ISO20022_MX.header.Rltd.Fr"},
-                            "logic": {"var": "data.ISO20022_MX.header.Rltd.Fr"}
-                        },
-                        {
-                            "path": "data.SwiftMT.block3.425",
-                            "condition": {"var": "data.ISO20022_MX.header.Rltd.To"},
-                            "logic": {"var": "data.ISO20022_MX.header.Rltd.To"}
                         }
                     ]
                 }

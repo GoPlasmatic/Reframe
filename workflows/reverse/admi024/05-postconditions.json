@@ -2,181 +2,20 @@
     "id": "admi024-postconditions",
     "name": "admi.024 to MT199 Postconditions",
     "description": "Applies final formatting and validation for MT199",
-    "priority": 5,
+    "priority": 6,
     "condition": { "and": [
-        {"==": [{"var": "data.SwiftMT.message_type"}, "199"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "admi.024.001.01"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         { "or": [
-            {"==": [{"var": "progress.workflow_id"}, "admi024-mandatory-fields-mapping"]},
+            { "and": [
+                {"==": [{"var": "progress.workflow_id"}, "admi024-mandatory-fields-mapping"]},
+                {"==": [{"var": "progress.task_id"}, "map_narrative_field"]}
+            ]},
             {"==": [{"var": "progress.workflow_id"}, "admi024-optional-fields-mapping"]}
         ]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
-        {
-            "id": "apply_character_set_conversion",
-            "name": "Apply FIN Character Set Conversion (POSTC001)",
-            "description": "Converts all fields to FIN-compliant character set",
-            "function": {
-                "name": "transform",
-                "input": {
-                    "transformations": [
-                        {
-                            "path": "data.SwiftMT.fields.20",
-                            "logic": {
-                                "replace": [{"var": "data.SwiftMT.fields.20"}, "[^A-Za-z0-9 ().,+\\-/:?'\\n]", "."]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.79",
-                            "logic": {
-                                "replace": [{"var": "data.SwiftMT.fields.79"}, "[^A-Za-z0-9 ().,+\\-/:?'\\n]", "."]
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "clean_multiline_field",
-            "name": "Clean Multiline Field 79 (POSTC002, POSTC003)",
-            "description": "Removes starting colon/hyphen and empty lines from field 79",
-            "function": {
-                "name": "transform",
-                "input": {
-                    "transformations": [
-                        {
-                            "path": "temp_data.field79_lines_array",
-                            "logic": {"split": [{"var": "data.SwiftMT.fields.79"}, "\n"]}
-                        },
-                        {
-                            "path": "temp_data.field79_cleaned_lines",
-                            "logic": {
-                                "map": [
-                                    {"var": "temp_data.field79_lines_array"},
-                                    { "if": [
-                                        {"match": [{"var": ""}, "^[:/-]"]},
-                                        {"replace": [{"var": ""}, "^[:/-]", "."]},
-                                        {"var": ""}
-                                    ]}
-                                ]
-                            }
-                        },
-                        {
-                            "path": "temp_data.field79_non_empty_lines",
-                            "logic": {
-                                "filter": [{"var": "temp_data.field79_cleaned_lines"}, {"!=": [{"trim": [{"var": ""}]}, ""]}]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.79",
-                            "logic": {"join": [{"var": "temp_data.field79_non_empty_lines"}, "\n"]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "order_fields",
-            "name": "Order Fields for MT199",
-            "description": "Ensures fields are in correct order",
-            "function": {
-                "name": "transform",
-                "input": {
-                    "transformations": [
-                        {
-                            "path": "data.SwiftMT.field_order",
-                            "logic": {
-                                "filter": [
-                                    ["20", "11S", "21", "79", "77E"],
-                                    {
-                                        "in": [
-                                            {"var": ""},
-                                            {"keys": [{"var": "data.SwiftMT.fields"}]}
-                                        ]
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "validate_swift_charset_compliance",
-            "name": "Validate SWIFT Character Set Compliance",
-            "description": "Ensures all fields comply with SWIFT character set",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "name": "field_20_charset",
-                            "description": "Field 20 must contain only SWIFT-compliant characters",
-                            "condition": {
-                                "not": {"match": [{"var": "data.SwiftMT.fields.20"}, "[^A-Za-z0-9 ().,+\\-/:?'\\n]"]}
-                            },
-                            "error": {"code": "T20013", "message": "Field 20 contains non-SWIFT compliant characters"}
-                        },
-                        {
-                            "name": "field_79_charset",
-                            "description": "Field 79 must contain only SWIFT-compliant characters",
-                            "condition": {
-                                "not": {"match": [{"var": "data.SwiftMT.fields.79"}, "[^A-Za-z0-9 ().,+\\-/:?'\\n]"]}
-                            },
-                            "error": {"code": "T20014", "message": "Field 79 contains non-SWIFT compliant characters"}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "validate_message_length",
-            "name": "Validate Total Message Length",
-            "description": "Ensures total message doesn't exceed SWIFT limits",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.total_message_length",
-                            "logic": {
-                                "reduce": [
-                                    {"keys": [{"var": "data.SwiftMT.fields"}]},
-                                    {"+": [
-                                        {"var": "accumulator"},
-                                        {"strlen": [{"var": "data.SwiftMT.fields[current]"}]},
-                                        10
-                                    ]},
-                                    100
-                                ]
-                            }
-                        },
-                        {
-                            "path": "temp_data.message_length_valid",
-                            "logic": {"<=": [{"var": "temp_data.total_message_length"}, 10000]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "validate_message_length_result",
-            "name": "Validate Message Length Result",
-            "description": "Check message length validation",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "name": "message_length",
-                            "description": "Total message must not exceed 10K characters",
-                            "condition": {"var": "temp_data.message_length_valid"},
-                            "error": {"code": "T20015", "message": "Total message exceeds 10K character limit"}
-                        }
-                    ]
-                }
-            }
-        },
         {
             "id": "validate_final_message",
             "name": "Validate Final MT199 Message",
@@ -186,24 +25,34 @@
                 "input": {
                     "rules": [
                         {
-                            "name": "field_20_present",
-                            "description": "Field 20 must be present",
-                            "condition": {"var": "data.SwiftMT.fields.20"},
-                            "error": {"code": "T20010", "message": "Field 20 is mandatory for MT199"}
+                            "path": "data.SwiftMT.fields.20",
+                            "logic": {"exists": ["data", "SwiftMT", "fields", "20"]},
+                            "message": "T20010: Field 20 is mandatory for MT199"
                         },
                         {
-                            "name": "field_79_present",
-                            "description": "Field 79 must be present",
-                            "condition": {"var": "data.SwiftMT.fields.79"},
-                            "error": {"code": "T20011", "message": "Field 79 is mandatory for MT199"}
+                            "path": "data.SwiftMT.fields.79",
+                            "logic": {"exists": ["data", "SwiftMT", "fields", "79"]},
+                            "message": "T20011: Field 79 is mandatory for MT199"
                         },
                         {
-                            "name": "field_79_not_empty",
-                            "description": "Field 79 must not be empty",
-                            "condition": {"!=": [{"trim": [{"var": "data.SwiftMT.fields.79"}]}, ""]},
-                            "error": {"code": "T20012", "message": "Field 79 cannot be empty"}
+                            "path": "data.SwiftMT.fields.79.information",
+                            "logic": {">": [{"length": {"var": "data.SwiftMT.fields.79.information"}}, 0]},
+                            "message": "T20012: Field 79 cannot be empty"
                         }
                     ]
+                }
+            }
+        },
+        {
+            "id": "generate_mt199",
+            "name": "Generate MT199",
+            "description": "Generate the final MT199 message",
+            "function": {
+                "name": "PublishMT",
+                "input": {
+                    "input_field_name": "SwiftMT",
+                    "output_field_name": "result",
+                    "source_format": "admi.024.001.01"
                 }
             }
         }

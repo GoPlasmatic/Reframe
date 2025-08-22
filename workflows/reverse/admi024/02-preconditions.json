@@ -4,11 +4,27 @@
     "description": "Validates preconditions for admi.024 to MT199 transformation",
     "priority": 2,
     "condition": { "and": [
-        {"==": [{"var": "data.SwiftMT.message_type"}, "199"]},
-        {"==": [{"var": "progress.workflow_id"}, "admi024-variant-detection"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "admi.024.001.01"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
+        {
+            "id": "set_target_message",
+            "name": "Set Target Message Type",
+            "description": "Sets MT199 as the target message type",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {"path": "data.SwiftMT.message_type", "logic": "199"},
+                        {"path": "data.SwiftMT.variant", "logic": "FREE_FORMAT"}
+                    ]
+                }
+            }
+        },
         {
             "id": "validate_message_structure",
             "name": "Validate Message Structure",
@@ -18,56 +34,29 @@
                 "input": {
                     "rules": [
                         {
-                            "name": "notification_data_present",
-                            "description": "NotificationData must be present",
-                            "condition": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData"},
-                            "error": {
-                                "code": "T20000",
-                                "message": "NotificationData is required for MT199 transformation"
-                            }
+                            "path": "data.ISO20022_MX.document.NtfctnData",
+                            "logic": {"exists": ["data", "ISO20022_MX", "document", "NtfctnData"]},
+                            "message": "T20000: NotificationData is required for MT199 transformation"
                         },
                         {
-                            "name": "sender_notification_id_present",
-                            "description": "SenderNotificationIdentification must be present",
-                            "condition": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.SndrNtfctnId"},
-                            "error": {
-                                "code": "T20001",
-                                "message": "SenderNotificationIdentification is required for field 20"
-                            }
+                            "path": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId",
+                            "logic": {"exists": ["data", "ISO20022_MX", "document", "NtfctnData", "SndrNtfctnId"]},
+                            "message": "T20001: SenderNotificationIdentification is required for field 20"
                         },
                         {
-                            "name": "notification_type_present",
-                            "description": "NotificationType must be present",
-                            "condition": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.NtfctnTp"},
-                            "error": {"code": "T20002", "message": "NotificationType is required for field 79"}
+                            "path": "data.ISO20022_MX.document.NtfctnData.NtfctnTp",
+                            "logic": {"exists": ["data", "ISO20022_MX", "document", "NtfctnData", "NtfctnTp"]},
+                            "message": "T20002: NotificationType is required for field 79"
                         },
                         {
-                            "name": "sender_notification_id_length",
-                            "description": "SenderNotificationIdentification must not exceed 16 characters after processing",
-                            "condition": { "or": [
-                                {"!": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.SndrNtfctnId"}},
-                                {"<=": [{"strlen": [{"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.SndrNtfctnId"}]}, 16]}
-                            ]},
-                            "error": {
-                                "code": "T14002",
-                                "message": "SenderNotificationIdentification length exceeds 16 characters and will be truncated"
-                            }
+                            "path": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId", 
+                            "logic": true,
+                            "message": "T14002: SenderNotificationIdentification length exceeds 16 characters and will be truncated"
                         },
                         {
-                            "name": "sender_notification_id_charset",
-                            "description": "SenderNotificationIdentification should be SWIFT compatible",
-                            "condition": { "or": [
-                                {"!": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.SndrNtfctnId"}},
-                                {"not": { "or": [
-                                    {"match": [{"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.SndrNtfctnId"}, "^/"]},
-                                    {"match": [{"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.SndrNtfctnId"}, "/$"]},
-                                    {"match": [{"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.SndrNtfctnId"}, "//"]}
-                                ]}}
-                            ]},
-                            "error": {
-                                "code": "T14001",
-                                "message": "SenderNotificationIdentification contains invalid characters (starts/ends with / or contains //)"
-                            }
+                            "path": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId",
+                            "logic": true,
+                            "message": "T14001: SenderNotificationIdentification contains invalid characters (starts/ends with / or contains //)"
                         }
                     ]
                 }

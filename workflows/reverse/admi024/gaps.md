@@ -4,7 +4,7 @@
 - **Source**: admi.024 (System Event Notification)
 - **Target**: MT199 (Free Format Message)
 - **Specification**: xxx-specification/reverse/admi024-MT199/
-- **Workflow Maturity**: Level 4 - Complete
+- **Workflow Maturity**: Level 3 - Mostly Complete (90%)
 
 ## Precondition Gaps
 ✅ Basic validation for NotificationData presence

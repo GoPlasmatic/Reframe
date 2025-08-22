@@ -4,8 +4,10 @@
     "description": "Maps mandatory fields for MT199 transformation",
     "priority": 4,
     "condition": { "and": [
-        {"==": [{"var": "data.SwiftMT.message_type"}, "199"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "admi.024.001.01"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "admi024-headers-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_cbpr_plus_elements"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
@@ -19,30 +21,32 @@
                     "mappings": [
                         {
                             "path": "temp_data.field20_raw",
-                            "logic": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.SndrNtfctnId"}
+                            "logic": {"var": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId"}
                         },
                         {
                             "path": "temp_data.field20_truncated",
-                            "condition": {"gt": [{"strlen": [{"var": "temp_data.field20_raw"}]}, 16]},
+                            "condition": {">": [{"length": [{"var": "temp_data.field20_raw"}]}, 16]},
                             "logic": {"cat": [{"substr": [{"var": "temp_data.field20_raw"}, 0, 15]}, "+"]}
                         },
                         {
-                            "path": "data.SwiftMT.fields.20",
-                            "logic": { "if": [
-                                {"var": "temp_data.field20_truncated"},
-                                {"var": "temp_data.field20_truncated"},
+                            "path": "data.SwiftMT.fields.#20",
+                            "logic": {"reference": 
                                 { "if": [
-                                    {
-                                        "not": { "or": [
-                                            {"match": [{"var": "temp_data.field20_raw"}, "^/"]},
-                                            {"match": [{"var": "temp_data.field20_raw"}, "/$"]},
-                                            {"match": [{"var": "temp_data.field20_raw"}, "//"]}
-                                        ]}
-                                    },
-                                    {"var": "temp_data.field20_raw"},
-                                    "NOTPROVIDED"
+                                    {"var": "temp_data.field20_truncated"},
+                                    {"var": "temp_data.field20_truncated"},
+                                    { "if": [
+                                        {
+                                            "not": { "or": [
+                                                {"starts_with": [{"var": "temp_data.field20_raw"}, "/"]},
+                                                {"ends_with": [{"var": "temp_data.field20_raw"}, "/"]},
+                                                {"==": [{"var": "temp_data.field20_raw"}, "//"]}
+                                            ]}
+                                        },
+                                        {"var": "temp_data.field20_raw"},
+                                        "NOTPROVIDED"
+                                    ]}
                                 ]}
-                            ]}
+                            }
                         },
                         {
                             "path": "temp_data.field20_error",
@@ -63,11 +67,11 @@
                     "mappings": [
                         {
                             "path": "temp_data.notification_type_code",
-                            "logic": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.NtfctnTp.Cd"}
+                            "logic": {"var": "data.ISO20022_MX.document.NtfctnData.NtfctnTp.Cd"}
                         },
                         {
                             "path": "temp_data.notification_narratives",
-                            "logic": {"var": "data.ISO20022_MX.document.NtfctnOfCorr.NtfctnData.NtfctnNrrtv"}
+                            "logic": {"var": "data.ISO20022_MX.document.NtfctnData.NtfctnNrrtv"}
                         },
                         {
                             "path": "temp_data.field79_lines",
@@ -103,7 +107,12 @@
                                 ]}
                             ]}
                         },
-                        {"path": "data.SwiftMT.fields.79", "logic": {"var": "temp_data.field79_lines"}}
+                        {
+                            "path": "data.SwiftMT.fields.#79", 
+                            "logic": {
+                                "information": {"split": [{"var": "temp_data.field79_lines"}, "\n"]}
+                            }
+                        }
                     ]
                 }
             }

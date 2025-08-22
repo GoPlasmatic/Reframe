@@ -74,6 +74,23 @@
                             "logic": {"var": "data.ISO20022_MX.document.NtfctnData.NtfctnNrrtv"}
                         },
                         {
+                            "path": "temp_data.truncated_narratives", 
+                            "logic": { "if": [
+                                {"var": "temp_data.notification_narratives"},
+                                {
+                                    "map": [
+                                        {"var": "temp_data.notification_narratives"},
+                                        { "if": [
+                                            {">": [{"length": {"var": ""}}, 50]},
+                                            {"substr": [{"var": ""}, 0, 50]},
+                                            {"var": ""}
+                                        ]}
+                                    ]
+                                },
+                                []
+                            ]}
+                        },
+                        {
                             "path": "temp_data.field79_lines",
                             "logic": { "if": [
                                 {"var": "temp_data.notification_type_code"},
@@ -82,10 +99,10 @@
                                         "/NTTP/",
                                         {"var": "temp_data.notification_type_code"},
                                         { "if": [
-                                            {"var": "temp_data.notification_narratives"},
+                                            {"var": "temp_data.truncated_narratives"},
                                             {
                                                 "reduce": [
-                                                    {"var": "temp_data.notification_narratives"},
+                                                    {"var": "temp_data.truncated_narratives"},
                                                     {"cat": [{"var": "accumulator"}, "\n", {"var": "current"}]},
                                                     ""
                                                 ]
@@ -95,12 +112,12 @@
                                     ]
                                 },
                                 { "if": [
-                                    {"var": "temp_data.notification_narratives"},
+                                    {"var": "temp_data.truncated_narratives"},
                                     {
                                         "reduce": [
-                                            {"var": "temp_data.notification_narratives"},
+                                            {"var": "temp_data.truncated_narratives"},
                                             {"cat": [{"var": "accumulator"}, "\n", {"var": "current"}]},
-                                            {"substr": [{"var": "temp_data.notification_narratives.0"}, 0]}
+                                            {"substr": [{"var": "temp_data.truncated_narratives.0"}, 0]}
                                         ]
                                     },
                                     "/NTTP/NOTPROVIDED"
@@ -108,9 +125,31 @@
                             ]}
                         },
                         {
+                            "path": "temp_data.field79_array",
+                            "logic": {"split": [{"var": "temp_data.field79_lines"}, "\n"]}
+                        },
+                        {
+                            "path": "temp_data.field79_limited",
+                            "logic": { "if": [
+                                {">": [{"length": {"var": "temp_data.field79_array"}}, 35]},
+                                {
+                                    "reduce": [
+                                        {"var": "temp_data.field79_array"},
+                                        { "if": [
+                                            {"<": [{"length": {"var": "accumulator"}}, 35]},
+                                            {"cat": [{"var": "accumulator"}, [{"var": "current"}]]},
+                                            {"var": "accumulator"}
+                                        ]},
+                                        []
+                                    ]
+                                },
+                                {"var": "temp_data.field79_array"}
+                            ]}
+                        },
+                        {
                             "path": "data.SwiftMT.fields.#79", 
                             "logic": {
-                                "information": {"split": [{"var": "temp_data.field79_lines"}, "\n"]}
+                                "information": {"var": "temp_data.field79_limited"}
                             }
                         }
                     ]

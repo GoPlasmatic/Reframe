@@ -2,82 +2,53 @@
     "id": "camt029-variant-detection",
     "name": "camt.029 Variant Detection for MT196/MT296",
     "description": "Detects whether to transform to MT196 or MT296 based on original message type",
-    "priority": 1,
+    "priority": 2,
     "condition": { "and": [
-        {"==": [{"var": "data.ISO20022_MX.message_type"}, "camt.029"]},
-        {"==": [{"var": "data.ISO20022_MX.message_version"}, "001.09"]},
-        {"==": [{"var": "progress.workflow_id"}, "parse-mx"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.029.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
             "id": "detect_target_message",
             "name": "Detect Target Message Type",
-            "description": "Determines MT196 or MT296 based on original message type (PREC001)",
+            "description": "Determines MT196 or MT296 based on original message type",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.original_message_name",
-                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}
-                        },
-                        {
                             "path": "data.SwiftMT.message_type",
                             "logic": { "if": [
                                 { "or": [
-                                    {"in": ["pacs.008", {"var": "temp_data.original_message_name"}]},
-                                    {"in": ["pacs.003", {"var": "temp_data.original_message_name"}]},
                                     {
-                                        "and": [
-                                            {"==": [{"strlen": [{"var": "temp_data.original_message_name"}]}, 5]},
-                                            {"match": [{"var": "temp_data.original_message_name"}, "^MT10[0-9]$"]}
+                                        "starts_with": [
+                                            {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
+                                            "pacs.008"
+                                        ]
+                                    },
+                                    {
+                                        "starts_with": [
+                                            {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
+                                            "pacs.003"
+                                        ]
+                                    },
+                                    {
+                                        "starts_with": [
+                                            {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
+                                            "MT10"
                                         ]
                                     }
                                 ]},
                                 "196",
-                                { "if": [
-                                    { "or": [
-                                        {"in": ["pacs.009", {"var": "temp_data.original_message_name"}]},
-                                        {"in": ["pacs.010", {"var": "temp_data.original_message_name"}]},
-                                        {
-                                            "and": [
-                                                {"==": [{"strlen": [{"var": "temp_data.original_message_name"}]}, 5]},
-                                                {"match": [{"var": "temp_data.original_message_name"}, "^MT20[0-9]$"]}
-                                            ]
-                                        }
-                                    ]},
-                                    "296",
-                                    "296"
-                                ]}
+                                "296"
                             ]}
                         },
                         {
-                            "path": "data.SwiftMT.variant",
-                            "logic": { "if": [
-                                {"==": [{"var": "data.SwiftMT.message_type"}, "196"]},
-                                "CUSTOMER_CANCELLATION_RESPONSE",
-                                "FI_CANCELLATION_RESPONSE"
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.warning_default_296",
-                            "condition": {
-                                "and": [
-                                    {"==": [{"var": "data.SwiftMT.message_type"}, "296"]},
-                                    {
-                                        "not": { "or": [
-                                            {"in": ["pacs.009", {"var": "temp_data.original_message_name"}]},
-                                            {"in": ["pacs.010", {"var": "temp_data.original_message_name"}]},
-                                            {"match": [{"var": "temp_data.original_message_name"}, "^MT20[0-9]$"]}
-                                        ]}
-                                    }
-                                ]
-                            },
-                            "logic": {
-                                "code": "T20092",
-                                "message": "Original message type not recognized, defaulting to MT296"
-                            }
+                            "path": "temp_data.target_message_type",
+                            "logic": {"var": "data.SwiftMT.message_type"}
                         }
                     ]
                 }

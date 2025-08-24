@@ -9,7 +9,7 @@ use dataflow_rs::engine::{
 use serde_json::Value;
 use swift_mt_message::SwiftMessage;
 use swift_mt_message::messages::{
-    MT103, MT110, MT111, MT112, MT199, MT202, MT205, MT299, MT940, MT942,
+    MT103, MT110, MT111, MT112, MT196, MT199, MT202, MT205, MT296, MT299, MT940, MT942,
 };
 use tracing::{debug, error, instrument};
 
@@ -182,6 +182,34 @@ impl AsyncFunctionHandler for PublishMT {
                 DataflowError::Validation(format!("Failed to parse JSON string for camt.109: {e}"))
             })?;
             data.to_mt_message()
+        } else if source_format == "camt.029.001.09" {
+            let target_message_type = message
+                .temp_data
+                .get("target_message_type")
+                .unwrap_or(&Value::Null)
+                .to_string();
+            let target_message_type = Helper::manual_unescape(&target_message_type);
+            
+            debug!(target_message_type = %target_message_type, "Processing camt.029 to MT196/MT296 transformation");
+            
+            if target_message_type == "196" {
+                let data: SwiftMessage<MT196> = serde_json::from_str(&json_str).map_err(|e| {
+                    error!(error = ?e, "Failed to parse JSON string for camt.029 to MT196");
+                    DataflowError::Validation(format!("Failed to parse JSON string for camt.029 to MT196: {e}"))
+                })?;
+                data.to_mt_message()
+            } else if target_message_type == "296" {
+                let data: SwiftMessage<MT296> = serde_json::from_str(&json_str).map_err(|e| {
+                    error!(error = ?e, "Failed to parse JSON string for camt.029 to MT296");
+                    DataflowError::Validation(format!("Failed to parse JSON string for camt.029 to MT296: {e}"))
+                })?;
+                data.to_mt_message()
+            } else {
+                error!(target_message_type = %target_message_type, "Invalid target message type for camt.029");
+                return Err(DataflowError::Validation(format!(
+                    "Invalid target message type for camt.029: {target_message_type}"
+                )));
+            }
         } else if source_format == "camt.052.001.08" {
             debug!("Processing camt.052 to MT942 transformation");
 

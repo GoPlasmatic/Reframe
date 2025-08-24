@@ -1,169 +1,31 @@
 {
     "id": "camt029-preconditions",
     "name": "camt.029 to MT196/MT296 Preconditions Validation",
-    "description": "Validates preconditions for camt.029 to MT196/MT296 transformation",
-    "priority": 2,
+    "description": "Validates essential fields are present for camt.029 transformation",
+    "priority": 3,
     "condition": { "and": [
-        {"in": [{"var": "SwiftMT.message_type"}, ["196", "296"]]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.029.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "camt029-variant-detection"]},
+        {"==": [{"var": "progress.task_id"}, "detect_target_message"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
             "id": "validate_mandatory_fields",
-            "name": "Validate Mandatory Fields",
-            "description": "Validates presence of mandatory fields for MT196/MT296",
+            "name": "Validate Mandatory Fields Presence",
+            "description": "Ensures all required fields for MT196/MT296 are present",
             "function": {
-                "name": "map",
+                "name": "validate",
                 "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.prec.cancellation_status_id_present",
-                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsId"}
-                        },
-                        {
-                            "path": "temp_data.prec.resolved_case_id_present",
-                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.RslvdCase.Id"}
-                        },
-                        {
-                            "path": "temp_data.prec.original_uetr_present",
-                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlUETR"}
-                        },
-                        {
-                            "path": "temp_data.prec.confirmation_present",
-                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.Sts.Conf"}
-                        },
-                        {
-                            "path": "temp_data.prec.original_message_name_present",
-                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}
-                        },
-                        {
-                            "path": "temp_data.prec.status_reason_present",
-                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsRsnInf"}
-                        },
-                        {
-                            "path": "temp_data.prec.assignee_present",
-                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.Assgnmt.Assgne"}
-                        },
-                        {
-                            "path": "temp_data.prec.assigner_present",
-                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.Assgnmt.Assgnr"}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "validate_reference_format",
-            "name": "Validate Reference Format",
-            "description": "Validates reference fields don't contain invalid characters",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.prec.cancellation_status_id_valid",
-                            "condition": {"var": "temp_data.prec.cancellation_status_id_present"},
-                            "logic": {
-                                "not": { "or": [
-                                    {
-                                        "match": [
-                                            {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsId"},
-                                            "^/"
-                                        ]
-                                    },
-                                    {
-                                        "match": [
-                                            {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsId"},
-                                            "/$"
-                                        ]
-                                    },
-                                    {
-                                        "match": [
-                                            {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsId"},
-                                            "//"
-                                        ]
-                                    }
-                                ]}
-                            }
-                        },
-                        {
-                            "path": "temp_data.prec.resolved_case_id_valid",
-                            "condition": {"var": "temp_data.prec.resolved_case_id_present"},
-                            "logic": {
-                                "not": { "or": [
-                                    {
-                                        "match": [
-                                            {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.RslvdCase.Id"},
-                                            "^/"
-                                        ]
-                                    },
-                                    {
-                                        "match": [
-                                            {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.RslvdCase.Id"},
-                                            "/$"
-                                        ]
-                                    },
-                                    {
-                                        "match": [
-                                            {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.RslvdCase.Id"},
-                                            "//"
-                                        ]
-                                    }
-                                ]}
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "validate_status_reason_code",
-            "name": "Validate Status Reason Code",
-            "description": "Validates status reason code when RJCR status",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.prec.status_reason_code_valid",
-                            "logic": { "if": [
-                                {"==": [{"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.Sts.Conf"}, "RJCR"]},
-                                {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsRsnInf.Rsn.Cd"},
-                                true
-                            ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "check_all_preconditions",
-            "name": "Check All Preconditions",
-            "description": "Consolidates all precondition checks",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.preconditions_met",
-                            "logic": { "and": [
-                                {"var": "temp_data.prec.cancellation_status_id_present"},
-                                {"var": "temp_data.prec.resolved_case_id_present"},
-                                {"var": "temp_data.prec.original_uetr_present"},
-                                {"var": "temp_data.prec.confirmation_present"},
-                                {"var": "temp_data.prec.original_message_name_present"},
-                                {"!=": [{"var": "temp_data.prec.cancellation_status_id_valid"}, false]},
-                                {"!=": [{"var": "temp_data.prec.resolved_case_id_valid"}, false]},
-                                {"var": "temp_data.prec.status_reason_code_valid"}
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.validation_status",
-                            "condition": {"not": {"var": "temp_data.preconditions_met"}},
-                            "logic": {"code": "T20073", "message": "camt.029 to MT196/MT296 preconditions not met"}
-                        }
-                    ]
+                    "rules": { "and": [
+                        {"exists": ["data", "ISO20022_MX", "document", "RsltnOfInvstgtn", "CxlDtls", "TxInfAndSts", "CxlStsId"]},
+                        {"exists": ["data", "ISO20022_MX", "document", "RsltnOfInvstgtn", "CxlDtls", "TxInfAndSts", "RslvdCase", "Id"]},
+                        {"exists": ["data", "ISO20022_MX", "document", "RsltnOfInvstgtn", "Sts", "Conf"]},
+                        {"in": [{"var": "data.ISO20022_MX.document.Sts.Conf"}, ["CNCL", "PDCR", "RJCR"]]},
+                        {"exists": ["data", "ISO20022_MX", "document", "RsltnOfInvstgtn", "CxlDtls", "TxInfAndSts", "OrgnlUETR"]}
+                    ]},
+                    "error_message": "Required fields missing or invalid for camt.029 to MT196/MT296 transformation"
                 }
             }
         }

@@ -4,12 +4,10 @@
     "description": "Maps charges requestor and instructions to field 72",
     "priority": 6,
     "condition": { "and": [
-        {
-            "or": [
-                {"==": [{"var": "SwiftMT.message_type"}, "190"]},
-                {"==": [{"var": "SwiftMT.message_type"}, "290"]}
-            ]
-        },
+        { "or": [
+            {"==": [{"var": "SwiftMT.message_type"}, "190"]},
+            {"==": [{"var": "SwiftMT.message_type"}, "290"]}
+        ]},
         {"==": [{"var": "progress.workflow_id"}, "camt105-charges-breakdown-mapping"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
@@ -37,13 +35,18 @@
                                             null
                                         ]},
                                         { "if": [
+                                            { "and": [
+                                                {"not": {"var": "temp_data.charges_requestor.FinInstnId.BICFI"}},
+                                                {"var": "temp_data.charges_requestor.FinInstnId.Nm"}
+                                            ]},
                                             {
-                                                "and": [
-                                                    {"not": {"var": "temp_data.charges_requestor.FinInstnId.BICFI"}},
-                                                    {"var": "temp_data.charges_requestor.FinInstnId.Nm"}
+                                                "cat": [
+                                                    "/CHRQ/",
+                                                    {
+                                                        "substr": [{"var": "temp_data.charges_requestor.FinInstnId.Nm"}, 0, 29]
+                                                    }
                                                 ]
                                             },
-                                            {"cat": ["/CHRQ/", {"substr": [{"var": "temp_data.charges_requestor.FinInstnId.Nm"}, 0, 29]}]},
                                             null
                                         ]},
                                         { "if": [
@@ -62,54 +65,54 @@
                                             null
                                         ]},
                                         { "if": [
-                                            {
-                                                "and": [
-                                                    {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.0"},
-                                                    {
-                                                        "not": {
-                                                            "match": [
-                                                                {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.0"},
-                                                                "^NOTPROVIDED$"
-                                                            ]
-                                                        }
+                                            { "and": [
+                                                {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.0"},
+                                                {
+                                                    "not": {
+                                                        "match": [
+                                                            {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.0"},
+                                                            "^NOTPROVIDED$"
+                                                        ]
                                                     }
-                                                ]
+                                                }
+                                            ]},
+                                            {
+                                                "substr": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.0"}, 0, 35]
                                             },
-                                            {"substr": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.0"}, 0, 35]},
                                             null
                                         ]},
                                         { "if": [
-                                            {
-                                                "and": [
-                                                    {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.1"},
-                                                    {
-                                                        "not": {
-                                                            "match": [
-                                                                {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.1"},
-                                                                "^NOTPROVIDED$"
-                                                            ]
-                                                        }
+                                            { "and": [
+                                                {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.1"},
+                                                {
+                                                    "not": {
+                                                        "match": [
+                                                            {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.1"},
+                                                            "^NOTPROVIDED$"
+                                                        ]
                                                     }
-                                                ]
+                                                }
+                                            ]},
+                                            {
+                                                "substr": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.1"}, 0, 35]
                                             },
-                                            {"substr": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.1"}, 0, 35]},
                                             null
                                         ]},
                                         { "if": [
-                                            {
-                                                "and": [
-                                                    {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.2"},
-                                                    {
-                                                        "not": {
-                                                            "match": [
-                                                                {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.2"},
-                                                                "^NOTPROVIDED$"
-                                                            ]
-                                                        }
+                                            { "and": [
+                                                {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.2"},
+                                                {
+                                                    "not": {
+                                                        "match": [
+                                                            {"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.2"},
+                                                            "^NOTPROVIDED$"
+                                                        ]
                                                     }
-                                                ]
+                                                }
+                                            ]},
+                                            {
+                                                "substr": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.2"}, 0, 35]
                                             },
-                                            {"substr": [{"var": "temp_data.charges_requestor.FinInstnId.PstlAdr.AdrLine.2"}, 0, 35]},
                                             null
                                         ]}
                                     ],
@@ -120,9 +123,7 @@
                         {
                             "path": "data.SwiftMT.fields.72",
                             "condition": {">": [{"count": {"var": "temp_data.field72_lines"}}, 0]},
-                            "logic": {
-                                "sender_to_receiver_information": {"slice": [{"var": "temp_data.field72_lines"}, 0, 6]}
-                            }
+                            "logic": {"sender_to_receiver_information": {"slice": [{"var": "temp_data.field72_lines"}, 0, 6]}}
                         },
                         {
                             "path": "temp_data.warnings.field72_truncated",

@@ -1,267 +1,224 @@
 {
     "id": "camt029-mandatory-fields-mapping",
     "name": "camt.029 to MT196/MT296 Mandatory Fields Mapping",
-    "description": "Maps mandatory fields for MT196/MT296 transformation",
-    "priority": 4,
+    "description": "Maps mandatory fields including references, confirmation status, and optional field 11R",
+    "priority": 5,
     "condition": { "and": [
-        {"in": [{"var": "SwiftMT.message_type"}, ["196", "296"]]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.029.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "camt029-headers-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_swift_headers"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "map_transaction_reference",
-            "name": "Map Transaction Reference (Field 20)",
-            "description": "Maps CancellationStatusIdentification to Field 20 (TR001)",
+            "id": "map_mandatory_fields",
+            "name": "Map Mandatory Fields",
+            "description": "Maps fields 20, 21, 76, and optional 11R",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.field20_raw",
-                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsId"}
-                        },
-                        {
-                            "path": "temp_data.field20_truncated",
-                            "condition": {"gt": [{"strlen": [{"var": "temp_data.field20_raw"}]}, 16]},
-                            "logic": {"cat": [{"substr": [{"var": "temp_data.field20_raw"}, 0, 15]}, "+"]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.20",
-                            "logic": { "if": [
-                                {"var": "temp_data.field20_truncated"},
-                                {"var": "temp_data.field20_truncated"},
-                                { "if": [
+                            "path": "data.SwiftMT.fields.#20",
+                            "logic": {
+                                "reference": { "if": [
+                                    {">": [{"length": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsId"}]}, 16]},
                                     {
-                                        "not": { "or": [
-                                            {"match": [{"var": "temp_data.field20_raw"}, "^/"]},
-                                            {"match": [{"var": "temp_data.field20_raw"}, "/$"]},
-                                            {"match": [{"var": "temp_data.field20_raw"}, "//"]}
-                                        ]}
+                                        "cat": [
+                                            {
+                                                "substr": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsId"}, 0, 15]
+                                            },
+                                            "+"
+                                        ]
                                     },
-                                    {"var": "temp_data.field20_raw"},
-                                    "NOTPROVIDED"
-                                ]}
-                            ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_related_reference",
-            "name": "Map Related Reference (Field 21)",
-            "description": "Maps ResolvedCase Identification to Field 21 (TR002)",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.field21_raw",
-                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.RslvdCase.Id"}
-                        },
-                        {
-                            "path": "temp_data.field21_truncated",
-                            "condition": {"gt": [{"strlen": [{"var": "temp_data.field21_raw"}]}, 16]},
-                            "logic": {"cat": [{"substr": [{"var": "temp_data.field21_raw"}, 0, 15]}, "+"]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.21",
-                            "logic": { "if": [
-                                {"var": "temp_data.field21_truncated"},
-                                {"var": "temp_data.field21_truncated"},
-                                { "if": [
-                                    {
-                                        "not": { "or": [
-                                            {"match": [{"var": "temp_data.field21_raw"}, "^/"]},
-                                            {"match": [{"var": "temp_data.field21_raw"}, "/$"]},
-                                            {"match": [{"var": "temp_data.field21_raw"}, "//"]}
-                                        ]}
-                                    },
-                                    {"var": "temp_data.field21_raw"},
-                                    "NOTPROVIDED"
-                                ]}
-                            ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_mt_and_date",
-            "name": "Map MT and Date of Original Message (Field 11R)",
-            "description": "Maps original message type and creation date to Field 11R (TR003)",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.field11r_mt_type",
-                            "logic": { "if": [
-                                {"in": ["pacs.008", {"var": "temp_data.original_message_name"}]},
-                                "103",
-                                { "if": [
-                                    {"in": ["pacs.003", {"var": "temp_data.original_message_name"}]},
-                                    "104",
                                     { "if": [
-                                        {"match": [{"var": "temp_data.original_message_name"}, "^MT10[0-9]$"]},
-                                        {"substr": [{"var": "temp_data.original_message_name"}, 2, 3]},
-                                        { "if": [
-                                            {"in": ["pacs.009", {"var": "temp_data.original_message_name"}]},
-                                            "202",
+                                        { "or": [
+                                            {"starts_with": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsId"}, "/"]},
+                                            {"ends_with": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsId"}, "/"]},
+                                            {"==": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsId"}, "//"]}
+                                        ]},
+                                        "NOTPROVIDED",
+                                        {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsId"}
+                                    ]}
+                                ]}
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#21",
+                            "logic": {
+                                "reference": { "if": [
+                                    {">": [{"length": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.RslvdCase.Id"}]}, 16]},
+                                    {
+                                        "cat": [
+                                            {
+                                                "substr": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.RslvdCase.Id"}, 0, 15]
+                                            },
+                                            "+"
+                                        ]
+                                    },
+                                    { "if": [
+                                        { "or": [
+                                            {"starts_with": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.RslvdCase.Id"}, "/"]},
+                                            {"ends_with": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.RslvdCase.Id"}, "/"]},
+                                            {"==": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.RslvdCase.Id"}, "//"]}
+                                        ]},
+                                        "NOTPROVIDED",
+                                        {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.RslvdCase.Id"}
+                                    ]}
+                                ]}
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#76",
+                            "logic": {
+                                "information": {
+                                    "filter": [
+                                        [
+                                            {
+                                                "cat": [
+                                                    "/",
+                                                    { "if": [
+                                                        {"==": [{"var": "data.ISO20022_MX.document.Sts.Conf"}, "CNCL"]},
+                                                        "CANC",
+                                                        { "if": [
+                                                            {"==": [{"var": "data.ISO20022_MX.document.Sts.Conf"}, "PDCR"]},
+                                                            "PEND",
+                                                            { "if": [
+                                                                {"==": [{"var": "data.ISO20022_MX.document.Sts.Conf"}, "RJCR"]},
+                                                                "REJT",
+                                                                "UNKN"
+                                                            ]}
+                                                        ]}
+                                                    ]},
+                                                    "/"
+                                                ]
+                                            },
                                             { "if": [
-                                                {"in": ["pacs.010", {"var": "temp_data.original_message_name"}]},
-                                                "204",
+                                                {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.Rsn.Cd"},
+                                                {
+                                                    "cat": [
+                                                        "/",
+                                                        {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.Rsn.Cd"},
+                                                        "/"
+                                                    ]
+                                                },
+                                                null
+                                            ]},
+                                            { "if": [
+                                                { "and": [
+                                                    {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"},
+                                                    {"==": [{"type": {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"}}, "array"]},
+                                                    {">": [{"length": {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"}}, 0]}
+                                                ]},
+                                                {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf.0"},
+                                                {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"}
+                                            ]},
+                                            { "if": [
+                                                { "and": [
+                                                    {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"},
+                                                    {"==": [{"type": {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"}}, "array"]},
+                                                    {">": [{"length": {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"}}, 1]}
+                                                ]},
+                                                {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf.1"},
+                                                null
+                                            ]}
+                                        ],
+                                        {"!!": [{"var": ""}]}
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.11R",
+                            "logic": {
+                                "message_type": { "if": [
+                                    {
+                                        "starts_with": [
+                                            {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
+                                            "pacs.008"
+                                        ]
+                                    },
+                                    "103",
+                                    { "if": [
+                                        {
+                                            "starts_with": [
+                                                {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
+                                                "pacs.003"
+                                            ]
+                                        },
+                                        "104",
+                                        { "if": [
+                                            {
+                                                "starts_with": [
+                                                    {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
+                                                    "MT10"
+                                                ]
+                                            },
+                                            {
+                                                "substr": [
+                                                    {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
+                                                    4,
+                                                    3
+                                                ]
+                                            },
+                                            { "if": [
+                                                {
+                                                    "starts_with": [
+                                                        {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
+                                                        "pacs.009"
+                                                    ]
+                                                },
+                                                "202",
                                                 { "if": [
-                                                    {"match": [{"var": "temp_data.original_message_name"}, "^MT20[0-9]$"]},
-                                                    {"substr": [{"var": "temp_data.original_message_name"}, 2, 3]},
-                                                    "202"
+                                                    {
+                                                        "starts_with": [
+                                                            {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
+                                                            "pacs.010"
+                                                        ]
+                                                    },
+                                                    "204",
+                                                    { "if": [
+                                                        {
+                                                            "starts_with": [
+                                                                {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
+                                                                "MT20"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "substr": [
+                                                                {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
+                                                                4,
+                                                                3
+                                                            ]
+                                                        },
+                                                        "202"
+                                                    ]}
                                                 ]}
                                             ]}
                                         ]}
                                     ]}
-                                ]}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.field11r_mx_date",
-                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlCreDtTm"}
-                        },
-                        {
-                            "path": "temp_data.field11r_date",
-                            "logic": { "if": [
-                                {"var": "temp_data.field11r_mx_date"},
-                                {"date_format": [{"var": "temp_data.field11r_mx_date"}, "YYMMDD"]},
-                                "991231"
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.field11r_boolean1",
-                            "logic": { "and": [
-                                {"==": [{"var": "temp_data.field11r_mt_type"}, "202"]},
-                                { "not": { "or": [
-                                    {"in": ["pacs.009", {"var": "temp_data.original_message_name"}]},
-                                    {"in": ["pacs.010", {"var": "temp_data.original_message_name"}]},
-                                    {"match": [{"var": "temp_data.original_message_name"}, "^MT20[0-9]$"]}
-                                ]}}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.field11r_boolean2",
-                            "logic": {"==": [{"var": "temp_data.field11r_date"}, "991231"]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.11R",
-                            "condition": { "not": { "and": [
-                                {"var": "temp_data.field11r_boolean1"},
-                                {"var": "temp_data.field11r_boolean2"}
-                            ]}},
-                            "logic": {"cat": [{"var": "temp_data.field11r_mt_type"}, "\n", {"var": "temp_data.field11r_date"}]}
-                        },
-                        {
-                            "path": "temp_data.field11s_warning",
-                            "condition": {"var": "temp_data.field11r_boolean1"},
-                            "logic": {"code": "T20083", "message": "Original message type not recognized, defaulting to MT202 for Field 11R"}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_answers_field_enhanced",
-            "name": "Map Answers Field (Field 76) Enhanced",
-            "description": "Maps cancellation status to Field 76 using MX_To_MT76RCANC logic",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.confirmation_code",
-                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.Sts.Conf"}
-                        },
-                        {
-                            "path": "temp_data.reason_code",
-                            "logic": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsRsnInf.Rsn.Cd"}
-                        },
-                        {
-                            "path": "temp_data.additional_info_array",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"},
-                                {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"},
-                                []
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.additional_info_combined",
-                            "logic": { "if": [
-                                { "and": [
-                                    {"var": "temp_data.additional_info_array"},
-                                    {">": [{"count": [{"var": "temp_data.additional_info_array"}]}, 0]}
                                 ]},
-                                { "if": [
-                                    {">": [{"count": [{"var": "temp_data.additional_info_array"}]}, 1]},
-                                    { "if": [
-                                        {">": [{"strlen": [{"val": ["temp_data.additional_info_array", 0]}]}, 104]},
-                                        {"cat": [
-                                            {"val": ["temp_data.additional_info_array", 0]},
-                                            {"val": ["temp_data.additional_info_array", 1]}
-                                        ]},
-                                        {"cat": [
-                                            {"val": ["temp_data.additional_info_array", 0]},
-                                            " ",
-                                            {"val": ["temp_data.additional_info_array", 1]}
-                                        ]}
-                                    ]},
-                                    {"val": ["temp_data.additional_info_array", 0]}
-                                ]},
-                                ""
-                            ]}
+                                "date": {
+                                    "substr": [
+                                        {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlCreDtTm"},
+                                        0,
+                                        10
+                                    ]
+                                }
+                            }
                         },
                         {
-                            "path": "temp_data.field76_status_code",
-                            "logic": { "if": [
-                                {"==": [{"var": "temp_data.confirmation_code"}, "CNCL"]},
-                                "CANC",
-                                {"var": "temp_data.confirmation_code"}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.field76_string",
-                            "logic": { "cat": [
-                                "/",
-                                {"var": "temp_data.field76_status_code"},
-                                "/",
-                                { "if": [
-                                    {"var": "temp_data.reason_code"},
-                                    { "if": [
-                                        {"var": "temp_data.additional_info_combined"},
-                                        {"cat": [{"var": "temp_data.reason_code"}, "/", {"var": "temp_data.additional_info_combined"}]},
-                                        {"var": "temp_data.reason_code"}
-                                    ]},
-                                    {"var": "temp_data.additional_info_combined"}
-                                ]}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.field76_lines",
-                            "logic": {"split_lines": [
-                                {"var": "temp_data.field76_string"},
-                                35,
-                                "//"
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.76",
-                            "logic": { "if": [
-                                {"<=": [{"count": [{"var": "temp_data.field76_lines"}]}, 6]},
-                                {"join": [{"var": "temp_data.field76_lines"}, "\n"]},
-                                {"join": [{"slice": [{"var": "temp_data.field76_lines"}, 0, 6]}, "\n"]}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.field77a_overflow",
-                            "condition": {">": [{"count": [{"var": "temp_data.field76_lines"}]}, 6]},
-                            "logic": {"slice": [{"var": "temp_data.field76_lines"}, 6]}
+                            "path": "data.SwiftMT.fields.77A",
+                            "condition": { "and": [
+                                {"not": {"var": "data.SwiftMT.user_header.uetr"}},
+                                {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlUETR"}
+                            ]},
+                            "logic": {
+                                "narrative": [
+                                    {"cat": ["/UETR/", {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlUETR"}]}
+                                ]
+                            }
                         }
                     ]
                 }

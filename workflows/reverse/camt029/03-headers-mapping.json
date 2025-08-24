@@ -1,19 +1,20 @@
 {
     "id": "camt029-headers-mapping",
     "name": "camt.029 to MT196/MT296 Headers Mapping",
-    "description": "Maps headers for MT196/MT296 transformation",
-    "priority": 3,
+    "description": "Maps SWIFT headers and block 3 for MT196/MT296",
+    "priority": 4,
     "condition": { "and": [
-        {"in": [{"var": "SwiftMT.message_type"}, ["196", "296"]]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.029.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "camt029-preconditions"]},
-        {"var": "temp_data.preconditions_met"},
+        {"==": [{"var": "progress.task_id"}, "validate_mandatory_fields"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "map_basic_header",
-            "name": "Map Basic Header",
-            "description": "Maps sender and receiver BIC for MT196/MT296",
+            "id": "map_swift_headers",
+            "name": "Map SWIFT Headers",
+            "description": "Maps all SWIFT header blocks for MT196/MT296",
             "function": {
                 "name": "map",
                 "input": {
@@ -23,81 +24,28 @@
                             "logic": {
                                 "application_id": "F",
                                 "service_id": "01",
-                                "sender_bic": { "if": [
-                                    {"var": "data.ISO20022_MX.header.From.FinancialInstitutionIdentification.BICFI"},
-                                    {"var": "data.ISO20022_MX.header.From.FinancialInstitutionIdentification.BICFI"},
-                                    "NOTPROVIDED"
-                                ]},
-                                "receiver_bic": { "if": [
-                                    {"var": "data.ISO20022_MX.header.To.FinancialInstitutionIdentification.BICFI"},
-                                    {"var": "data.ISO20022_MX.header.To.FinancialInstitutionIdentification.BICFI"},
-                                    "NOTPROVIDED"
-                                ]}
+                                "logical_terminal": {"cat": [{"var": "data.ISO20022_MX.document.Assgnmt.Assgnr.Agt.FinInstnId.BICFI"}, "AXXX"]},
+                                "sender_bic": {"var": "data.ISO20022_MX.document.Assgnmt.Assgnr.Agt.FinInstnId.BICFI"},
+                                "session_number": "0000",
+                                "sequence_number": "000000"
                             }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_application_header",
-            "name": "Map Application Header",
-            "description": "Maps application header specific to message type with CBPR+ priority",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.priority_mapping",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.header.BusinessService"},
-                                { "if": [
-                                    {"in": [".001", {"var": "data.ISO20022_MX.header.BusinessService"}]},
-                                    "U",
-                                    "N"
-                                ]},
-                                "N"
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.poss_duplicate",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.header.CopyDuplicate"},
-                                { "if": [
-                                    {"==": [{"var": "data.ISO20022_MX.header.CopyDuplicate"}, "DUPL"]},
-                                    "3",
-                                    ""
-                                ]},
-                                ""
-                            ]}
                         },
                         {
                             "path": "data.SwiftMT.application_header",
                             "logic": {
-                                "input_output_identifier": "O",
+                                "direction": "O",
                                 "message_type": {"var": "data.SwiftMT.message_type"},
-                                "receiver_bic": {"var": "data.SwiftMT.basic_header.receiver_bic"},
-                                "priority": {"var": "temp_data.priority_mapping"},
-                                "delivery_monitoring": {"var": "temp_data.poss_duplicate"},
-                                "obsolescence_period": ""
+                                "destination_address": {"cat": [{"var": "data.ISO20022_MX.document.Assgnmt.Assgne.Agt.FinInstnId.BICFI"}, "AXXX"]},
+                                "receiver_bic": {"var": "data.ISO20022_MX.document.Assgnmt.Assgne.Agt.FinInstnId.BICFI"},
+                                "priority": "N"
                             }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_user_header",
-            "name": "Map User Header",
-            "description": "Maps user header with UETR from Block 3",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
+                        },
                         {
                             "path": "data.SwiftMT.user_header",
+                            "condition": {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlUETR"},
                             "logic": {
-                                "unique_end_to_end_transaction_reference": {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlUETR"}
+                                "validation_flag": "STP",
+                                "uetr": {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlUETR"}
                             }
                         }
                     ]

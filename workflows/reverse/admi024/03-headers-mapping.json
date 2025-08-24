@@ -1,29 +1,20 @@
 {
     "id": "admi024-headers-mapping",
     "name": "admi.024 to MT199 Headers Mapping",
-    "description": "Maps message headers for MT199 transformation",
-    "priority": 3,
+    "description": "Maps SWIFT headers per specification - BAH/From to Sender, BAH/To to Receiver",
+    "priority": 4,
     "condition": { "and": [
         {"==": [{"var": "ISO20022_MX.message_type"}, "admi.024.001.01"]},
         {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "admi024-preconditions"]},
-        {"==": [{"var": "progress.task_id"}, "validate_message_structure"]},
+        {"==": [{"var": "progress.task_id"}, "validate_mandatory_fields"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "set_message_type",
-            "name": "Set Message Type",
-            "description": "Sets the MT message type to 199",
-            "function": {
-                "name": "map",
-                "input": {"mappings": [{"path": "data.SwiftMT.message_type", "logic": "199"}]}
-            }
-        },
-        {
-            "id": "map_basic_header",
-            "name": "Map Basic Header",
-            "description": "Maps basic header information from BAH",
+            "id": "map_swift_headers",
+            "name": "Map SWIFT Headers",
+            "description": "Maps all SWIFT header blocks for MT199 from BAH per specification",
             "function": {
                 "name": "map",
                 "input": {
@@ -34,128 +25,27 @@
                                 "application_id": "F",
                                 "service_id": "01",
                                 "sender_bic": {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
-                                "receiver_bic": {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
                                 "logical_terminal": {"cat": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, "AXXX"]},
                                 "session_number": "0000",
                                 "sequence_number": "000000"
                             }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_application_header",
-            "name": "Map Application Header",
-            "description": "Maps application header for MT199",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.priority",
-                            "logic": { "if": [
-                                {"==": [{"var": "data.ISO20022_MX.header.Prty"}, "HIGH"]},
-                                "U",
-                                "N"
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.delivery_monitoring",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.header.MsgRcpt"},
-                                "2",
-                                ""
-                            ]}
                         },
                         {
                             "path": "data.SwiftMT.application_header",
                             "logic": {
                                 "direction": "O",
                                 "message_type": "199",
-                                "destination_address": {"cat": [{"var": "data.SwiftMT.basic_header.receiver_bic"}, "AXXX"]},
-                                "receiver_bic": {"var": "data.SwiftMT.basic_header.receiver_bic"},
-                                "priority": {"var": "temp_data.priority"},
-                                "delivery_monitoring": {"var": "temp_data.delivery_monitoring"},
-                                "obsolescence_period": ""
+                                "destination_address": {"cat": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, "AXXX"]},
+                                "receiver_bic": {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                "priority": "N"
                             }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_user_header",
-            "name": "Map User Header",
-            "description": "Maps user header with UETR if available",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.uetr_from_group_header",
-                            "logic": {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}
                         },
                         {
-                            "path": "temp_data.valid_uetr",
-                            "logic": { "if": [
-                                { "and": [
-                                    {"var": "temp_data.uetr_from_group_header"},
-                                    {"==": [{"length": {"var": "temp_data.uetr_from_group_header"}}, 36]},
-                                    {
-                                        "match": [
-                                            {"var": "temp_data.uetr_from_group_header"},
-                                            "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"
-                                        ]
-                                    }
-                                ]},
-                                {"var": "temp_data.uetr_from_group_header"},
-                                null
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.user_header.unique_end_to_end_reference",
-                            "logic": {"var": "temp_data.valid_uetr"}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "store_service_level",
-            "name": "Store Service Level Code",
-            "description": "Stores service level code in temp data",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.service_level_code",
-                            "logic": {"var": "data.ISO20022_MX.header.BizSvc"}
-                        },
-                        {
-                            "path": "temp_data.clearing_system",
-                            "logic": {"var": "data.ISO20022_MX.document.NtfctnData.ClrSys"}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_cbpr_plus_elements",
-            "name": "Map CBPR+ Specific Elements",
-            "description": "Maps CBPR+ compliance elements from BAH",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.SwiftMT.validation_flag",
-                            "condition": { "and": [
-                                {"var": "temp_data.service_level_code"},
-                                {"match": [{"var": "temp_data.service_level_code"}, "^swift\\.cbprplus\\."]}
-                            ]},
-                            "logic": {"substr": [{"var": "temp_data.service_level_code"}, 16]}
+                            "path": "data.SwiftMT.user_header",
+                            "logic": {
+                                "validation_flag": "STP",
+                                "uetr": {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}
+                            }
                         }
                     ]
                 }

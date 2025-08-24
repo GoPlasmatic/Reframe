@@ -1,161 +1,81 @@
 {
     "id": "admi024-mandatory-fields-mapping",
     "name": "admi.024 to MT199 Mandatory Fields Mapping",
-    "description": "Maps mandatory fields for MT199 transformation",
-    "priority": 4,
+    "description": "Maps mandatory fields (20, 79) per specification translation rules",
+    "priority": 5,
     "condition": { "and": [
         {"==": [{"var": "ISO20022_MX.message_type"}, "admi.024.001.01"]},
         {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "admi024-headers-mapping"]},
-        {"==": [{"var": "progress.task_id"}, "map_cbpr_plus_elements"]},
+        {"==": [{"var": "progress.task_id"}, "map_swift_headers"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "map_transaction_reference",
+            "id": "map_field_20",
             "name": "Map Transaction Reference (Field 20)",
-            "description": "Maps SenderNotificationIdentification to Field 20 (TR001)",
+            "description": "Maps SenderNotificationIdentification to Field 20 per TR001",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.field20_raw",
-                            "logic": {"var": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId"}
-                        },
-                        {
-                            "path": "temp_data.field20_truncated",
-                            "condition": {">": [{"length": [{"var": "temp_data.field20_raw"}]}, 16]},
-                            "logic": {
-                                "cat": [
-                                    {
-                                        "substr": [{"var": "temp_data.field20_raw"}, 0, 15]
-                                    },
-                                    "+"
-                                ]
-                            }
-                        },
-                        {
                             "path": "data.SwiftMT.fields.#20",
                             "logic": {
                                 "reference": { "if": [
-                                    {"var": "temp_data.field20_truncated"},
-                                    {"var": "temp_data.field20_truncated"},
+                                    { "or": [
+                                        {"starts_with": [{"var": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId"}, "/"]},
+                                        {"ends_with": [{"var": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId"}, "/"]},
+                                        {"in": ["//" , {"var": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId"}]}
+                                    ]},
+                                    "NOTPROVIDED",
                                     { "if": [
-                                        {
-                                            "not": { "or": [
-                                                {"starts_with": [{"var": "temp_data.field20_raw"}, "/"]},
-                                                {"ends_with": [{"var": "temp_data.field20_raw"}, "/"]},
-                                                {"==": [{"var": "temp_data.field20_raw"}, "//"]}
-                                            ]}
-                                        },
-                                        {"var": "temp_data.field20_raw"},
-                                        "NOTPROVIDED"
+                                        {">": [{"length": {"var": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId"}}, 16]},
+                                        {"cat": [{"substr": [{"var": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId"}, 0, 15]}, "+"]},
+                                        {"var": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId"}
                                     ]}
                                 ]}
                             }
-                        },
-                        {
-                            "path": "temp_data.field20_error",
-                            "condition": {"==": [{"var": "data.SwiftMT.fields.20"}, "NOTPROVIDED"]},
-                            "logic": {"code": "T14001", "message": "Field 20 contains invalid characters (/, //)"}
                         }
                     ]
                 }
             }
         },
         {
-            "id": "map_narrative_field",
-            "name": "Map Narrative Field (Field 79)",
-            "description": "Maps NotificationType and NotificationNarrative to Field 79",
+            "id": "map_field_79",
+            "name": "Map Narrative (Field 79)",
+            "description": "Maps NotificationType and NotificationNarrative to Field 79 per MX_To_MT79NTTP",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.notification_type_code",
-                            "logic": {"var": "data.ISO20022_MX.document.NtfctnData.NtfctnTp.Cd"}
-                        },
-                        {
-                            "path": "temp_data.notification_narratives",
-                            "logic": {"var": "data.ISO20022_MX.document.NtfctnData.NtfctnNrrtv"}
-                        },
-                        {
-                            "path": "temp_data.truncated_narratives",
-                            "logic": { "if": [
-                                {"var": "temp_data.notification_narratives"},
-                                {
-                                    "map": [
-                                        {"var": "temp_data.notification_narratives"},
-                                        { "if": [
-                                            {">": [{"length": {"var": ""}}, 50]},
-                                            {
-                                                "substr": [{"var": ""}, 0, 50]
-                                            },
-                                            {"var": ""}
-                                        ]}
-                                    ]
-                                },
-                                []
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.field79_lines",
-                            "logic": { "if": [
-                                {"var": "temp_data.notification_type_code"},
-                                {
-                                    "cat": [
-                                        "/NTTP/",
-                                        {"var": "temp_data.notification_type_code"},
-                                        { "if": [
-                                            {"var": "temp_data.truncated_narratives"},
-                                            { "reduce": [
-                                                {"var": "temp_data.truncated_narratives"},
-                                                {
-                                                    "cat": [{"var": "accumulator"}, "\n", {"var": "current"}]
-                                                },
-                                                ""
-                                            ]},
-                                            ""
-                                        ]}
-                                    ]
-                                },
-                                { "if": [
-                                    {"var": "temp_data.truncated_narratives"},
-                                    { "reduce": [
-                                        {"var": "temp_data.truncated_narratives"},
-                                        {
-                                            "cat": [{"var": "accumulator"}, "\n", {"var": "current"}]
-                                        },
-                                        {"substr": [{"var": "temp_data.truncated_narratives.0"}, 0]}
-                                    ]},
-                                    "/NTTP/NOTPROVIDED"
-                                ]}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.field79_array",
-                            "logic": {"split": [{"var": "temp_data.field79_lines"}, "\n"]}
-                        },
-                        {
-                            "path": "temp_data.field79_limited",
-                            "logic": { "if": [
-                                {">": [{"length": {"var": "temp_data.field79_array"}}, 35]},
-                                { "reduce": [
-                                    {"var": "temp_data.field79_array"},
-                                    { "if": [
-                                        {"<": [{"length": {"var": "accumulator"}}, 35]},
-                                        {"cat": [{"var": "accumulator"}, [{"var": "current"}]]},
-                                        {"var": "accumulator"}
-                                    ]},
-                                    []
-                                ]},
-                                {"var": "temp_data.field79_array"}
-                            ]}
-                        },
-                        {
                             "path": "data.SwiftMT.fields.#79",
-                            "logic": {"information": {"var": "temp_data.field79_limited"}}
+                            "logic": {
+                                "information": { "if": [
+                                    {"var": "data.ISO20022_MX.document.NtfctnData.NtfctnTp.Cd"},
+                                    { "slice": [
+                                        { "cat": [
+                                            [{"cat": ["/NTTP/", {"var": "data.ISO20022_MX.document.NtfctnData.NtfctnTp.Cd"}]}],
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.NtfctnData.NtfctnNrrtv"},
+                                                { "map": [
+                                                    {"var": "data.ISO20022_MX.document.NtfctnData.NtfctnNrrtv"},
+                                                    { "if": [
+                                                        {"<=": [{"length": {"var": ""}}, 50]},
+                                                        {"var": ""},
+                                                        {"substr": [{"var": ""}, 0, 50]}
+                                                    ]}
+                                                ]},
+                                                []
+                                            ]}
+                                        ]},
+                                        0,
+                                        35
+                                    ]},
+                                    ["/NTTP/NOTPROVIDED"]
+                                ]}
+                            }
                         }
                     ]
                 }

@@ -1,34 +1,20 @@
 {
     "id": "admi024-preconditions",
     "name": "admi.024 to MT199 Preconditions",
-    "description": "Validates preconditions for admi.024 to MT199 transformation",
-    "priority": 2,
+    "description": "Validates preconditions for admi.024 to MT199 transformation per specification",
+    "priority": 3,
     "condition": { "and": [
         {"==": [{"var": "ISO20022_MX.message_type"}, "admi.024.001.01"]},
         {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
-        {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
-        {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
+        {"==": [{"var": "progress.workflow_id"}, "admi024-variant-detection"]},
+        {"==": [{"var": "progress.task_id"}, "set_target_message"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "set_target_message",
-            "name": "Set Target Message Type",
-            "description": "Sets MT199 as the target message type",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {"path": "data.SwiftMT.message_type", "logic": "199"},
-                        {"path": "data.SwiftMT.variant", "logic": "FREE_FORMAT"}
-                    ]
-                }
-            }
-        },
-        {
-            "id": "validate_message_structure",
-            "name": "Validate Message Structure",
-            "description": "Validates required elements are present",
+            "id": "validate_mandatory_fields",
+            "name": "Validate Mandatory Fields",
+            "description": "Validates required NotificationData elements per specification",
             "function": {
                 "name": "validate",
                 "input": {
@@ -44,25 +30,9 @@
                             "message": "T20001: SenderNotificationIdentification is required for field 20"
                         },
                         {
-                            "path": "data.ISO20022_MX.document.NtfctnData.NtfctnTp",
-                            "logic": {"exists": ["data", "ISO20022_MX", "document", "NtfctnData", "NtfctnTp"]},
-                            "message": "T20002: NotificationType is required for field 79"
-                        },
-                        {
-                            "path": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId",
-                            "logic": true,
-                            "message": "T14002: SenderNotificationIdentification length exceeds 16 characters and will be truncated"
-                        },
-                        {
-                            "path": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId",
-                            "logic": {
-                                "!": { "or": [
-                                    {"starts_with": [{"var": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId"}, "/"]},
-                                    {"ends_with": [{"var": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId"}, "/"]},
-                                    {"in": [{"var": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId"}, "//"]}
-                                ]}
-                            },
-                            "message": "T14001: SenderNotificationIdentification contains invalid characters (starts/ends with / or contains //)"
+                            "path": "data.ISO20022_MX.document.NtfctnData.NtfctnTp.Cd",
+                            "logic": {"exists": ["data", "ISO20022_MX", "document", "NtfctnData", "NtfctnTp", "Cd"]},
+                            "message": "T20002: NotificationType Code is required for field 79"
                         }
                     ]
                 }

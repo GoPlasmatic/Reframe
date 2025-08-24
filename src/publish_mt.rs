@@ -213,18 +213,34 @@ impl AsyncFunctionHandler for PublishMT {
         } else if source_format == "camt.052.001.08" {
             debug!("Processing camt.052 to MT942 transformation");
 
-            let data: SwiftMessage<MT942> = serde_json::from_str(&json_str).map_err(|e| {
-                error!(error = ?e, "Failed to parse JSON string for camt.052");
-                DataflowError::Validation(format!("Failed to parse JSON string for camt.052: {e}"))
-            })?;
+            // Use serde_path_to_error for detailed error information
+            let mut deserializer = serde_json::Deserializer::from_str(&json_str);
+            let data: SwiftMessage<MT942> = serde_path_to_error::deserialize(&mut deserializer)
+                .map_err(|e| {
+                    let error_msg = format!(
+                        "Failed to parse JSON for camt.052 at path '{}': {}",
+                        e.path(),
+                        e.inner()
+                    );
+                    error!(error = %error_msg, json_preview = %&json_str[..json_str.len().min(500)], "Failed to parse JSON string for camt.052");
+                    DataflowError::Validation(error_msg)
+                })?;
             data.to_mt_message()
         } else if source_format == "camt.053.001.08" {
             debug!("Processing camt.053 to MT940 transformation");
 
-            let data: SwiftMessage<MT940> = serde_json::from_str(&json_str).map_err(|e| {
-                error!(error = ?e, "Failed to parse JSON string for camt.053");
-                DataflowError::Validation(format!("Failed to parse JSON string for camt.053: {e}"))
-            })?;
+            // Use serde_path_to_error for detailed error information
+            let mut deserializer = serde_json::Deserializer::from_str(&json_str);
+            let data: SwiftMessage<MT940> = serde_path_to_error::deserialize(&mut deserializer)
+                .map_err(|e| {
+                    let error_msg = format!(
+                        "Failed to parse JSON for camt.053 at path '{}': {}",
+                        e.path(),
+                        e.inner()
+                    );
+                    error!(error = %error_msg, json_preview = %&json_str[..json_str.len().min(500)], "Failed to parse JSON string for camt.053");
+                    DataflowError::Validation(error_msg)
+                })?;
             data.to_mt_message()
         } else if source_format == "admi.024.001.01" {
             debug!("Processing admi.024 to MT199 transformation");

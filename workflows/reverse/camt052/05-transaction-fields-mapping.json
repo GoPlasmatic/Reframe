@@ -1,0 +1,163 @@
+{
+    "id": "camt052-transaction-fields-mapping",
+    "name": "camt.052 to MT942 Transaction Fields Mapping",
+    "description": "Maps entries (field 61/86) and summary (90C/90D) per TR005-007, TR009-010, TR012",
+    "priority": 6,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.052.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt052-mandatory-fields-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_field_13D"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_statement_lines",
+            "name": "Map Statement Lines (Field 61 and 86)",
+            "description": "Maps entries per TR005-006",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#",
+                            "logic": { "map": [
+                                {"var": "data.ISO20022_MX.document.Rpt.Ntry"},
+                                {
+                                    "61": {
+                                        "value_date": { "if": [
+                                            {"var": "ValDt.Dt"},
+                                            {"var": "ValDt.Dt"},
+                                            {"substr": [{"var": "ValDt.DtTm"}, 0, 10]}
+                                        ]},
+                                        "entry_date": { "if": [
+                                            {"var": "BookgDt.Dt"},
+                                            {"substr": [{"replace": [{"var": "BookgDt.Dt"}, "-", ""]}, 4, 4]},
+                                            { "if": [
+                                                {"var": "BookgDt.DtTm"},
+                                                {"substr": [{"replace": [{"var": "BookgDt.DtTm"}, "-", ""]}, 4, 4]},
+                                                null
+                                            ]}
+                                        ]},
+                                        "debit_credit_mark": { "if": [
+                                            {"==": [{"var": "Sts.Cd"}, "BOOK"]},
+                                            { "if": [
+                                                {"==": [{"var": "RvslInd"}, true]},
+                                                { "if": [{"==": [{"var": "CdtDbtInd"}, "DBIT"]}, "RC", "RD"]},
+                                                { "if": [{"==": [{"var": "CdtDbtInd"}, "DBIT"]}, "D", "C"]}
+                                            ]},
+                                            { "if": [{"==": [{"var": "CdtDbtInd"}, "DBIT"]}, "ED", "EC"]}
+                                        ]},
+                                        "amount": {"var": "Amt.$value"},
+                                        "transaction_type": "N",
+                                        "identification_code": "TRF",
+                                        "customer_reference": { "if": [
+                                            {"var": "NtryDtls.0.TxDtls.Refs.EndToEndId"},
+                                            { "if": [
+                                                {">": [{"length": {"var": "NtryDtls.0.TxDtls.Refs.EndToEndId"}}, 16]},
+                                                {"cat": [{"substr": [{"var": "NtryDtls.0.TxDtls.Refs.EndToEndId"}, 0, 15]}, "+"]},
+                                                {"var": "NtryDtls.0.TxDtls.Refs.EndToEndId"}
+                                            ]},
+                                            "NONREF"
+                                        ]},
+                                        "bank_reference": { "if": [
+                                            {"var": "AcctSvcrRef"},
+                                            { "if": [
+                                                {">": [{"length": {"var": "AcctSvcrRef"}}, 16]},
+                                                {"cat": [{"substr": [{"var": "AcctSvcrRef"}, 0, 15]}, "+"]},
+                                                {"var": "AcctSvcrRef"}
+                                            ]},
+                                            null
+                                        ]},
+                                        "supplementary_details": { "if": [
+                                            {"var": "NtryDtls.0.TxDtls.AddtlTxInf"},
+                                            { "if": [
+                                                {">": [{"length": {"var": "NtryDtls.0.TxDtls.AddtlTxInf"}}, 34]},
+                                                {"cat": [{"substr": [{"var": "NtryDtls.0.TxDtls.AddtlTxInf"}, 0, 33]}, "+"]},
+                                                {"var": "NtryDtls.0.TxDtls.AddtlTxInf"}
+                                            ]},
+                                            null
+                                        ]}
+                                    }
+                                }
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_transaction_summary_90D",
+            "name": "Map Transaction Summary 90D",
+            "description": "Maps debit summaries per TR009-010",
+            "condition": { "and": [
+                {"exists": ["data", "ISO20022_MX","document","Rpt", "TxsSummry", "TtlDbtNtries", "NbOfNtries"]},
+                {"exists": ["data", "ISO20022_MX","document","Rpt", "TxsSummry", "TtlDbtNtries", "Sum"]},
+                {"<=": [{"length": {"var": "data.ISO20022_MX.document.Rpt.TxsSummry.TtlDbtNtries.NbOfNtries"}}, 5]},
+                {"<=": [{"length": {"replace": [{"replace": [{"str": {"var": "data.ISO20022_MX.document.Rpt.TxsSummry.TtlDbtNtries.Sum.$value"}}, ".", ""]}, "-", ""]}}, 15]}
+            ]},
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.90D",
+                            "logic": {
+                                "number": {"+": {"var": "data.ISO20022_MX.document.Rpt.TxsSummry.TtlDbtNtries.NbOfNtries"}},
+                                "currency": {"var": "data.ISO20022_MX.document.Rpt.Acct.Ccy"},
+                                "amount": {"+": {"var": "data.ISO20022_MX.document.Rpt.TxsSummry.TtlDbtNtries.Sum.$value"}}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_transaction_summary_90C",
+            "name": "Map Transaction Summary 90C",
+            "description": "Maps credit summaries per TR009-010",
+            "condition": { "and": [
+                {"exists": ["data", "ISO20022_MX","document","Rpt", "TxsSummry", "TtlCdtNtries", "NbOfNtries"]},
+                {"exists": ["data", "ISO20022_MX","document","Rpt", "TxsSummry", "TtlCdtNtries", "Sum"]},
+                {"<=": [{"length": {"var": "data.ISO20022_MX.document.Rpt.TxsSummry.TtlCdtNtries.NbOfNtries"}}, 5]},
+                {"<=": [{"length": {"replace": [{"replace": [{"str": {"var": "data.ISO20022_MX.document.Rpt.TxsSummry.TtlCdtNtries.Sum.$value"}}, ".", ""]}, "-", ""]}}, 15]}
+            ]},
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.90C",
+                            "logic": {
+                                "number": {"+": {"var": "data.ISO20022_MX.document.Rpt.TxsSummry.TtlCdtNtries.NbOfNtries"}},
+                                "currency": {"var": "data.ISO20022_MX.document.Rpt.Acct.Ccy"},
+                                "amount": {"+": {"var": "data.ISO20022_MX.document.Rpt.TxsSummry.TtlCdtNtries.Sum.$value"}}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_additional_information",
+            "name": "Map Additional Information (Field 86)",
+            "description": "Maps report additional information per TR012",
+            "condition": {"exists": ["data", "ISO20022_MX", "document", "Rpt", "AddtlRptInf"]},
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#86",
+                            "logic": { "if": [
+                                {">": [{"length": {"var": "data.ISO20022_MX.document.Rpt.AddtlRptInf"}}, 390]},
+                                {"cat": [{"substr": [{"var": "data.ISO20022_MX.document.Rpt.AddtlRptInf"}, 0, 389]}, "+"]},
+                                {"var": "data.ISO20022_MX.document.Rpt.AddtlRptInf"}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

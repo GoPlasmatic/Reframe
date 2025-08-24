@@ -1,46 +1,45 @@
 {
-    "id": "camt052-to-mt942-headers",
+    "id": "camt052-headers-mapping",
     "name": "camt.052 to MT942 Headers Mapping",
-    "description": "Maps SWIFT headers for MT942 message",
+    "description": "Maps SWIFT headers from BAH per specification",
     "priority": 4,
     "condition": { "and": [
         {"==": [{"var": "ISO20022_MX.message_type"}, "camt.052.001.08"]},
         {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
-        {"==": [{"var": "progress.workflow_id"}, "camt052-to-mt942-preconditions"]},
-        {"==": [{"var": "progress.task_id"}, "store_precondition_data"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt052-preconditions"]},
+        {"==": [{"var": "progress.task_id"}, "validate_entry_amounts"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "map_headers",
+            "id": "map_swift_headers",
             "name": "Map SWIFT Headers",
-            "description": "Map basic header and application header fields",
+            "description": "Maps all SWIFT header blocks for MT942",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
-                        {"path": "data.SwiftMT.basic_header.application_id", "logic": "F"},
-                        {"path": "data.SwiftMT.basic_header.service_id", "logic": "01"},
                         {
-                            "path": "data.SwiftMT.basic_header.sender_bic",
-                            "logic": {"var": "temp_data.Sender"}
-                        },
-                        {"path": "data.SwiftMT.basic_header.logical_terminal", "logic": "A"},
-                        {"path": "data.SwiftMT.basic_header.session_number", "logic": "0000"},
-                        {"path": "data.SwiftMT.basic_header.sequence_number", "logic": "000000"},
-                        {"path": "data.SwiftMT.application_header.direction", "logic": "I"},
-                        {"path": "data.SwiftMT.application_header.message_type", "logic": "942"},
-                        {
-                            "path": "data.SwiftMT.application_header.receiver_bic",
-                            "logic": {"var": "temp_data.Receiver"}
+                            "path": "data.SwiftMT.basic_header",
+                            "logic": {
+                                "application_id": "F",
+                                "service_id": "01",
+                                "sender_bic": {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                "logical_terminal": {"cat": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, "AXXX"]},
+                                "session_number": "0000",
+                                "sequence_number": "000000"
+                            }
                         },
                         {
-                            "path": "data.SwiftMT.application_header.destination_address",
-                            "logic": {"var": "temp_data.Receiver"}
-                        },
-                        {"path": "data.SwiftMT.application_header.priority", "logic": "N"},
-                        {"path": "data.SwiftMT.application_header.delivery_monitoring", "logic": "2"},
-                        {"path": "data.SwiftMT.application_header.obsolescence_period", "logic": "003"}
+                            "path": "data.SwiftMT.application_header",
+                            "logic": {
+                                "direction": "O",
+                                "message_type": "942",
+                                "destination_address": {"cat": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, "AXXX"]},
+                                "receiver_bic": {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                "priority": "N"
+                            }
+                        }
                     ]
                 }
             }

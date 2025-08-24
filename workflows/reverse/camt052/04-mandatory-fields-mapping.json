@@ -1,130 +1,176 @@
 {
-    "id": "camt052-to-mt942-mandatory-fields",
+    "id": "camt052-mandatory-fields-mapping",
     "name": "camt.052 to MT942 Mandatory Fields Mapping",
-    "description": "Maps mandatory fields (20, 25, 28C, 13D) per TR001-TR003, TR008",
+    "description": "Maps mandatory fields per specification (TR001-003, TR008)",
     "priority": 5,
     "condition": { "and": [
         {"==": [{"var": "ISO20022_MX.message_type"}, "camt.052.001.08"]},
         {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
-        {"==": [{"var": "progress.workflow_id"}, "camt052-to-mt942-headers"]},
-        {"==": [{"var": "progress.task_id"}, "map_headers"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt052-headers-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_swift_headers"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "map_mandatory_fields",
-            "name": "Map Mandatory Fields",
-            "description": "Map fields 20, 25, 28C, and 13D",
+            "id": "map_field_20",
+            "name": "Map Transaction Reference (Field 20)",
+            "description": "Maps Report/Identification per TR001",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
                             "path": "data.SwiftMT.fields.#20",
-                            "logic": {
-                                "reference": { "if": [
-                                    {"var": "data.ISO20022_MX.document.Rpt.Id"},
+                            "logic": {"reference": 
+                                { "if": [
+                                    { "or": [
+                                        {"starts_with": [{"var": "data.ISO20022_MX.document.Rpt.Id"}, "/"]},
+                                        {"ends_with": [{"var": "data.ISO20022_MX.document.Rpt.Id"}, "/"]},
+                                        {"in": ["//", {"var": "data.ISO20022_MX.document.Rpt.Id"}]}
+                                    ]},
+                                    "NOTPROVIDED",
                                     { "if": [
                                         {">": [{"length": {"var": "data.ISO20022_MX.document.Rpt.Id"}}, 16]},
-                                        {
-                                            "cat": [
-                                                {
-                                                    "substr": [{"var": "data.ISO20022_MX.document.Rpt.Id"}, 0, 15]
-                                                },
-                                                "+"
-                                            ]
-                                        },
-                                        { "if": [
-                                            { "or": [
-                                                {"starts_with": [{"var": "data.ISO20022_MX.document.Rpt.Id"}, "/"]},
-                                                {"ends_with": [{"var": "data.ISO20022_MX.document.Rpt.Id"}, "/"]},
-                                                {"in": ["//", {"var": "data.ISO20022_MX.document.Rpt.Id"}]}
-                                            ]},
-                                            "NOTPROVIDED",
-                                            {"var": "data.ISO20022_MX.document.Rpt.Id"}
-                                        ]}
-                                    ]},
-                                    "NOTPROVIDED"
+                                        {"cat": [{"substr": [{"var": "data.ISO20022_MX.document.Rpt.Id"}, 0, 15]}, "+"]},
+                                        {"var": "data.ISO20022_MX.document.Rpt.Id"}
+                                    ]}
                                 ]}
                             }
-                        },
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_25",
+            "name": "Map Account Identification (Field 25)",
+            "description": "Maps account per TR002",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
                         {
                             "path": "data.SwiftMT.fields.#25",
                             "logic": { "if": [
                                 { "and": [
-                                    {"var": "temp_data.account_owner_bic"},
-                                    {"!=": [{"var": "temp_data.account_owner_bic"}, {"var": "temp_data.Receiver"}]}
+                                    {"var": "data.ISO20022_MX.document.Rpt.Acct.Ownr.Id.OrgId.AnyBIC"},
+                                    {"!=": [
+                                        {"var": "data.ISO20022_MX.document.Rpt.Acct.Ownr.Id.OrgId.AnyBIC"},
+                                        {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}
+                                    ]}
                                 ]},
                                 {
                                     "P": {
-                                        "account": {"var": "temp_data.account_id"},
-                                        "bic": {"var": "temp_data.account_owner_bic"}
+                                        "account": { "if": [
+                                            {"var": "data.ISO20022_MX.document.Rpt.Acct.Id.IBAN"},
+                                            {"var": "data.ISO20022_MX.document.Rpt.Acct.Id.IBAN"},
+                                            {"var": "data.ISO20022_MX.document.Rpt.Acct.Id.Othr.Id"}
+                                        ]},
+                                        "bic": {"var": "data.ISO20022_MX.document.Rpt.Acct.Ownr.Id.OrgId.AnyBIC"}
                                     }
                                 },
-                                {"NoOption": {"authorisation": {"var": "temp_data.account_id"}}}
+                                {
+                                    "NoOption": { "if": [
+                                        {"var": "data.ISO20022_MX.document.Rpt.Acct.Id.IBAN"},
+                                        {"var": "data.ISO20022_MX.document.Rpt.Acct.Id.IBAN"},
+                                        {"var": "data.ISO20022_MX.document.Rpt.Acct.Id.Othr.Id"}
+                                    ]}
+                                }
                             ]}
-                        },
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_28C",
+            "name": "Map Statement Number (Field 28C)",
+            "description": "Maps sequence numbers per TR003",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
                         {
                             "path": "data.SwiftMT.fields.28C",
-                            "logic": {"statement_number": 1, "sequence_number": 1}
-                        },
+                            "logic": {
+                                "statement_number": { "if": [
+                                    { "and": [
+                                        {"var": "data.ISO20022_MX.document.Rpt.LglSeqNb"},
+                                        {"<=": [{"var": "data.ISO20022_MX.document.Rpt.LglSeqNb"}, 99999]}
+                                    ]},
+                                    {"var": "data.ISO20022_MX.document.Rpt.LglSeqNb"},
+                                    {"var": "data.ISO20022_MX.document.Rpt.ElctrncSeqNb"}
+                                ]},
+                                "sequence_number": { "if": [
+                                    {"var": "data.ISO20022_MX.document.Rpt.RptPgntn.PgNb"},
+                                    {"var": "data.ISO20022_MX.document.Rpt.RptPgntn.PgNb"},
+                                    null
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_34F",
+            "name": "Map Floor Limit Indicator (Field 34F#1)",
+            "description": "Maps dummy value per specification",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.34F#1",
+                            "logic": {
+                                "currency": {"var": "data.ISO20022_MX.document.Rpt.Acct.Ccy"},
+                                "amount": 0
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_13D",
+            "name": "Map Date/Time Indication (Field 13D)",
+            "description": "Maps creation date/time per TR008",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
                         {
                             "path": "data.SwiftMT.fields.13D",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.Rpt.CreDtTm"},
-                                {
-                                    "date": {
-                                        "substr": [{"var": "data.ISO20022_MX.document.Rpt.CreDtTm"}, 0, 10]
-                                    },
-                                    "time": {
-                                        "substr": [{"var": "data.ISO20022_MX.document.Rpt.CreDtTm"}, 11, 8]
-                                    },
-                                    "offset_sign": { "if": [
+                            "logic": { 
+                                "date": { "if": [
+                                    {"var": "data.ISO20022_MX.document.Rpt.CreDtTm"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.Rpt.CreDtTm"}, 0, 10]},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.CreDtTm"}, 0, 10]}
+                                ]},
+                                "time": { "if": [
+                                    {"var": "data.ISO20022_MX.document.Rpt.CreDtTm"},
+                                    {"substr": [{"replace": [{"var": "data.ISO20022_MX.document.Rpt.CreDtTm"}, ":", ""]}, 11, 4]},
+                                    {"substr": [{"replace": [{"var": "data.ISO20022_MX.document.GrpHdr.CreDtTm"}, ":", ""]}, 11, 4]}
+                                ]},
+                                "sign": { "if": [
+                                    {"var": "data.ISO20022_MX.document.Rpt.CreDtTm"},
+                                    { "if": [
                                         {"in": ["+", {"var": "data.ISO20022_MX.document.Rpt.CreDtTm"}]},
                                         "+",
                                         "-"
                                     ]},
-                                    "offset_seconds": {
-                                        "substr": [
-                                            {"replace": [{"replace": [{"var": "data.ISO20022_MX.document.Rpt.CreDtTm"}, "+", ""]}, "-", ""]},
-                                            -5,
-                                            5
-                                        ]
-                                    }
-                                },
-                                { "if": [
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.CreDtTm"},
-                                    {
-                                        "date": {
-                                            "substr": [{"var": "data.ISO20022_MX.document.GrpHdr.CreDtTm"}, 0, 10]
-                                        },
-                                        "time": {
-                                            "substr": [{"var": "data.ISO20022_MX.document.GrpHdr.CreDtTm"}, 11, 8]
-                                        },
-                                        "offset_sign": { "if": [
-                                            {"in": ["+", {"var": "data.ISO20022_MX.document.GrpHdr.CreDtTm"}]},
-                                            "+",
-                                            "-"
-                                        ]},
-                                        "offset_seconds": {
-                                            "substr": [
-                                                {"replace": [{"replace": [{"var": "data.ISO20022_MX.document.GrpHdr.CreDtTm"}, "+", ""]}, "-", ""]},
-                                                -5,
-                                                5
-                                            ]
-                                        }
-                                    },
-                                    null
+                                    { "if": [
+                                        {"in": ["+", {"var": "data.ISO20022_MX.document.GrpHdr.CreDtTm"}]},
+                                        "+",
+                                        "-"
+                                    ]}
+                                ]},
+                                "offset": { "if": [
+                                    {"var": "data.ISO20022_MX.document.Rpt.CreDtTm"},
+                                    {"replace": [{"substr": [{"var": "data.ISO20022_MX.document.Rpt.CreDtTm"}, -5]}, ":", ""]},
+                                    {"replace": [{"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.CreDtTm"}, -5]}, ":", ""]}
                                 ]}
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.34F",
-                            "logic": { "if": [
-                                {"var": "temp_data.account_currency"},
-                                {"currency": {"var": "temp_data.account_currency"}, "amount": 0.0},
-                                null
-                            ]}
+                            }
                         }
                     ]
                 }

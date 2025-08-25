@@ -52,6 +52,13 @@ python3 test/test_scenarios.py -m camt.052 -d
 
 # Test all scenarios with verbose output
 python3 test/test_scenarios.py --all -v
+
+# Generate sample messages
+python3 test/generate_sample.py MT103 -s standard
+python3 test/generate_sample.py pacs.008 -s cbpr_standard -p
+
+# Validate sample messages
+python3 test/validate_sample.py MT103 -s standard -d
 ```
 
 ### Code Quality
@@ -105,20 +112,36 @@ The application follows a dual-engine architecture with clear separation of conc
    - Engines are initialized once and reused across requests
 
 3. **Message Parsing**:
-   - `src/parse_mt.rs`: SWIFT MT parsing using pest grammar
+   - `src/parse_mt.rs`: SWIFT MT parsing with custom parser
    - `src/parse_mx.rs`: ISO 20022 XML parsing and validation
-   - Grammar files in `src/mt_messages/` define MT message structures
+   - `src/validation_helpers.rs`: Common validation utilities
 
 4. **Message Generation**:
    - `src/mx_generator.rs`: Converts JSON to ISO 20022 XML using mx-message library
    - `src/mt_generator.rs`: Generates SWIFT MT messages from structured data
    - `src/sample_generator.rs`: Creates sample messages using datafake-rs
+   - `src/scenario_loader.rs`: Loads and manages test scenarios
 
-5. **API Handlers** (`src/handlers.rs`):
+5. **Message Publishing**:
+   - `src/publish_mt.rs`: Formats and publishes MT messages
+   - `src/publish_mx.rs`: Formats and publishes MX messages
+
+6. **API Handlers** (`src/handlers.rs`):
    - Request validation and routing
    - Engine invocation
    - Response formatting
    - Error handling and reporting
+
+7. **OpenAPI Documentation** (`src/openapi.rs`):
+   - Swagger/OpenAPI spec generation using utoipa
+   - API documentation endpoints
+
+8. **Type Definitions** (`src/types.rs`):
+   - Common data structures and types
+   - Request/response models
+
+9. **Helper Functions** (`src/helper.rs`):
+   - Utility functions used across the codebase
 
 ### Workflow System
 
@@ -132,7 +155,8 @@ workflows/
 │   ├── MT103/        # Message-specific workflows
 │   │   ├── bah-mapping.json      # Business Application Header
 │   │   ├── document-mapping.json # Document body mapping
-│   │   └── precondition.json     # Validation rules
+│   │   ├── precondition.json     # Validation rules
+│   │   └── postcondition.json    # Post-processing rules
 │   └── combine-xml.json          # Final XML assembly
 └── reverse/           # MX → MT transformations
     ├── index.json
@@ -151,6 +175,7 @@ Scenarios provide test data generation using datafake-rs:
 scenarios/
 ├── index.json         # Scenario registry
 ├── forward/          # MT → MX test scenarios
+│   └── mt103_to_pacs008_cbpr_standard.json
 └── reverse/          # MX → MT test scenarios
     ├── camt052_to_mt942_cbpr.json
     └── pacs008_to_mt103_cbpr_standard.json
@@ -162,14 +187,14 @@ Each scenario file contains:
 
 ### Key Libraries and Dependencies
 
-- **mx-message**: ISO 20022 message structures and serialization
-- **swift-mt-message**: SWIFT MT message handling  
-- **dataflow-rs**: Workflow engine for transformation pipelines
-- **datalogic-rs**: JSONLogic implementation for declarative rules
-- **datafake-rs**: Test data generation from JSON schemas
-- **pest**: Parser generator for MT message grammars
-- **axum**: Async web framework
-- **quick-xml**: XML serialization
+- **mx-message** (3.0): ISO 20022 message structures and serialization
+- **swift-mt-message** (3.0): SWIFT MT message handling  
+- **dataflow-rs** (0.1): Workflow engine for transformation pipelines
+- **datafake-rs** (0.1): Test data generation from JSON schemas
+- **axum** (0.8): Async web framework
+- **tokio** (1.47): Async runtime
+- **quick-xml** (0.38): XML serialization
+- **utoipa** (5.4): OpenAPI documentation generation
 
 ## API Endpoints
 
@@ -200,25 +225,27 @@ Each scenario file contains:
 
 1. **For MT → MX transformation**:
    - Create workflow directory: `workflows/forward/MT{XXX}/`
-   - Add workflow files: `bah-mapping.json`, `document-mapping.json`, `precondition.json`
+   - Add workflow files: `bah-mapping.json`, `document-mapping.json`, `precondition.json`, `postcondition.json`
    - Update `workflows/forward/index.json`
+   - Add test scenario in `scenarios/forward/`
 
 2. **For MX → MT transformation**:
    - Create workflow directory: `workflows/reverse/{message_type}/`
-   - Add numbered workflow files following existing patterns
+   - Add numbered workflow files following existing patterns (01-variant-detection.json, etc.)
    - Update `workflows/reverse/index.json`
+   - Add test scenario in `scenarios/reverse/`
 
-3. **Add scenario for testing**:
-   - Create scenario file in `scenarios/forward/` or `scenarios/reverse/`
-   - Register in `scenarios/index.json`
-   - Test with: `python3 test/test_scenarios.py -m {message_type}`
+3. **Register scenarios**:
+   - Update `scenarios/index.json` with new scenario mappings
+   - Test with: `python3 test/test_scenarios.py -m {message_type} -d`
 
 ### Debugging Transformation Issues
 
 1. Run with debug logging: `RUST_LOG=debug cargo run`
 2. Check workflow execution in logs
-3. Use the debug option in API requests for detailed output
+3. Use debug option in API requests for detailed output
 4. Test individual workflows with the test script
+5. Use dataflow tracing: `RUST_LOG=debug,dataflow_rs=trace cargo run`
 
 ### Working with MX Message Library
 
@@ -265,19 +292,48 @@ Common issues when creating/fixing MX scenarios:
 
 ## Important Implementation Notes
 
+### Workflow Processing
+- The condition field in workflow gets the entire metadata field as the context, so no need to add `metadata.` prefix in variable access
 - Date format in reverse mappings must be `yyyy-mm-dd` (parsed as NativeDate)
 - Numeric path components need `#` prefix to avoid array notation interpretation
-- `one_of` is not valid in datalogic-rs (use alternative logic)
+- `one_of` is not valid in dataflow-rs JSONLogic (use alternative logic)
+
+### Engine Management
 - The application maintains separate forward and reverse engines that persist across requests
-- Workflow modifications can be hot-reloaded without restart
+- Workflow modifications can be hot-reloaded without restart via `/admin/reload-workflows`
 - All transformations are logged with structured tracing
+
+### Message Handling
+- MT messages use custom parsing logic in `parse_mt.rs`
+- MX messages are validated against ISO 20022 schemas
+- Both directions support Business Application Header (BAH) generation
+- Envelope structures are automatically handled in transformations
 
 ## Testing Strategy
 
-1. **Unit tests**: Test individual components (`cargo test`)
-2. **Scenario tests**: Test end-to-end with realistic data (`test/test_scenarios.py`)
-3. **Manual testing**: Use curl or Postman with test data in `test/data/`
+1. **Unit tests**: Test individual components
+   ```bash
+   cargo test
+   cargo test -- --nocapture  # See println! output
+   ```
+
+2. **Scenario tests**: Test end-to-end with realistic data
+   ```bash
+   python3 test/test_scenarios.py --all
+   python3 test/test_scenarios.py -m MT103 -d
+   ```
+
+3. **Manual testing**: Use curl or Postman
+   ```bash
+   curl -X POST http://localhost:3000/transform/mt-to-mx \
+     -H "Content-Type: application/json" \
+     -d @test/data/mt103.json
+   ```
+
 4. **Validation testing**: Ensure generated messages pass validation
+   ```bash
+   python3 test/validate_sample.py MT103 -s standard
+   ```
 
 ## Performance Considerations
 
@@ -285,4 +341,13 @@ Common issues when creating/fixing MX scenarios:
 - The application is stateless and can scale horizontally
 - Workflow engines are initialized once and reused
 - JSON parsing is a potential bottleneck for large messages
-- The condition field in workflow gets the entire metadata field as the context so no need to add metadata. in variable access
+- Consider using `RUST_LOG=info` in production (debug logging impacts performance)
+
+## Docker Deployment
+
+The Dockerfile uses a multi-stage build:
+1. **Builder stage**: Compiles the Rust application with dependencies cached
+2. **Runtime stage**: Minimal Debian image with only runtime dependencies
+3. **Scenario loading**: Clones SwiftMTMessage and MXMessage repos for test scenarios
+
+Container runs as non-root user (appuser) on port 3000.

@@ -1,70 +1,29 @@
 {
     "id": "camt057-mandatory-fields-mapping",
     "name": "camt.057 to MT210 Mandatory Fields Mapping",
-    "description": "Maps mandatory fields including references, amount, and dates",
-    "priority": 4,
+    "description": "Maps mandatory fields per CBPR+ specification (TR001-TR005)",
+    "priority": 5,
     "condition": { "and": [
-        {"==": [{"var": "SwiftMT.message_type"}, "210"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.057.001.06"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "camt057-headers-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_swift_headers"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
             "id": "map_field_20",
-            "name": "Map Field 20 Transaction Reference",
-            "description": "Maps Group Header Message ID to field 20",
+            "name": "Map Transaction Reference (Field 20)",
+            "description": "Maps GroupHeader/MessageIdentification per TR001",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.field20_raw",
-                            "logic": {"var": "data.ISO20022_MX.document.NtfctnToRcv.GrpHdr.MsgId"}
-                        },
-                        {
-                            "path": "temp_data.field20_valid",
+                            "path": "data.SwiftMT.fields.#20",
                             "logic": {
-                                "not": { "or": [
-                                    {"match": [{"var": "temp_data.field20_raw"}, "^/"]},
-                                    {"match": [{"var": "temp_data.field20_raw"}, "/$"]},
-                                    {"match": [{"var": "temp_data.field20_raw"}, "//"]}
-                                ]}
+                                "reference": {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}
                             }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.20",
-                            "logic": {
-                                "transaction_reference": { "if": [
-                                    {">": [{"strlen": [{"var": "temp_data.field20_raw"}]}, 16]},
-                                    { "if": [
-                                        {"var": "temp_data.field20_valid"},
-                                        {
-                                            "cat": [
-                                                {
-                                                    "substr": [{"var": "temp_data.field20_raw"}, 0, 15]
-                                                },
-                                                "+"
-                                            ]
-                                        },
-                                        "NOTPROVIDED"
-                                    ]},
-                                    { "if": [
-                                        {"var": "temp_data.field20_valid"},
-                                        {"var": "temp_data.field20_raw"},
-                                        "NOTPROVIDED"
-                                    ]}
-                                ]}
-                            }
-                        },
-                        {
-                            "path": "temp_data.warnings.field20_truncated",
-                            "condition": {">": [{"strlen": [{"var": "temp_data.field20_raw"}]}, 16]},
-                            "logic": {"code": "T20051", "message": "Field 20 truncated to 16 characters"}
-                        },
-                        {
-                            "path": "temp_data.warnings.field20_invalid",
-                            "condition": {"not": {"var": "temp_data.field20_valid"}},
-                            "logic": {"code": "T14001", "message": "Field 20 contains invalid characters"}
                         }
                     ]
                 }
@@ -72,59 +31,21 @@
         },
         {
             "id": "map_field_21",
-            "name": "Map Field 21 Related Reference",
-            "description": "Maps Item End-to-End ID or ID to field 21",
+            "name": "Map Related Reference (Field 21)",
+            "description": "Maps Item/EndToEndIdentification or Item/Identification per TR004",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.field21_raw",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.EndToEndId"},
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.EndToEndId"},
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Id"}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.field21_valid",
+                            "path": "data.SwiftMT.fields.#21",
                             "logic": {
-                                "not": { "or": [
-                                    {"match": [{"var": "temp_data.field21_raw"}, "^/"]},
-                                    {"match": [{"var": "temp_data.field21_raw"}, "/$"]},
-                                    {"match": [{"var": "temp_data.field21_raw"}, "//"]}
+                                "reference": { "if": [
+                                    {"var": "data.ISO20022_MX.document.Ntfctn.Itm.0.EndToEndId"},
+                                    {"var": "data.ISO20022_MX.document.Ntfctn.Itm.0.EndToEndId"},
+                                    {"var": "data.ISO20022_MX.document.Ntfctn.Itm.0.Id"}
                                 ]}
                             }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.21",
-                            "logic": {
-                                "related_reference": { "if": [
-                                    {">": [{"strlen": [{"var": "temp_data.field21_raw"}]}, 16]},
-                                    { "if": [
-                                        {"var": "temp_data.field21_valid"},
-                                        {
-                                            "cat": [
-                                                {
-                                                    "substr": [{"var": "temp_data.field21_raw"}, 0, 15]
-                                                },
-                                                "+"
-                                            ]
-                                        },
-                                        "NOTPROVIDED"
-                                    ]},
-                                    { "if": [
-                                        {"var": "temp_data.field21_valid"},
-                                        {"var": "temp_data.field21_raw"},
-                                        "NOTPROVIDED"
-                                    ]}
-                                ]}
-                            }
-                        },
-                        {
-                            "path": "temp_data.warnings.field21_truncated",
-                            "condition": {">": [{"strlen": [{"var": "temp_data.field21_raw"}]}, 16]},
-                            "logic": {"code": "T20055", "message": "Field 21 truncated to 16 characters"}
                         }
                     ]
                 }
@@ -132,39 +53,28 @@
         },
         {
             "id": "map_field_25",
-            "name": "Map Field 25 Account",
-            "description": "Maps account identification to field 25",
+            "name": "Map Account (Field 25)",
+            "description": "Maps account from Notification or Item level per TR002",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.account",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Acct.Id.IBAN"},
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Acct.Id.IBAN"},
-                                { "if": [
-                                    {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Acct.Id.Othr.Id"},
-                                    {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Acct.Id.Othr.Id"},
+                            "path": "data.SwiftMT.fields.#25",
+                            "logic": {
+                                "authorisation": { "if": [
+                                    {"var": "data.ISO20022_MX.document.Ntfctn.Acct.Id.IBAN"},
+                                    {"var": "data.ISO20022_MX.document.Ntfctn.Acct.Id.IBAN"},
                                     { "if": [
-                                        {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Acct.Id.IBAN"},
-                                        {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Acct.Id.IBAN"},
+                                        {"var": "data.ISO20022_MX.document.Ntfctn.Acct.Id.Othr.Id"},
+                                        {"var": "data.ISO20022_MX.document.Ntfctn.Acct.Id.Othr.Id"},
                                         { "if": [
-                                            {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Acct.Id.Othr.Id"},
-                                            {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Acct.Id.Othr.Id"},
-                                            null
+                                            {"var": "data.ISO20022_MX.document.Ntfctn.Itm.0.Acct.Id.IBAN"},
+                                            {"var": "data.ISO20022_MX.document.Ntfctn.Itm.0.Acct.Id.IBAN"},
+                                            {"var": "data.ISO20022_MX.document.Ntfctn.Itm.0.Acct.Id.Othr.Id"}
                                         ]}
                                     ]}
                                 ]}
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.25",
-                            "condition": {"var": "temp_data.account"},
-                            "logic": {
-                                "account": {
-                                    "substr": [{"var": "temp_data.account"}, 0, 35]
-                                }
                             }
                         }
                     ]
@@ -173,64 +83,20 @@
         },
         {
             "id": "map_field_30",
-            "name": "Map Field 30 Value Date",
-            "description": "Maps expected value date to field 30",
+            "name": "Map Value Date (Field 30)",
+            "description": "Maps ExpectedValueDate per TR003",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.value_date_raw",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.XpctdValDt"},
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.XpctdValDt"},
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.XpctdValDt"}
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.30",
+                            "path": "data.SwiftMT.fields.#30",
                             "logic": {
-                                "value_date": { "if": [
-                                    {"var": "temp_data.value_date_raw"},
-                                    {
-                                        "cat": [
-                                            {
-                                                "substr": [{"var": "temp_data.value_date_raw"}, 2, 2]
-                                            },
-                                            {
-                                                "substr": [{"var": "temp_data.value_date_raw"}, 5, 2]
-                                            },
-                                            {
-                                                "substr": [{"var": "temp_data.value_date_raw"}, 8, 2]
-                                            }
-                                        ]
-                                    },
-                                    "991231"
+                                "execution_date": { "if": [
+                                    {"var": "data.ISO20022_MX.document.Ntfctn.XpctdValDt"},
+                                    {"var": "data.ISO20022_MX.document.Ntfctn.XpctdValDt"},
+                                    {"var": "data.ISO20022_MX.document.Ntfctn.Itm.0.XpctdValDt"}
                                 ]}
-                            }
-                        },
-                        {
-                            "path": "temp_data.warnings.field30_default",
-                            "condition": {"not": {"var": "temp_data.value_date_raw"}},
-                            "logic": {"code": "T00062", "message": "Expected value date missing, using default 991231"}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_field_32B",
-            "name": "Map Field 32B Amount",
-            "description": "Maps notification item amount to field 32B",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.SwiftMT.fields.32B",
-                            "logic": {
-                                "currency": {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Amt/@Ccy"},
-                                "amount": {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Amt"}
                             }
                         }
                     ]

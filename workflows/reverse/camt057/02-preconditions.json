@@ -1,158 +1,47 @@
 {
     "id": "camt057-preconditions",
     "name": "camt.057 to MT210 Preconditions Validation",
-    "description": "Validates preconditions for camt.057 to MT210 transformation",
-    "priority": 2,
+    "description": "Validates preconditions for camt.057 to MT210 transformation per CBPR+ spec",
+    "priority": 3,
     "condition": { "and": [
-        {"==": [{"var": "SwiftMT.message_type"}, "210"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.057.001.06"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "camt057-variant-detection"]},
+        {"==": [{"var": "progress.task_id"}, "set_message_type"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "validate_single_item",
-            "name": "Validate Single Item",
-            "description": "Validates that only one notification item is present",
+            "id": "validate_preconditions",
+            "name": "Validate Preconditions",
+            "description": "Validates preconditions for camt.057 to MT210 transformation per CBPR+ specification",
             "function": {
-                "name": "map",
+                "name": "validate",
                 "input": {
-                    "mappings": [
+                    "rules": [
                         {
-                            "path": "temp_data.prec.single_item",
-                            "logic": {"<=": [{"count": {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm"}}, 1]}
-                        },
-                        {
-                            "path": "temp_data.prec.error_multiple_items",
-                            "condition": {"not": {"var": "temp_data.prec.single_item"}},
-                            "logic": {
-                                "code": "T20061",
-                                "message": "Multiple notification items present, only single item supported"
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "validate_currency",
-            "name": "Validate Currency",
-            "description": "Validates currency is not a precious metal",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.prec.valid_currency",
-                            "logic": {
-                                "not": {
-                                    "in": [
-                                        {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Amt/@Ccy"},
-                                        ["XAU", "XAG", "XPD", "XPT"]
-                                    ]
-                                }
-                            }
-                        },
-                        {
-                            "path": "temp_data.prec.error_precious_metal",
-                            "condition": {"not": {"var": "temp_data.prec.valid_currency"}},
-                            "logic": {"code": "T20054", "message": "Precious metal currencies not supported in MT210"}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "validate_amount",
-            "name": "Validate Amount",
-            "description": "Validates amount does not exceed 14 digits",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.prec.valid_amount",
-                            "condition": {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Amt"},
-                            "logic": {"<=": [{"count": [{"match": [{"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Amt"}, "[0-9]"]}]}, 14]}
-                        },
-                        {
-                            "path": "temp_data.prec.error_amount_digits",
-                            "condition": { "and": [
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Amt"},
-                                {"not": {"var": "temp_data.prec.valid_amount"}}
+                            "path": "data.ISO20022_MX.document.Ntfctn.Itm",
+                            "logic": {"or": [
+                                {"!": {"var": "data.ISO20022_MX.document.Ntfctn.Itm"}},
+                                {"==": [{"length": {"var": "data.ISO20022_MX.document.Ntfctn.Itm"}}, 1]}
                             ]},
-                            "logic": {"code": "T20066", "message": "Amount exceeds 14 digits"}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "validate_debtor",
-            "name": "Validate Debtor",
-            "description": "Validates debtor presence and consistency",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.prec.debtor_present",
-                            "logic": { "or": [
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Dbtr"},
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Dbtr"}
-                            ]}
+                            "message": "T20061: PREC001: Only one Notification/Item occurrence allowed. In camt.057, Single Notification Item should be sent unless bilaterally agreed. Only one occurrence of Notification/Item is allowed."
                         },
                         {
-                            "path": "temp_data.prec.debtor_conflict",
-                            "logic": { "and": [
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Dbtr"},
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.Dbtr"}
-                            ]}
+                            "path": "data.ISO20022_MX.document.Ntfctn.Itm[0].Amt.Ccy",
+                            "logic": {"!": {"in": [
+                                {"var": "data.ISO20022_MX.document.Ntfctn.Itm.0.Amt.@Ccy"},
+                                ["XAU", "XAG", "XPD", "XPT"]
+                            ]}},
+                            "message": "T20054: PREC002: Check for precious metal currencies. Precious metal currencies (XAU, XAG, XPD, XPT) are not supported in MT210 transformation."
                         },
                         {
-                            "path": "temp_data.prec.debtor_agent_present",
-                            "logic": { "or": [
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.DbtrAgt"},
-                                {"var": "data.ISO20022_MX.document.NtfctnToRcv.Ntfctn.Itm.0.DbtrAgt"}
-                            ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "check_all_preconditions",
-            "name": "Check All Preconditions",
-            "description": "Consolidates all precondition checks",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.preconditions_met",
-                            "logic": { "and": [
-                                {"var": "temp_data.prec.single_item"},
-                                {"var": "temp_data.prec.valid_currency"},
-                                {"!=": [{"var": "temp_data.prec.valid_amount"}, false]},
-                                {"var": "temp_data.prec.debtor_present"},
-                                {"not": {"var": "temp_data.prec.debtor_conflict"}}
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.validation_status",
-                            "condition": {"not": {"var": "temp_data.preconditions_met"}},
-                            "logic": {
-                                "success": false,
-                                "errors": {
-                                    "filter": [
-                                        [
-                                            {"var": "temp_data.prec.error_multiple_items"},
-                                            {"var": "temp_data.prec.error_precious_metal"},
-                                            {"var": "temp_data.prec.error_amount_digits"}
-                                        ],
-                                        {"var": ""}
-                                    ]
-                                }
-                            }
+                            "path": "data.ISO20022_MX.document.Ntfctn.Itm.0.Amt",
+                            "logic": {"<=": [
+                                {"var": "data.ISO20022_MX.document.Ntfctn.Itm.0.Amt.$value"},
+                                99999999999999.99
+                            ]},
+                            "message": "T20066: PREC003: Total number of digits in amount must not exceed 14. The total number of digits in the amount exceeds 14, which is the maximum allowed in MT210."
                         }
                     ]
                 }

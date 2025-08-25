@@ -1,134 +1,43 @@
 {
     "id": "camt056-preconditions",
-    "name": "camt.056 to MT192/MT292 Preconditions Validation",
+    "name": "camt.056 to MT192/MT292 Preconditions",
     "description": "Validates preconditions for camt.056 to MT192/MT292 transformation",
-    "priority": 2,
+    "priority": 3,
     "condition": { "and": [
-        {"in": [{"var": "SwiftMT.message_type"}, ["192", "292"]]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.056.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "camt056-variant-detection"]},
+        {"==": [{"var": "progress.task_id"}, "detect_target_message"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "validate_mandatory_fields",
-            "name": "Validate Mandatory Fields",
-            "description": "Validates presence of mandatory fields for MT192/MT292",
+            "id": "validate_preconditions",
+            "name": "Validate Preconditions",
+            "description": "Validates all preconditions for MT192/MT292",
             "function": {
-                "name": "map",
+                "name": "validate",
                 "input": {
-                    "mappings": [
+                    "rules": [
                         {
-                            "path": "temp_data.prec.case_id_present",
-                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.Case.Id"}
+                            "path": "data.ISO20022_MX.document",
+                            "logic": {"exists": ["data", "ISO20022_MX", "document", "Undrlyg", "TxInf", "Case", "Id"]},
+                            "message": "PREC01: Case/Identification is mandatory"
                         },
                         {
-                            "path": "temp_data.prec.original_interbank_amount_present",
-                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlIntrBkSttlmAmt"}
+                            "path": "data.ISO20022_MX.document",
+                            "logic": {"exists": ["data", "ISO20022_MX", "document", "Undrlyg", "TxInf", "OrgnlInstrId"]},
+                            "message": "PREC02: OriginalInstructionIdentification is mandatory"
                         },
                         {
-                            "path": "temp_data.prec.original_interbank_date_present",
-                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlIntrBkSttlmDt"}
+                            "path": "data.ISO20022_MX.document",
+                            "logic": {"exists": ["data", "ISO20022_MX", "document", "Undrlyg", "TxInf", "OrgnlIntrBkSttlmAmt"]},
+                            "message": "PREC03: OriginalInterbankSettlementAmount is mandatory"
                         },
                         {
-                            "path": "temp_data.prec.cancellation_reason_present",
-                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.CxlRsnInf"}
-                        },
-                        {
-                            "path": "temp_data.prec.original_uetr_present",
-                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlUETR"}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "validate_reference_format",
-            "name": "Validate Reference Format",
-            "description": "Validates reference fields don't contain invalid characters",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.prec.case_id_valid",
-                            "condition": {"var": "temp_data.prec.case_id_present"},
-                            "logic": {
-                                "not": { "or": [
-                                    {
-                                        "match": [
-                                            {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.Case.Id"},
-                                            "^/"
-                                        ]
-                                    },
-                                    {
-                                        "match": [
-                                            {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.Case.Id"},
-                                            "/$"
-                                        ]
-                                    },
-                                    {
-                                        "match": [
-                                            {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.Case.Id"},
-                                            "//"
-                                        ]
-                                    }
-                                ]}
-                            }
-                        },
-                        {
-                            "path": "temp_data.prec.original_instruction_id_valid",
-                            "condition": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlInstrId"},
-                            "logic": {
-                                "not": { "or": [
-                                    {
-                                        "match": [
-                                            {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlInstrId"},
-                                            "^/"
-                                        ]
-                                    },
-                                    {
-                                        "match": [
-                                            {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlInstrId"},
-                                            "/$"
-                                        ]
-                                    },
-                                    {
-                                        "match": [
-                                            {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlInstrId"},
-                                            "//"
-                                        ]
-                                    }
-                                ]}
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "check_all_preconditions",
-            "name": "Check All Preconditions",
-            "description": "Consolidates all precondition checks",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.preconditions_met",
-                            "logic": { "and": [
-                                {"var": "temp_data.prec.case_id_present"},
-                                {"var": "temp_data.prec.original_interbank_amount_present"},
-                                {"var": "temp_data.prec.original_interbank_date_present"},
-                                {"var": "temp_data.prec.cancellation_reason_present"},
-                                {"var": "temp_data.prec.original_uetr_present"},
-                                {"!=": [{"var": "temp_data.prec.case_id_valid"}, false]},
-                                {"!=": [{"var": "temp_data.prec.original_instruction_id_valid"}, false]}
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.validation_status",
-                            "condition": {"not": {"var": "temp_data.preconditions_met"}},
-                            "logic": {"code": "T20073", "message": "camt.056 to MT192/MT292 preconditions not met"}
+                            "path": "data.ISO20022_MX.document",
+                            "logic": {"exists": ["data", "ISO20022_MX", "document", "Undrlyg", "TxInf", "OrgnlIntrBkSttlmDt"]},
+                            "message": "PREC04: OriginalInterbankSettlementDate is mandatory"
                         }
                     ]
                 }

@@ -1,77 +1,50 @@
 {
     "id": "camt056-variant-detection",
     "name": "camt.056 Variant Detection for MT192/MT292",
-    "description": "Detects whether to transform to MT192 or MT292 based on original message type",
-    "priority": 1,
+    "description": "Detects whether to transform to MT192 or MT292 based on original message type per PREC001",
+    "priority": 2,
     "condition": { "and": [
-        {"==": [{"var": "data.ISO20022_MX.message_type"}, "camt.056"]},
-        {"==": [{"var": "data.ISO20022_MX.message_version"}, "001.08"]},
-        {"==": [{"var": "progress.workflow_id"}, "parse-mx"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.056.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
             "id": "detect_target_message",
             "name": "Detect Target Message Type",
-            "description": "Determines MT192 or MT292 based on original message type",
+            "description": "Determines MT192 or MT292 based on original message type (PREC001)",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.original_message_name",
-                            "logic": {"var": "data.ISO20022_MX.document.FIToFIPmtCxlReq.Undrlyg.TxInf.0.OrgnlGrpInf.OrgnlMsgNmId"}
-                        },
-                        {
                             "path": "data.SwiftMT.message_type",
                             "logic": { "if": [
                                 { "or": [
-                                    {"in": ["pacs.008", {"var": "temp_data.original_message_name"}]},
-                                    {"in": ["pacs.003", {"var": "temp_data.original_message_name"}]},
-                                    { "and": [
-                                        {"==": [{"strlen": [{"var": "temp_data.original_message_name"}]}, 5]},
-                                        {"match": [{"var": "temp_data.original_message_name"}, "^MT10[0-9]$"]}
-                                    ]}
+                                    {
+                                        "starts_with": [
+                                            {"var": "data.ISO20022_MX.document.Undrlyg.TxInf.OrgnlGrpInf.OrgnlMsgNmId"},
+                                            "pacs.008"
+                                        ]
+                                    },
+                                    {
+                                        "starts_with": [
+                                            {"var": "data.ISO20022_MX.document.Undrlyg.TxInf.OrgnlGrpInf.OrgnlMsgNmId"},
+                                            "pacs.003"
+                                        ]
+                                    },
+                                    {
+                                        "starts_with": [
+                                            {"var": "data.ISO20022_MX.document.Undrlyg.TxInf.OrgnlGrpInf.OrgnlMsgNmId"},
+                                            "MT10"
+                                        ]
+                                    }
                                 ]},
                                 "192",
-                                { "if": [
-                                    { "or": [
-                                        {"in": ["pacs.009", {"var": "temp_data.original_message_name"}]},
-                                        {"in": ["pacs.010", {"var": "temp_data.original_message_name"}]},
-                                        { "and": [
-                                            {"==": [{"strlen": [{"var": "temp_data.original_message_name"}]}, 5]},
-                                            {"match": [{"var": "temp_data.original_message_name"}, "^MT20[0-9]$"]}
-                                        ]}
-                                    ]},
-                                    "292",
-                                    "292"
-                                ]}
+                                "292"
                             ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.variant",
-                            "logic": { "if": [
-                                {"==": [{"var": "data.SwiftMT.message_type"}, "192"]},
-                                "CUSTOMER_CANCELLATION",
-                                "FI_CANCELLATION"
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.warning_default_292",
-                            "condition": { "and": [
-                                {"==": [{"var": "data.SwiftMT.message_type"}, "292"]},
-                                {
-                                    "not": { "or": [
-                                        {"in": ["pacs.009", {"var": "temp_data.original_message_name"}]},
-                                        {"in": ["pacs.010", {"var": "temp_data.original_message_name"}]},
-                                        {"match": [{"var": "temp_data.original_message_name"}, "^MT20[0-9]$"]}
-                                    ]}
-                                }
-                            ]},
-                            "logic": {
-                                "code": "T20092",
-                                "message": "Original message type not recognized, defaulting to MT292"
-                            }
                         }
                     ]
                 }

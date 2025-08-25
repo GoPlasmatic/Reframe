@@ -26,7 +26,7 @@ class SemiBeautifier:
             'inline': ['var', 'exists', '==', '!=', '>', '<', '>=', '<='],
             
             # Compact (may break into multiple lines but kept simple)
-            'compact': ['cat', 'substr', 'in', 'some', 'all'],
+            'compact': ['cat', 'substr', 'in', 'some', 'all', 'starts_with', 'ends_with'],
             
             # Always expanded (multi-line with proper indentation)
             'expanded': ['if', 'and', 'or'],

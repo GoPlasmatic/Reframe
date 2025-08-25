@@ -1,157 +1,123 @@
 {
-    "id": "camt053-to-mt940-transaction-fields",
+    "id": "camt053-transaction-fields-mapping",
     "name": "camt.053 to MT940 Transaction Fields Mapping",
-    "description": "Maps transaction entries (61, 86) per TR005-TR007 and TR012",
+    "description": "Maps transaction entries per specification (TR005-007, TR012)",
     "priority": 7,
     "condition": { "and": [
         {"==": [{"var": "ISO20022_MX.message_type"}, "camt.053.001.08"]},
         {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
-        {"==": [{"var": "progress.workflow_id"}, "camt053-to-mt940-balance-fields"]},
-        {"==": [{"var": "progress.task_id"}, "map_balance_fields"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt053-balance-fields-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_available_balance"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "map_transaction_fields",
-            "name": "Map Transaction Fields",
-            "description": "Map statement entries to fields 61 and 86",
+            "id": "map_field_61",
+            "name": "Map Statement Entries (Field 61)",
+            "description": "Maps entries per TR005-006",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#61",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.Stmt.Ntry"},
-                                {
-                                    "map": [
-                                        {"var": "data.ISO20022_MX.document.Stmt.Ntry"},
+                            "path": "data.SwiftMT.fields.##",
+                            "logic": {
+                                "map": [
+                                    {"var": "data.ISO20022_MX.document.Stmt.Ntry"},
+                                    { "61": 
                                         {
-                                            "NoOption": {
-                                                "value_date": { "if": [
-                                                    {"var": "ValDt.Dt"},
-                                                    {
-                                                        "substr": [{"replace": [{"var": "ValDt.Dt"}, "-", ""]}, 2, 6]
-                                                    },
-                                                    { "if": [
-                                                        {"var": "ValDt.DtTm"},
-                                                        {
-                                                            "substr": [{"replace": [{"var": "ValDt.DtTm"}, "-", ""]}, 2, 6]
-                                                        },
-                                                        {
-                                                            "substr": [{"replace": [{"var": "BookgDt.Dt"}, "-", ""]}, 2, 6]
-                                                        }
-                                                    ]}
-                                                ]},
-                                                "entry_date": { "if": [
-                                                    {"var": "BookgDt.Dt"},
-                                                    {
-                                                        "substr": [{"replace": [{"var": "BookgDt.Dt"}, "-", ""]}, 4, 4]
-                                                    },
-                                                    null
-                                                ]},
-                                                "debit_credit_mark": { "if": [
-                                                    {"==": [{"var": "CdtDbtInd"}, "CRDT"]},
-                                                    { "if": [
-                                                        {"var": "RvslInd"},
-                                                        "RC",
-                                                        "C"
-                                                    ]},
-                                                    { "if": [
-                                                        {"var": "RvslInd"},
-                                                        "RD",
-                                                        "D"
-                                                    ]}
-                                                ]},
-                                                "funds_code": null,
-                                                "amount": {"var": "Amt.$value"},
-                                                "transaction_type": { "if": [
-                                                    {"var": "BkTxCd.Domn.Fmly.Cd"},
-                                                    {
-                                                        "substr": [{"var": "BkTxCd.Domn.Fmly.Cd"}, 0, 1]
-                                                    },
-                                                    "N"
-                                                ]},
-                                                "identification_code": { "if": [
-                                                    {"var": "BkTxCd.Prtry.Cd"},
-                                                    {
-                                                        "substr": [{"var": "BkTxCd.Prtry.Cd"}, 0, 3]
-                                                    },
-                                                    "MSC"
-                                                ]},
-                                                "reference_account_owner": { "if": [
-                                                    {"var": "NtryDtls.0.TxDtls.0.Refs.EndToEndId"},
-                                                    {
-                                                        "substr": [{"var": "NtryDtls.0.TxDtls.0.Refs.EndToEndId"}, 0, 16]
-                                                    },
-                                                    null
-                                                ]},
-                                                "reference_account_institution": { "if": [
-                                                    {"var": "AcctSvcrRef"},
-                                                    {
-                                                        "cat": [
-                                                            "//",
-                                                            {
-                                                                "substr": [{"var": "AcctSvcrRef"}, 0, 16]
-                                                            }
-                                                        ]
-                                                    },
-                                                    null
-                                                ]},
-                                                "supplementary_details": { "if": [
-                                                    {"var": "NtryDtls.0.TxDtls.0.AddtlTxInf"},
-                                                    {
-                                                        "substr": [{"var": "NtryDtls.0.TxDtls.0.AddtlTxInf"}, 0, 34]
-                                                    },
+                                            "value_date": { "if": [
+                                                {"var": "ValDt.Dt"},
+                                                {"var": "ValDt.Dt"},
+                                                {"substr": [{"var": "ValDt.DtTm"}, 0, 10]}
+                                            ]},
+                                            "entry_date": { "if": [
+                                                {"var": "BookgDt.Dt"},
+                                                {"var": "BookgDt.Dt"},
+                                                { "if": [
+                                                    {"var": "BookgDt.DtTm"},
+                                                    {"substr": [{"var": "BookgDt.DtTm"}, 0, 10]},
                                                     null
                                                 ]}
-                                            }
+                                            ]},
+                                            "debit_credit_mark": { "if": [
+                                                {"==": [{"var": "RvslInd"}, true]},
+                                                { "if": [
+                                                    {"==": [{"var": "CdtDbtInd"}, "DBIT"]},
+                                                    "RC",
+                                                    "RD"
+                                                ]},
+                                                { "if": [
+                                                    {"==": [{"var": "CdtDbtInd"}, "DBIT"]},
+                                                    "D",
+                                                    "C"
+                                                ]}
+                                            ]},
+                                            "funds_code": null,
+                                            "amount": {"var": "Amt.$value"},
+                                            "transaction_type": "NTRF",
+                                            "customer_reference": { "if": [
+                                                {"==": [{"var": "CdtDbtInd"}, "CRDT"]},
+                                                { "if": [
+                                                    { "and": [
+                                                        {"var": "NtryDtls.0.TxDtls.0.Refs.EndToEndId"},
+                                                        {"!=": [{"var": "NtryDtls.0.TxDtls.0.Refs.EndToEndId"}, "NOTPROVIDED"]}
+                                                    ]},
+                                                    { "if": [
+                                                        {">": [{"length": {"var": "NtryDtls.0.TxDtls.0.Refs.EndToEndId"}}, 16]},
+                                                        {"cat": [{"substr": [{"var": "NtryDtls.0.TxDtls.0.Refs.EndToEndId"}, 0, 15]}, "+"]},
+                                                        { "if": [
+                                                            { "or": [
+                                                                {"starts_with": [{"var": "NtryDtls.0.TxDtls.0.Refs.EndToEndId"}, "/"]},
+                                                                {"ends_with": [{"var": "NtryDtls.0.TxDtls.0.Refs.EndToEndId"}, "/"]},
+                                                                {"in": ["//", {"var": "NtryDtls.0.TxDtls.0.Refs.EndToEndId"}]}
+                                                            ]},
+                                                            "NONREF",
+                                                            {"var": "NtryDtls.0.TxDtls.0.Refs.EndToEndId"}
+                                                        ]}
+                                                    ]},
+                                                    "NONREF"
+                                                ]},
+                                                { "if": [
+                                                    {"var": "NtryDtls.0.TxDtls.0.Refs.InstrId"},
+                                                    { "if": [
+                                                        {">": [{"length": {"var": "NtryDtls.0.TxDtls.0.Refs.InstrId"}}, 16]},
+                                                        {"cat": [{"substr": [{"var": "NtryDtls.0.TxDtls.0.Refs.InstrId"}, 0, 15]}, "+"]},
+                                                        { "if": [
+                                                            { "or": [
+                                                                {"starts_with": [{"var": "NtryDtls.0.TxDtls.0.Refs.InstrId"}, "/"]},
+                                                                {"ends_with": [{"var": "NtryDtls.0.TxDtls.0.Refs.InstrId"}, "/"]},
+                                                                {"in": ["//", {"var": "NtryDtls.0.TxDtls.0.Refs.InstrId"}]}
+                                                            ]},
+                                                            "NONREF",
+                                                            {"var": "NtryDtls.0.TxDtls.0.Refs.InstrId"}
+                                                        ]}
+                                                    ]},
+                                                    "NONREF"
+                                                ]}
+                                            ]},
+                                            "bank_reference": { "if": [
+                                                {"var": "NtryDtls.0.TxDtls.0.Refs.AcctSvcrRef"},
+                                                { "if": [
+                                                    {">": [{"length": {"var": "NtryDtls.0.TxDtls.0.Refs.AcctSvcrRef"}}, 16]},
+                                                    {"cat": [{"substr": [{"var": "NtryDtls.0.TxDtls.0.Refs.AcctSvcrRef"}, 0, 15]}, "+"]},
+                                                    {"var": "NtryDtls.0.TxDtls.0.Refs.AcctSvcrRef"}
+                                                ]},
+                                                null
+                                            ]},
+                                            "supplementary_details": { "if": [
+                                                {"var": "AddtlNtryInf"},
+                                                { "if": [
+                                                    {">": [{"length": {"var": "AddtlNtryInf"}}, 34]},
+                                                    {"cat": [{"substr": [{"var": "AddtlNtryInf"}, 0, 33]}, "+"]},
+                                                    {"var": "AddtlNtryInf"}
+                                                ]},
+                                                null
+                                            ]}
                                         }
-                                    ]
-                                },
-                                null
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.#86",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.Stmt.Ntry"},
-                                {
-                                    "map": [
-                                        {"var": "data.ISO20022_MX.document.Stmt.Ntry"},
-                                        { "if": [
-                                            {"var": "AddtlNtryInf"},
-                                            {"NoOption": {"information": {"var": "AddtlNtryInf"}}},
-                                            null
-                                        ]}
-                                    ]
-                                },
-                                null
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.#86_statement",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.Stmt.AddtlStmtInf"},
-                                {"NoOption": {"information": {"var": "data.ISO20022_MX.document.Stmt.AddtlStmtInf"}}},
-                                null
-                            ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "set_field_order",
-            "name": "Set Field Order",
-            "description": "Define the order of fields in the MT940 message",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.SwiftMT.field_order",
-                            "logic": ["20", "25", "28C", "60", "61", "86", "62", "64", "65", "86_statement"]
+                                    }
+                                ]
+                            }
                         }
                     ]
                 }

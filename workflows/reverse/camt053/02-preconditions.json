@@ -1,23 +1,226 @@
 {
-    "id": "camt053-to-mt940-preconditions",
-    "name": "camt.053 to MT940 Preconditions Validation",
-    "description": "Validates preconditions for camt.053 to MT940 transformation according to CBPR+ specification PREC001-PREC009",
+    "id": "camt053-preconditions",
+    "name": "camt.053 to MT940 Preconditions",
+    "description": "Validates preconditions per specification (PREC001-009)",
     "priority": 3,
     "condition": { "and": [
         {"==": [{"var": "ISO20022_MX.message_type"}, "camt.053.001.08"]},
         {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "camt053-variant-detection"]},
-        {"==": [{"var": "progress.task_id"}, "detect_camt053_variant"]},
+        {"==": [{"var": "progress.task_id"}, "set_target_message"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
             "id": "validate_sequence_numbers",
-            "name": "Pass Through Validation",
-            "description": "Temporarily bypass validation - LglSeqNb and TxsSummry are present",
+            "name": "Validate Sequence Numbers (PREC001)",
+            "description": "Check legal or electronic sequence number present and <= 5 digits",
             "function": {
-                "name": "map",
-                "input": {"mappings": [{"path": "temp_data.validation_passed", "logic": true}]}
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.Stmt",
+                            "logic": { "or": [
+                                { "and": [
+                                    {"var": "data.ISO20022_MX.document.Stmt.LglSeqNb"},
+                                    {"<=": [{"var": "data.ISO20022_MX.document.Stmt.LglSeqNb"}, 99999]}
+                                ]},
+                                { "and": [
+                                    {"var": "data.ISO20022_MX.document.Stmt.ElctrncSeqNb"},
+                                    {"<=": [{"var": "data.ISO20022_MX.document.Stmt.ElctrncSeqNb"}, 99999]}
+                                ]}
+                            ]},
+                            "message": "T20103/T20150: LegalSequenceNumber or ElectronicSequenceNumber must be present and <= 5 digits"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_opening_balance",
+            "name": "Validate Opening Balance (PREC002/003)",
+            "description": "Check opening balance requirements based on page number",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.Stmt",
+                            "logic": { "if": [
+                                {"==": [{"var": "data.ISO20022_MX.document.Stmt.StmtPgntn.PgNb"}, "1"]},
+                                {
+                                    "some": [
+                                        {"var": "data.ISO20022_MX.document.Stmt.Bal"},
+                                        { "and": [
+                                            {"==": [{"var": "Tp.CdOrPrtry.Cd"}, "OPBD"]},
+                                            {"!=": [{"var": "Tp.SubTp.Cd"}, "INTM"]}
+                                        ]}
+                                    ]
+                                },
+                                {
+                                    "some": [
+                                        {"var": "data.ISO20022_MX.document.Stmt.Bal"},
+                                        { "and": [
+                                            {"==": [{"var": "Tp.CdOrPrtry.Cd"}, "OPBD"]},
+                                            {"==": [{"var": "Tp.SubTp.Cd"}, "INTM"]}
+                                        ]}
+                                    ]
+                                }
+                            ]},
+                            "message": "T20104-T20106/T20151-T20153: Invalid opening balance for page position"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_closing_balance",
+            "name": "Validate Closing Balance (PREC004/005)",
+            "description": "Check closing balance requirements based on last page indicator",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.Stmt",
+                            "logic": { "if": [
+                                {"==": [{"var": "data.ISO20022_MX.document.Stmt.StmtPgntn.LastPgInd"}, true]},
+                                {
+                                    "some": [
+                                        {"var": "data.ISO20022_MX.document.Stmt.Bal"},
+                                        { "and": [
+                                            {"==": [{"var": "Tp.CdOrPrtry.Cd"}, "CLBD"]},
+                                            {"!=": [{"var": "Tp.SubTp.Cd"}, "INTM"]}
+                                        ]}
+                                    ]
+                                },
+                                {
+                                    "some": [
+                                        {"var": "data.ISO20022_MX.document.Stmt.Bal"},
+                                        { "and": [
+                                            {"==": [{"var": "Tp.CdOrPrtry.Cd"}, "CLBD"]},
+                                            {"==": [{"var": "Tp.SubTp.Cd"}, "INTM"]}
+                                        ]}
+                                    ]
+                                }
+                            ]},
+                            "message": "T20107-T20108/T20154-T20155: Invalid closing balance for page position"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_available_balance",
+            "name": "Validate Available Balance (PREC006)",
+            "description": "Check maximum 1 CLAV balance",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.Stmt.Bal",
+                            "logic": {"<=": [
+                                {"length": {
+                                    "filter": [
+                                        {"var": "data.ISO20022_MX.document.Stmt.Bal"},
+                                        {"==": [{"var": "Tp.CdOrPrtry.Cd"}, "CLAV"]}
+                                    ]
+                                }},
+                                1
+                            ]},
+                            "message": "T20109/T20156: Maximum 1 occurrence of CLAV balance allowed"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_entry_count",
+            "name": "Validate Entry Count (PREC007)",
+            "description": "Check number of entries does not exceed 190",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.Stmt.Ntry",
+                            "logic": { "or": [
+                                {"!": {"var": "data.ISO20022_MX.document.Stmt.Ntry"}},
+                                {"<=": [{"length": {"var": "data.ISO20022_MX.document.Stmt.Ntry"}}, 190]}
+                            ]},
+                            "message": "T20110/T20157: Number of entries exceeds 190 (max for 10K message)"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_entry_amounts",
+            "name": "Validate Entry Amounts (PREC008)",
+            "description": "Check entry currencies match account and amounts <= 14 digits",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.Stmt.Ntry",
+                            "logic": { "if": [
+                                {"exists": ["data", "ISO20022_MX", "document", "Stmt", "Ntry"]},
+                                {
+                                    "all": [
+                                        {"var": "data.ISO20022_MX.document.Stmt.Ntry"},
+                                        { "and": [
+                                            {"==": [{"var": "Amt.@Ccy"}, {"val": [[-3], "data", "ISO20022_MX", "document", "Stmt", "Acct", "Ccy"]}]},
+                                            {"<=": [{"var": "Amt.$value"}, 99999999999999]}
+                                        ]}
+                                    ]
+                                },
+                                true
+                            ]},
+                            "message": "T20113/T20116/T20160/T20163: Entry currency mismatch or amount > 14 digits"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_balance_currencies",
+            "name": "Validate Balance Currencies (PREC009)",
+            "description": "Check balance currencies match and amounts <= 14 digits",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.Stmt.Bal",
+                            "logic": {
+                                "all": [
+                                    {
+                                        "filter": [
+                                            {"var": "data.ISO20022_MX.document.Stmt.Bal"},
+                                            { "in": [
+                                                {"var": "Tp.CdOrPrtry.Cd"},
+                                                ["OPBD", "CLBD", "CLAV", "FWAV"]
+                                            ]}
+                                        ]
+                                    },
+                                    { "and": [
+                                        {"<=": [{"var": "Amt.$value"}, 99999999999999]},
+                                        {
+                                            "==": [
+                                                {"substr": [{"var": "Amt.@Ccy"}, 0, 2]},
+                                                {"substr": [{"val": [[-3], "data", "ISO20022_MX", "document", "Stmt", "Acct", "Ccy"]}, 0, 2]}
+                                            ]
+                                        }
+                                    ]}
+                                ]
+                            },
+                            "message": "T20111-T20112/T20158-T20159: Balance currency mismatch or amount > 14 digits"
+                        }
+                    ]
+                }
             }
         }
     ]

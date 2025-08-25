@@ -1,32 +1,36 @@
 {
-    "id": "camt053-to-mt940-mandatory-fields",
+    "id": "camt053-mandatory-fields-mapping",
     "name": "camt.053 to MT940 Mandatory Fields Mapping",
-    "description": "Maps mandatory fields for MT940 message (20, 25, 28C) per TR001-TR003",
+    "description": "Maps mandatory fields per specification (TR001-003)",
     "priority": 5,
     "condition": { "and": [
         {"==": [{"var": "ISO20022_MX.message_type"}, "camt.053.001.08"]},
         {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
-        {"==": [{"var": "progress.workflow_id"}, "camt053-to-mt940-headers-mapping"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt053-headers-mapping"]},
         {"==": [{"var": "progress.task_id"}, "map_swift_headers"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "map_mandatory_fields",
-            "name": "Map Mandatory Fields",
-            "description": "Map mandatory MT940 fields (20, 25, 28C)",
+            "id": "map_field_20",
+            "name": "Map Statement Reference (Field 20)",
+            "description": "Maps Statement/Identification per TR001",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
                             "path": "data.SwiftMT.fields.#20",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.Stmt.Id"},
-                                {
-                                    "reference": { "if": [
-                                        {"<=": [{"length": {"var": "data.ISO20022_MX.document.Stmt.Id"}}, 16]},
-                                        {"var": "data.ISO20022_MX.document.Stmt.Id"},
+                            "logic": {
+                                "reference": { "if": [
+                                    { "or": [
+                                        {"starts_with": [{"var": "data.ISO20022_MX.document.Stmt.Id"}, "/"]},
+                                        {"ends_with": [{"var": "data.ISO20022_MX.document.Stmt.Id"}, "/"]},
+                                        {"in": ["//", {"var": "data.ISO20022_MX.document.Stmt.Id"}]}
+                                    ]},
+                                    "NOTPROVIDED",
+                                    { "if": [
+                                        {">": [{"length": {"var": "data.ISO20022_MX.document.Stmt.Id"}}, 16]},
                                         {
                                             "cat": [
                                                 {
@@ -34,44 +38,82 @@
                                                 },
                                                 "+"
                                             ]
-                                        }
+                                        },
+                                        {"var": "data.ISO20022_MX.document.Stmt.Id"}
                                     ]}
-                                },
-                                {"reference": "NOTPROVIDED"}
-                            ]}
-                        },
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_25",
+            "name": "Map Account Identification (Field 25)",
+            "description": "Maps account per TR002",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
                         {
                             "path": "data.SwiftMT.fields.#25",
                             "logic": { "if": [
                                 { "and": [
-                                    {"var": "temp_data.account_owner_bic"},
-                                    {"!=": [{"var": "temp_data.account_owner_bic"}, {"var": "temp_data.Receiver"}]}
+                                    {"var": "data.ISO20022_MX.document.Stmt.Acct.Ownr.Id.OrgId.AnyBIC"},
+                                    {"!=": [{"var": "data.ISO20022_MX.document.Stmt.Acct.Ownr.Id.OrgId.AnyBIC"}, {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}]}
                                 ]},
                                 {
                                     "P": {
-                                        "account": {"var": "temp_data.account_id"},
-                                        "identifier_code": {"var": "temp_data.account_owner_bic"}
+                                        "account": { "if": [
+                                            {"var": "data.ISO20022_MX.document.Stmt.Acct.Id.IBAN"},
+                                            {"var": "data.ISO20022_MX.document.Stmt.Acct.Id.IBAN"},
+                                            {"var": "data.ISO20022_MX.document.Stmt.Acct.Id.Othr.Id"}
+                                        ]},
+                                        "bic": {"var": "data.ISO20022_MX.document.Stmt.Acct.Ownr.Id.OrgId.AnyBIC"}
                                     }
                                 },
-                                {"NoOption": {"account": {"var": "temp_data.account_id"}}}
+                                {
+                                    "NoOption": {
+                                        "authorisation": { "if": [
+                                            {"var": "data.ISO20022_MX.document.Stmt.Acct.Id.IBAN"},
+                                            {"var": "data.ISO20022_MX.document.Stmt.Acct.Id.IBAN"},
+                                            {"var": "data.ISO20022_MX.document.Stmt.Acct.Id.Othr.Id"}
+                                        ]}
+                                    }
+                                }
                             ]}
-                        },
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_28C",
+            "name": "Map Statement Number (Field 28C)",
+            "description": "Maps sequence numbers per TR003",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
                         {
                             "path": "data.SwiftMT.fields.28C",
                             "logic": {
-                                "cat": [
-                                    { "if": [
+                                "statement_number": { "if": [
+                                    { "and": [
                                         {"var": "data.ISO20022_MX.document.Stmt.LglSeqNb"},
-                                        {"var": "data.ISO20022_MX.document.Stmt.LglSeqNb"},
-                                        { "if": [
-                                            {"var": "data.ISO20022_MX.document.Stmt.ElctrncSeqNb"},
-                                            {"var": "data.ISO20022_MX.document.Stmt.ElctrncSeqNb"},
-                                            "1"
-                                        ]}
+                                        {"<=": [{"var": "data.ISO20022_MX.document.Stmt.LglSeqNb"}, 99999]}
                                     ]},
-                                    "/",
-                                    {"var": "temp_data.page_number"}
-                                ]
+                                    {"var": "data.ISO20022_MX.document.Stmt.LglSeqNb"},
+                                    {"var": "data.ISO20022_MX.document.Stmt.ElctrncSeqNb"}
+                                ]},
+                                "sequence_number": {
+                                    "+": { "if": [
+                                        {"var": "data.ISO20022_MX.document.Stmt.StmtPgntn.PgNb"},
+                                        {"var": "data.ISO20022_MX.document.Stmt.StmtPgntn.PgNb"},
+                                        0
+                                    ]}
+                                }
                             }
                         }
                     ]

@@ -1,160 +1,92 @@
 {
     "id": "camt106-charges-and-agent-mapping",
     "name": "camt.106 to MTn91 Charges Breakdown and Agent Mapping",
-    "description": "Maps charges breakdown to Field 71B and agents to Field 52",
-    "priority": 5,
+    "description": "Maps charges breakdown to Field 71B and agents to Field 52 per CBPR+ specification",
+    "priority": 6,
     "condition": { "and": [
-        {"in": [{"var": "SwiftMT.message_type"}, ["191", "291"]]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.106.001.02"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "camt106-mandatory-fields-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_mandatory_fields"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
             "id": "map_charges_breakdown",
-            "name": "Map Charges Breakdown (Field 71B)",
-            "description": "Maps ChargesBreakdown amounts to Field 71B",
+            "name": "Map Charges Breakdown to Field 71B",
+            "description": "Maps charges breakdown to Field 71B",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.charges_breakdown",
-                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPmtReq.Chrgs.PerTx.Rcrd.ChrgsBrkdwn"}
-                        },
-                        {
-                            "path": "temp_data.field71b_lines",
-                            "logic": { "if": [
-                                {"isArray": [{"var": "temp_data.charges_breakdown"}]},
-                                {
+                            "path": "data.SwiftMT.fields.#71B",
+                            "logic": {
+                                "details": {
                                     "map": [
-                                        {"var": "temp_data.charges_breakdown"},
+                                        {"slice": [{"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.ChrgsBrkdwn"}, 0, 6]},
                                         {
                                             "cat": [
-                                                {
-                                                    "substr": [{"var": "Amt"}, 0, 3]
-                                                },
-                                                {"replace": [{"substr": [{"var": "Amt"}, 3]}, "\\.", ","]},
+                                                {"var": "Amt.@Ccy"},
+                                                {"var": "Amt.$value"},
+                                                "/",
                                                 { "if": [
                                                     {"var": "Tp.Cd"},
-                                                    {"cat": [" ", {"var": "Tp.Cd"}]},
-                                                    ""
+                                                    {"var": "Tp.Cd"},
+                                                    "OTHR"
+                                                ]},
+                                                "/",
+                                                { "if": [
+                                                    {"==": [{"var": "CdtDbtInd"}, "CRDT"]},
+                                                    "C",
+                                                    "D"
                                                 ]}
                                             ]
                                         }
                                     ]
-                                },
-                                { "if": [
-                                    {"var": "temp_data.charges_breakdown"},
-                                    [
-                                        {
-                                            "cat": [
-                                                {
-                                                    "substr": [{"var": "temp_data.charges_breakdown.Amt"}, 0, 3]
-                                                },
-                                                {"replace": [{"substr": [{"var": "temp_data.charges_breakdown.Amt"}, 3]}, "\\.", ","]},
-                                                { "if": [
-                                                    {"var": "temp_data.charges_breakdown.Tp.Cd"},
-                                                    {"cat": [" ", {"var": "temp_data.charges_breakdown.Tp.Cd"}]},
-                                                    ""
-                                                ]}
-                                            ]
-                                        }
-                                    ],
-                                    []
-                                ]}
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.71B",
-                            "condition": { "and": [
-                                {"var": "temp_data.field71b_lines"},
-                                {"gt": [{"count": [{"var": "temp_data.field71b_lines"}]}, 0]}
-                            ]},
-                            "logic": {"join": [{"var": "temp_data.field71b_lines"}, "\n"]}
+                                }
+                            }
                         }
                     ]
                 }
             }
         },
         {
-            "id": "map_ordering_institution",
-            "name": "Map Ordering Institution (Field 52)",
-            "description": "Maps ChargesAccountAgent or DebtorAgent to Field 52 (TR003)",
+            "id": "map_field_52A_from_group_header",
+            "name": "Map Field 52A from Group Header",
+            "description": "Maps Field 52A when BICFI exists in Group Header",
+            "condition": { "and": [
+                {"exists": ["data", "ISO20022_MX", "document", "GrpHdr", "ChrgsAcctAgt", "FinInstnId", "BICFI"]},
+                {"!": {"exists": ["data", "ISO20022_MX", "document", "GrpHdr", "ChrgsAcctAgtAcct"]}}
+            ]},
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.charges_account_agent",
-                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPmtReq.GrpHdr.ChrgsAcctAgt"}
-                        },
-                        {
-                            "path": "temp_data.charges_account_agent_account",
-                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPmtReq.GrpHdr.ChrgsAcctAgtAcct"}
-                        },
-                        {
-                            "path": "temp_data.debtor_agent",
-                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPmtReq.Chrgs.PerTx.Rcrd.DbtrAgt"}
-                        },
-                        {
-                            "path": "temp_data.debtor_agent_account",
-                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPmtReq.Chrgs.PerTx.Rcrd.DbtrAgtAcct"}
-                        },
-                        {
-                            "path": "temp_data.agent_error",
-                            "condition": { "or": [
-                                { "and": [
-                                    {"not": {"var": "temp_data.charges_account_agent"}},
-                                    {"var": "temp_data.charges_account_agent_account"}
-                                ]},
-                                { "and": [
-                                    {"not": {"var": "temp_data.debtor_agent"}},
-                                    {"var": "temp_data.debtor_agent_account"}
-                                ]}
-                            ]},
-                            "logic": {"code": "T20307", "message": "Agent account present without corresponding agent"}
-                        },
-                        {
-                            "path": "temp_data.selected_agent",
-                            "logic": { "if": [
-                                {"var": "temp_data.charges_account_agent"},
-                                {"var": "temp_data.charges_account_agent"},
-                                {"var": "temp_data.debtor_agent"}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.selected_agent_account",
-                            "logic": { "if": [
-                                {"var": "temp_data.charges_account_agent"},
-                                {"var": "temp_data.charges_account_agent_account"},
-                                {"var": "temp_data.debtor_agent_account"}
-                            ]}
-                        },
+                            "path": "data.SwiftMT.fields.52A",
+                            "logic": {"var": "data.ISO20022_MX.document.GrpHdr.ChrgsAcctAgt.FinInstnId.BICFI"}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_52A_from_debtor_agent",
+            "name": "Map Field 52A from Debtor Agent",
+            "description": "Maps Field 52A when BICFI exists in Debtor Agent and not in Group Header",
+            "condition": { "and": [
+                {"!": {"exists": ["data", "ISO20022_MX", "document", "GrpHdr", "ChrgsAcctAgt"]}},
+                {"exists": ["data", "ISO20022_MX", "document", "Chrgs", "PerTx", "Rcrd", "DbtrAgt", "FinInstnId", "BICFI"]},
+                {"!": {"exists": ["data", "ISO20022_MX", "document", "Chrgs", "PerTx", "Rcrd", "DbtrAgtAcct"]}}
+            ]},
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
                         {
                             "path": "data.SwiftMT.fields.52A",
-                            "condition": { "and": [
-                                {"var": "temp_data.selected_agent.FinInstnId.BICFI"},
-                                {"not": {"var": "temp_data.selected_agent_account"}}
-                            ]},
-                            "logic": {"var": "temp_data.selected_agent.FinInstnId.BICFI"}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.52D",
-                            "condition": { "and": [
-                                {"var": "temp_data.selected_agent"},
-                                { "or": [
-                                    {"not": {"var": "temp_data.selected_agent.FinInstnId.BICFI"}},
-                                    {"var": "temp_data.selected_agent_account"}
-                                ]}
-                            ]},
-                            "logic": {
-                                "account": {"var": "temp_data.selected_agent_account.Id.IBAN"},
-                                "name_address": { "if": [
-                                    {"var": "temp_data.selected_agent.FinInstnId.Nm"},
-                                    {"var": "temp_data.selected_agent.FinInstnId.Nm"},
-                                    ""
-                                ]}
-                            }
+                            "logic": {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.DbtrAgt.FinInstnId.BICFI"}
                         }
                     ]
                 }

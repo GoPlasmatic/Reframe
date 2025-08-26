@@ -1,126 +1,46 @@
 {
     "id": "camt106-preconditions",
     "name": "camt.106 to MTn91 Preconditions Validation",
-    "description": "Validates preconditions for camt.106 to MT191/MT291 transformation",
-    "priority": 2,
+    "description": "Validates preconditions for camt.106 to MT191/MT291 transformation per CBPR+ specification",
+    "priority": 3,
     "condition": { "and": [
-        {"in": [{"var": "SwiftMT.message_type"}, ["191", "291"]]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.106.001.02"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "camt106-variant-detection"]},
+        {"==": [{"var": "progress.task_id"}, "detect_target_message"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "validate_single_record",
-            "name": "Validate Single Record (PREC001)",
-            "description": "Ensures multiple MTs are not supported",
+            "id": "validate_preconditions",
+            "name": "Validate All Preconditions",
+            "description": "Validates business service, charges breakdown count, and amount lengths per CBPR+ PREC001-003",
             "function": {
-                "name": "map",
+                "name": "validate",
                 "input": {
-                    "mappings": [
+                    "rules": [
                         {
-                            "path": "temp_data.prec.biz_service",
-                            "logic": {"var": "data.ISO20022_MX.header.BusinessService"}
+                            "path": "data",
+                            "logic": {"!=": [{"var": "data.ISO20022_MX.header.BizSvc"}, "swift.cbprplus.mlp.01"]},
+                            "message": "T20287: PREC001: Multiple records not supported - 1 Record => 1 MT n91"
                         },
                         {
-                            "path": "temp_data.prec.is_multilateral",
-                            "logic": {"==": [{"var": "temp_data.prec.biz_service"}, "swift.cbprplus.mlp.01"]}
-                        },
-                        {
-                            "path": "temp_data.prec.error_multilateral",
-                            "condition": {"var": "temp_data.prec.is_multilateral"},
-                            "logic": {"code": "T20287", "message": "Multilateral processing not supported for MTn91"}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "validate_charges_breakdown",
-            "name": "Validate Charges Breakdown Count (PREC002)",
-            "description": "Ensures maximum 6 charges breakdown items for Field 71B",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.prec.charges_breakdown",
-                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPmtReq.Chrgs.PerTx.Rcrd.ChrgsBrkdwn"}
-                        },
-                        {
-                            "path": "temp_data.prec.breakdown_count",
-                            "logic": { "if": [
-                                {"isArray": [{"var": "temp_data.prec.charges_breakdown"}]},
-                                {"count": [{"var": "temp_data.prec.charges_breakdown"}]},
-                                1
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.prec.breakdown_valid",
-                            "logic": {"<=": [{"var": "temp_data.prec.breakdown_count"}, 6]}
-                        },
-                        {
-                            "path": "temp_data.prec.error_too_many_charges",
-                            "condition": {"not": {"var": "temp_data.prec.breakdown_valid"}},
-                            "logic": {
-                                "code": "T20288",
-                                "message": "Maximum 6 charges breakdown items allowed in Field 71B"
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "validate_amount_lengths",
-            "name": "Validate Amount Lengths (PREC003)",
-            "description": "Ensures amount lengths don't exceed 13 digits",
-            "function": {
-                "name": "map",
-                "input": {"mappings": [{"path": "temp_data.prec.all_amounts_valid", "logic": true}]}
-            }
-        },
-        {
-            "id": "validate_mandatory_fields",
-            "name": "Validate Mandatory Fields",
-            "description": "Validates presence of mandatory fields for MTn91",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.prec.charges_id_present",
-                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPmtReq.Chrgs.PerTx.ChrgsId"}
-                        },
-                        {
-                            "path": "temp_data.prec.total_amount_present",
-                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPmtReq.Chrgs.PerTx.Rcrd.TtlChrgsPerRcrd.TtlChrgsAmt"}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "check_all_preconditions",
-            "name": "Check All Preconditions",
-            "description": "Consolidates all precondition checks",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.preconditions_met",
+                            "path": "data",
                             "logic": { "and": [
-                                {"not": {"var": "temp_data.prec.is_multilateral"}},
-                                {"var": "temp_data.prec.breakdown_valid"},
-                                {"var": "temp_data.prec.all_amounts_valid"},
-                                {"var": "temp_data.prec.charges_id_present"},
-                                {"var": "temp_data.prec.total_amount_present"}
-                            ]}
+                                {"==": [{"type": {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.ChrgsBrkdwn"}}, "array"]},
+                                {"<=": [{"length": {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.ChrgsBrkdwn"}}, 6]}
+                            ]},
+                            "message": "T20288: PREC002: Max 6 amounts can be translated in Field 71B"
                         },
                         {
-                            "path": "data.SwiftMT.validation_status",
-                            "condition": {"not": {"var": "temp_data.preconditions_met"}},
-                            "logic": {"code": "T20073", "message": "camt.106 to MTn91 preconditions not met"}
+                            "path": "data",
+                            "logic": {
+                                "some": [
+                                    {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.ChrgsBrkdwn"},
+                                    {"<=": [{"length": [{"cat": ["", {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.ChrgsBrkdwn.Amt.$value"}]}]}, 13]}
+                                ]
+                            },
+                            "message": "T20289: PREC003: Amount exceeds max 13 digits in MT, decimal included"
                         }
                     ]
                 }

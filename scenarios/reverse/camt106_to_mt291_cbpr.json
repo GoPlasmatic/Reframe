@@ -1,0 +1,101 @@
+{
+    "variables": {
+        "sender_bic": "BOFAUS3NXXX",
+        "receiver_bic": "CITIUS33XXX",
+        "charges_requestor_bic": "CHASUS33XXX",
+        "debtor_agent_bic": "DEUTDEFFXXX",
+        "currency": "EUR",
+        "charges_id": {"fake": ["alphanumeric", 16]},
+        "msg_id": {"fake": ["alphanumeric", 16]},
+        "uetr": {"fake": ["uuid"]},
+        "creation_date": {"fake": ["date", "2024-01-01", "2024-12-31"]},
+        "charge_type_1": "AGENT",
+        "charge_type_2": "COMM"
+    },
+    "schema": {
+        "AppHdr": {
+            "Fr": {
+                "FIId": {
+                    "FinInstnId": {
+                        "BICFI": {"var": "sender_bic"}
+                    }
+                }
+            },
+            "To": {
+                "FIId": {
+                    "FinInstnId": {
+                        "BICFI": {"var": "receiver_bic"}
+                    }
+                }
+            },
+            "BizMsgIdr": {"fake": ["alphanumeric", 35]},
+            "MsgDefIdr": "camt.106.001.02",
+            "BizSvc": "swift.cbprplus.02",
+            "CreDt": {"cat": [{"var": "creation_date"}, "T14:30:00Z"]}
+        },
+        "Document": {
+            "ChrgsPmtReq": {
+                "GrpHdr": {
+                    "MsgId": {"fake": ["alphanumeric", 35]},
+                    "CreDtTm": {"cat": [{"var": "creation_date"}, "T14:30:00Z"]},
+                    "ChrgsRqstr": {
+                        "FinInstnId": {
+                            "BICFI": {"var": "charges_requestor_bic"}
+                        }
+                    }
+                },
+                "Chrgs": {
+                    "PerTx": {
+                        "ChrgsId": {"var": "charges_id"},
+                        "Rcrd": {
+                            "UndrlygTx": {
+                                "MsgNmId": "pacs.009",
+                                "MsgId": {"var": "msg_id"},
+                                "UETR": {"var": "uetr"}
+                            },
+                            "TtlChrgsPerRcrd": {
+                                "TtlChrgsAmt": {
+                                    "@Ccy": {"var": "currency"},
+                                    "$value": {"fake": ["f64", 50.0, 2000.0]}
+                                },
+                                "CdtDbtInd": "DBIT",
+                                "NbOfChrgsBrkdwnItms": "2"
+                            },
+                            "ChrgsBrkdwn": [
+                                {
+                                    "Amt": {
+                                        "@Ccy": {"var": "currency"},
+                                        "$value": {"fake": ["f64", 25.0, 500.0]}
+                                    },
+                                    "CdtDbtInd": "DBIT",
+                                    "Tp": {
+                                        "Cd": {"var": "charge_type_1"}
+                                    }
+                                },
+                                {
+                                    "Amt": {
+                                        "@Ccy": {"var": "currency"},
+                                        "$value": {"fake": ["f64", 25.0, 500.0]}
+                                    },
+                                    "CdtDbtInd": "DBIT",
+                                    "Tp": {
+                                        "Cd": {"var": "charge_type_2"}
+                                    }
+                                }
+                            ],
+                            "DbtrAgt": {
+                                "FinInstnId": {
+                                    "BICFI": {"var": "debtor_agent_bic"}
+                                }
+                            },
+                            "InstrForInstdAgt": {
+                                "Cd": "CHQB",
+                                "InstrInf": "Charges for FI transfer"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

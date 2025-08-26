@@ -531,6 +531,28 @@ impl ParseMX {
                     }
                 }
             }
+            "camt.106.001.02" => {
+                let header = match from_str::<bah_camt_106_001_02::BusinessApplicationHeaderV02>(
+                    app_hdr_content,
+                ) {
+                    Ok(header) => header,
+                    Err(e) => {
+                        error!("Failed to parse camt.106 header: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse camt.106 header: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(header) {
+                    Ok(value) => Ok(value),
+                    Err(e) => {
+                        error!("Failed to convert header: {:?}", e);
+                        Err(DataflowError::Validation(format!(
+                            "Failed to convert header to value: {e}"
+                        )))
+                    }
+                }
+            }
             "admi.024.001.01" => {
                 let header = match from_str::<bah_admi_024_001_01::BusinessApplicationHeaderV02>(
                     app_hdr_content,
@@ -915,6 +937,34 @@ impl ParseMX {
                     Ok(value) => Ok(value),
                     Err(e) => Err(DataflowError::Validation(format!(
                         "Failed to convert camt.105 document to value: {e}"
+                    ))),
+                }
+            }
+            "camt.106.001.02" => {
+                // Extract the ChrgsPmtReq content from the Document wrapper
+                let chrgs_content = if let Some(start) = document_content.find("<ChrgsPmtReq")
+                    && let Some(end) = document_content.find("</ChrgsPmtReq>")
+                {
+                    let end_pos = end + "</ChrgsPmtReq>".len();
+                    &document_content[start..end_pos]
+                } else {
+                    document_content
+                };
+
+                let document =
+                    match from_str::<camt_106_001_02::ChargesPaymentRequestV02>(chrgs_content) {
+                        Ok(document) => document,
+                        Err(e) => {
+                            error!("Failed to parse camt.106 document: {:?}", e);
+                            return Err(DataflowError::Validation(format!(
+                                "Failed to parse camt.106 document: {e}"
+                            )));
+                        }
+                    };
+                match serde_json::to_value(document) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(DataflowError::Validation(format!(
+                        "Failed to convert camt.106 document to value: {e}"
                     ))),
                 }
             }

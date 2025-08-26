@@ -771,8 +771,8 @@ pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse>
         capabilities: vec![
             "MT-to-MX transformation".to_string(),
             "MX-to-MT transformation".to_string(),
-            "MT sample generation (24 message types)".to_string(),
-            "Supported MT types: MT101, MT103, MT104, MT107, MT110, MT111, MT112, MT192, MT196, MT199, MT202, MT205, MT210, MT292, MT296, MT299, MT900, MT910, MT920, MT935, MT940, MT941, MT942, MT950".to_string(),
+            "MT sample generation (26 message types)".to_string(),
+            "Supported MT types: MT101, MT103, MT104, MT107, MT110, MT111, MT112, MT191, MT192, MT196, MT199, MT200, MT202, MT205, MT210, MT291, MT292, MT296, MT299, MT900, MT910, MT920, MT935, MT940, MT941, MT942, MT950".to_string(),
         ],
     })
 }

@@ -1,10 +1,11 @@
 {
     "id": "camt106-sender-receiver-info-mapping",
     "name": "camt.106 to MTn91 Sender to Receiver Information Mapping",
-    "description": "Maps ChargesRequestor and InstructionForInstructedAgent to Field 72",
-    "priority": 6,
+    "description": "Maps ChargesRequestor and InstructionForInstructedAgent to Field 72 per CBPR+ specification",
+    "priority": 7,
     "condition": { "and": [
-        {"in": [{"var": "SwiftMT.message_type"}, ["191", "291"]]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.106.001.02"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "camt106-charges-and-agent-mapping"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
@@ -12,57 +13,29 @@
         {
             "id": "map_sender_receiver_info",
             "name": "Map Sender to Receiver Information (Field 72)",
-            "description": "Maps ChargesRequestor and InstructionForInstructedAgent to Field 72 (TR006)",
+            "description": "Maps ChargesRequestor and InstructionForInstructedAgent to Field 72",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.charges_requestor",
-                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPmtReq.GrpHdr.ChrgsReqstr"}
-                        },
-                        {
-                            "path": "temp_data.instruction_code",
-                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPmtReq.Chrgs.PerTx.Rcrd.InstrForInstdAgt.Cd"}
-                        },
-                        {
-                            "path": "temp_data.instruction_info",
-                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPmtReq.Chrgs.PerTx.Rcrd.InstrForInstdAgt.InstrInf"}
-                        },
-                        {
-                            "path": "temp_data.field72_lines",
-                            "logic": {
-                                "filter": [
-                                    [
-                                        { "if": [
-                                            {"var": "temp_data.instruction_code"},
-                                            {
-                                                "cat": ["/", {"var": "temp_data.instruction_code"}, "/"]
-                                            },
-                                            null
-                                        ]},
-                                        { "if": [
-                                            {"var": "temp_data.charges_requestor.Agt.FinInstnId.BICFI"},
-                                            {"cat": ["/CHRQ/", {"var": "temp_data.charges_requestor.Agt.FinInstnId.BICFI"}]},
-                                            { "if": [
-                                                {"var": "temp_data.charges_requestor.Agt.FinInstnId.Nm"},
-                                                {"cat": ["/CHRQ/", {"var": "temp_data.charges_requestor.Agt.FinInstnId.Nm"}]},
-                                                null
-                                            ]}
-                                        ]},
-                                        {"var": "temp_data.instruction_info"}
-                                    ],
-                                    {"!=": [{"var": ""}, null]}
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.72",
-                            "condition": { "and": [
-                                {"var": "temp_data.field72_lines"},
-                                {"gt": [{"count": [{"var": "temp_data.field72_lines"}]}, 0]}
-                            ]},
-                            "logic": {"join": [{"slice": [{"var": "temp_data.field72_lines"}, 0, 6]}, "\n"]}
+                            "path": "data.SwiftMT.fields.#72.information",
+                            "logic": [
+                                {
+                                    "cat": [
+                                        "/",
+                                        {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.InstrForInstdAgt.Cd"},
+                                        "/"
+                                    ]
+                                },
+                                {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.InstrForInstdAgt.InstrInf"},
+                                {
+                                    "cat": [
+                                        "/CHRQ/",
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.ChrgsRqstr.FinInstnId.BICFI"}
+                                    ]
+                                }
+                            ]
                         }
                     ]
                 }

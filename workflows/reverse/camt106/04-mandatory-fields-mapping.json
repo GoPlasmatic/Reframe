@@ -1,157 +1,76 @@
 {
     "id": "camt106-mandatory-fields-mapping",
     "name": "camt.106 to MTn91 Mandatory Fields Mapping",
-    "description": "Maps mandatory fields for MT191/MT291 transformation",
-    "priority": 4,
+    "description": "Maps mandatory fields for MT191/MT291 transformation per CBPR+ specification",
+    "priority": 5,
     "condition": { "and": [
-        {"in": [{"var": "SwiftMT.message_type"}, ["191", "291"]]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.106.001.02"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "camt106-headers-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_headers"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "map_charges_identification",
-            "name": "Map Charges Identification (Field 20)",
-            "description": "Maps ChargesIdentification to Field 20",
+            "id": "map_mandatory_fields",
+            "name": "Map Mandatory Fields",
+            "description": "Maps Field 20, 21, 32B, and 121 for MTn91",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.field20_raw",
-                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPmtReq.Chrgs.PerTx.ChrgsId"}
-                        },
-                        {
-                            "path": "temp_data.field20_truncated",
-                            "condition": {"gt": [{"strlen": [{"var": "temp_data.field20_raw"}]}, 16]},
+                            "path": "data.SwiftMT.fields.#20",
                             "logic": {
-                                "cat": [
-                                    {
-                                        "substr": [{"var": "temp_data.field20_raw"}, 0, 15]
-                                    },
-                                    "+"
-                                ]
+                                "reference": {
+                                    "substr": [
+                                        {"replace": [{"var": "data.ISO20022_MX.document.Chrgs.PerTx.ChrgsId"}, "-", ""]},
+                                        0,
+                                        16
+                                    ]
+                                }
                             }
                         },
                         {
-                            "path": "data.SwiftMT.fields.20",
-                            "logic": { "if": [
-                                {"var": "temp_data.field20_truncated"},
-                                {"var": "temp_data.field20_truncated"},
-                                {"var": "temp_data.field20_raw"}
-                            ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_underlying_transaction_reference",
-            "name": "Map Underlying Transaction Reference (Field 21)",
-            "description": "Maps underlying transaction identifications to Field 21 (TR005)",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.underlying_tx",
-                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPmtReq.Chrgs.PerTx.Rcrd.UndrlygTx"}
-                        },
-                        {
-                            "path": "temp_data.field21_raw",
-                            "logic": { "if": [
-                                {"var": "temp_data.underlying_tx.InstrId"},
-                                {"var": "temp_data.underlying_tx.InstrId"},
-                                { "if": [
-                                    {"var": "temp_data.underlying_tx.EndToEndId"},
-                                    {"var": "temp_data.underlying_tx.EndToEndId"},
-                                    { "if": [
-                                        {"var": "temp_data.underlying_tx.MsgId"},
-                                        {"var": "temp_data.underlying_tx.MsgId"},
-                                        { "if": [
-                                            {"var": "temp_data.underlying_tx.AcctSvcRef"},
-                                            {"var": "temp_data.underlying_tx.AcctSvcRef"},
-                                            "NOTPROVIDED"
-                                        ]}
-                                    ]}
-                                ]}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.field21_truncated",
-                            "condition": {"gt": [{"strlen": [{"var": "temp_data.field21_raw"}]}, 16]},
+                            "path": "data.SwiftMT.fields.#21",
                             "logic": {
-                                "cat": [
-                                    {
-                                        "substr": [{"var": "temp_data.field21_raw"}, 0, 15]
-                                    },
-                                    "+"
-                                ]
+                                "reference": {
+                                    "substr": [
+                                        {
+                                            "replace": [
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.UndrlygTx.InstrId"},
+                                                    {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.UndrlygTx.InstrId"},
+                                                    { "if": [
+                                                        {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.UndrlygTx.EndToEndId"},
+                                                        {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.UndrlygTx.EndToEndId"},
+                                                        { "if": [
+                                                            {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.UndrlygTx.MsgId"},
+                                                            {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.UndrlygTx.MsgId"},
+                                                            { "if": [
+                                                                {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.UndrlygTx.AcctSvcrRef"},
+                                                                {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.UndrlygTx.AcctSvcrRef"},
+                                                                "NOTPROVIDED"
+                                                            ]}
+                                                        ]}
+                                                    ]}
+                                                ]},
+                                                "-",
+                                                ""
+                                            ]
+                                        },
+                                        0,
+                                        16
+                                    ]
+                                }
                             }
-                        },
-                        {
-                            "path": "temp_data.field21_valid",
-                            "logic": {
-                                "not": { "or": [
-                                    {"match": [{"var": "temp_data.field21_raw"}, "^/"]},
-                                    {"match": [{"var": "temp_data.field21_raw"}, "/$"]},
-                                    {"match": [{"var": "temp_data.field21_raw"}, "//"]}
-                                ]}
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.21",
-                            "logic": { "if": [
-                                {"var": "temp_data.field21_truncated"},
-                                {"var": "temp_data.field21_truncated"},
-                                { "if": [
-                                    {"var": "temp_data.field21_valid"},
-                                    {"var": "temp_data.field21_raw"},
-                                    "NOTPROVIDED"
-                                ]}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.warning_no_id",
-                            "condition": {"==": [{"var": "data.SwiftMT.fields.21"}, "NOTPROVIDED"]},
-                            "logic": {
-                                "code": "T20302",
-                                "message": "No valid identification found in underlying transaction"
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_total_charges_amount",
-            "name": "Map Total Charges Amount (Field 32B)",
-            "description": "Maps TotalChargesAmount to Field 32B (TR001)",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.total_amount",
-                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPmtReq.Chrgs.PerTx.Rcrd.TtlChrgsPerRcrd.TtlChrgsAmt"}
-                        },
-                        {
-                            "path": "temp_data.currency",
-                            "logic": {
-                                "substr": [{"var": "temp_data.total_amount"}, 0, 3]
-                            }
-                        },
-                        {
-                            "path": "temp_data.amount_value",
-                            "logic": {"substr": [{"var": "temp_data.total_amount"}, 3]}
-                        },
-                        {
-                            "path": "temp_data.formatted_amount",
-                            "logic": {"replace": [{"var": "temp_data.amount_value"}, "\\.", ","]}
                         },
                         {
                             "path": "data.SwiftMT.fields.32B",
-                            "logic": {"cat": [{"var": "temp_data.currency"}, {"var": "temp_data.formatted_amount"}]}
+                            "logic": {
+                                "currency": {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.TtlChrgsPerRcrd.TtlChrgsAmt.@Ccy"},
+                                "amount": {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.TtlChrgsPerRcrd.TtlChrgsAmt.$value"}
+                            }
                         }
                     ]
                 }

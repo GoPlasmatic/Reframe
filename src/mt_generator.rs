@@ -1,8 +1,8 @@
 use serde_json::Value;
+use serde_path_to_error::deserialize;
 use swift_mt_message::SwiftMessage;
 use swift_mt_message::messages::*;
 use tracing::{debug, error};
-use serde_path_to_error::deserialize;
 
 /// Macro to parse MT message with detailed error path
 macro_rules! parse_mt_message {
@@ -11,27 +11,26 @@ macro_rules! parse_mt_message {
         let json_str = serde_json::to_string($json_data)
             .map_err(|e| format!("Failed to serialize JSON data: {}", e))?;
         let jd = &mut serde_json::Deserializer::from_str(&json_str);
-        let msg: SwiftMessage<$message_type> = deserialize(jd)
-            .map_err(|e| {
-                let path = e.path().to_string();
-                let inner_err = e.into_inner().to_string();
-                
-                // Provide more context for common error patterns
-                let error_context = if inner_err.contains("invalid characters") {
-                    format!(" (check for non-ASCII or control characters in this field)")
-                } else if inner_err.contains("invalid type") {
-                    format!(" (type mismatch - check if field should be string, number, or object)")
-                } else if inner_err.contains("missing field") {
-                    format!(" (required field is missing)")
-                } else {
-                    String::new()
-                };
-                
-                format!(
-                    "Failed to parse {} - Error at field path '{}': {}{}",
-                    $type_name, path, inner_err, error_context
-                )
-            })?;
+        let msg: SwiftMessage<$message_type> = deserialize(jd).map_err(|e| {
+            let path = e.path().to_string();
+            let inner_err = e.into_inner().to_string();
+
+            // Provide more context for common error patterns
+            let error_context = if inner_err.contains("invalid characters") {
+                format!(" (check for non-ASCII or control characters in this field)")
+            } else if inner_err.contains("invalid type") {
+                format!(" (type mismatch - check if field should be string, number, or object)")
+            } else if inner_err.contains("missing field") {
+                format!(" (required field is missing)")
+            } else {
+                String::new()
+            };
+
+            format!(
+                "Failed to parse {} - Error at field path '{}': {}{}",
+                $type_name, path, inner_err, error_context
+            )
+        })?;
         msg.to_mt_message()
     }};
 }
@@ -42,7 +41,7 @@ pub fn generate_mt_from_json(
     json_data: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
     debug!("Generating {} from JSON data", message_type);
-    
+
     // Parse JSON into appropriate SwiftMessage type and serialize to MT format
     let mt_string = match message_type {
         "MT101" => parse_mt_message!(MT101, "MT101", json_data),
@@ -75,7 +74,7 @@ pub fn generate_mt_from_json(
             return Err(format!("Unsupported MT message type: {}", message_type).into());
         }
     };
-    
+
     debug!("Successfully generated {} message", message_type);
     Ok(mt_string)
 }

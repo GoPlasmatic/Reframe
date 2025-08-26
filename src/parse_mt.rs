@@ -79,13 +79,13 @@ impl ParseMT {
 
             method = "normal".to_string();
             debug!(method = %method, "Determined MT101 processing method");
-            
+
             // Debug: Check transaction count
             debug!(
-                "MT101 has {} transactions", 
+                "MT101 has {} transactions",
                 mt101_message.fields.transactions.len()
             );
-            
+
             // Debug: Print first transaction if exists
             if let Some(first_tx) = mt101_message.fields.transactions.first() {
                 debug!("First transaction field_21: {:?}", first_tx.field_21);
@@ -96,7 +96,7 @@ impl ParseMT {
                 error!(error = ?e, "MT101 JSON conversion failed");
                 DataflowError::Validation(format!("MT101 JSON conversion failed: {e}"))
             })?;
-            
+
             // Debug: Check if "#" key exists in JSON
             if let Some(obj) = json_value.as_object() {
                 debug!("MT101 JSON keys: {:?}", obj.keys().collect::<Vec<_>>());
@@ -107,7 +107,7 @@ impl ParseMT {
                     }
                 }
             }
-            
+
             json_value
         } else if message_type == "103" {
             let Some(mt103_message) = parsed_message.into_mt103() else {
@@ -156,27 +156,33 @@ impl ParseMT {
                 ));
             };
 
-            method = if mt202_message.has_reject_codes() {
+            method = if mt202_message.has_reject_codes()
+                || mt202_message
+                    .user_header
+                    .as_ref()
+                    .and_then(|h| h.validation_flag.as_ref())
+                    .map(|flag| flag.as_str() == "REJT")
+                    .unwrap_or(false)
+            {
                 "reject".to_string()
-            } else if mt202_message.has_return_codes() {
+            } else if mt202_message.has_return_codes()
+                || mt202_message
+                    .user_header
+                    .as_ref()
+                    .and_then(|h| h.validation_flag.as_ref())
+                    .map(|flag| flag.as_str() == "RETN")
+                    .unwrap_or(false)
+            {
                 "return".to_string()
-            } else if mt202_message.is_cover_message() {
+            } else if mt202_message.is_cover_message()
+                || mt202_message
+                    .user_header
+                    .as_ref()
+                    .and_then(|h| h.validation_flag.as_ref())
+                    .map(|flag| flag.as_str() == "COV")
+                    .unwrap_or(false)
+            {
                 "cover".to_string()
-            } else if mt202_message.user_header.as_ref()
-                .and_then(|h| h.validation_flag.as_ref())
-                .map(|flag| flag.as_str() == "COV")
-                .unwrap_or(false) {
-                "cover".to_string()
-            } else if mt202_message.user_header.as_ref()
-                .and_then(|h| h.validation_flag.as_ref())
-                .map(|flag| flag.as_str() == "RETN")
-                .unwrap_or(false) {
-                "return".to_string()
-            } else if mt202_message.user_header.as_ref()
-                .and_then(|h| h.validation_flag.as_ref())
-                .map(|flag| flag.as_str() == "REJT")
-                .unwrap_or(false) {
-                "reject".to_string()
             } else {
                 "normal".to_string()
             };
@@ -195,27 +201,33 @@ impl ParseMT {
                 ));
             };
 
-            method = if mt205_message.has_reject_codes() {
+            method = if mt205_message.has_reject_codes()
+                || mt205_message
+                    .user_header
+                    .as_ref()
+                    .and_then(|h| h.validation_flag.as_ref())
+                    .map(|flag| flag.as_str() == "REJT")
+                    .unwrap_or(false)
+            {
                 "reject".to_string()
-            } else if mt205_message.has_return_codes() {
+            } else if mt205_message.has_return_codes()
+                || mt205_message
+                    .user_header
+                    .as_ref()
+                    .and_then(|h| h.validation_flag.as_ref())
+                    .map(|flag| flag.as_str() == "RETN")
+                    .unwrap_or(false)
+            {
                 "return".to_string()
-            } else if mt205_message.is_cover_message() {
+            } else if mt205_message.is_cover_message()
+                || mt205_message
+                    .user_header
+                    .as_ref()
+                    .and_then(|h| h.validation_flag.as_ref())
+                    .map(|flag| flag.as_str() == "COV")
+                    .unwrap_or(false)
+            {
                 "cover".to_string()
-            } else if mt205_message.user_header.as_ref()
-                .and_then(|h| h.validation_flag.as_ref())
-                .map(|flag| flag.as_str() == "COV")
-                .unwrap_or(false) {
-                "cover".to_string()
-            } else if mt205_message.user_header.as_ref()
-                .and_then(|h| h.validation_flag.as_ref())
-                .map(|flag| flag.as_str() == "RETN")
-                .unwrap_or(false) {
-                "return".to_string()
-            } else if mt205_message.user_header.as_ref()
-                .and_then(|h| h.validation_flag.as_ref())
-                .map(|flag| flag.as_str() == "REJT")
-                .unwrap_or(false) {
-                "reject".to_string()
             } else {
                 "normal".to_string()
             };

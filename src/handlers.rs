@@ -693,7 +693,7 @@ pub async fn generate_sample(
         }
         Err(e) => {
             error!("❌ Sample generation failed: {}", e);
-            
+
             // Try to extract any JSON from the error message for debugging
             let error_str = e.to_string();
             let generated_json = if error_str.contains("Generated JSON:") {
@@ -707,14 +707,14 @@ pub async fn generate_sample(
             } else {
                 None
             };
-            
+
             // Clean up the error message to remove the large JSON dump
             let clean_error = if let Some(json_idx) = error_str.find("Generated JSON:") {
                 error_str[..json_idx].trim().to_string()
             } else {
                 error_str
             };
-            
+
             Ok(Json(SampleGenerationResponse {
                 success: false,
                 message_type: request.message_type.clone(),

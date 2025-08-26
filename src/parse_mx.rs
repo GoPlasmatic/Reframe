@@ -125,7 +125,7 @@ impl ParseMX {
                         // Remove quotes if present
                         let msg_def = msg_def.trim_matches('"');
                         Helper::manual_unescape(msg_def)
-                    },
+                    }
                     None => {
                         // Fall back to xmlns if MsgDefIdr not found
                         if let Some(xmlns) = document_xmlns {
@@ -840,18 +840,17 @@ impl ParseMX {
                 } else {
                     document_content
                 };
-                
-                let document = match from_str::<camt_057_001_06::NotificationToReceiveV06>(
-                    ntfctn_content,
-                ) {
-                    Ok(document) => document,
-                    Err(e) => {
-                        error!("Failed to parse camt.057 document: {:?}", e);
-                        return Err(DataflowError::Validation(format!(
-                            "Failed to parse camt.057 document: {e}"
-                        )));
-                    }
-                };
+
+                let document =
+                    match from_str::<camt_057_001_06::NotificationToReceiveV06>(ntfctn_content) {
+                        Ok(document) => document,
+                        Err(e) => {
+                            error!("Failed to parse camt.057 document: {:?}", e);
+                            return Err(DataflowError::Validation(format!(
+                                "Failed to parse camt.057 document: {e}"
+                            )));
+                        }
+                    };
                 match serde_json::to_value(document) {
                     Ok(value) => Ok(value),
                     Err(e) => Err(DataflowError::Validation(format!(
@@ -861,7 +860,8 @@ impl ParseMX {
             }
             "camt.058.001.08" => {
                 // Extract the NtfctnToRcvCxlAdvc content from the Document wrapper
-                let ntfctn_content = if let Some(start) = document_content.find("<NtfctnToRcvCxlAdvc")
+                let ntfctn_content = if let Some(start) =
+                    document_content.find("<NtfctnToRcvCxlAdvc")
                     && let Some(end) = document_content.find("</NtfctnToRcvCxlAdvc>")
                 {
                     let end_pos = end + "</NtfctnToRcvCxlAdvc>".len();
@@ -869,10 +869,11 @@ impl ParseMX {
                 } else {
                     document_content
                 };
-                
-                let document = match from_str::<camt_058_001_08::NotificationToReceiveCancellationAdviceV08>(
-                    ntfctn_content,
-                ) {
+
+                let document = match from_str::<
+                    camt_058_001_08::NotificationToReceiveCancellationAdviceV08,
+                >(ntfctn_content)
+                {
                     Ok(document) => document,
                     Err(e) => {
                         error!("Failed to parse camt.058 document: {:?}", e);
@@ -898,18 +899,18 @@ impl ParseMX {
                 } else {
                     document_content
                 };
-                
-                let document = match from_str::<camt_105_001_02::ChargesPaymentNotificationV02>(
-                    chrgs_content,
-                ) {
-                    Ok(document) => document,
-                    Err(e) => {
-                        error!("Failed to parse camt.105 document: {:?}", e);
-                        return Err(DataflowError::Validation(format!(
-                            "Failed to parse camt.105 document: {e}"
-                        )));
-                    }
-                };
+
+                let document =
+                    match from_str::<camt_105_001_02::ChargesPaymentNotificationV02>(chrgs_content)
+                    {
+                        Ok(document) => document,
+                        Err(e) => {
+                            error!("Failed to parse camt.105 document: {:?}", e);
+                            return Err(DataflowError::Validation(format!(
+                                "Failed to parse camt.105 document: {e}"
+                            )));
+                        }
+                    };
                 match serde_json::to_value(document) {
                     Ok(value) => Ok(value),
                     Err(e) => Err(DataflowError::Validation(format!(

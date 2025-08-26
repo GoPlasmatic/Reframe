@@ -100,27 +100,32 @@ fn generate_mt_sample_from_scenario(
 
     let scenario_path = PathBuf::from("scenarios").join(&scenario_file);
     let scenario_content = std::fs::read_to_string(&scenario_path)?;
-    
+
     // Pass the entire scenario JSON directly to DataGenerator (following basic.rs example)
     // DataGenerator will handle variables and schema internally
-    let generator = DataGenerator::from_json(&scenario_content).map_err(|e| {
-        format!("Failed to create datafake generator: {:?}", e)
-    })?;
+    let generator = DataGenerator::from_json(&scenario_content)
+        .map_err(|e| format!("Failed to create datafake generator: {:?}", e))?;
 
-    let generated_data = generator.generate().map_err(|e| {
-        format!("Datafake generation failed: {:?}", e)
-    })?;
+    let generated_data = generator
+        .generate()
+        .map_err(|e| format!("Datafake generation failed: {:?}", e))?;
 
     // Clone the generated data for returning (before any modifications)
     let generated_json = generated_data.clone();
-    
+
     // Debug: Log the generated data
-    debug!("Generated data from datafake: {}", serde_json::to_string_pretty(&generated_data)?);
-    
+    debug!(
+        "Generated data from datafake: {}",
+        serde_json::to_string_pretty(&generated_data)?
+    );
+
     // Parse the generated JSON into a proper SwiftMessage object and serialize to MT format
     match mt_generator::generate_mt_from_json(message_type, &generated_data) {
         Ok(swift_message) => {
-            debug!("Successfully generated {} using scenario {}", message_type, scenario_id);
+            debug!(
+                "Successfully generated {} using scenario {}",
+                message_type, scenario_id
+            );
             Ok((swift_message, generated_json))
         }
         Err(e) => {
@@ -129,9 +134,10 @@ fn generate_mt_sample_from_scenario(
                 "Failed to parse {} from generated JSON: {}. Generated JSON: {}",
                 message_type,
                 e,
-                serde_json::to_string_pretty(&generated_json).unwrap_or_else(|_| "Invalid JSON".to_string())
+                serde_json::to_string_pretty(&generated_json)
+                    .unwrap_or_else(|_| "Invalid JSON".to_string())
             );
-            Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, error_msg)))
+            Err(Box::new(std::io::Error::other(error_msg)))
         }
     }
 }
@@ -143,9 +149,7 @@ pub async fn generate_mt_from_config(
 ) -> Result<(String, Value), Box<dyn std::error::Error>> {
     debug!(
         "Generating {} with config: {:?} and options: {:?}",
-        message_type,
-        config,
-        options
+        message_type, config, options
     );
 
     if options.validation {
@@ -182,27 +186,32 @@ fn generate_mx_sample_from_scenario(
 
     let scenario_path = PathBuf::from("scenarios").join(&scenario_file);
     let scenario_content = std::fs::read_to_string(&scenario_path)?;
-    
+
     // Pass the entire scenario JSON directly to DataGenerator (following basic.rs example)
     // DataGenerator will handle variables and schema internally
-    let generator = DataGenerator::from_json(&scenario_content).map_err(|e| {
-        format!("Failed to create datafake generator: {:?}", e)
-    })?;
+    let generator = DataGenerator::from_json(&scenario_content)
+        .map_err(|e| format!("Failed to create datafake generator: {:?}", e))?;
 
-    let generated_data = generator.generate().map_err(|e| {
-        format!("Datafake generation failed: {:?}", e)
-    })?;
+    let generated_data = generator
+        .generate()
+        .map_err(|e| format!("Datafake generation failed: {:?}", e))?;
 
     // Clone the generated data for returning
     let generated_json = generated_data.clone();
-    
+
     // Debug: Log the generated data
-    debug!("Generated data from datafake: {}", serde_json::to_string_pretty(&generated_data)?);
-    
+    debug!(
+        "Generated data from datafake: {}",
+        serde_json::to_string_pretty(&generated_data)?
+    );
+
     // Parse the generated JSON into proper MX XML format
     match mx_generator::generate_mx_from_json(message_type, &generated_data) {
         Ok(xml_message) => {
-            debug!("Successfully generated {} XML using scenario {}", message_type, scenario_id);
+            debug!(
+                "Successfully generated {} XML using scenario {}",
+                message_type, scenario_id
+            );
             Ok((xml_message, generated_json))
         }
         Err(e) => {
@@ -211,9 +220,10 @@ fn generate_mx_sample_from_scenario(
                 "Failed to generate {} XML from JSON: {}. Generated JSON: {}",
                 message_type,
                 e,
-                serde_json::to_string_pretty(&generated_json).unwrap_or_else(|_| "Invalid JSON".to_string())
+                serde_json::to_string_pretty(&generated_json)
+                    .unwrap_or_else(|_| "Invalid JSON".to_string())
             );
-            Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, error_msg)))
+            Err(Box::new(std::io::Error::other(error_msg)))
         }
     }
 }

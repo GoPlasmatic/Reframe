@@ -436,7 +436,7 @@ fn handle_mt_to_mx_document(
         }
         "200" => {
             debug!("Processing MT200 document for pacs.009");
-            
+
             // For MT200, we need to get the FIToFICdtTrf structure
             let fi_to_fi_cdt_trf = data
                 .get("FIToFICdtTrf")
@@ -447,7 +447,7 @@ fn handle_mt_to_mx_document(
                     )
                 })?
                 .clone();
-            
+
             debug!("MT200 FIToFICdtTrf structure: {:?}", fi_to_fi_cdt_trf);
             serialize_mt_to_mx_document::<pacs_009_001_08::FinancialInstitutionCreditTransferV08>(
                 fi_to_fi_cdt_trf,

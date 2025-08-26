@@ -1,142 +1,25 @@
 {
     "id": "camt058-postconditions",
-    "name": "camt.058 to MT292 Postconditions",
-    "description": "Applies postconditions for MT292 transformation",
-    "priority": 6,
+    "name": "camt.058 Post-conditions and Final Assembly",
+    "description": "Applies postconditions and generates final MT292 message per CBPR+ specification",
+    "priority": 7,
     "condition": { "and": [
-        {"==": [{"var": "SwiftMT.message_type"}, "292"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.058.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "camt058-narrative-fields-mapping"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "reorder_fields",
-            "name": "Reorder Fields for MT292",
-            "description": "Ensures fields 30 and 32B come after field 79 as per specification",
+            "id": "generate_mt_message",
+            "name": "Generate MT292 Message",
+            "description": "Generates the final MT292 message",
             "function": {
-                "name": "map",
+                "name": "PublishMT",
                 "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.field_order",
-                            "logic": ["20", "21", "11S", "79", "30", "32B"]
-                        },
-                        {"path": "data.SwiftMT.field_order", "logic": {"var": "temp_data.field_order"}}
-                    ]
-                }
-            }
-        },
-        {
-            "id": "apply_charset_conversion",
-            "name": "Apply Character Set Conversion (POSTC001)",
-            "description": "Removes all characters that are not FIN compliant",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.SwiftMT.fields.20",
-                            "condition": {"var": "data.SwiftMT.fields.20"},
-                            "logic": {
-                                "replace": [
-                                    {"var": "data.SwiftMT.fields.20"},
-                                    "[^A-Za-z0-9 \\n\\r/\\-\\?:\\(\\)\\.,'\\+]",
-                                    "."
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.21",
-                            "condition": {"var": "data.SwiftMT.fields.21"},
-                            "logic": {
-                                "replace": [
-                                    {"var": "data.SwiftMT.fields.21"},
-                                    "[^A-Za-z0-9 \\n\\r/\\-\\?:\\(\\)\\.,'\\+]",
-                                    "."
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.79",
-                            "condition": {"var": "data.SwiftMT.fields.79"},
-                            "logic": {
-                                "replace": [
-                                    {"var": "data.SwiftMT.fields.79"},
-                                    "[^A-Za-z0-9 \\n\\r/\\-\\?:\\(\\)\\.,'\\+]",
-                                    "."
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "clean_multiline_fields",
-            "name": "Clean Multiline Fields (POSTC002, POSTC003)",
-            "description": "Removes starting colon/hyphen and empty lines from field 79",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.SwiftMT.fields.79",
-                            "condition": {"var": "data.SwiftMT.fields.79"},
-                            "logic": {"replace": [{"replace": [{"var": "data.SwiftMT.fields.79"}, "^[:\\-]", ""]}, "\\n\\n+", "\n"]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "validate_field_lengths",
-            "name": "Validate Field Lengths",
-            "description": "Ensures fields don't exceed maximum allowed lengths",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.field79_lines",
-                            "condition": {"var": "data.SwiftMT.fields.79"},
-                            "logic": {"split": [{"var": "data.SwiftMT.fields.79"}, "\n"]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.79",
-                            "condition": { "and": [
-                                {"var": "temp_data.field79_lines"},
-                                {"gt": [{"count": [{"var": "temp_data.field79_lines"}]}, 35]}
-                            ]},
-                            "logic": {"join": [{"slice": [{"var": "temp_data.field79_lines"}, 0, 35]}, "\n"]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "finalize_transformation",
-            "name": "Finalize Transformation",
-            "description": "Sets final transformation status",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {"path": "data.SwiftMT.transformation_complete", "logic": true},
-                        {"path": "data.SwiftMT.source_message_type", "logic": "camt.058"},
-                        {"path": "data.SwiftMT.source_message_version", "logic": "001.08"},
-                        {
-                            "path": "data.SwiftMT.validation_warnings",
-                            "logic": {
-                                "filter": [
-                                    [
-                                        {"var": "temp_data.prec.error_multiple_items"},
-                                        {"var": "temp_data.warning_default_date"}
-                                    ],
-                                    {"!=": [{"var": ""}, null]}
-                                ]
-                            }
-                        }
-                    ]
+                    "input_field_name": "SwiftMT",
+                    "output_field_name": "result",
+                    "source_format": "camt.058.001.08"
                 }
             }
         }

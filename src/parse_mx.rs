@@ -487,6 +487,28 @@ impl ParseMX {
                     }
                 }
             }
+            "camt.058.001.08" => {
+                let header = match from_str::<bah_camt_058_001_08::BusinessApplicationHeaderV02>(
+                    app_hdr_content,
+                ) {
+                    Ok(header) => header,
+                    Err(e) => {
+                        error!("Failed to parse header: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse camt.058 header: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(header) {
+                    Ok(value) => Ok(value),
+                    Err(e) => {
+                        error!("Failed to convert header: {:?}", e);
+                        Err(DataflowError::Validation(format!(
+                            "Failed to convert header to value: {e}"
+                        )))
+                    }
+                }
+            }
             "admi.024.001.01" => {
                 let header = match from_str::<bah_admi_024_001_01::BusinessApplicationHeaderV02>(
                     app_hdr_content,
@@ -812,6 +834,35 @@ impl ParseMX {
                     Ok(value) => Ok(value),
                     Err(e) => Err(DataflowError::Validation(format!(
                         "Failed to convert camt.057 document to value: {e}"
+                    ))),
+                }
+            }
+            "camt.058.001.08" => {
+                // Extract the NtfctnToRcvCxlAdvc content from the Document wrapper
+                let ntfctn_content = if let Some(start) = document_content.find("<NtfctnToRcvCxlAdvc")
+                    && let Some(end) = document_content.find("</NtfctnToRcvCxlAdvc>")
+                {
+                    let end_pos = end + "</NtfctnToRcvCxlAdvc>".len();
+                    &document_content[start..end_pos]
+                } else {
+                    document_content
+                };
+                
+                let document = match from_str::<camt_058_001_08::NotificationToReceiveCancellationAdviceV08>(
+                    ntfctn_content,
+                ) {
+                    Ok(document) => document,
+                    Err(e) => {
+                        error!("Failed to parse camt.058 document: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse camt.058 document: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(document) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(DataflowError::Validation(format!(
+                        "Failed to convert camt.058 document to value: {e}"
                     ))),
                 }
             }

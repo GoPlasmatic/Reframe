@@ -271,6 +271,14 @@ impl AsyncFunctionHandler for PublishMT {
                 DataflowError::Validation(format!("Failed to parse JSON string for camt.057: {e}"))
             })?;
             data.to_mt_message()
+        } else if source_format == "camt.058.001.08" {
+            debug!("Processing camt.058 to MT292 transformation");
+
+            let data: SwiftMessage<MT292> = serde_json::from_str(&json_str).map_err(|e| {
+                error!(error = ?e, "Failed to parse JSON string for camt.058");
+                DataflowError::Validation(format!("Failed to parse JSON string for camt.058: {e}"))
+            })?;
+            data.to_mt_message()
         } else if source_format == "admi.024.001.01" {
             debug!("Processing admi.024 to MT199 transformation");
 

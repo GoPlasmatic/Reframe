@@ -1,123 +1,73 @@
 {
     "id": "camt058-mandatory-fields-mapping",
     "name": "camt.058 to MT292 Mandatory Fields Mapping",
-    "description": "Maps mandatory fields for MT292 transformation",
-    "priority": 4,
+    "description": "Maps mandatory fields for MT292 per CBPR+ specification",
+    "priority": 5,
     "condition": { "and": [
-        {"==": [{"var": "SwiftMT.message_type"}, "292"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.058.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "camt058-headers-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_swift_headers"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "map_message_reference",
-            "name": "Map Message Reference (Field 20)",
-            "description": "Maps GroupHeader MessageIdentification to Field 20",
+            "id": "map_field_20",
+            "name": "Map Sender's Reference (Field 20)",
+            "description": "Maps GroupHeader/MessageIdentification as per specification",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.field20_raw",
-                            "logic": {"var": "data.ISO20022_MX.document.NtfctnToRcvCxlAdvc.GrpHdr.MsgId"}
-                        },
-                        {
-                            "path": "temp_data.field20_truncated",
-                            "condition": {"gt": [{"strlen": [{"var": "temp_data.field20_raw"}]}, 16]},
+                            "path": "data.SwiftMT.fields.#20",
                             "logic": {
-                                "cat": [
-                                    {
-                                        "substr": [{"var": "temp_data.field20_raw"}, 0, 15]
-                                    },
-                                    "+"
-                                ]
+                                "reference": {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}
                             }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.20",
-                            "logic": { "if": [
-                                {"var": "temp_data.field20_truncated"},
-                                {"var": "temp_data.field20_truncated"},
-                                {"var": "temp_data.field20_raw"}
-                            ]}
                         }
                     ]
                 }
             }
         },
         {
-            "id": "map_original_item_reference",
-            "name": "Map Original Item Reference (Field 21)",
-            "description": "Maps OriginalItemIdentification to Field 21",
+            "id": "map_field_21",
+            "name": "Map Related Reference (Field 21)",
+            "description": "Maps OriginalNotificationReference/OriginalItem/OriginalItemIdentification",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.field21_raw",
-                            "logic": { "if": [
-                                {"isArray": [{"var": "temp_data.prec.original_items"}]},
-                                {"var": "temp_data.prec.original_items.0.OrgnlItmId"},
-                                {"var": "temp_data.prec.original_items.OrgnlItmId"}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.field21_truncated",
-                            "condition": {"gt": [{"strlen": [{"var": "temp_data.field21_raw"}]}, 16]},
+                            "path": "data.SwiftMT.fields.#21",
                             "logic": {
-                                "cat": [
-                                    {
-                                        "substr": [{"var": "temp_data.field21_raw"}, 0, 15]
-                                    },
-                                    "+"
-                                ]
+                                "reference": { "if": [
+                                    {"==": [{"type": {"var": "data.ISO20022_MX.document.OrgnlNtfctn.OrgnlNtfctnRef.OrgnlItm"}}, "array"]},
+                                    {"var": "data.ISO20022_MX.document.OrgnlNtfctn.OrgnlNtfctnRef.OrgnlItm.0.OrgnlItmId"},
+                                    {"var": "data.ISO20022_MX.document.OrgnlNtfctn.OrgnlNtfctnRef.OrgnlItm.OrgnlItmId"}
+                                ]}
                             }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.21",
-                            "logic": { "if": [
-                                {"var": "temp_data.field21_truncated"},
-                                {"var": "temp_data.field21_truncated"},
-                                {"var": "temp_data.field21_raw"}
-                            ]}
                         }
                     ]
                 }
             }
         },
         {
-            "id": "map_mt_and_date",
+            "id": "map_field_11s",
             "name": "Map MT and Date of Original Message (Field 11S)",
-            "description": "Maps original message type (210) and creation date to Field 11S (TR001)",
+            "description": "Maps original message type and creation date per TR001",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
-                        {"path": "temp_data.field11s_mt_type", "logic": "210"},
                         {
-                            "path": "temp_data.field11s_mx_date",
-                            "logic": {"var": "data.ISO20022_MX.document.NtfctnToRcvCxlAdvc.OrgnlNtfctn.OrgnlCreDtTm"}
-                        },
-                        {
-                            "path": "temp_data.field11s_date",
-                            "logic": { "if": [
-                                {"var": "temp_data.field11s_mx_date"},
-                                {"date_format": [{"var": "temp_data.field11s_mx_date"}, "YYMMDD"]},
-                                "991231"
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.11S",
+                            "path": "data.SwiftMT.fields.#11S",
                             "logic": {
-                                "cat": [{"var": "temp_data.field11s_mt_type"}, "\n", {"var": "temp_data.field11s_date"}]
-                            }
-                        },
-                        {
-                            "path": "temp_data.warning_default_date",
-                            "condition": {"==": [{"var": "temp_data.field11s_date"}, "991231"]},
-                            "logic": {
-                                "code": "T20136",
-                                "message": "Original creation date not available, using default 991231"
+                                "message_type": "210",
+                                "date": { "if": [
+                                    {"var": "data.ISO20022_MX.document.OrgnlNtfctn.OrgnlCreDtTm"},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.OrgnlNtfctn.OrgnlCreDtTm"}, 0, 10]},
+                                    "991231"
+                                ]}
                             }
                         }
                     ]

@@ -1,18 +1,20 @@
 {
     "id": "camt058-narrative-fields-mapping",
-    "name": "camt.058 to MT292 Narrative and Optional Fields Mapping",
-    "description": "Maps narrative field 79 with cancellation reason and optional fields 30 and 32B",
-    "priority": 5,
+    "name": "camt.058 to MT292 Narrative Fields Mapping",
+    "description": "Maps narrative and optional fields per CBPR+ specification (MX_To_MT79CANC2 and TR002)",
+    "priority": 6,
     "condition": { "and": [
-        {"==": [{"var": "SwiftMT.message_type"}, "292"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.058.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "camt058-mandatory-fields-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_field_11s"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "prepare_original_item_data",
-            "name": "Prepare Original Item Data",
-            "description": "Extracts original item data for Field 79, 30, and 32B",
+            "id": "map_field_79_and_original_fields",
+            "name": "Map Field 79 with Original Message Fields",
+            "description": "Maps cancellation reason and original fields per MX_To_MT79CANC2 and TR002",
             "function": {
                 "name": "map",
                 "input": {
@@ -20,119 +22,44 @@
                         {
                             "path": "temp_data.original_item",
                             "logic": { "if": [
-                                {"isArray": [{"var": "temp_data.prec.original_items"}]},
-                                {"var": "temp_data.prec.original_items.0"},
-                                {"var": "temp_data.prec.original_items"}
+                                {"==": [{"type": {"var": "data.ISO20022_MX.document.OrgnlNtfctn.OrgnlNtfctnRef.OrgnlItm"}}, "array"]},
+                                {"var": "data.ISO20022_MX.document.OrgnlNtfctn.OrgnlNtfctnRef.OrgnlItm.0"},
+                                {"var": "data.ISO20022_MX.document.OrgnlNtfctn.OrgnlNtfctnRef.OrgnlItm"}
                             ]}
                         },
                         {
-                            "path": "temp_data.expected_value_date",
-                            "logic": {"var": "temp_data.original_item.XpctdValDt"}
-                        },
-                        {"path": "temp_data.amount", "logic": {"var": "temp_data.original_item.Amt"}},
-                        {"path": "temp_data.uetr_for_79", "logic": {"var": "temp_data.original_item.UETR"}}
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_narrative_field",
-            "name": "Map Narrative Field (Field 79)",
-            "description": "Maps cancellation reason and additional info to Field 79 (MX_To_MT79CANC2)",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.cancellation_reason_code",
-                            "logic": {"var": "data.ISO20022_MX.document.NtfctnToRcvCxlAdvc.CxlRsn.Rsn.Cd"}
-                        },
-                        {
-                            "path": "temp_data.additional_info",
-                            "logic": {"var": "data.ISO20022_MX.document.NtfctnToRcvCxlAdvc.CxlRsn.AddtlInf"}
-                        },
-                        {
-                            "path": "temp_data.field79_lines",
+                            "path": "data.SwiftMT.fields.#79",
                             "logic": {
-                                "filter": [
+                                "information": {"merge": {"filter": [
                                     [
-                                        {"cat": ["/CANC/", {"var": "temp_data.cancellation_reason_code"}]},
-                                        {"var": "temp_data.additional_info"},
-                                        { "if": [
-                                            { "and": [
-                                                {"var": "temp_data.uetr_for_79"},
-                                                {"not": {"var": "temp_data.uetr_for_block3"}}
+                                        {"if": [
+                                            {"var": "data.ISO20022_MX.document.CxlRsn.Rsn.Cd"},
+                                            {"cat": ["/CANC/", {"var": "data.ISO20022_MX.document.CxlRsn.Rsn.Cd"}]},
+                                            null
+                                        ]},
+                                        {"if": [
+                                            {"var": "temp_data.original_item.UETR"},
+                                            {"cat": ["/UETR/", {"var": "temp_data.original_item.UETR"}]},
+                                            null
+                                        ]},
+                                        {"if": [
+                                            {"var": "temp_data.original_item.XpctdValDt"},
+                                            {"cat": [":30:", 
+                                                {"substr": [{"var": "temp_data.original_item.XpctdValDt"}, 2, 2]},
+                                                {"substr": [{"var": "temp_data.original_item.XpctdValDt"}, 5, 2]},
+                                                {"substr": [{"var": "temp_data.original_item.XpctdValDt"}, 8, 2]}
                                             ]},
-                                            {"cat": ["/UETR/", {"var": "temp_data.uetr_for_79"}]},
+                                            null
+                                        ]},
+                                        {"if": [
+                                            {"var": "temp_data.original_item.Amt"},
+                                            {"cat": [":32B:", {"var": "temp_data.original_item.Amt.@Ccy"}, {"var": "temp_data.original_item.Amt.$value"}]},
                                             null
                                         ]}
                                     ],
-                                    {"!=": [{"var": ""}, null]}
-                                ]
+                                    {"!!": {"var": ""}}
+                                ]}}
                             }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.79",
-                            "logic": {"join": [{"var": "temp_data.field79_lines"}, "\n"]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_value_date",
-            "name": "Map Value Date (Field 30)",
-            "description": "Maps ExpectedValueDate to Field 30 (TR002)",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.field30_date",
-                            "condition": {"var": "temp_data.expected_value_date"},
-                            "logic": {"date_format": [{"var": "temp_data.expected_value_date"}, "YYMMDD"]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.30",
-                            "condition": {"var": "temp_data.field30_date"},
-                            "logic": {"var": "temp_data.field30_date"}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_amount",
-            "name": "Map Amount (Field 32B)",
-            "description": "Maps Amount to Field 32B (TR002)",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.currency",
-                            "condition": {"var": "temp_data.amount"},
-                            "logic": {
-                                "substr": [{"var": "temp_data.amount"}, 0, 3]
-                            }
-                        },
-                        {
-                            "path": "temp_data.amount_value",
-                            "condition": {"var": "temp_data.amount"},
-                            "logic": {"substr": [{"var": "temp_data.amount"}, 3]}
-                        },
-                        {
-                            "path": "temp_data.formatted_amount",
-                            "condition": {"var": "temp_data.amount_value"},
-                            "logic": {"replace": [{"var": "temp_data.amount_value"}, "\\.", ","]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.32B",
-                            "condition": { "and": [
-                                {"var": "temp_data.currency"},
-                                {"var": "temp_data.formatted_amount"}
-                            ]},
-                            "logic": {"cat": [{"var": "temp_data.currency"}, {"var": "temp_data.formatted_amount"}]}
                         }
                     ]
                 }

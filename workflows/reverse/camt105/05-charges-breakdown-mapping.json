@@ -1,237 +1,48 @@
 {
     "id": "camt105-charges-breakdown-mapping",
     "name": "camt.105 to MTn90 Charges Breakdown Mapping",
-    "description": "Maps charges breakdown to field 71B and debtor agent to field 52",
-    "priority": 5,
+    "description": "Maps charges breakdown to field 71B per CBPR+ specification",
+    "priority": 6,
     "condition": { "and": [
-        { "or": [
-            {"==": [{"var": "SwiftMT.message_type"}, "190"]},
-            {"==": [{"var": "SwiftMT.message_type"}, "290"]}
-        ]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.105.001.02"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "camt105-mandatory-fields-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_mandatory_fields"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
             "id": "map_field_71B",
             "name": "Map Field 71B Charges Breakdown",
-            "description": "Maps up to 6 charges breakdown items to field 71B",
+            "description": "Maps up to 6 charges breakdown items to field 71B per specification",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.charges_breakdown",
+                            "path": "data.SwiftMT.fields.#71B",
                             "logic": {
-                                "map": [
-                                    {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.ChrgsBrkdwn"},
-                                    {
-                                        "currency": {"var": ".Amt/@Ccy"},
-                                        "amount": {"var": ".Amt"},
-                                        "type_code": { "if": [
-                                            {"var": ".Tp.Cd"},
-                                            {"var": ".Tp.Cd"},
-                                            { "if": [
-                                                {"var": ".Tp.Prtry"},
-                                                {"var": ".Tp.Prtry"},
-                                                "OTHR"
-                                            ]}
-                                        ]},
-                                        "indicator": { "if": [
-                                            {"==": [{"var": ".CdtDbtInd"}, "CRDT"]},
-                                            "C",
-                                            "D"
-                                        ]}
-                                    }
-                                ]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.71B",
-                            "logic": {
-                                "details_of_charges": {
+                                "details": {
                                     "map": [
-                                        {"slice": [{"var": "temp_data.charges_breakdown"}, 0, 6]},
+                                        {"slice": [{"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.ChrgsBrkdwn"}, 0, 6]},
                                         {
                                             "cat": [
-                                                {"var": ".currency"},
-                                                {"var": ".amount"},
-                                                " ",
-                                                {"var": ".type_code"},
-                                                " ",
-                                                {"var": ".indicator"}
+                                                {"var": "Amt.@Ccy"},
+                                                {"var": "Amt.$value"},
+                                                "/",
+                                                { "if": [
+                                                    {"var": "Tp.Cd"},
+                                                    {"var": "Tp.Cd"},
+                                                    "OTHR"
+                                                ]},
+                                                "/",
+                                                { "if": [
+                                                    {"==": [{"var": "CdtDbtInd"}, "CRDT"]},
+                                                    "C",
+                                                    "D"
+                                                ]}
                                             ]
                                         }
-                                    ]
-                                }
-                            }
-                        },
-                        {
-                            "path": "temp_data.warnings.field71B_items_skipped",
-                            "condition": {">": [{"count": {"var": "temp_data.charges_breakdown"}}, 6]},
-                            "logic": {
-                                "code": "T20288",
-                                "message": {
-                                    "cat": [
-                                        "Only first 6 charges breakdown items mapped to field 71B, ",
-                                        {"subtract": [{"count": {"var": "temp_data.charges_breakdown"}}, 6]},
-                                        " items skipped"
-                                    ]
-                                }
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_field_52",
-            "name": "Map Field 52 Debtor Agent",
-            "description": "Maps debtor agent to field 52A or 52D",
-            "condition": { "or": [
-                {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.DbtrAgt"},
-                {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.DbtrAgtAcct"}
-            ]},
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.debtor_agent",
-                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.DbtrAgt"}
-                        },
-                        {
-                            "path": "temp_data.debtor_agent_account",
-                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.DbtrAgtAcct"}
-                        },
-                        {
-                            "path": "temp_data.field52_type",
-                            "logic": { "if": [
-                                {"not": {"var": "temp_data.debtor_agent"}},
-                                "52D_account_only",
-                                { "if": [
-                                    {"var": "temp_data.debtor_agent.FinInstnId.BICFI"},
-                                    "52A",
-                                    { "if": [
-                                        {"var": "temp_data.debtor_agent.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                        "52A",
-                                        "52D"
-                                    ]}
-                                ]}
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.52D",
-                            "condition": {"==": [{"var": "temp_data.field52_type"}, "52D_account_only"]},
-                            "logic": {
-                                "party_identifier": { "if": [
-                                    {"var": "temp_data.debtor_agent_account.Id.IBAN"},
-                                    {"cat": ["/", {"var": "temp_data.debtor_agent_account.Id.IBAN"}]},
-                                    { "if": [
-                                        {"var": "temp_data.debtor_agent_account.Id.Othr.Id"},
-                                        {"cat": ["/", {"var": "temp_data.debtor_agent_account.Id.Othr.Id"}]},
-                                        "/NOTPROVIDED"
-                                    ]}
-                                ]},
-                                "name_and_address": ["NOTPROVIDED"]
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.52A",
-                            "condition": {"==": [{"var": "temp_data.field52_type"}, "52A"]},
-                            "logic": {
-                                "party_identifier": { "if": [
-                                    {"var": "temp_data.debtor_agent_account"},
-                                    { "if": [
-                                        {"var": "temp_data.debtor_agent_account.Id.IBAN"},
-                                        {"cat": ["/", {"var": "temp_data.debtor_agent_account.Id.IBAN"}]},
-                                        { "if": [
-                                            {"var": "temp_data.debtor_agent_account.Id.Othr.Id"},
-                                            {"cat": ["/", {"var": "temp_data.debtor_agent_account.Id.Othr.Id"}]},
-                                            ""
-                                        ]}
-                                    ]},
-                                    { "if": [
-                                        {"var": "temp_data.debtor_agent.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                        {
-                                            "cat": [
-                                                "//",
-                                                {"var": "temp_data.debtor_agent.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                {"var": "temp_data.debtor_agent.FinInstnId.ClrSysMmbId.MmbId"}
-                                            ]
-                                        },
-                                        ""
-                                    ]}
-                                ]},
-                                "bic": { "if": [
-                                    {"var": "temp_data.debtor_agent.FinInstnId.BICFI"},
-                                    {"var": "temp_data.debtor_agent.FinInstnId.BICFI"},
-                                    "NOTPROVIDED"
-                                ]}
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.52D",
-                            "condition": {"==": [{"var": "temp_data.field52_type"}, "52D"]},
-                            "logic": {
-                                "party_identifier": { "if": [
-                                    {"var": "temp_data.debtor_agent_account"},
-                                    { "if": [
-                                        {"var": "temp_data.debtor_agent_account.Id.IBAN"},
-                                        {"cat": ["/", {"var": "temp_data.debtor_agent_account.Id.IBAN"}]},
-                                        { "if": [
-                                            {"var": "temp_data.debtor_agent_account.Id.Othr.Id"},
-                                            {"cat": ["/", {"var": "temp_data.debtor_agent_account.Id.Othr.Id"}]},
-                                            ""
-                                        ]}
-                                    ]},
-                                    ""
-                                ]},
-                                "name_and_address": {
-                                    "filter": [
-                                        [
-                                            {
-                                                "substr": [{"var": "temp_data.debtor_agent.FinInstnId.Nm"}, 0, 35]
-                                            },
-                                            { "if": [
-                                                {"var": "temp_data.debtor_agent.PstlAdr.AdrLine.0"},
-                                                {
-                                                    "substr": [{"var": "temp_data.debtor_agent.PstlAdr.AdrLine.0"}, 0, 35]
-                                                },
-                                                { "if": [
-                                                    {"var": "temp_data.debtor_agent.FinInstnId.PstlAdr.StrtNm"},
-                                                    {
-                                                        "substr": [{"var": "temp_data.debtor_agent.FinInstnId.PstlAdr.StrtNm"}, 0, 35]
-                                                    },
-                                                    ""
-                                                ]}
-                                            ]},
-                                            { "if": [
-                                                {"var": "temp_data.debtor_agent.PstlAdr.AdrLine.1"},
-                                                {
-                                                    "substr": [{"var": "temp_data.debtor_agent.PstlAdr.AdrLine.1"}, 0, 35]
-                                                },
-                                                { "if": [
-                                                    {"var": "temp_data.debtor_agent.FinInstnId.PstlAdr.TwnNm"},
-                                                    {
-                                                        "substr": [{"var": "temp_data.debtor_agent.FinInstnId.PstlAdr.TwnNm"}, 0, 35]
-                                                    },
-                                                    ""
-                                                ]}
-                                            ]},
-                                            { "if": [
-                                                {"var": "temp_data.debtor_agent.PstlAdr.AdrLine.2"},
-                                                {
-                                                    "substr": [{"var": "temp_data.debtor_agent.PstlAdr.AdrLine.2"}, 0, 35]
-                                                },
-                                                { "if": [
-                                                    {"var": "temp_data.debtor_agent.FinInstnId.PstlAdr.Ctry"},
-                                                    {"var": "temp_data.debtor_agent.FinInstnId.PstlAdr.Ctry"},
-                                                    ""
-                                                ]}
-                                            ]}
-                                        ],
-                                        {"var": ""}
                                     ]
                                 }
                             }

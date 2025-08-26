@@ -465,6 +465,42 @@ fn generate_camt058_xml(app_hdr: &Value, document: &Value) -> Result<String, Box
     Ok(format!("{}\n{}", xml_declaration, xml_body))
 }
 
+/// Generate camt.105 XML from parsed JSON
+fn generate_camt105_xml(app_hdr: &Value, document: &Value) -> Result<String, Box<dyn std::error::Error>> {
+    debug!("Parsing camt.105 header");
+    let header_str = serde_json::to_string(app_hdr)?;
+    let hd = &mut serde_json::Deserializer::from_str(&header_str);
+    let header: bah_camt_105_001_02::BusinessApplicationHeaderV02 = deserialize(hd)
+        .map_err(|e| {
+            let path = e.path().to_string();
+            let inner_err = e.into_inner().to_string();
+            format!("Failed to parse camt.105 header at path '{}': {}", path, inner_err)
+        })?;
+    
+    debug!("Parsing camt.105 document");
+    debug!("Full document: {}", serde_json::to_string_pretty(document)?);
+    let doc_content = document
+        .get("ChrgsPaymtNtfctn")
+        .ok_or_else(|| "Missing ChrgsPaymtNtfctn in Document")?;
+    
+    debug!("camt.105 doc_content: {}", serde_json::to_string_pretty(doc_content)?);
+    let doc_str = serde_json::to_string(doc_content)?;
+    let dd = &mut serde_json::Deserializer::from_str(&doc_str);
+    let doc: camt_105_001_02::ChargesPaymentNotificationV02 = deserialize(dd)
+        .map_err(|e| {
+            let path = e.path().to_string();
+            let inner_err = e.into_inner().to_string();
+            error!("Failed to parse camt.105 document at path '{}': {}", path, inner_err);
+            format!("Failed to parse camt.105 document at path '{}': {}", path, inner_err)
+        })?;
+    
+    let envelope = MxEnvelope::new(header, doc, "urn:iso:std:iso:20022:tech:xsd:camt.105.001.02".to_string());
+    let xml_declaration = r#"<?xml version="1.0" encoding="UTF-8"?>"#;
+    let xml_body = xml_to_string(&envelope)?;
+    
+    Ok(format!("{}\n{}", xml_declaration, xml_body))
+}
+
 /// Generate camt.029 XML from parsed JSON
 fn generate_camt029_xml(app_hdr: &Value, document: &Value) -> Result<String, Box<dyn std::error::Error>> {
     debug!("Parsing camt.029 header");
@@ -703,6 +739,7 @@ pub fn generate_mx_from_json(
         "camt.056" => generate_camt056_xml(&envelope.app_hdr, &envelope.document)?,
         "camt.057" => generate_camt057_xml(&envelope.app_hdr, &envelope.document)?,
         "camt.058" => generate_camt058_xml(&envelope.app_hdr, &envelope.document)?,
+        "camt.105" => generate_camt105_xml(&envelope.app_hdr, &envelope.document)?,
         "camt.107" => generate_camt107_xml(&envelope.app_hdr, &envelope.document)?,
         "camt.108" => generate_camt108_xml(&envelope.app_hdr, &envelope.document)?,
         "camt.109" => generate_camt109_xml(&envelope.app_hdr, &envelope.document)?,

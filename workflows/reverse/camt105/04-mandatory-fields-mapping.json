@@ -1,226 +1,93 @@
 {
     "id": "camt105-mandatory-fields-mapping",
     "name": "camt.105 to MTn90 Mandatory Fields Mapping",
-    "description": "Maps mandatory fields including references, account, and charges amount",
-    "priority": 4,
+    "description": "Maps mandatory fields per CBPR+ specification including references, account, and charges",
+    "priority": 5,
     "condition": { "and": [
-        { "or": [
-            {"==": [{"var": "SwiftMT.message_type"}, "190"]},
-            {"==": [{"var": "SwiftMT.message_type"}, "290"]}
-        ]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.105.001.02"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "camt105-headers-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_swift_headers"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "map_field_20",
-            "name": "Map Field 20 Charges Identification",
-            "description": "Maps charges identification to field 20",
+            "id": "map_mandatory_fields",
+            "name": "Map All Mandatory Fields",
+            "description": "Maps fields 20, 21, 25, 32C/D, and 52 per CBPR+ specification",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.20",
+                            "path": "data.SwiftMT.fields.#20",
                             "logic": {
-                                "charges_reference": {
-                                    "substr": [
-                                        {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.ChrgsId"},
-                                        0,
-                                        16
-                                    ]
-                                }
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_field_21",
-            "name": "Map Field 21 Related Reference",
-            "description": "Maps underlying transaction reference to field 21",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.field21_raw",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.UndrlygTx.InstrId"},
-                                {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.UndrlygTx.InstrId"},
-                                { "if": [
-                                    {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.UndrlygTx.EndToEndId"},
-                                    {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.UndrlygTx.EndToEndId"},
-                                    { "if": [
-                                        {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.UndrlygTx.MsgId"},
-                                        {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.UndrlygTx.MsgId"},
-                                        { "if": [
-                                            {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.UndrlygTx.AcctSvcrRef"},
-                                            {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.UndrlygTx.AcctSvcrRef"},
-                                            "NOTPROVIDED"
-                                        ]}
-                                    ]}
-                                ]}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.field21_valid",
-                            "logic": {
-                                "not": { "or": [
-                                    {"match": [{"var": "temp_data.field21_raw"}, "^/"]},
-                                    {"match": [{"var": "temp_data.field21_raw"}, "/$"]},
-                                    {"match": [{"var": "temp_data.field21_raw"}, "//"]}
-                                ]}
-                            }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.21",
-                            "logic": {
-                                "related_reference": { "if": [
-                                    {">": [{"strlen": [{"var": "temp_data.field21_raw"}]}, 16]},
-                                    { "if": [
-                                        {"var": "temp_data.field21_valid"},
-                                        {
-                                            "cat": [
-                                                {
-                                                    "substr": [{"var": "temp_data.field21_raw"}, 0, 15]
-                                                },
-                                                "+"
-                                            ]
-                                        },
-                                        "NOTPROVIDED"
+                                "reference": {"substr": [
+                                    {"replace": [
+                                        {"var": "data.ISO20022_MX.document.Chrgs.PerTx.ChrgsId"},
+                                        "-",
+                                        ""
                                     ]},
-                                    { "if": [
-                                        {"var": "temp_data.field21_valid"},
-                                        {"var": "temp_data.field21_raw"},
-                                        "NOTPROVIDED"
+                                    0,
+                                    16
+                                ]}
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#21",
+                            "logic": {
+                                "reference": {"substr": [
+                                    {"replace": [
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.UndrlygTx.InstrId"},
+                                            {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.UndrlygTx.InstrId"},
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.UndrlygTx.EndToEndId"},
+                                                {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.UndrlygTx.EndToEndId"},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.UndrlygTx.MsgId"},
+                                                    {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.UndrlygTx.MsgId"},
+                                                    { "if": [
+                                                        {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.UndrlygTx.AcctSvcrRef"},
+                                                        {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.UndrlygTx.AcctSvcrRef"},
+                                                        "NOTPROVIDED"
+                                                    ]}
+                                                ]}
+                                            ]}
+                                        ]},
+                                        "-",
+                                        ""
+                                    ]},
+                                    0,
+                                    16
+                                ]}
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#25",
+                            "logic": {
+                                "NoOption": {
+                                    "authorisation": { "if": [
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.ChrgsAcct.Id.IBAN"},
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.ChrgsAcct.Id.IBAN"},
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.ChrgsAcct.Id.Othr.Id"}
                                     ]}
-                                ]}
-                            }
-                        },
-                        {
-                            "path": "temp_data.warnings.field21_truncated",
-                            "condition": {">": [{"strlen": [{"var": "temp_data.field21_raw"}]}, 16]},
-                            "logic": {"code": "T20055", "message": "Field 21 truncated to 16 characters"}
-                        },
-                        {
-                            "path": "temp_data.warnings.field21_invalid",
-                            "condition": {"not": {"var": "temp_data.field21_valid"}},
-                            "logic": {"code": "T14001", "message": "Field 21 contains invalid characters"}
-                        },
-                        {
-                            "path": "temp_data.warnings.field21_default",
-                            "condition": {"==": [{"var": "temp_data.field21_raw"}, "NOTPROVIDED"]},
-                            "logic": {
-                                "code": "T20302",
-                                "message": "No underlying transaction reference found, using NOTPROVIDED"
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_field_25",
-            "name": "Map Field 25 Account",
-            "description": "Maps charges account to field 25",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.account",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.GrpHdr.ChrgsAcct.Id.IBAN"},
-                                {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.GrpHdr.ChrgsAcct.Id.IBAN"},
-                                { "if": [
-                                    {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.GrpHdr.ChrgsAcct.Id.Othr.Id"},
-                                    {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.GrpHdr.ChrgsAcct.Id.Othr.Id"},
-                                    null
-                                ]}
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.25",
-                            "condition": {"var": "temp_data.account"},
-                            "logic": {
-                                "account": {
-                                    "substr": [{"var": "temp_data.account"}, 0, 35]
                                 }
                             }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_field_32",
-            "name": "Map Field 32C/D Total Charges",
-            "description": "Maps total charges amount with value date to field 32C or 32D",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.credit_debit_indicator",
-                            "logic": {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.TtlChrgsPerRcrd.CdtDbtInd"}
                         },
                         {
-                            "path": "temp_data.value_date_raw",
-                            "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.ValDt.Dt"},
-                                {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.ValDt.Dt"},
-                                { "if": [
-                                    {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.ValDt.DtTm"},
-                                    {
-                                        "substr": [
-                                            {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.ValDt.DtTm"},
-                                            0,
-                                            10
-                                        ]
-                                    },
-                                    null
-                                ]}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.value_date_mt",
-                            "logic": { "if": [
-                                {"var": "temp_data.value_date_raw"},
-                                {
-                                    "cat": [
-                                        {
-                                            "substr": [{"var": "temp_data.value_date_raw"}, 2, 2]
-                                        },
-                                        {
-                                            "substr": [{"var": "temp_data.value_date_raw"}, 5, 2]
-                                        },
-                                        {
-                                            "substr": [{"var": "temp_data.value_date_raw"}, 8, 2]
-                                        }
-                                    ]
-                                },
-                                "991231"
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.field32_base",
+                            "path": "data.SwiftMT.fields.#32",
                             "logic": {
-                                "value_date": {"var": "temp_data.value_date_mt"},
-                                "currency": {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.TtlChrgsPerRcrd.TtlChrgsAmt/@Ccy"},
-                                "amount": {"var": "data.ISO20022_MX.document.ChrgsPaymtNtfctn.Chrgs.PerTx.0.Rcrd.0.TtlChrgsPerRcrd.TtlChrgsAmt"}
+                                "D": {
+                                    "value_date": { "if": [
+                                        {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.ValDt.Dt"},
+                                        {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.ValDt.Dt"},
+                                        {"substr": [{"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.ValDt.DtTm"}, 0, 10]}
+                                    ]},
+                                    "currency": {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.TtlChrgsPerRcrd.TtlChrgsAmt.@Ccy"},
+                                    "amount": {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.TtlChrgsPerRcrd.TtlChrgsAmt.$value"}
+                                }
                             }
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.32C",
-                            "condition": {"==": [{"var": "temp_data.credit_debit_indicator"}, "CRDT"]},
-                            "logic": {"var": "temp_data.field32_base"}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.32D",
-                            "condition": {"!=": [{"var": "temp_data.credit_debit_indicator"}, "CRDT"]},
-                            "logic": {"var": "temp_data.field32_base"}
                         }
                     ]
                 }

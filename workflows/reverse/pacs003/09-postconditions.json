@@ -1,91 +1,40 @@
 {
-    "id": "pacs003-to-mt104-postconditions",
+    "id": "pacs003-postconditions",
     "name": "pacs.003 to MT104 Post-conditions and Final Assembly",
     "description": "Validates post-conditions and assembles final MT104 message",
-    "priority": 9,
+    "priority": 10,
     "condition": { "and": [
-        {"==": [{"var": "SwiftMT.message_type"}, "104"]},
-        {"==": [{"var": "progress.workflow_id"}, "pacs003-to-mt104-remittance-fields"]},
-        {"in": [{"var": "progress.task_id"}, ["map_regulatory_reporting"]]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.003.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs003-remittance-fields-mapping"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
             "id": "validate_postconditions",
             "name": "Validate Post-conditions",
-            "description": "Validates that required fields are present and handles missing information warnings",
+            "description": "Validates post-conditions POSTC003 and POSTC005 according to CBPR+ specification",
             "function": {
-                "name": "map",
+                "name": "validate",
                 "input": {
-                    "mappings": [
-                        {"path": "temp_data.warnings", "logic": []},
+                    "rules": [
                         {
-                            "path": "temp_data.warnings.0",
-                            "condition": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.IntrmyAgt1"},
-                            "logic": {"code": "T11010", "message": "IntermediaryAgent1 cannot be translated to MT104"}
-                        },
-                        {
-                            "path": "temp_data.warnings.1",
-                            "condition": { "or": [
-                                {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.IntrmyAgt2"},
-                                {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.IntrmyAgt3"}
+                            "path": "data.SwiftMT.fields.#.0.71G",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.#.0.71G"},
+                                {"==": [
+                                    {"var": "data.SwiftMT.fields.#.0.71G.currency"},
+                                    {"var": "data.SwiftMT.fields.#.0.32B.currency"}
+                                ]},
+                                true
                             ]},
-                            "logic": {
-                                "code": "T11011",
-                                "message": "IntermediaryAgent2 and IntermediaryAgent3 cannot be translated to MT104 (field 72 not allowed unless 23E:OTHR/xxx)"
-                            }
+                            "message": "POSTC003/T20320: Field 71G Currency is not equal to 32B Currency. This generates an invalid MT. 71G should not be translated to the target message",
+                            "severity": "warning"
                         },
                         {
-                            "path": "temp_data.warnings.2",
-                            "condition": {"var": "data.ISO20022_MX.document.GrpHdr.NbOfTxs"},
-                            "logic": {"code": "T11012", "message": "NumberOfTransactions not translated to MT104"}
-                        },
-                        {
-                            "path": "temp_data.warnings.3",
-                            "condition": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.PmtTpInf.SvcLvl"},
-                            "logic": {
-                                "code": "T11013",
-                                "message": "ServiceLevel not translated to MT104 (gpi tracker codes not relevant)"
-                            }
-                        },
-                        {
-                            "path": "temp_data.warnings.4",
-                            "condition": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.SttlmTmIndctn"},
-                            "logic": {"code": "T11014", "message": "SettlementTimeIndication not translated to MT104"}
-                        },
-                        {
-                            "path": "temp_data.warnings.5",
-                            "condition": { "or": [
-                                {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DrctDbtTx.MndtRltdInf.DtOfSgntr"},
-                                {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DrctDbtTx.MndtRltdInf.AmdmntInd"},
-                                {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DrctDbtTx.MndtRltdInf.AmdmntInfDtls"}
-                            ]},
-                            "logic": {
-                                "code": "T11015",
-                                "message": "Some MandateRelatedInformation details not translated to MT104"
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "construct_mt104_message",
-            "name": "Construct MT104 Message",
-            "description": "Assembles the complete MT104 message structure",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {"path": "data.SwiftMT.message_complete", "logic": true},
-                        {
-                            "path": "data.SwiftMT.transformation_status",
-                            "logic": {
-                                "success": true,
-                                "warnings": {"var": "temp_data.warnings"},
-                                "source_message_type": "pacs.003.001.08",
-                                "target_message_type": "MT104"
-                            }
+                            "path": "data.SwiftMT.user_header.validation_flag",
+                            "logic": {"!": {"var": "data.SwiftMT.user_header.validation_flag"}},
+                            "message": "POSTC005/T20321: Field 119 in the User Header must be absent for MT104 Direct Debit"
                         }
                     ]
                 }
@@ -94,10 +43,14 @@
         {
             "id": "publish_mt104",
             "name": "Publish MT104 Message",
-            "description": "Publishes the complete MT104 message",
+            "description": "Publishes the complete MT104 message (handles POSTC001, POSTC002, POSTC004)",
             "function": {
                 "name": "PublishMT",
-                "input": {"input_field_name": "SwiftMT", "output_field_name": "mt_message", "format": "MT104"}
+                "input": {
+                    "input_field_name": "SwiftMT",
+                    "output_field_name": "result",
+                    "source_format": "pacs.003.001.08"
+                }
             }
         }
     ]

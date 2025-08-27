@@ -2,7 +2,7 @@
     "id": "pacs003-variant-detection",
     "name": "pacs.003 Variant Detection",
     "description": "Detects pacs.003 CBPR+ variant for MT104 Direct Debit transformation",
-    "priority": 1,
+    "priority": 2,
     "condition": { "and": [
         {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.003.001.08"]},
         {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
@@ -20,16 +20,19 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.variant",
+                            "path": "data.SwiftMT.message_type",
+                            "logic": "104"
+                        },
+                        {
+                            "path": "data.SwiftMT.variant",
                             "logic": { "if": [
-                                {"==": [{"var": "data.ISO20022_MX.header.BizSvc"}, "swift.cbprplus.02"]},
+                                { "or": [
+                                    {"==": [{"var": "data.ISO20022_MX.header.BizSvc"}, "swift.cbprplus.01"]},
+                                    {"==": [{"var": "data.ISO20022_MX.header.BizSvc"}, "swift.cbprplus.02"]}
+                                ]},
                                 "CBPR",
                                 "STANDARD"
                             ]}
-                        },
-                        {
-                            "path": "data.SwiftMT",
-                            "logic": {"message_type": "104", "variant": {"var": "temp_data.variant"}}
                         }
                     ]
                 }

@@ -1,11 +1,12 @@
 {
-    "id": "pacs003-to-mt104-mandatory-fields",
+    "id": "pacs003-mandatory-fields-mapping",
     "name": "pacs.003 to MT104 Mandatory Fields Mapping",
     "description": "Maps mandatory fields from pacs.003 to MT104 Sequence A and B",
-    "priority": 4,
+    "priority": 5,
     "condition": { "and": [
-        {"==": [{"var": "SwiftMT.message_type"}, "104"]},
-        {"==": [{"var": "progress.workflow_id"}, "pacs003-to-mt104-headers"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.003.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs003-headers-mapping"]},
         {"==": [{"var": "progress.task_id"}, "map_user_header"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
@@ -19,32 +20,28 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.20",
+                            "path": "data.SwiftMT.fields.#20",
                             "logic": {
                                 "reference": { "if": [
-                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.PmtId.InstrId"},
+                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.PmtId.InstrId"},
                                     {
-                                        "substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.PmtId.InstrId"}, 0, 16]
+                                        "substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.PmtId.InstrId"}, 0, 16]
                                     },
                                     "NOTPROVIDED"
                                 ]}
                             }
                         },
                         {
-                            "path": "data.SwiftMT.fields.30",
+                            "path": "data.SwiftMT.fields.#30",
                             "logic": {
-                                "requested_execution_date": { "if": [
-                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.ReqdColltnDt"},
-                                    {
-                                        "replace": [
-                                            {
-                                                "substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.ReqdColltnDt"}, 2, 8]
-                                            },
-                                            "-",
-                                            ""
-                                        ]
-                                    },
-                                    "991231"
+                                "execution_date": { "if": [
+                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.ReqdColltnDt"},
+                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.ReqdColltnDt"},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.DrctDbtTxInf.IntrBkSttlmDt"},
+                                        {"var": "data.ISO20022_MX.document.DrctDbtTxInf.IntrBkSttlmDt"},
+                                        "1999-12-31"
+                                    ]}
                                 ]}
                             }
                         }
@@ -53,46 +50,53 @@
             }
         },
         {
-            "id": "map_sequence_b_reference",
-            "name": "Map Sequence B Reference Fields",
-            "description": "Maps field 21 (Transaction Reference) from PaymentIdentification",
+            "id": "initialize_transactions",
+            "name": "Initialize Transactions Array",
+            "description": "Creates the transactions array structure for MT104",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.21",
-                            "condition": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.PmtId.TxId"},
-                            "logic": {
-                                "reference": {
-                                    "substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.PmtId.TxId"}, 0, 16]
-                                }
-                            }
+                            "path": "data.SwiftMT.fields.##",
+                            "logic": [{}]
                         }
                     ]
                 }
             }
         },
         {
-            "id": "map_amount_fields",
-            "name": "Map Amount Fields",
-            "description": "Maps field 32B for both sequence B and C (InterbankSettlementAmount)",
+            "id": "map_transaction_fields",
+            "name": "Map Transaction Fields",
+            "description": "Maps mandatory transaction fields including field 21 and 32B",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.32B_seq_b",
+                            "path": "data.SwiftMT.fields.##.0.#21",
                             "logic": {
-                                "currency": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.IntrBkSttlmAmt.@Ccy"},
-                                "amount": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.IntrBkSttlmAmt.$value"}
+                                "reference": { "if": [
+                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.PmtId.TxId"},
+                                    {
+                                        "substr": [{"var": "data.ISO20022_MX.document.DrctDbtTxInf.PmtId.TxId"}, 0, 16]
+                                    },
+                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.PmtId.InstrId"}
+                                ]}
                             }
                         },
                         {
-                            "path": "data.SwiftMT.fields.32B_seq_c",
+                            "path": "data.SwiftMT.fields.##.0.#32B",
                             "logic": {
-                                "currency": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.IntrBkSttlmAmt.@Ccy"},
-                                "amount": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.IntrBkSttlmAmt.$value"}
+                                "currency": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.IntrBkSttlmAmt.@Ccy"},
+                                "amount": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.IntrBkSttlmAmt.$value"}
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#32B",
+                            "logic": {
+                                "currency": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.IntrBkSttlmAmt.@Ccy"},
+                                "amount": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.IntrBkSttlmAmt.$value"}
                             }
                         }
                     ]

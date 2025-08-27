@@ -1,11 +1,12 @@
 {
-    "id": "pacs003-to-mt104-headers",
+    "id": "pacs003-headers-mapping",
     "name": "pacs.003 to MT104 Headers Mapping",
     "description": "Maps pacs.003 header information to MT104 basic and application headers",
-    "priority": 3,
+    "priority": 4,
     "condition": { "and": [
-        {"==": [{"var": "SwiftMT.message_type"}, "104"]},
-        {"==": [{"var": "progress.workflow_id"}, "pacs003-to-mt104-preconditions"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.003.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs003-preconditions"]},
         {"==": [{"var": "progress.task_id"}, "validate_mandatory_elements"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
@@ -13,7 +14,7 @@
         {
             "id": "map_basic_header",
             "name": "Map Basic Header",
-            "description": "Maps sender and receiver BIC from pacs.003 to MT104 basic header",
+            "description": "Maps sender BIC from pacs.003 to MT104 basic header",
             "function": {
                 "name": "map",
                 "input": {
@@ -23,14 +24,22 @@
                             "logic": {
                                 "application_id": "F",
                                 "service_id": "01",
-                                "sender_bic": { "if": [
-                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.CdtrAgt.FinInstnId.BICFI"},
-                                    "NOTPROVIDED"
+                                "sender_bic": {"substr": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, 0, 8]},
+                                "logical_terminal": { "if": [
+                                    {"==": [{"length": {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}}, 8]},
+                                    {"cat": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, "AXXX"]},
+                                    { "if": [
+                                        {"==": [{"length": {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}}, 11]},
+                                        {"cat": [
+                                            {"substr": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, 0, 8]},
+                                            "A",
+                                            {"substr": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, 8, 3]}
+                                        ]},
+                                        {"cat": [{"substr": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, 0, 8]}, "AXXX"]}
+                                    ]}
                                 ]},
                                 "session_number": "0000",
-                                "sequence_number": "000001"
+                                "sequence_number": "000000"
                             }
                         }
                     ]
@@ -48,17 +57,25 @@
                         {
                             "path": "data.SwiftMT.application_header",
                             "logic": {
-                                "io_identifier": "I",
+                                "direction": "I",
                                 "message_type": "104",
-                                "receiver_bic": { "if": [
-                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.DbtrAgt.FinInstnId.BICFI"},
-                                    "NOTPROVIDED"
+                                "receiver_bic": {"substr": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, 0, 8]},
+                                "destination_address": { "if": [
+                                    {"==": [{"length": {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}}, 8]},
+                                    {"cat": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, "AXXX"]},
+                                    { "if": [
+                                        {"==": [{"length": {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}}, 11]},
+                                        {"cat": [
+                                            {"substr": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, 0, 8]},
+                                            "A",
+                                            {"substr": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, 8, 3]}
+                                        ]},
+                                        {"cat": [{"substr": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, 0, 8]}, "AXXX"]}
+                                    ]}
                                 ]},
                                 "priority": "N",
-                                "delivery_monitoring": "",
-                                "obsolescence_period": ""
+                                "delivery_monitoring": "2",
+                                "obsolescence_period": "003"
                             }
                         }
                     ]
@@ -76,11 +93,7 @@
                         {
                             "path": "data.SwiftMT.user_header",
                             "logic": {
-                                "unique_end_to_end_reference": { "if": [
-                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.PmtId.UETR"},
-                                    {"var": "data.ISO20022_MX.document.DrctDbtTxInf.0.PmtId.UETR"},
-                                    null
-                                ]}
+                                "unique_end_to_end_reference": {"var": "data.ISO20022_MX.document.DrctDbtTxInf.PmtId.UETR"}
                             }
                         }
                     ]

@@ -1,12 +1,12 @@
 {
-    "id": "pacs002-to-mt-mandatory-fields-mapping",
+    "id": "pacs002-mandatory-fields-mapping",
     "name": "pacs.002 to MT199/MT299 Mandatory Fields Mapping",
     "description": "Maps mandatory fields: Field 20 (Transaction Reference) and Field 21 (Related Reference)",
-    "priority": 4,
+    "priority": 5,
     "condition": { "and": [
         {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.002.001.10"]},
         {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
-        {"==": [{"var": "progress.workflow_id"}, "pacs002-to-mt-headers-mapping"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs002-headers-mapping"]},
         {"==": [{"var": "progress.task_id"}, "construct_user_header"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
@@ -20,34 +20,31 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data.field20_raw",
-                            "logic": {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}
-                        },
-                        {
-                            "path": "temp_data.field20_truncated",
-                            "logic": { "if": [
-                                {">": [{"length": {"var": "temp_data.field20_raw"}}, 16]},
-                                {
-                                    "cat": [
-                                        {
-                                            "substr": [{"var": "temp_data.field20_raw"}, 0, 15]
-                                        },
-                                        "+"
-                                    ]
-                                },
-                                {"var": "temp_data.field20_raw"}
-                            ]}
-                        },
-                        {
                             "path": "data.SwiftMT.fields.#20",
                             "logic": {
                                 "reference": { "if": [
-                                    { "and": [
-                                        {"!=": [{"substr": [{"var": "temp_data.field20_truncated"}, 0, 1]}, "/"]},
-                                        {"!=": [{"substr": [{"var": "temp_data.field20_truncated"}, -1, 1]}, "/"]},
-                                        {"==": [{"in": ["//", {"var": "temp_data.field20_truncated"}]}, false]}
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"},
+                                    { "if": [
+                                        {">": [{"length": {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}}, 16]},
+                                        { "if": [
+                                            { "and": [
+                                                {"!=": [{"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}, 0, 1]}, "/"]},
+                                                {"!=": [{"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}, -1, 1]}, "/"]},
+                                                {"==": [{"in": ["//", {"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}, 0, 15]}]}, false]}
+                                            ]},
+                                            {"cat": [{"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}, 0, 15]}, "+"]},
+                                            "NOTPROVIDED"
+                                        ]},
+                                        { "if": [
+                                            { "and": [
+                                                {"!=": [{"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}, 0, 1]}, "/"]},
+                                                {"!=": [{"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}, -1, 1]}, "/"]},
+                                                {"==": [{"in": ["//", {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}]}, false]}
+                                            ]},
+                                            {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"},
+                                            "NOTPROVIDED"
+                                        ]}
                                     ]},
-                                    {"var": "temp_data.field20_truncated"},
                                     "NOTPROVIDED"
                                 ]}
                             }

@@ -1,83 +1,72 @@
-# pacs.002 to MT103REJT/MT202REJT Transformation Gaps
+# pacs.002 to MT199/MT299 REJT Transformation Gaps
 
 ## Message Type Overview
-- **Source**: pacs.002 (FI to FI Payment Status Report)
-- **Target**: MT103REJT/MT202REJT (Rejection Messages)
-- **Specification**: xxx-specification/reverse/pacs002-MTxxxREJT/
-- **Workflow Maturity**: Level 2 - Standard
+- **Source**: pacs.002.001.10 (FI to FI Payment Status Report)
+- **Target**: MT199/MT299 REJT (Rejection Messages)
+- **Specification**: CBPR+ xxx-specification/reverse/pacs002/
+- **Workflow Maturity**: Level 3 - CBPR+ Compliant
 
-## Precondition Gaps
-✅ Basic message structure validation
-❌ No variant detection file (missing 01-variant-detection.json)
+## Implementation Status
 
-**Missing validations:**
-- Status report type validation (rejection vs other statuses)
-- Original transaction reference validation
-- Status reason code validation
-- Group status vs transaction status validation
-- CBPR+ compliance validation
+### Completed Features
+✅ Variant detection file (01-variant-detection.json)
+✅ MT message type determination based on original message
+✅ Preconditions validation (02-preconditions.json)
+✅ Headers mapping (03-headers-mapping.json)
+✅ Mandatory fields mapping (04-mandatory-fields-mapping.json)
+✅ Status fields mapping (05-status-fields-mapping.json)
+✅ Postconditions (06-postconditions.json)
 
-## Default Values Gaps
-**Missing default values from specification:**
-- Default rejection reason codes
-- Default narrative structure for rejections
-- Default correspondent information
-- Default timing information
+### Precondition Validations
+✅ Status report type validation (RJCT only)
+✅ Original transaction reference validation
+✅ Status reason code validation
+✅ BAH sender/receiver BIC validation
+✅ Message identification validation
 
-## Header Mapping Gaps
-✅ Basic header fields mapped (03-headers-mapping.json)
+### Header Mappings
+✅ Basic header (Block 1) with sender BIC
+✅ Application header (Block 2) with receiver BIC and message type
+✅ User header (Block 3) with UETR from original transaction
+✅ Service type code differentiation between MT199/MT299
+✅ Logical terminal construction based on BIC length
 
-**Missing mappings:**
-- Service type code differentiation between MT103REJT/MT202REJT
-- Priority mapping for rejection urgency
-- Network delivery requirements
-- Possible duplicate indication handling
+### Field Mappings
+✅ Field 20: Transaction reference (with truncation to 16 chars)
+✅ Field 21: Related reference (OriginalInstructionIdentification)
+✅ Field 79: Rejection details with structured format:
+  - Line 1: /REJT/
+  - Line 2: /[ReasonCode]/[AdditionalInfo up to 44 chars]
+  - Line 3: /MREF/[OriginalMessageId]
+  - Line 4: /TREF/[OriginalEndToEndId]
+  - Line 5: /UETR/[OriginalUETR]
+  - Line 6+: /TEXT/[Additional information lines]
 
-## Field Mapping Gaps
-**Mandatory fields (04-mandatory-fields-mapping.json):**
-- Field 20: ⚠️ Original transaction reference mapping
-- Field 21: ⚠️ Related reference mapping
-- Field 79: ⚠️ Rejection reason narrative construction
+### Character Set and Formatting
+✅ SWIFT character set compliance
+✅ Field length validation and truncation
+✅ Multiline field formatting
+✅ Empty line handling
 
-**Status fields (05-status-fields-mapping.json):**
-- Status reason code mapping
-- Rejection details construction
-- Original transaction identification
-- Complex status information handling
+## Remaining Minor Gaps
 
-**Missing field mappings:**
-- Field 11S: Original message identification
-- Field 77A: Additional narrative for complex rejections
-- Original transaction amount and currency preservation
-- Party information from original transaction
+### Optional Enhancements
+⚠️ Field 11S: Original message identification (not in specification)
+⚠️ Field 77A: Additional narrative for complex rejections (optional)
+⚠️ Cross-validation with original transaction data
+⚠️ Regulatory compliance indicators (market-specific)
 
-## Postcondition Gaps
-✅ Basic validation implemented (06-postconditions.json)
+## CBPR+ Compliance
+✅ UETR preservation from original transaction
+✅ Service level code handling via variant detection
+✅ Clearing system identification (when present)
+✅ Market practice rules for rejections
+✅ Error code mapping per specification
 
-**Missing validations:**
-- Rejection reason consistency validation
-- Cross-validation with original transaction
-- Status authority validation
-- SWIFT character set compliance for rejection narratives
-
-## CBPR+ Compliance Gaps
-- UETR preservation from original transaction not implemented
-- Service level code handling missing
-- Clearing system identification not handled
-- Market practice rules for rejections not enforced
-- Regulatory compliance indicators not mapped
-
-## Implementation Notes
-- Missing variant detection indicates incomplete implementation
-- Status field mapping is present but needs enhancement
-- Rejection scenarios covered but authority validation missing
-- Cross-reference handling needs improvement
-
-## Recommendations
-1. **URGENT**: Add variant detection file (01-variant-detection.json)
-2. Enhance rejection reason mapping and validation
-3. Add comprehensive original transaction reference handling
-4. Implement CBPR+ specific requirements
-5. Add authority validation for rejection messages
-6. Improve cross-validation with original transaction
-7. Add comprehensive test scenarios for different rejection types
+## Testing Recommendations
+1. Test with different original message types (pacs.008, pacs.009, MT10x, MT20x)
+2. Validate rejection reason code handling
+3. Test field truncation for long values
+4. Verify UETR preservation in Block 3 and Field 79
+5. Test with various AdditionalInformation scenarios
+6. Validate character set compliance

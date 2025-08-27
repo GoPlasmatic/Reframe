@@ -1,0 +1,61 @@
+{
+    "id": "pacs002-variant-detection",
+    "name": "pacs.002 Variant Detection and MT Type Determination",
+    "description": "Determines the target MT message type (MT199 or MT299) based on original message name",
+    "priority": 2,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.002.001.10"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "detect_mt_variant",
+            "name": "Detect Target MT Message Type",
+            "description": "Determine if pacs.002 should be translated to MT199 or MT299 based on original message",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.target_message_type",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
+                                { "if": [
+                                    { "or": [
+                                        {"in": ["pacs.008", {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}]},
+                                        {"in": ["pacs.003", {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}]},
+                                        { "and": [
+                                            {"==": [{"length": {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}}, 5]},
+                                            {"==": [{"substr": [{"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}, 0, 4]}, "MT10"]}
+                                        ]}
+                                    ]},
+                                    "199",
+                                    { "if": [
+                                        { "or": [
+                                            {"in": ["pacs.009", {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}]},
+                                            {"in": ["pacs.010", {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}]},
+                                            { "and": [
+                                                {"==": [{"length": {"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}}, 5]},
+                                                {"==": [{"substr": [{"var": "data.ISO20022_MX.document.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}, 0, 4]}, "MT20"]}
+                                            ]}
+                                        ]},
+                                        "299",
+                                        "299"
+                                    ]}
+                                ]},
+                                "299"
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.variant",
+                            "logic": { "cat": ["MT", {"var": "temp_data.target_message_type"}, "/REJT"] }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

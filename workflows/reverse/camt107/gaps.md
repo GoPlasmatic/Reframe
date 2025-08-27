@@ -1,16 +1,16 @@
 # camt.107 to MT110 Transformation Gaps
 
 ## Message Type Overview
-- **Source**: camt.107 (Advice of Charges, Interest and Other Adjustments)
-- **Target**: MT110 (Advice of Cheque(s) Received)
+- **Source**: camt.107 (Notification to Receive)
+- **Target**: MT110 (Advice of Cheque(s))
 - **Specification**: xxx-specification/reverse/camt107-MT110/
-- **Workflow Maturity**: Level 4 - Complete
+- **Workflow Maturity**: Level 5 - CBPR+ Compliant
 
 ## Precondition Gaps
 ✅ Basic message structure validation
 ✅ Variant detection implemented
 
-**Missing validations:**
+**Remaining gaps:**
 - Cheque-specific advice validation
 - Charges and interest calculation validation
 - Adjustment reason code validation
@@ -18,7 +18,9 @@
 - Correspondent banking relationship validation
 
 ## Default Values Gaps
-**Missing default values from specification:**
+✅ Default value handling implemented per specification
+
+**Remaining gaps:**
 - Default cheque collection details
 - Default charges breakdown structure
 - Default correspondent information
@@ -26,8 +28,9 @@
 
 ## Header Mapping Gaps
 ✅ Basic header fields mapped (03-headers-mapping.json)
+✅ Sender/receiver properly extracted and mapped
 
-**Missing mappings:**
+**Remaining gaps:**
 - Service type code for cheque advice
 - Priority mapping for collection urgency
 - Network delivery requirements for MT110
@@ -35,56 +38,60 @@
 
 ## Field Mapping Gaps
 **Mandatory fields (04-mandatory-fields-mapping.json):**
-- Field 20: ✅ Advice reference mapped
-- Field 25: ⚠️ Account identification validation
-- Field 32A: ✅ Value date, currency, amount
-- Field 50: ⚠️ Remitter details mapping
+- Field 20: ✅ MessageId mapped with hyphen removal and 16-char limit (TR001)
+- Field 21: ✅ ChequeNumber mapped with hyphen removal and 16-char limit
+- Field 30: ✅ Issue date mapped with proper YYMMDD format
+- Field 32A/32B: ✅ Conditional mapping based on ValueDate presence (TR001)
 
 **Party fields (05-party-fields-mapping.json):**
-- Field 52A/D: ⚠️ Drawee bank mapping
-- Field 53A/D: ⚠️ Remitting bank mapping
-- Field 54A/D: ⚠️ Collecting bank mapping
-- Complex correspondent chain handling
+- Field 50A/F/K: ✅ Payer mapping with full TR002 logic (BIC, postal address, address lines)
+- Field 52A/B/D: ✅ DrawerAgent mapping with full TR003 logic (BIC, account, name & address)
+- Field 53B: ✅ DrawerAgentAccount mapped as settlement account with INDA prefix
+- Field 59/59F: ✅ Payee mapping with full TR004 logic (postal address conditions)
 
 **Optional fields (06-optional-fields-mapping.json):**
-- Field 71A: ⚠️ Details of charges
-- Field 72: ⚠️ Sender to receiver information
-- Field 77B: ⚠️ Regulatory information
-- Cheque-specific information preservation
+- Field order: ✅ Updated to include all options (50A/F/K, 52A/B/D, 53B, 59/59F)
 
-**Missing field mappings:**
-- Field 34P: Cheque number and details
-- Field 77A: Additional narrative for cheque advice
-- Complex collection instruction handling
-- Endorsement information preservation
+**Remaining field gaps:**
+- Field 71A: Details of charges
+- Field 72: Sender to receiver information
+- Field 77B: Regulatory information
+- Field 34P: Cheque number and details (not in CBPR+ spec)
 
 ## Postcondition Gaps
 ✅ Comprehensive validation implemented (07-postconditions.json)
+✅ Field presence validation for all mandatory fields
+✅ Proper conditional task execution
 
-**Missing validations:**
+**Remaining validations:**
 - Cheque collection consistency validation
 - Party chain validation for cheque processing
 - Charges calculation accuracy for collection
 - Cross-validation with collection instructions
 
-## CBPR+ Compliance Gaps
-- UETR handling for cheque advice not applicable
+## CBPR+ Compliance Status
+✅ TR001 (Field 32A/B logic) - Fully implemented
+✅ TR002 (Field 50 party mapping) - Fully implemented
+✅ TR003 (Field 52 agent mapping) - Fully implemented
+✅ TR004 (Field 59 payee mapping) - Fully implemented
+✅ Field 53B settlement account - Implemented per specification
+
+**Remaining compliance gaps:**
 - Service level code handling for collection scenarios
 - Clearing system identification for cheque clearing
-- Market practice rules for cheque collection not enforced
+- Market practice rules for cheque collection
 - Regulatory compliance for cross-border cheque collection
 
 ## Implementation Notes
-- Comprehensive implementation with good cheque handling
-- Complex party chain scenarios well supported
-- Collection-specific validation implemented
-- Good integration with correspondent banking information
+- Full CBPR+ specification compliance achieved for core transformation rules
+- Complex party mapping logic correctly implemented with all options
+- Settlement account handling aligned with MT103 pattern
+- Proper field option selection based on data availability
+- Validation logic ensures mandatory fields are present
 
 ## Recommendations
-1. Add cheque-specific field support (34P)
-2. Enhance collection instruction handling
-3. Improve party chain validation for cheque processing
-4. Add comprehensive cheque collection validation
-5. Implement regulatory compliance for cross-border collections
-6. Add support for endorsement information
-7. Add comprehensive test scenarios for different cheque types
+1. Add Field 72 for sender-to-receiver information if needed
+2. Add Field 71A for charges details if required
+3. Enhance validation for cross-field consistency
+4. Add comprehensive test scenarios covering all field options
+5. Consider adding regulatory compliance checks for specific jurisdictions

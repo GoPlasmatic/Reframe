@@ -1,0 +1,75 @@
+{
+    "id": "camt107-postconditions",
+    "name": "camt.107 to MT110 Postconditions",
+    "description": "Validates postconditions and generates MT110 message",
+    "priority": 5,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.107.001.01"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt107-to-mt110-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_mt110_structure"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "validate_postconditions",
+            "name": "Validate Postconditions",
+            "description": "Validate MT110 postconditions per CBPR+ specification",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "message": "Field 20 (Message Reference) is required",
+                            "logic": {"!!": {"var": "data.SwiftMT.fields.20"}}
+                        },
+                        {
+                            "message": "At least one cheque must be present",
+                            "logic": {">=": [{"length": {"var": "data.SwiftMT.fields.#"}}, 1]}
+                        },
+                        {
+                            "message": "Field 21 (Cheque Number) is required in first cheque",
+                            "logic": {"!!": {"var": "data.SwiftMT.fields.#.0.21"}}
+                        },
+                        {
+                            "message": "Field 30 (Issue Date) is required in first cheque",
+                            "logic": {"!!": {"var": "data.SwiftMT.fields.#.0.30"}}
+                        },
+                        {
+                            "message": "Either Field 32A or 32B must be present in first cheque",
+                            "logic": { "or": [
+                                {"!!": {"var": "data.SwiftMT.fields.#.0.32.A"}},
+                                {"!!": {"var": "data.SwiftMT.fields.#.0.32.B"}}
+                            ]}
+                        },
+                        {
+                            "message": "Field 59 (Payee) must be present in first cheque",
+                            "logic": { "or": [
+                                {"!!": {"var": "data.SwiftMT.fields.#.0.59.NoOption"}},
+                                {"!!": {"var": "data.SwiftMT.fields.#.0.59.F"}}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "generate_mt110",
+            "name": "Generate MT110",
+            "description": "Generate the final MT110 message",
+            "condition": { "and": [
+                {"==": [{"var": "progress.workflow_id"}, "camt107-postconditions"]},
+                {"==": [{"var": "progress.task_id"}, "validate_postconditions"]},
+                {"==": [{"var": "progress.status_code"}, 200]}
+            ]},
+            "function": {
+                "name": "PublishMT",
+                "input": {
+                    "input_field_name": "SwiftMT",
+                    "output_field_name": "result",
+                    "source_format": "camt.107.001.01"
+                }
+            }
+        }
+    ]
+}

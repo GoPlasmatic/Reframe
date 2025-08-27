@@ -1,4 +1,3 @@
-use crate::helper::Helper;
 use async_trait::async_trait;
 use dataflow_rs::engine::error::DataflowError;
 use dataflow_rs::engine::{
@@ -13,6 +12,124 @@ use swift_mt_message::messages::{
     MT291, MT292, MT296, MT299, MT940, MT942,
 };
 use tracing::{debug, error, instrument};
+
+/// Macro for parsing JSON to SwiftMessage with detailed error reporting
+macro_rules! parse_swift_message {
+    ($json_str:expr, $mt_type:ty) => {{
+        let mut deserializer = serde_json::Deserializer::from_str($json_str);
+        let result: SwiftMessage<$mt_type> = serde_path_to_error::deserialize(&mut deserializer)
+            .map_err(|e| {
+                let error_msg = format!(
+                    "Failed to parse JSON at path '{}': {}",
+                    e.path(),
+                    e.inner()
+                );
+                error!(
+                    error = %error_msg,
+                    json_preview = %&$json_str[..$json_str.len().min(500)],
+                    "Failed to parse JSON string"
+                );
+                DataflowError::Validation(error_msg)
+            })?;
+        result
+    }};
+}
+
+/// Helper function to clean null values from fields before serialization
+fn clean_null_fields(data: &Value) -> Value {
+    let mut cleaned = data.clone();
+    if let Some(fields) = cleaned.get_mut("fields").and_then(|f| f.as_object_mut()) {
+        fields.retain(|_key, value| {
+            if let Some(obj) = value.as_object() {
+                // Remove fields where any nested values are null
+                !obj.values().any(|v| v.is_null())
+            } else {
+                true // Keep non-object values
+            }
+        });
+    }
+    cleaned
+}
+
+/// Helper function to parse MT message based on message type number
+fn parse_mt_by_type(json_str: &str, mt_type: &str) -> Result<String> {
+    macro_rules! mt_match {
+        ($($num:literal => $type:ty),+) => {
+            match mt_type {
+                $(
+                    $num => {
+                        let data = parse_swift_message!(json_str, $type);
+                        Ok(data.to_mt_message())
+                    }
+                )+
+                _ => {
+                    error!("Unsupported MT type: {}", mt_type);
+                    Err(DataflowError::Validation(format!("Unsupported MT type: {}", mt_type)))
+                }
+            }
+        };
+    }
+    
+    mt_match!(
+        "103" => MT103,
+        "110" => MT110,
+        "111" => MT111,
+        "112" => MT112,
+        "190" => MT190,
+        "191" => MT191,
+        "192" => MT192,
+        "196" => MT196,
+        "199" => MT199,
+        "202" => MT202,
+        "205" => MT205,
+        "210" => MT210,
+        "290" => MT290,
+        "291" => MT291,
+        "292" => MT292,
+        "296" => MT296,
+        "299" => MT299,
+        "940" => MT940,
+        "942" => MT942
+    )
+}
+
+/// Generic routing for messages that require message_type field
+fn route_by_message_type(
+    json_str: &str, 
+    input_data: &Value, 
+    source_format: &str,
+    valid_types: &[&str]
+) -> Result<String> {
+    // Extract message_type from input data
+    let message_type = match input_data.get("message_type") {
+        Some(Value::String(s)) => s.clone(),
+        Some(v) if !v.is_null() => {
+            error!("message_type field is not a string: {:?}", v);
+            return Err(DataflowError::Validation(format!(
+                "message_type field must be a string for {}", source_format
+            )));
+        }
+        _ => {
+            error!("Missing message_type field for {}", source_format);
+            return Err(DataflowError::Validation(format!(
+                "message_type field is required for {} transformation", source_format
+            )));
+        }
+    };
+    
+    debug!(message_type = %message_type, "Processing {} to MT{} transformation", source_format, message_type);
+    
+    // Validate and route to appropriate MT type
+    if valid_types.contains(&message_type.as_str()) {
+        parse_mt_by_type(json_str, &message_type)
+    } else {
+        error!(message_type = %message_type, "Invalid message type for {}", source_format);
+        Err(DataflowError::Validation(format!(
+            "Invalid message type '{}' for {}. Expected one of: {}", 
+            message_type, source_format, valid_types.join(", ")
+        )))
+    }
+}
 
 pub struct PublishMT;
 
@@ -52,305 +169,62 @@ impl AsyncFunctionHandler for PublishMT {
 
         debug!(data_type = ?input_data, "Processing MX to MT conversion data");
 
-        // Clean up null values from fields before serialization
-        let mut cleaned_data = input_data.clone();
-        if let Some(fields) = cleaned_data
-            .get_mut("fields")
-            .and_then(|f| f.as_object_mut())
-        {
-            fields.retain(|_key, value| {
-                if let Some(obj) = value.as_object() {
-                    // Check if any values are null and remove those fields
-                    !obj.values().any(|v| v.is_null())
-                } else {
-                    true
-                }
-            });
-        }
-
+        // Clean null values from fields before serialization (required for swift-mt-message library)
+        let cleaned_data = clean_null_fields(&input_data);
         let json_str = cleaned_data.to_string();
-        let mt_message = if source_format == "pacs.008.001.08" {
-            let data: SwiftMessage<MT103> = serde_json::from_str(&json_str).map_err(|e| {
-                error!(error = ?e, "Failed to parse JSON string");
-                DataflowError::Validation(format!("Failed to parse JSON string: {e}"))
-            })?;
-            data.to_mt_message()
-        } else if source_format == "pacs.004.001.09" {
-            let target_message_type = message
-                .temp_data
-                .get("target_message_type")
-                .unwrap_or(&Value::Null)
-                .to_string();
-            let target_message_type = Helper::manual_unescape(&target_message_type);
-            if target_message_type == "103" {
-                let data: SwiftMessage<MT103> = serde_json::from_str(&json_str).map_err(|e| {
-                    error!(error = ?e, "Failed to parse JSON string");
-                    DataflowError::Validation(format!("Failed to parse JSON string: {e}"))
-                })?;
-                data.to_mt_message()
-            } else if target_message_type == "202" {
-                let data: SwiftMessage<MT202> = serde_json::from_str(&json_str).map_err(|e| {
-                    error!(error = ?e, "Failed to parse JSON string");
-                    DataflowError::Validation(format!("Failed to parse JSON string: {e}"))
-                })?;
-                data.to_mt_message()
-            } else if target_message_type == "205" {
-                let data: SwiftMessage<MT205> = serde_json::from_str(&json_str).map_err(|e| {
-                    error!(error = ?e, "Failed to parse JSON string");
-                    DataflowError::Validation(format!("Failed to parse JSON string: {e}"))
-                })?;
-                data.to_mt_message()
-            } else {
-                error!(target_message_type = %target_message_type, "Invalid target message type");
+        
+        // Determine the target MT type(s) for this source format
+        let mt_types = match source_format {
+            "pacs.008.001.08" => vec!["103"],
+            "pacs.004.001.09" => vec!["103", "202", "205"],
+            "pacs.009.001.08" => vec!["202", "205"],
+            "pacs.002.001.10" => vec!["199", "299"],
+            "camt.107.001.01" => vec!["110"],
+            "camt.108.001.01" => vec!["111"],
+            "camt.109.001.01" => vec!["112"],
+            "camt.029.001.09" => vec!["196", "296"],
+            "camt.052.001.08" => vec!["942"],
+            "camt.053.001.08" => vec!["940"],
+            "camt.056.001.08" => vec!["192", "292"],
+            "camt.057.001.06" => vec!["210"],
+            "camt.058.001.08" => vec!["292"],
+            "camt.105.001.02" => vec!["190", "290"],
+            "camt.106.001.02" => vec!["191", "291"],
+            "admi.024.001.01" => vec!["199"],
+            _ => {
+                error!(source_format = %source_format, "Invalid source format");
                 return Err(DataflowError::Validation(format!(
-                    "Invalid target message type: {target_message_type}"
+                    "Invalid source format: {source_format}"
                 )));
             }
-        } else if source_format == "pacs.009.001.08" {
-            let target_message_type = message
-                .temp_data
-                .get("target_message_type")
-                .unwrap_or(&Value::Null)
-                .to_string();
-            let target_message_type = Helper::manual_unescape(&target_message_type);
-            if target_message_type == "202" {
-                let data: SwiftMessage<MT202> = serde_json::from_str(&json_str).map_err(|e| {
-                    error!(error = ?e, "Failed to parse JSON string");
-                    DataflowError::Validation(format!("Failed to parse JSON string: {e}"))
-                })?;
-                data.to_mt_message()
-            } else if target_message_type == "205" {
-                let data: SwiftMessage<MT205> = serde_json::from_str(&json_str).map_err(|e| {
-                    error!(error = ?e, "Failed to parse JSON string");
-                    DataflowError::Validation(format!("Failed to parse JSON string: {e}"))
-                })?;
-                data.to_mt_message()
-            } else {
-                error!(target_message_type = %target_message_type, "Invalid target message type");
-                return Err(DataflowError::Validation(format!(
-                    "Invalid target message type: {target_message_type}"
-                )));
-            }
-        } else if source_format == "pacs.002.001.10" {
-            let target_message_type = message
-                .temp_data
-                .get("target_message_type")
-                .unwrap_or(&Value::Null)
-                .to_string();
-            let target_message_type = Helper::manual_unescape(&target_message_type);
-
-            debug!(target_message_type = %target_message_type, "Processing pacs.002 to MT199/MT299 transformation");
-
-            if target_message_type == "199" {
-                let data: SwiftMessage<MT199> = serde_json::from_str(&json_str).map_err(|e| {
-                    error!(error = ?e, target_message_type = %target_message_type, "Failed to parse JSON string for pacs.002 MT199");
-                    DataflowError::Validation(format!("Failed to parse JSON string for pacs.002 MT199: {e}"))
-                })?;
-                data.to_mt_message()
-            } else if target_message_type == "299" {
-                let data: SwiftMessage<MT299> = serde_json::from_str(&json_str).map_err(|e| {
-                    error!(error = ?e, target_message_type = %target_message_type, "Failed to parse JSON string for pacs.002 MT299");
-                    DataflowError::Validation(format!("Failed to parse JSON string for pacs.002 MT299: {e}"))
-                })?;
-                data.to_mt_message()
-            } else {
-                error!(target_message_type = %target_message_type, "Invalid target message type for pacs.002");
-                return Err(DataflowError::Validation(format!(
-                    "Invalid target message type for pacs.002: {target_message_type}"
-                )));
-            }
-        } else if source_format == "camt.107.001.01" {
-            debug!("Processing camt.107 to MT110 transformation");
-
-            let data: SwiftMessage<MT110> = serde_json::from_str(&json_str).map_err(|e| {
-                error!(error = ?e, "Failed to parse JSON string for camt.107");
-                DataflowError::Validation(format!("Failed to parse JSON string for camt.107: {e}"))
-            })?;
-            data.to_mt_message()
-        } else if source_format == "camt.108.001.01" {
-            debug!("Processing camt.108 to MT111 transformation");
-
-            let data: SwiftMessage<MT111> = serde_json::from_str(&json_str).map_err(|e| {
-                error!(error = ?e, "Failed to parse JSON string for camt.108");
-                DataflowError::Validation(format!("Failed to parse JSON string for camt.108: {e}"))
-            })?;
-            data.to_mt_message()
-        } else if source_format == "camt.109.001.01" {
-            debug!("Processing camt.109 to MT112 transformation");
-
-            let data: SwiftMessage<MT112> = serde_json::from_str(&json_str).map_err(|e| {
-                error!(error = ?e, "Failed to parse JSON string for camt.109");
-                DataflowError::Validation(format!("Failed to parse JSON string for camt.109: {e}"))
-            })?;
-            data.to_mt_message()
-        } else if source_format == "camt.029.001.09" {
-            let target_message_type = message
-                .temp_data
-                .get("target_message_type")
-                .unwrap_or(&Value::Null)
-                .to_string();
-            let target_message_type = Helper::manual_unescape(&target_message_type);
-
-            debug!(target_message_type = %target_message_type, "Processing camt.029 to MT196/MT296 transformation");
-
-            if target_message_type == "196" {
-                let data: SwiftMessage<MT196> = serde_json::from_str(&json_str).map_err(|e| {
-                    error!(error = ?e, "Failed to parse JSON string for camt.029 to MT196");
-                    DataflowError::Validation(format!(
-                        "Failed to parse JSON string for camt.029 to MT196: {e}"
-                    ))
-                })?;
-                data.to_mt_message()
-            } else if target_message_type == "296" {
-                let data: SwiftMessage<MT296> = serde_json::from_str(&json_str).map_err(|e| {
-                    error!(error = ?e, "Failed to parse JSON string for camt.029 to MT296");
-                    DataflowError::Validation(format!(
-                        "Failed to parse JSON string for camt.029 to MT296: {e}"
-                    ))
-                })?;
-                data.to_mt_message()
-            } else {
-                error!(target_message_type = %target_message_type, "Invalid target message type for camt.029");
-                return Err(DataflowError::Validation(format!(
-                    "Invalid target message type for camt.029: {target_message_type}"
-                )));
-            }
-        } else if source_format == "camt.052.001.08" {
-            debug!("Processing camt.052 to MT942 transformation");
-
-            // Use serde_path_to_error for detailed error information
-            let mut deserializer = serde_json::Deserializer::from_str(&json_str);
-            let data: SwiftMessage<MT942> = serde_path_to_error::deserialize(&mut deserializer)
-                .map_err(|e| {
-                    let error_msg = format!(
-                        "Failed to parse JSON for camt.052 at path '{}': {}",
-                        e.path(),
-                        e.inner()
-                    );
-                    error!(error = %error_msg, json_preview = %&json_str[..json_str.len().min(500)], "Failed to parse JSON string for camt.052");
-                    DataflowError::Validation(error_msg)
-                })?;
-            data.to_mt_message()
-        } else if source_format == "camt.053.001.08" {
-            debug!("Processing camt.053 to MT940 transformation");
-
-            // Use serde_path_to_error for detailed error information
-            let mut deserializer = serde_json::Deserializer::from_str(&json_str);
-            let data: SwiftMessage<MT940> = serde_path_to_error::deserialize(&mut deserializer)
-                .map_err(|e| {
-                    let error_msg = format!(
-                        "Failed to parse JSON for camt.053 at path '{}': {}",
-                        e.path(),
-                        e.inner()
-                    );
-                    error!(error = %error_msg, json_preview = %&json_str[..json_str.len().min(500)], "Failed to parse JSON string for camt.053");
-                    DataflowError::Validation(error_msg)
-                })?;
-            data.to_mt_message()
-        } else if source_format == "camt.056.001.08" {
-            debug!("Processing camt.056 to MT192/MT292 transformation");
-
-            let mt_type = cleaned_data
-                .get("message_type")
-                .and_then(|v| v.as_str())
-                .unwrap_or("192");
-
-            if mt_type == "192" {
-                let data: SwiftMessage<MT192> = serde_json::from_str(&json_str).map_err(|e| {
-                    error!(error = ?e, "Failed to parse JSON string for camt.056 (MT192)");
-                    DataflowError::Validation(format!(
-                        "Failed to parse JSON string for camt.056 (MT192): {e}"
-                    ))
-                })?;
-                data.to_mt_message()
-            } else {
-                let data: SwiftMessage<MT292> = serde_json::from_str(&json_str).map_err(|e| {
-                    error!(error = ?e, "Failed to parse JSON string for camt.056 (MT292)");
-                    DataflowError::Validation(format!(
-                        "Failed to parse JSON string for camt.056 (MT292): {e}"
-                    ))
-                })?;
-                data.to_mt_message()
-            }
-        } else if source_format == "camt.057.001.06" {
-            debug!("Processing camt.057 to MT210 transformation");
-
-            let data: SwiftMessage<MT210> = serde_json::from_str(&json_str).map_err(|e| {
-                error!(error = ?e, "Failed to parse JSON string for camt.057");
-                DataflowError::Validation(format!("Failed to parse JSON string for camt.057: {e}"))
-            })?;
-            data.to_mt_message()
-        } else if source_format == "camt.058.001.08" {
-            debug!("Processing camt.058 to MT292 transformation");
-
-            let data: SwiftMessage<MT292> = serde_json::from_str(&json_str).map_err(|e| {
-                error!(error = ?e, "Failed to parse JSON string for camt.058");
-                DataflowError::Validation(format!("Failed to parse JSON string for camt.058: {e}"))
-            })?;
-            data.to_mt_message()
-        } else if source_format == "camt.105.001.02" {
-            debug!("Processing camt.105 to MTn90 transformation");
-
-            let mt_type = cleaned_data
-                .get("message_type")
-                .and_then(|v| v.as_str())
-                .unwrap_or("190");
-
-            if mt_type == "190" {
-                let data: SwiftMessage<MT190> = serde_json::from_str(&json_str).map_err(|e| {
-                    error!(error = ?e, "Failed to parse JSON string for camt.105 (MT190)");
-                    DataflowError::Validation(format!(
-                        "Failed to parse JSON string for camt.105 (MT190): {e}"
-                    ))
-                })?;
-                data.to_mt_message()
-            } else {
-                let data: SwiftMessage<MT290> = serde_json::from_str(&json_str).map_err(|e| {
-                    error!(error = ?e, "Failed to parse JSON string for camt.105 (MT290)");
-                    DataflowError::Validation(format!(
-                        "Failed to parse JSON string for camt.105 (MT290): {e}"
-                    ))
-                })?;
-                data.to_mt_message()
-            }
-        } else if source_format == "camt.106.001.02" {
-            debug!("Processing camt.106 to MT191/MT291 transformation");
-
-            let mt_type = cleaned_data
-                .get("message_type")
-                .and_then(|v| v.as_str())
-                .unwrap_or("191");
-
-            if mt_type == "191" {
-                let data: SwiftMessage<MT191> = serde_json::from_str(&json_str).map_err(|e| {
-                    error!(error = ?e, "Failed to parse JSON string for camt.106 (MT191)");
-                    DataflowError::Validation(format!(
-                        "Failed to parse JSON string for camt.106 (MT191): {e}"
-                    ))
-                })?;
-                data.to_mt_message()
-            } else {
-                let data: SwiftMessage<MT291> = serde_json::from_str(&json_str).map_err(|e| {
-                    error!(error = ?e, "Failed to parse JSON string for camt.106 (MT291)");
-                    DataflowError::Validation(format!(
-                        "Failed to parse JSON string for camt.106 (MT291): {e}"
-                    ))
-                })?;
-                data.to_mt_message()
-            }
-        } else if source_format == "admi.024.001.01" {
-            debug!("Processing admi.024 to MT199 transformation");
-
-            let data: SwiftMessage<MT199> = serde_json::from_str(&json_str).map_err(|e| {
-                error!(error = ?e, "Failed to parse JSON string for admi.024");
-                DataflowError::Validation(format!("Failed to parse JSON string for admi.024: {e}"))
-            })?;
-            data.to_mt_message()
+        };
+        
+        // Check if routing is needed (more than one possible MT type)
+        let needs_routing = mt_types.len() > 1;
+        
+        // Log the transformation being performed
+        if needs_routing {
+            debug!(
+                source = %source_format, 
+                possible_targets = ?mt_types,
+                "Processing {} transformation with message_type routing",
+                source_format
+            );
         } else {
-            error!(source_format = %source_format, "Invalid source format");
-            return Err(DataflowError::Validation(format!(
-                "Invalid source format: {source_format}"
-            )));
+            debug!(
+                source = %source_format,
+                target = %mt_types[0],
+                "Processing {} to MT{} transformation",
+                source_format,
+                mt_types[0]
+            );
+        }
+        
+        // Perform the transformation
+        let mt_message = if needs_routing {
+            route_by_message_type(&json_str, &input_data, source_format, &mt_types)?
+        } else {
+            parse_mt_by_type(&json_str, mt_types[0])?
         };
 
         debug!(mt_message = %mt_message, "MT message published successfully");

@@ -1,0 +1,68 @@
+{
+    "id": "camt108-postconditions",
+    "name": "camt.108 to MT111 Postconditions",
+    "description": "Validates postconditions and generates MT111 message",
+    "priority": 5,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.108.001.01"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt108-to-mt111-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_mt111_structure"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "validate_postconditions",
+            "name": "Validate Postconditions",
+            "description": "Validate MT111 postconditions per CBPR+ specification",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "message": "Field 20 (Sender's Reference) is required",
+                            "logic": {"!!": {"var": "data.SwiftMT.fields.20"}}
+                        },
+                        {
+                            "message": "Field 21 (Cheque Number) is required",
+                            "logic": {"!!": {"var": "data.SwiftMT.fields.21"}}
+                        },
+                        {
+                            "message": "Field 30 (Issue Date) is required",
+                            "logic": {"!!": {"var": "data.SwiftMT.fields.30"}}
+                        },
+                        {
+                            "message": "Either Field 32A or 32B must be present",
+                            "logic": { "or": [
+                                {"!!": {"var": "data.SwiftMT.fields.32.A"}},
+                                {"!!": {"var": "data.SwiftMT.fields.32.B"}}
+                            ]}
+                        },
+                        {
+                            "message": "Field 75 (Stop/Cancellation Reason) is required",
+                            "logic": {"!!": {"var": "data.SwiftMT.fields.75"}}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "generate_mt111",
+            "name": "Generate MT111",
+            "description": "Generate the final MT111 message",
+            "condition": { "and": [
+                {"==": [{"var": "progress.workflow_id"}, "camt108-postconditions"]},
+                {"==": [{"var": "progress.task_id"}, "validate_postconditions"]},
+                {"==": [{"var": "progress.status_code"}, 200]}
+            ]},
+            "function": {
+                "name": "PublishMT",
+                "input": {
+                    "input_field_name": "SwiftMT",
+                    "output_field_name": "result",
+                    "source_format": "camt.108.001.01"
+                }
+            }
+        }
+    ]
+}

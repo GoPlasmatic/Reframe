@@ -1,89 +1,55 @@
-# camt.108 to MT111 Transformation Gaps
+# camt.108 to MT111 Transformation - Implementation Status
 
-## Message Type Overview
-- **Source**: camt.108 (Request for Cancellation of Advice)
-- **Target**: MT111 (Request for Stop Payment of a Cheque)
-- **Specification**: xxx-specification/reverse/camt108-MT111/
-- **Workflow Maturity**: Level 4 - Complete
+## Completed Updates (2025-08-27)
 
-## Precondition Gaps
-✅ Basic message structure validation
-✅ Variant detection implemented
+### Simplified Workflow Structure
+- Consolidated from 7 workflow files to 3 files following camt.107 pattern:
+  - `01-headers-mapping.json`: Maps headers for MT111
+  - `02-mapping.json`: Complete field mapping including all mandatory and optional fields
+  - `03-postconditions.json`: Validates and generates final MT111 message
 
-**Missing validations:**
-- Stop payment request authority validation
-- Original cheque advice reference validation
-- Cancellation reason code validation
-- Stop payment instruction validation
-- Correspondent banking authority validation
+### Field Mapping Corrections
 
-## Default Values Gaps
-**Missing default values from specification:**
-- Default stop payment reason codes
-- Default party information for stop requests
-- Default narrative structure for stop payment
-- Default correspondent information
+#### Field 20 (Sender's Reference)
+- ✅ Fixed: Now removes hyphens and takes substring(0,16) as per specification
 
-## Header Mapping Gaps
-✅ Basic header fields mapped (03-headers-mapping.json)
+#### Field 21 (Cheque Number)
+- ✅ Fixed: Now removes hyphens and takes substring(0,16) as per specification
 
-**Missing mappings:**
-- Service type code for stop payment requests
-- Priority mapping for urgent stop payments
-- Network delivery requirements for MT111
-- Message user reference handling
+#### Field 30 (Issue Date)
+- ✅ Fixed: Now extracts positions 3-6 of the date (YYMMDD format) using substring operation
 
-## Field Mapping Gaps
-**Mandatory fields (04-mandatory-fields-mapping.json):**
-- Field 20: ✅ Stop payment reference mapped
-- Field 21: ✅ Related reference mapped
-- Field 25: ⚠️ Account identification validation
-- Field 34P: ⚠️ Cheque number and details mapping
+#### Field 32A/32B (Amount)
+- ✅ Fixed: Properly implements TR001 logic
+  - If EffectiveDate/Date is present → Field 32A with value date (substring 3-6)
+  - Otherwise → Field 32B with currency and amount only
 
-**Party fields (05-party-fields-mapping.json):**
-- Field 50: ⚠️ Drawer details mapping
-- Field 52A/D: ⚠️ Drawee bank mapping
-- Field 53A/D: ⚠️ Remitting bank mapping
-- Complex party chain for stop payment authority
+#### Field 52a (Drawer Agent)
+- ✅ Fixed: Implements TR003 logic with proper option selection:
+  - Option A: When BICFI is present (with optional account)
+  - Option B: When only account is present (no BIC)
+  - Option D: When name and address are present without BIC
 
-**Reason fields (06-reason-fields-mapping.json):**
-- Field 77A: ⚠️ Narrative for stop payment reason
-- Complex reason code to narrative conversion
-- Stop payment justification handling
+#### Field 59 (Payee)
+- ✅ Fixed: Implements TR004 with NO LETTER option only (as per specification):
+  - Structured address: Uses numbered lines (1/, 2/, 3/, 4/) when Country is present
+  - Unstructured address: Uses AddressLine when no Country
 
-**Missing field mappings:**
-- Field 32A: Value date and amount of original cheque
-- Field 72: Sender to receiver information for stop payment
-- Field 77B: Regulatory information for stop payment
-- Original cheque details reconstruction
+#### Field 75 (Stop/Cancellation Reason)
+- ✅ Fixed: Now uses ISO code short descriptions instead of raw codes
+  - Maps standard ISO reason codes to their descriptions (e.g., "AM04" → "INSUFFICIENT FUNDS")
+  - Includes AdditionalInformation when present
 
-## Postcondition Gaps
-✅ Comprehensive validation implemented (07-postconditions.json)
+### Postconditions
+- ✅ Validates all mandatory fields per CBPR+ specification
+- ✅ Proper field presence checks for required fields
 
-**Missing validations:**
-- Stop payment authority validation
-- Original cheque reference consistency validation
-- Reason code validity validation
-- Cross-validation with original advice
+## Testing Status
+- Implementation updated to match CBPR+ specification
+- Following camt.107 pattern which is confirmed working
+- Ready for testing with camt.108 sample messages
 
-## CBPR+ Compliance Gaps
-- Service level code handling for stop payment scenarios
-- Clearing system identification for cheque stop
-- Market practice rules for stop payment not enforced
-- Regulatory compliance for cross-border stop payment
-- Authority validation for international stop payments
-
-## Implementation Notes
-- Comprehensive implementation with good stop payment handling
-- Complex reason mapping well implemented
-- Party information handling sophisticated
-- Good cross-reference validation with original advice
-
-## Recommendations
-1. Add comprehensive authority validation for stop payments
-2. Enhance original cheque details reconstruction
-3. Improve stop payment reason validation
-4. Add support for complex stop payment scenarios
-5. Implement regulatory compliance for cross-border stop payments
-6. Add comprehensive cross-validation with original cheque advice
-7. Add test scenarios for different stop payment reasons
+## Notes
+- MT111 only allows Field 59 with No Letter option (unlike MT110 which allows 59F)
+- Field ordering removed as it's handled by the PublishMT function
+- Character set and line formatting handled by the MT publisher

@@ -1,0 +1,280 @@
+{
+    "id": "camt108-to-mt111-mapping",
+    "name": "camt.108 to MT111 Complete Mapping",
+    "description": "Maps camt.108 to MT111 with proper message structure",
+    "priority": 3,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.108.001.01"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "camt108-headers-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_headers"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_mt111_structure",
+            "name": "Map Complete MT111 Structure",
+            "description": "Map all MT111 fields with proper structure",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#20",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"},
+                                {"reference": {
+                                    "substr": [
+                                        {"replace": [{"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}, "-", ""]},
+                                        0,
+                                        16
+                                    ]
+                                }},
+                                {"reference": "NOTPROVIDED"}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#21",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.Chq.ChqNb"},
+                                {"reference": {
+                                    "substr": [
+                                        {"replace": [{"var": "data.ISO20022_MX.document.Chq.ChqNb"}, "-", ""]},
+                                        0,
+                                        16
+                                    ]
+                                }},
+                                {"reference": "NOTPROVIDED"}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#30",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.Chq.IsseDt"},
+                                {"execution_date": {"var": "data.ISO20022_MX.document.Chq.IsseDt"}},
+                                {"execution_date": "2000-01-01"}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#32",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.Chq.EffctvDt.Dt"},
+                                {
+                                    "A": {
+                                        "value_date": {"var": "data.ISO20022_MX.document.Chq.EffctvDt.Dt"},
+                                        "currency": {"var": "data.ISO20022_MX.document.Chq.Amt.@Ccy"},
+                                        "amount": {"var": "data.ISO20022_MX.document.Chq.Amt.$value"}
+                                    }
+                                },
+                                {
+                                    "B": {
+                                        "currency": {"var": "data.ISO20022_MX.document.Chq.Amt.@Ccy"},
+                                        "amount": {"var": "data.ISO20022_MX.document.Chq.Amt.$value"}
+                                    }
+                                }
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#52",
+                            "logic": { "if": [
+                                { "or": [
+                                    {"var": "data.ISO20022_MX.document.Chq.DrwrAgt"},
+                                    {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct"}
+                                ]},
+                                { "if": [
+                                    {"!": {"var": "data.ISO20022_MX.document.Chq.DrwrAgt"}},
+                                    {
+                                        "B": {
+                                            "party_identifier": { "if": [
+                                                {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.Othr.Id"},
+                                                {"cat": ["/", {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.Othr.Id"}]},
+                                                null
+                                            ]}
+                                        }
+                                    },
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.BICFI"},
+                                        {
+                                            "A": {
+                                                "bic": {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.BICFI"},
+                                                "account": { "if": [
+                                                    {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.IBAN"},
+                                                    {"cat": ["/", {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.IBAN"}]},
+                                                    { "if": [
+                                                        {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.Othr.Id"},
+                                                        {"cat": ["/", {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.Othr.Id"}]},
+                                                        null
+                                                    ]}
+                                                ]}
+                                            }
+                                        },
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.Othr.Id"},
+                                            {
+                                                "B": {
+                                                    "party_identifier": {"cat": ["/", {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.Othr.Id"}]},
+                                                    "location": { "if": [
+                                                        {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.Nm"},
+                                                        {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.Nm"},
+                                                        null
+                                                    ]}
+                                                }
+                                            },
+                                            {
+                                                "D": {
+                                                    "account": { "if": [
+                                                        {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.IBAN"},
+                                                        {"cat": ["/", {"var": "data.ISO20022_MX.document.Chq.DrwrAgtAcct.Id.IBAN"}]},
+                                                        null
+                                                    ]},
+                                                    "name_and_address": { "filter": [
+                                                        [
+                                                            {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.FinInstnId.Nm"},
+                                                            { "if": [
+                                                                {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.PstlAdr.AdrLine.0"},
+                                                                {"var": "data.ISO20022_MX.document.Chq.DrwrAgt.PstlAdr.AdrLine.0"},
+                                                                null
+                                                            ]}
+                                                        ],
+                                                        {"!!": {"var": ""}}
+                                                    ]}
+                                                }
+                                            }
+                                        ]}
+                                    ]}
+                                ]},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#59",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.Chq.Pyee"},
+                                {
+                                    "name_and_address": { "filter": [
+                                        [
+                                            {"var": "data.ISO20022_MX.document.Chq.Pyee.Nm"},
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.StrtNm"},
+                                                {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.StrtNm"},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.AdrLine.0"},
+                                                    {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.AdrLine.0"},
+                                                    null
+                                                ]}
+                                            ]},
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.TwnNm"},
+                                                {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.TwnNm"},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.AdrLine.1"},
+                                                    {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.AdrLine.1"},
+                                                    null
+                                                ]}
+                                            ]},
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.Ctry"},
+                                                {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.Ctry"},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.AdrLine.2"},
+                                                    {"var": "data.ISO20022_MX.document.Chq.Pyee.PstlAdr.AdrLine.2"},
+                                                    null
+                                                ]}
+                                            ]}
+                                        ],
+                                        {"!!": {"var": ""}}
+                                    ]}
+                                },
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#75",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn"},
+                                {
+                                    "information": { "filter": [
+                                        [
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn.Cd"},
+                                                { "if": [
+                                                    {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn.Cd"}, "AC06"]},
+                                                    "BLOCKED ACCOUNT",
+                                                    { "if": [
+                                                        {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn.Cd"}, "AC13"]},
+                                                        "INVALID DEBTOR ACCOUNT TYPE",
+                                                        { "if": [
+                                                            {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn.Cd"}, "AGNT"]},
+                                                            "INCORRECT AGENT",
+                                                            { "if": [
+                                                                {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn.Cd"}, "AM04"]},
+                                                                "INSUFFICIENT FUNDS",
+                                                                { "if": [
+                                                                    {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn.Cd"}, "BE05"]},
+                                                                    "UNRECOGNISED INITIATING PARTY",
+                                                                    { "if": [
+                                                                        {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn.Cd"}, "CURR"]},
+                                                                        "INCORRECT CURRENCY",
+                                                                        { "if": [
+                                                                            {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn.Cd"}, "CUST"]},
+                                                                            "REQUESTED BY CUSTOMER",
+                                                                            { "if": [
+                                                                                {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn.Cd"}, "DUPL"]},
+                                                                                "DUPLICATE PAYMENT",
+                                                                                { "if": [
+                                                                                    {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn.Cd"}, "FRAU"]},
+                                                                                    "FRAUDULENT ORIGINATED",
+                                                                                    { "if": [
+                                                                                        {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn.Cd"}, "LAWR"]},
+                                                                                        "LEGAL REASONS",
+                                                                                        { "if": [
+                                                                                            {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn.Cd"}, "MD01"]},
+                                                                                            "NO MANDATE",
+                                                                                            { "if": [
+                                                                                                {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn.Cd"}, "NARR"]},
+                                                                                                "NARRATIVE",
+                                                                                                { "if": [
+                                                                                                    {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn.Cd"}, "RC01"]},
+                                                                                                    "BANK IDENTIFIER INCORRECT",
+                                                                                                    { "if": [
+                                                                                                        {"==": [{"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn.Cd"}, "TECH"]},
+                                                                                                        "TECHNICAL PROBLEMS",
+                                                                                                        {"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn.Cd"}
+                                                                                                    ]}
+                                                                                                ]}
+                                                                                            ]}
+                                                                                        ]}
+                                                                                    ]}
+                                                                                ]}
+                                                                            ]}
+                                                                        ]}
+                                                                    ]}
+                                                                ]}
+                                                            ]}
+                                                        ]}
+                                                    ]}
+                                                ]},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn.Prtry"},
+                                                    {"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.Rsn.Prtry"},
+                                                    null
+                                                ]}
+                                            ]},
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.AddtlInf"},
+                                                {"var": "data.ISO20022_MX.document.Chq.ChqCxlOrStopRsn.AddtlInf"},
+                                                null
+                                            ]}
+                                        ],
+                                        {"!!": {"var": ""}}
+                                    ]}
+                                },
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

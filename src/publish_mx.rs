@@ -109,8 +109,99 @@ impl AsyncFunctionHandler for PublishMX {
     }
 }
 
-// MT to MX header handler
-#[instrument(skip(data, message), fields(output_field = output_field_name))]
+/// Helper function to route MT to MX header based on message type and method
+fn route_header_by_type(data: Value, message_type: &str, message_method: &str) -> Result<String> {
+    // Handle payment messages with method-based routing
+    match (message_type, message_method) {
+        // MT103 variants
+        ("103", "reject") => {
+            debug!("Serializing MT103 REJT to pacs.002 header");
+            serialize_mt_to_mx_header::<bah_pacs_002_001_10::BusinessApplicationHeaderV02>(data)
+        }
+        ("103", "return") => {
+            debug!("Serializing MT103 RETN to pacs.004 header");
+            serialize_mt_to_mx_header::<bah_pacs_004_001_09::BusinessApplicationHeaderV02>(data)
+        }
+        ("103", "stp") => {
+            debug!("Serializing MT103 STP to pacs.008 STP header");
+            serialize_mt_to_mx_header::<bah_pacs_008_001_08_stp::BusinessApplicationHeaderV02>(data)
+        }
+        ("103", _) => {
+            debug!("Serializing MT103 to pacs.008 header");
+            serialize_mt_to_mx_header::<bah_pacs_008_001_08::BusinessApplicationHeaderV02>(data)
+        }
+
+        // MT202 variants
+        ("202", "reject") => {
+            debug!("Serializing MT202 REJT to pacs.002 header");
+            serialize_mt_to_mx_header::<bah_pacs_002_001_10::BusinessApplicationHeaderV02>(data)
+        }
+        ("202", "return") => {
+            debug!("Serializing MT202 RETN to pacs.004 header");
+            serialize_mt_to_mx_header::<bah_pacs_004_001_09::BusinessApplicationHeaderV02>(data)
+        }
+        ("202", "cover") => {
+            debug!("Serializing MT202 COV to pacs.009 COV header");
+            serialize_mt_to_mx_header::<bah_pacs_009_001_08_cov::BusinessApplicationHeaderV02>(data)
+        }
+        ("202", _) => {
+            debug!("Serializing MT202 to pacs.009 header");
+            serialize_mt_to_mx_header::<bah_pacs_009_001_08::BusinessApplicationHeaderV02>(data)
+        }
+
+        // MT205 variants
+        ("205", "reject") => {
+            debug!("Serializing MT205 REJT to pacs.002 header");
+            serialize_mt_to_mx_header::<bah_pacs_002_001_10::BusinessApplicationHeaderV02>(data)
+        }
+        ("205", "return") => {
+            debug!("Serializing MT205 RETN to pacs.004 header");
+            serialize_mt_to_mx_header::<bah_pacs_004_001_09::BusinessApplicationHeaderV02>(data)
+        }
+        ("205", "cover") => {
+            debug!("Serializing MT205 COV to pacs.009 COV header");
+            serialize_mt_to_mx_header::<bah_pacs_009_001_08_cov::BusinessApplicationHeaderV02>(data)
+        }
+        ("205", _) => {
+            debug!("Serializing MT205 to pacs.009 header");
+            serialize_mt_to_mx_header::<bah_pacs_009_001_08::BusinessApplicationHeaderV02>(data)
+        }
+
+        // Cash management messages
+        ("900" | "910", _) => {
+            debug!("Serializing MT900/910 to camt.054 header");
+            serialize_mt_to_mx_header::<bah_camt_054_001::BusinessApplicationHeaderV02>(data)
+        }
+        ("192" | "292", _) => {
+            debug!("Serializing MT192/292 to camt.056 header");
+            serialize_mt_to_mx_header::<bah_camt_056_001_08::BusinessApplicationHeaderV02>(data)
+        }
+        ("196" | "296", _) => {
+            debug!("Serializing MT196/296 to camt.029 header");
+            serialize_mt_to_mx_header::<bah_camt_029_001::BusinessApplicationHeaderV02>(data)
+        }
+
+        // Other message types
+        ("101", _) => {
+            debug!("Serializing MT101 to pain.001 header");
+            serialize_mt_to_mx_header::<bah_pain_001_001_09::BusinessApplicationHeaderV02>(data)
+        }
+        ("200", _) => {
+            debug!("Serializing MT200 to pacs.009 header");
+            serialize_mt_to_mx_header::<bah_pacs_009_001_08::BusinessApplicationHeaderV02>(data)
+        }
+
+        _ => {
+            error!(message_type = %message_type, "Unsupported MT type for header");
+            Err(DataflowError::Validation(format!(
+                "Unsupported MT type: {}",
+                message_type
+            )))
+        }
+    }
+}
+
+/// Handles MT to MX header transformation based on message type and method
 fn handle_mt_to_mx_header(
     data: Value,
     message: &mut Message,
@@ -118,125 +209,158 @@ fn handle_mt_to_mx_header(
     message_type: &str,
     message_method: &str,
 ) -> Result<(usize, Vec<Change>)> {
-    let xml_string = match message_type {
-        "103" => {
-            if message_method == "reject" {
-                debug!("Serializing MT103 REJT to MX header");
-                serialize_mt_to_mx_header::<bah_pacs_002_001_10::BusinessApplicationHeaderV02>(
-                    data,
-                )?
-            } else if message_method == "return" {
-                debug!("Serializing MT103 RETN to MX header");
-                serialize_mt_to_mx_header::<bah_pacs_004_001_09::BusinessApplicationHeaderV02>(
-                    data,
-                )?
-            } else if message_method == "stp" {
-                debug!("Serializing MT103 STP to MX header");
-                serialize_mt_to_mx_header::<bah_pacs_008_001_08_stp::BusinessApplicationHeaderV02>(
-                    data,
-                )?
-            } else {
-                debug!("Serializing MT103 to MX header");
-                serialize_mt_to_mx_header::<bah_pacs_008_001_08::BusinessApplicationHeaderV02>(
-                    data,
-                )?
-            }
-        }
-        "202" => {
-            if message_method == "reject" {
-                debug!("Serializing MT202 REJT to MX header");
-                serialize_mt_to_mx_header::<bah_pacs_002_001_10::BusinessApplicationHeaderV02>(
-                    data,
-                )?
-            } else if message_method == "return" {
-                debug!("Serializing MT202 RETN to MX header");
-                serialize_mt_to_mx_header::<bah_pacs_004_001_09::BusinessApplicationHeaderV02>(
-                    data,
-                )?
-            } else if message_method == "cover" {
-                debug!("Serializing MT202 COVER to MX header");
-                serialize_mt_to_mx_header::<bah_pacs_009_001_08_cov::BusinessApplicationHeaderV02>(
-                    data,
-                )?
-            } else {
-                debug!("Serializing MT202 to MX header");
-                serialize_mt_to_mx_header::<bah_pacs_009_001_08::BusinessApplicationHeaderV02>(
-                    data,
-                )?
-            }
-        }
-        "205" => {
-            if message_method == "reject" {
-                debug!("Serializing MT205 REJT to MX header");
-                serialize_mt_to_mx_header::<bah_pacs_002_001_10::BusinessApplicationHeaderV02>(
-                    data,
-                )?
-            } else if message_method == "return" {
-                debug!("Serializing MT205 RETN to MX header");
-                serialize_mt_to_mx_header::<bah_pacs_004_001_09::BusinessApplicationHeaderV02>(
-                    data,
-                )?
-            } else if message_method == "cover" {
-                debug!("Serializing MT205 COVER to MX header");
-                serialize_mt_to_mx_header::<bah_pacs_009_001_08_cov::BusinessApplicationHeaderV02>(
-                    data,
-                )?
-            } else {
-                debug!("Serializing MT205 to MX header");
-                serialize_mt_to_mx_header::<bah_pacs_009_001_08::BusinessApplicationHeaderV02>(
-                    data,
-                )?
-            }
-        }
-        "900" | "910" => {
-            debug!("Serializing MT900 to MX header");
-            serialize_mt_to_mx_header::<bah_camt_054_001::BusinessApplicationHeaderV02>(data)?
-        }
-        "192" | "292" => {
-            debug!("Serializing MT192/MT292 to MX header");
-            serialize_mt_to_mx_header::<bah_camt_056_001_08::BusinessApplicationHeaderV02>(data)?
-        }
-        "196" | "296" => {
-            debug!("Serializing MT196/MT296 to MX header");
-            serialize_mt_to_mx_header::<bah_camt_029_001::BusinessApplicationHeaderV02>(data)?
-        }
-        "101" => {
-            debug!("Serializing MT101 to MX header");
-            serialize_mt_to_mx_header::<bah_pain_001_001_09::BusinessApplicationHeaderV02>(data)?
-        }
-        "200" => {
-            debug!("Serializing MT200 to MX header");
-            serialize_mt_to_mx_header::<bah_pacs_009_001_08::BusinessApplicationHeaderV02>(data)?
-        }
-        _ => {
-            error!("Invalid message type: {}", message_type);
-            return Err(DataflowError::Validation(format!(
-                "Invalid message type: {message_type}"
-            )));
-        }
-    };
+    let xml_string = route_header_by_type(data, message_type, message_method)?;
+
+    debug!("MT to MX header serialization completed");
 
     let result_value = Value::String(xml_string);
     message.data[output_field_name] = result_value.clone();
 
-    debug!(
-        output_field = output_field_name,
-        xml_length = result_value.as_str().map(|s| s.len()).unwrap_or(0),
-        "MT to MX header serialization completed"
-    );
-
     Ok((
         200,
         vec![Change {
-            path: format!("data.{output_field_name}"),
+            path: format!("data.{}", output_field_name),
             old_value: Value::Null,
             new_value: result_value,
         }],
     ))
 }
 
-// MT to MX document handler
-#[instrument(skip(data, message), fields(output_field = output_field_name))]
+/// Helper function to extract required field from data with error handling
+fn extract_field(data: &Value, field_name: &str, message_context: &str) -> Result<Value> {
+    data.get(field_name)
+        .ok_or_else(|| {
+            DataflowError::Validation(format!(
+                "Missing {} field for {}",
+                field_name, message_context
+            ))
+        })
+        .cloned()
+}
+
+/// Helper function to route MT to MX document based on message type and method
+fn route_document_by_type(data: Value, message_type: &str, message_method: &str) -> Result<String> {
+    match (message_type, message_method) {
+        // MT103 variants
+        ("103", "reject") => {
+            let field_data = extract_field(&data, "FIToFIPmtStsRpt", "MT103 reject")?;
+            serialize_mt_to_mx_document::<pacs_002_001_10::FIToFIPaymentStatusReportV10>(field_data)
+        }
+        ("103", "return") => {
+            let field_data = extract_field(&data, "PmtRtr", "MT103 return")?;
+            serialize_mt_to_mx_document::<pacs_004_001_09::PaymentReturnV09>(field_data)
+        }
+        ("103", "stp") => {
+            let field_data = extract_field(&data, "FIToFICstmrCdtTrf", "MT103 STP")?;
+            serialize_mt_to_mx_document::<pacs_008_001_08_stp::FIToFICustomerCreditTransferV08>(
+                field_data,
+            )
+        }
+        ("103", _) => {
+            let field_data = extract_field(&data, "FIToFICstmrCdtTrf", "MT103")?;
+            serialize_mt_to_mx_document::<pacs_008_001_08::FIToFICustomerCreditTransferV08>(
+                field_data,
+            )
+        }
+
+        // MT202 variants
+        ("202", "reject") => {
+            let field_data = extract_field(&data, "FIToFIPmtStsRpt", "MT202 reject")?;
+            serialize_mt_to_mx_document::<pacs_002_001_10::FIToFIPaymentStatusReportV10>(field_data)
+        }
+        ("202", "return") => {
+            let field_data = extract_field(&data, "PmtRtr", "MT202 return")?;
+            serialize_mt_to_mx_document::<pacs_004_001_09::PaymentReturnV09>(field_data)
+        }
+        ("202", "cover") => {
+            let field_data = extract_field(&data, "FIToFICdtTrf", "MT202 cover")?;
+            serialize_mt_to_mx_document::<pacs_009_001_08_cov::FinancialInstitutionCreditTransferV08>(
+                field_data,
+            )
+        }
+        ("202", _) => {
+            let field_data = extract_field(&data, "FIToFICdtTrf", "MT202")?;
+            serialize_mt_to_mx_document::<pacs_009_001_08::FinancialInstitutionCreditTransferV08>(
+                field_data,
+            )
+        }
+
+        // MT205 variants
+        ("205", "reject") => {
+            let field_data = extract_field(&data, "FIToFIPmtStsRpt", "MT205 reject")?;
+            serialize_mt_to_mx_document::<pacs_002_001_10::FIToFIPaymentStatusReportV10>(field_data)
+        }
+        ("205", "return") => {
+            let field_data = extract_field(&data, "PmtRtr", "MT205 return")?;
+            serialize_mt_to_mx_document::<pacs_004_001_09::PaymentReturnV09>(field_data)
+        }
+        ("205", "cover") => {
+            let field_data = extract_field(&data, "FIToFICdtTrf", "MT205 cover")?;
+            serialize_mt_to_mx_document::<pacs_009_001_08_cov::FinancialInstitutionCreditTransferV08>(
+                field_data,
+            )
+        }
+        ("205", _) => {
+            let field_data = extract_field(&data, "FIToFICdtTrf", "MT205")?;
+            serialize_mt_to_mx_document::<pacs_009_001_08::FinancialInstitutionCreditTransferV08>(
+                field_data,
+            )
+        }
+
+        // Cash management messages
+        ("900" | "910", _) => {
+            let field_data = extract_field(&data, "BkToCstmrDbtCdtNtfctn", "MT900/910")?;
+            serialize_mt_to_mx_document::<camt_054_001_08::BankToCustomerDebitCreditNotificationV08>(
+                field_data,
+            )
+        }
+        ("192" | "292", _) => {
+            let field_data = extract_field(&data, "FIToFIPmtCxlReq", "MT192/292")?;
+            serialize_mt_to_mx_document::<camt_056_001_08::FIToFIPaymentCancellationRequestV08>(
+                field_data,
+            )
+        }
+        ("196" | "296", _) => {
+            let field_data = extract_field(&data, "RsltnOfInvstgtn", "MT196/296")?;
+            serialize_mt_to_mx_document::<camt_029_001_09::ResolutionOfInvestigationV09>(field_data)
+        }
+
+        // Other message types
+        ("101", _) => {
+            debug!("Serializing MT101 to pain.001 document");
+            // Special handling for MT101 - check both direct field and nested structure
+            let field_data = data
+                .get("CstmrCdtTrfInitn")
+                .or_else(|| data.as_object()?.get("CstmrCdtTrfInitn"))
+                .ok_or_else(|| {
+                    DataflowError::Validation(
+                        "Missing CstmrCdtTrfInitn field for MT101".to_string(),
+                    )
+                })?
+                .clone();
+            serialize_mt_to_mx_document::<pain_001_001_09::CustomerCreditTransferInitiationV09>(
+                field_data,
+            )
+        }
+        ("200", _) => {
+            debug!("Processing MT200 to pacs.009 document");
+            let field_data = extract_field(&data, "FIToFICdtTrf", "MT200")?;
+            serialize_mt_to_mx_document::<pacs_009_001_08::FinancialInstitutionCreditTransferV08>(
+                field_data,
+            )
+        }
+
+        _ => {
+            error!(message_type = %message_type, "Unsupported MT type for document");
+            Err(DataflowError::Validation(format!(
+                "Unsupported MT type: {}",
+                message_type
+            )))
+        }
+    }
+}
+
+/// Handles MT to MX document transformation based on message type and method
 fn handle_mt_to_mx_document(
     data: Value,
     message: &mut Message,
@@ -244,235 +368,17 @@ fn handle_mt_to_mx_document(
     message_type: &str,
     message_method: &str,
 ) -> Result<(usize, Vec<Change>)> {
-    let xml_string = match message_type {
-        "103" => {
-            if message_method == "reject" {
-                serialize_mt_to_mx_document::<pacs_002_001_10::FIToFIPaymentStatusReportV10>(
-                    data.get("FIToFIPmtStsRpt")
-                        .ok_or_else(|| {
-                            DataflowError::Validation(
-                                "Missing FIToFIPmtStsRpt field for MT103 reject".to_string(),
-                            )
-                        })?
-                        .clone(),
-                )?
-            } else if message_method == "return" {
-                serialize_mt_to_mx_document::<pacs_004_001_09::PaymentReturnV09>(
-                    data.get("PmtRtr")
-                        .ok_or_else(|| {
-                            DataflowError::Validation(
-                                "Missing PmtRtr field for MT103 return".to_string(),
-                            )
-                        })?
-                        .clone(),
-                )?
-            } else if message_method == "stp" {
-                serialize_mt_to_mx_document::<pacs_008_001_08_stp::FIToFICustomerCreditTransferV08>(
-                    data.get("FIToFICstmrCdtTrf")
-                        .ok_or_else(|| {
-                            DataflowError::Validation(
-                                "Missing FIToFICstmrCdtTrf field for MT103 STP".to_string(),
-                            )
-                        })?
-                        .clone(),
-                )?
-            } else {
-                serialize_mt_to_mx_document::<pacs_008_001_08::FIToFICustomerCreditTransferV08>(
-                    data.get("FIToFICstmrCdtTrf")
-                        .ok_or_else(|| {
-                            DataflowError::Validation(
-                                "Missing FIToFICstmrCdtTrf field for MT103".to_string(),
-                            )
-                        })?
-                        .clone(),
-                )?
-            }
-        }
-        "202" => {
-            if message_method == "reject" {
-                serialize_mt_to_mx_document::<pacs_002_001_10::FIToFIPaymentStatusReportV10>(
-                    data.get("FIToFIPmtStsRpt")
-                        .ok_or_else(|| {
-                            DataflowError::Validation(
-                                "Missing FIToFIPmtStsRpt field for MT202 reject".to_string(),
-                            )
-                        })?
-                        .clone(),
-                )?
-            } else if message_method == "return" {
-                serialize_mt_to_mx_document::<pacs_004_001_09::PaymentReturnV09>(
-                    data.get("PmtRtr")
-                        .ok_or_else(|| {
-                            DataflowError::Validation(
-                                "Missing PmtRtr field for MT202 return".to_string(),
-                            )
-                        })?
-                        .clone(),
-                )?
-            } else if message_method == "cover" {
-                serialize_mt_to_mx_document::<
-                    pacs_009_001_08_cov::FinancialInstitutionCreditTransferV08,
-                >(
-                    data.get("FIToFICdtTrf")
-                        .ok_or_else(|| {
-                            DataflowError::Validation(
-                                "Missing FIToFICdtTrf field for MT202 cover".to_string(),
-                            )
-                        })?
-                        .clone(),
-                )?
-            } else {
-                serialize_mt_to_mx_document::<pacs_009_001_08::FinancialInstitutionCreditTransferV08>(
-                    data.get("FIToFICdtTrf")
-                        .ok_or_else(|| {
-                            DataflowError::Validation(
-                                "Missing FIToFICdtTrf field for MT202".to_string(),
-                            )
-                        })?
-                        .clone(),
-                )?
-            }
-        }
-        "205" => {
-            if message_method == "reject" {
-                serialize_mt_to_mx_document::<pacs_002_001_10::FIToFIPaymentStatusReportV10>(
-                    data.get("FIToFIPmtStsRpt")
-                        .ok_or_else(|| {
-                            DataflowError::Validation(
-                                "Missing FIToFIPmtStsRpt field for MT205 reject".to_string(),
-                            )
-                        })?
-                        .clone(),
-                )?
-            } else if message_method == "return" {
-                serialize_mt_to_mx_document::<pacs_004_001_09::PaymentReturnV09>(
-                    data.get("PmtRtr")
-                        .ok_or_else(|| {
-                            DataflowError::Validation(
-                                "Missing PmtRtr field for MT205 return".to_string(),
-                            )
-                        })?
-                        .clone(),
-                )?
-            } else if message_method == "cover" {
-                serialize_mt_to_mx_document::<
-                    pacs_009_001_08_cov::FinancialInstitutionCreditTransferV08,
-                >(
-                    data.get("FIToFICdtTrf")
-                        .ok_or_else(|| {
-                            DataflowError::Validation(
-                                "Missing FIToFICdtTrf field for MT205 cover".to_string(),
-                            )
-                        })?
-                        .clone(),
-                )?
-            } else {
-                serialize_mt_to_mx_document::<pacs_009_001_08::FinancialInstitutionCreditTransferV08>(
-                    data.get("FIToFICdtTrf")
-                        .ok_or_else(|| {
-                            DataflowError::Validation(
-                                "Missing FIToFICdtTrf field for MT205".to_string(),
-                            )
-                        })?
-                        .clone(),
-                )?
-            }
-        }
-        "900" | "910" => {
-            serialize_mt_to_mx_document::<camt_054_001_08::BankToCustomerDebitCreditNotificationV08>(
-                data.get("BkToCstmrDbtCdtNtfctn")
-                    .ok_or_else(|| {
-                        DataflowError::Validation(
-                            "Missing BkToCstmrDbtCdtNtfctn field for MT900/910".to_string(),
-                        )
-                    })?
-                    .clone(),
-            )?
-        }
-        "192" | "292" => {
-            serialize_mt_to_mx_document::<camt_056_001_08::FIToFIPaymentCancellationRequestV08>(
-                data.get("FIToFIPmtCxlReq")
-                    .ok_or_else(|| {
-                        DataflowError::Validation(
-                            "Missing FIToFIPmtCxlReq field for MT192/292".to_string(),
-                        )
-                    })?
-                    .clone(),
-            )?
-        }
-        "196" | "296" => {
-            serialize_mt_to_mx_document::<camt_029_001_09::ResolutionOfInvestigationV09>(
-                data.get("RsltnOfInvstgtn")
-                    .ok_or_else(|| {
-                        DataflowError::Validation(
-                            "Missing RsltnOfInvstgtn field for MT196/296".to_string(),
-                        )
-                    })?
-                    .clone(),
-            )?
-        }
-        "101" => {
-            debug!("Serializing MT101 to MX document");
-            // For MT101, the Document contains CstmrCdtTrfInitn
-            let doc_content = if let Some(cstmr_cdt_trf) = data.get("CstmrCdtTrfInitn") {
-                cstmr_cdt_trf.clone()
-            } else if let Some(doc) = data.as_object() {
-                // If we have the full Document, extract CstmrCdtTrfInitn from it
-                doc.get("CstmrCdtTrfInitn")
-                    .ok_or_else(|| {
-                        DataflowError::Validation(
-                            "Missing CstmrCdtTrfInitn field for MT101".to_string(),
-                        )
-                    })?
-                    .clone()
-            } else {
-                return Err(DataflowError::Validation(
-                    "Invalid Document structure for MT101".to_string(),
-                ));
-            };
-            serialize_mt_to_mx_document::<pain_001_001_09::CustomerCreditTransferInitiationV09>(
-                doc_content,
-            )?
-        }
-        "200" => {
-            debug!("Processing MT200 document for pacs.009");
+    let xml_string = route_document_by_type(data, message_type, message_method)?;
 
-            // For MT200, we need to get the FIToFICdtTrf structure
-            let fi_to_fi_cdt_trf = data
-                .get("FIToFICdtTrf")
-                .ok_or_else(|| {
-                    error!("Missing FIToFICdtTrf field for MT200");
-                    DataflowError::Validation(
-                        "Invalid Document structure for MT200 - missing FIToFICdtTrf".to_string(),
-                    )
-                })?
-                .clone();
+    debug!("MT to MX document serialization completed");
 
-            debug!("MT200 FIToFICdtTrf structure: {:?}", fi_to_fi_cdt_trf);
-            serialize_mt_to_mx_document::<pacs_009_001_08::FinancialInstitutionCreditTransferV08>(
-                fi_to_fi_cdt_trf,
-            )?
-        }
-        _ => {
-            error!("Invalid message type: {}", message_type);
-            return Err(DataflowError::Validation(format!(
-                "Invalid message type: {message_type}"
-            )));
-        }
-    };
     let result_value = Value::String(xml_string);
     message.data[output_field_name] = result_value.clone();
-
-    debug!(
-        output_field = output_field_name,
-        xml_length = result_value.as_str().map(|s| s.len()).unwrap_or(0),
-        "MT to MX document serialization completed"
-    );
 
     Ok((
         200,
         vec![Change {
-            path: format!("data.{output_field_name}"),
+            path: format!("data.{}", output_field_name),
             old_value: Value::Null,
             new_value: result_value,
         }],

@@ -69,7 +69,7 @@ fn parse_mt_by_type(json_str: &str, mt_type: &str) -> Result<String> {
             }
         };
     }
-    
+
     mt_match!(
         "103" => MT103,
         "110" => MT110,
@@ -95,10 +95,10 @@ fn parse_mt_by_type(json_str: &str, mt_type: &str) -> Result<String> {
 
 /// Generic routing for messages that require message_type field
 fn route_by_message_type(
-    json_str: &str, 
-    input_data: &Value, 
+    json_str: &str,
+    input_data: &Value,
     source_format: &str,
-    valid_types: &[&str]
+    valid_types: &[&str],
 ) -> Result<String> {
     // Extract message_type from input data
     let message_type = match input_data.get("message_type") {
@@ -106,27 +106,31 @@ fn route_by_message_type(
         Some(v) if !v.is_null() => {
             error!("message_type field is not a string: {:?}", v);
             return Err(DataflowError::Validation(format!(
-                "message_type field must be a string for {}", source_format
+                "message_type field must be a string for {}",
+                source_format
             )));
         }
         _ => {
             error!("Missing message_type field for {}", source_format);
             return Err(DataflowError::Validation(format!(
-                "message_type field is required for {} transformation", source_format
+                "message_type field is required for {} transformation",
+                source_format
             )));
         }
     };
-    
+
     debug!(message_type = %message_type, "Processing {} to MT{} transformation", source_format, message_type);
-    
+
     // Validate and route to appropriate MT type
     if valid_types.contains(&message_type.as_str()) {
         parse_mt_by_type(json_str, &message_type)
     } else {
         error!(message_type = %message_type, "Invalid message type for {}", source_format);
         Err(DataflowError::Validation(format!(
-            "Invalid message type '{}' for {}. Expected one of: {}", 
-            message_type, source_format, valid_types.join(", ")
+            "Invalid message type '{}' for {}. Expected one of: {}",
+            message_type,
+            source_format,
+            valid_types.join(", ")
         )))
     }
 }
@@ -172,7 +176,7 @@ impl AsyncFunctionHandler for PublishMT {
         // Clean null values from fields before serialization (required for swift-mt-message library)
         let cleaned_data = clean_null_fields(&input_data);
         let json_str = cleaned_data.to_string();
-        
+
         // Determine the target MT type(s) for this source format
         let mt_types = match source_format {
             "pacs.008.001.08" => vec!["103"],
@@ -198,14 +202,14 @@ impl AsyncFunctionHandler for PublishMT {
                 )));
             }
         };
-        
+
         // Check if routing is needed (more than one possible MT type)
         let needs_routing = mt_types.len() > 1;
-        
+
         // Log the transformation being performed
         if needs_routing {
             debug!(
-                source = %source_format, 
+                source = %source_format,
                 possible_targets = ?mt_types,
                 "Processing {} transformation with message_type routing",
                 source_format
@@ -219,7 +223,7 @@ impl AsyncFunctionHandler for PublishMT {
                 mt_types[0]
             );
         }
-        
+
         // Perform the transformation
         let mt_message = if needs_routing {
             route_by_message_type(&json_str, &input_data, source_format, &mt_types)?

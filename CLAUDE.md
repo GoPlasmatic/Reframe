@@ -351,3 +351,5 @@ The Dockerfile uses a multi-stage build:
 3. **Scenario loading**: Clones SwiftMTMessage and MXMessage repos for test scenarios
 
 Container runs as non-root user (appuser) on port 3000.
+- Any path field within mapping function (ex: "path": "data.SwiftMT.fields.25") with a pure numberic components without variant shall have # in front to represent the number as string key instead of array index notation. Correct "path": "data.SwiftMT.fields.#25" And this hash is not needed for fields with variant "path": "data.SwiftMT.fields.32A"
+- Need to call reload workflow API for the workflow changes to take effect

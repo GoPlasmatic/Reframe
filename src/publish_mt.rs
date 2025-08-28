@@ -8,7 +8,7 @@ use dataflow_rs::engine::{
 use serde_json::Value;
 use swift_mt_message::SwiftMessage;
 use swift_mt_message::messages::{
-    MT103, MT104, MT110, MT111, MT112, MT190, MT191, MT192, MT196, MT199, MT202, MT204, MT205, MT210, 
+    MT101, MT103, MT104, MT110, MT111, MT112, MT190, MT191, MT192, MT196, MT199, MT202, MT204, MT205, MT210, 
     MT290, MT291, MT292, MT296, MT299, MT940, MT942,
 };
 use tracing::{debug, error, instrument};
@@ -71,6 +71,7 @@ fn parse_mt_by_type(json_str: &str, mt_type: &str) -> Result<String> {
     }
 
     mt_match!(
+        "101" => MT101,
         "103" => MT103,
         "104" => MT104,
         "110" => MT110,
@@ -181,6 +182,7 @@ impl AsyncFunctionHandler for PublishMT {
 
         // Determine the target MT type(s) for this source format
         let mt_types = match source_format {
+            "pain.001.001.09" => vec!["101"],
             "pacs.008.001.08" => vec!["103"],
             "pacs.003.001.08" => vec!["104"],
             "pacs.004.001.09" => vec!["103", "202", "205"],

@@ -2,85 +2,50 @@
     "id": "pain001-to-mt101-postconditions",
     "name": "pain.001 to MT101 Post-conditions and Final Assembly",
     "description": "Validates post-conditions and assembles final MT101 message",
-    "priority": 9,
+    "priority": 10,
     "condition": { "and": [
-        {"==": [{"var": "SwiftMT.message_type"}, "101"]},
-        {"==": [{"var": "SwiftMT.variant"}, "CBPR_SINGLE"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pain.001.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "pain001-to-mt101-remittance-fields"]},
-        {"in": [{"var": "progress.task_id"}, ["map_regulatory_reporting"]]},
+        {"==": [{"var": "progress.task_id"}, "map_field_70"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
             "id": "validate_postconditions",
             "name": "Validate Post-conditions",
-            "description": "Validates that required fields are present and handles missing information warnings",
+            "description": "Validates post-conditions and generates warnings for untranslated elements",
             "function": {
-                "name": "map",
+                "name": "validate",
                 "input": {
-                    "mappings": [
-                        {"path": "temp_data.warnings", "logic": []},
+                    "rules": [
                         {
-                            "path": "temp_data.warnings.0",
-                            "condition": { "or": [
-                                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.IntrmyAgt2"},
-                                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.IntrmyAgt3"}
-                            ]},
-                            "logic": {
-                                "code": "T11002",
-                                "message": "IntermediaryAgent2 and IntermediaryAgent3 cannot be translated to MT101 (no field 72)"
-                            }
+                            "path": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.IntrmyAgt2",
+                            "logic": {"!": { "or": [
+                                {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.IntrmyAgt2"},
+                                {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.IntrmyAgt3"}
+                            ]}},
+                            "message": "T11002: IntermediaryAgent2 and IntermediaryAgent3 cannot be translated to MT101 (no field 72)"
                         },
                         {
-                            "path": "temp_data.warnings.1",
-                            "condition": {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.XchgRateInf.XchgRate"},
-                            "logic": {
-                                "code": "T11003",
-                                "message": "ExchangeRate (field 36) not translated to avoid miscalculation risks"
-                            }
+                            "path": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.XchgRateInf",
+                            "logic": {"!": {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.XchgRateInf.XchgRate"}},
+                            "message": "T11003: ExchangeRate (field 36) not translated to avoid miscalculation risks"
                         },
                         {
-                            "path": "temp_data.warnings.2",
-                            "condition": {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.Tax"},
-                            "logic": {"code": "T11004", "message": "Tax information not translated to MT101"}
+                            "path": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.Tax",
+                            "logic": {"!": {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.Tax"}},
+                            "message": "T11004: Tax information not translated to MT101"
                         },
                         {
-                            "path": "temp_data.warnings.3",
-                            "condition": {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.RltdRmtInf"},
-                            "logic": {
-                                "code": "T11005",
-                                "message": "RelatedRemittanceInformation not translated to MT101"
-                            }
+                            "path": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.RltdRmtInf",
+                            "logic": {"!": {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.RltdRmtInf"}},
+                            "message": "T11005: RelatedRemittanceInformation not translated to MT101"
                         },
                         {
-                            "path": "temp_data.warnings.4",
-                            "condition": {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.ChqInstr"},
-                            "logic": {
-                                "code": "T11006",
-                                "message": "ChequeInstruction details not fully translated to MT101"
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "construct_mt101_message",
-            "name": "Construct MT101 Message",
-            "description": "Assembles the complete MT101 message structure",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {"path": "data.SwiftMT.message_complete", "logic": true},
-                        {
-                            "path": "data.SwiftMT.transformation_status",
-                            "logic": {
-                                "success": true,
-                                "warnings": {"var": "temp_data.warnings"},
-                                "source_message_type": "pain.001.001.09",
-                                "target_message_type": "MT101"
-                            }
+                            "path": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.ChqInstr",
+                            "logic": {"!": {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.ChqInstr"}},
+                            "message": "T11006: ChequeInstruction details not fully translated to MT101"
                         }
                     ]
                 }
@@ -92,7 +57,7 @@
             "description": "Publishes the complete MT101 message",
             "function": {
                 "name": "PublishMT",
-                "input": {"input_field_name": "SwiftMT", "output_field_name": "mt_message", "format": "MT101"}
+                "input": {"input_field_name": "SwiftMT", "output_field_name": "result", "source_format": "pain.001.001.09"}
             }
         }
     ]

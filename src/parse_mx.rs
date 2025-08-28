@@ -619,6 +619,28 @@ impl ParseMX {
                     }
                 }
             }
+            "pain.001.001.09" => {
+                let header = match from_str::<bah_pain_001_001_09::BusinessApplicationHeaderV02>(
+                    app_hdr_content,
+                ) {
+                    Ok(header) => header,
+                    Err(e) => {
+                        error!("Failed to parse pain.001 header: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse pain.001 header: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(header) {
+                    Ok(value) => Ok(value),
+                    Err(e) => {
+                        error!("Failed to convert pain.001 header: {:?}", e);
+                        Err(DataflowError::Validation(format!(
+                            "Failed to convert pain.001 header to value: {e}"
+                        )))
+                    }
+                }
+            }
             _ => {
                 let header = match from_str::<bah_pacs_008_001_08::BusinessApplicationHeaderV02>(
                     app_hdr_content,
@@ -1048,6 +1070,25 @@ impl ParseMX {
                     Ok(value) => Ok(value),
                     Err(e) => Err(DataflowError::Validation(format!(
                         "Failed to convert camt.106 document to value: {e}"
+                    ))),
+                }
+            }
+            "pain.001.001.09" => {
+                let document = match from_str::<pain_001_001_09::CustomerCreditTransferInitiationV09>(
+                    document_content,
+                ) {
+                    Ok(document) => document,
+                    Err(e) => {
+                        error!("Failed to parse pain.001 document: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse pain.001 document: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(document) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(DataflowError::Validation(format!(
+                        "Failed to convert pain.001 document to value: {e}"
                     ))),
                 }
             }

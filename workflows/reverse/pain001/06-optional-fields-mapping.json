@@ -2,10 +2,10 @@
     "id": "pain001-to-mt101-optional-fields",
     "name": "pain.001 to MT101 Optional Fields Mapping",
     "description": "Maps optional fields including charges, authorisation, instruction codes, and remittance information",
-    "priority": 6,
+    "priority": 7,
     "condition": { "and": [
-        {"==": [{"var": "SwiftMT.message_type"}, "101"]},
-        {"==": [{"var": "SwiftMT.variant"}, "CBPR_SINGLE"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pain.001.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "pain001-to-mt101-party-fields"]},
         {"==": [{"var": "progress.task_id"}, "map_creditor_field_59"]},
         {"==": [{"var": "progress.status_code"}, 200]}
@@ -21,7 +21,7 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.25",
+                            "path": "data.SwiftMT.fields.#25",
                             "logic": {
                                 "authorisation": { "if": [
                                     {"var": "data.ISO20022_MX.document.GrpHdr.Authstn.0.Cd"},
@@ -43,41 +43,69 @@
             }
         },
         {
-            "id": "map_charges",
-            "name": "Map Charges Fields",
-            "description": "Maps ChargeBearer to field 71A and ChargesAccount to field 25A",
+            "id": "map_charge_bearer",
+            "name": "Map Charge Bearer Field 71A",
+            "description": "Maps ChargeBearer to field 71A",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.71A",
+                            "path": "data.SwiftMT.fields.##.0.#71A",
                             "logic": {
-                                "details_of_charges": { "if": [
-                                    {"var": "data.ISO20022_MX.document.PmtInf.0.ChrgBr"},
-                                    {"var": "data.ISO20022_MX.document.PmtInf.0.ChrgBr"},
+                                "code": { "if": [
+                                    {"var": "data.ISO20022_MX.document.PmtInf.ChrgBr"},
                                     { "if": [
-                                        {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.ChrgBr"},
-                                        {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.ChrgBr"},
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.ChrgBr"}, "CRED"]},
+                                        "BEN",
+                                        { "if": [
+                                            {"==": [{"var": "data.ISO20022_MX.document.PmtInf.ChrgBr"}, "DEBT"]},
+                                            "OUR",
+                                            "SHA"
+                                        ]}
+                                    ]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.ChrgBr"},
+                                        { "if": [
+                                            {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.ChrgBr"}, "CRED"]},
+                                            "BEN",
+                                            { "if": [
+                                                {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.ChrgBr"}, "DEBT"]},
+                                                "OUR",
+                                                "SHA"
+                                            ]}
+                                        ]},
                                         null
                                     ]}
                                 ]}
                             }
-                        },
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_charges_account",
+            "name": "Map Charges Account Field 25A",
+            "description": "Maps ChargesAccount to field 25A",
+            "condition": {"var": "data.ISO20022_MX.document.PmtInf.ChrgsAcct.Id"},
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.25A",
-                            "condition": {"var": "data.ISO20022_MX.document.PmtInf.0.ChrgsAcct"},
+                            "path": "data.SwiftMT.fields.##.0.#25A",
                             "logic": {
-                                "charges_account": { "if": [
-                                    {"var": "data.ISO20022_MX.document.PmtInf.0.ChrgsAcct.Id.IBAN"},
-                                    {"cat": ["/", {"var": "data.ISO20022_MX.document.PmtInf.0.ChrgsAcct.Id.IBAN"}]},
+                                "account": { "if": [
+                                    {"var": "data.ISO20022_MX.document.PmtInf.ChrgsAcct.Id.IBAN"},
+                                    {"cat": ["/", {"var": "data.ISO20022_MX.document.PmtInf.ChrgsAcct.Id.IBAN"}]},
                                     { "if": [
-                                        {"var": "data.ISO20022_MX.document.PmtInf.0.ChrgsAcct.Id.Othr.Id"},
+                                        {"var": "data.ISO20022_MX.document.PmtInf.ChrgsAcct.Id.Othr.Id"},
                                         {
                                             "cat": [
                                                 "/",
                                                 {
-                                                    "substr": [{"var": "data.ISO20022_MX.document.PmtInf.0.ChrgsAcct.Id.Othr.Id"}, 0, 33]
+                                                    "substr": [{"var": "data.ISO20022_MX.document.PmtInf.ChrgsAcct.Id.Othr.Id"}, 0, 33]
                                                 }
                                             ]
                                         },
@@ -98,97 +126,138 @@
                 "name": "map",
                 "input": {
                     "mappings": [
-                        {"path": "data.SwiftMT.fields.23E", "logic": []},
                         {
-                            "path": "data.SwiftMT.fields.23E.0",
-                            "condition": {"==": [{"var": "data.ISO20022_MX.document.PmtInf.0.PmtMtd"}, "CHK"]},
-                            "logic": {"instruction_code": "CHQB"}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.23E.1",
-                            "condition": { "or": [
-                                {"==": [{"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForCdtrAgt.0.Cd"}, "CHQB"]},
-                                {"==": [{"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForCdtrAgt.1.Cd"}, "CHQB"]}
-                            ]},
-                            "logic": {"instruction_code": "CHQB"}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.23E.2",
-                            "condition": {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.Amt.EqvtAmt"},
-                            "logic": {"instruction_code": "EQUI"}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.23E.3",
-                            "condition": { "or": [
-                                {"==": [{"var": "data.ISO20022_MX.document.PmtInf.0.PmtTpInf.SvcLvl.Cd"}, "URGP"]},
-                                {"==": [{"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.PmtTpInf.SvcLvl.Cd"}, "URGP"]}
-                            ]},
-                            "logic": {"instruction_code": "URGP"}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.23E.4",
-                            "condition": { "or": [
-                                {"==": [{"var": "data.ISO20022_MX.document.PmtInf.0.PmtTpInf.CtgyPurp.Cd"}, "INTC"]},
-                                {"==": [{"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.PmtTpInf.CtgyPurp.Cd"}, "INTC"]}
-                            ]},
-                            "logic": {"instruction_code": "INTC"}
-                        },
-                        {
-                            "path": "data.SwiftMT.fields.23E.5",
-                            "condition": { "or": [
-                                {"==": [{"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForCdtrAgt.0.Cd"}, "PHOB"]},
-                                {"==": [{"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForCdtrAgt.1.Cd"}, "PHOB"]}
-                            ]},
-                            "logic": {
-                                "instruction_code": "PHON",
-                                "additional_info": { "if": [
-                                    {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForCdtrAgt.0.InstrInf"},
+                            "path": "temp_data.instruction_codes_raw",
+                            "logic": [
+                                { "if": [
+                                    {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.Amt.EqvtAmt"},
+                                    {"instruction_code": "EQUI"},
+                                    null
+                                ]},
+                                { "if": [
+                                    { "or": [
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtTpInf.CtgyPurp.Cd"}, "CMSW"]},
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, "CMSW"]}
+                                    ]},
+                                    {"instruction_code": "CMSW"},
+                                    null
+                                ]},
+                                { "if": [
+                                    { "or": [
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtTpInf.CtgyPurp.Cd"}, "CMTO"]},
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, "CMTO"]}
+                                    ]},
+                                    {"instruction_code": "CMTO"},
+                                    null
+                                ]},
+                                { "if": [
+                                    { "or": [
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtTpInf.CtgyPurp.Cd"}, "CMZB"]},
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, "CMZB"]}
+                                    ]},
+                                    {"instruction_code": "CMZB"},
+                                    null
+                                ]},
+                                { "if": [
+                                    { "or": [
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtTpInf.CtgyPurp.Cd"}, "INTC"]},
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, "INTC"]}
+                                    ]},
+                                    {"instruction_code": "INTC"},
+                                    null
+                                ]},
+                                { "if": [
+                                    { "or": [
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtTpInf.CtgyPurp.Cd"}, "REPA"]},
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, "REPA"]}
+                                    ]},
+                                    {"instruction_code": "REPA"},
+                                    null
+                                ]},
+                                { "if": [
+                                    { "or": [
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtTpInf.CtgyPurp.Cd"}, "CORT"]},
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, "CORT"]}
+                                    ]},
+                                    {"instruction_code": "CORT"},
+                                    null
+                                ]},
+                                { "if": [
+                                    { "or": [
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtTpInf.SvcLvl.Cd"}, "URGP"]},
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"}, "URGP"]}
+                                    ]},
+                                    {"instruction_code": "URGP"},
+                                    null
+                                ]},
+                                { "if": [
+                                    { "or": [
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtTpInf.SvcLvl.Cd"}, "NETS"]},
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"}, "NETS"]}
+                                    ]},
+                                    {"instruction_code": "NETS"},
+                                    null
+                                ]},
+                                { "if": [
+                                    { "or": [
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtTpInf.SvcLvl.Cd"}, "RTGS"]},
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"}, "RTGS"]}
+                                    ]},
+                                    {"instruction_code": "RTGS"},
+                                    null
+                                ]},
+                                { "if": [
+                                    { "or": [
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtMtd"}, "CHK"]},
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.InstrForCdtrAgt.0.Cd"}, "CHQB"]},
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.InstrForCdtrAgt.1.Cd"}, "CHQB"]}
+                                    ]},
+                                    {"instruction_code": "CHQB"},
+                                    null
+                                ]},
+                                { "if": [
+                                    { "or": [
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.InstrForCdtrAgt.0.Cd"}, "PHOB"]},
+                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.InstrForCdtrAgt.1.Cd"}, "PHOB"]}
+                                    ]},
                                     {
-                                        "substr": [
-                                            {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForCdtrAgt.0.InstrInf"},
-                                            0,
-                                            30
-                                        ]
+                                        "instruction_code": "PHON",
+                                        "additional_info": { "if": [
+                                            {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.InstrForCdtrAgt.0.InstrInf"},
+                                            {"substr": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.InstrForCdtrAgt.0.InstrInf"}, 0, 30]},
+                                            null
+                                        ]}
                                     },
-                                    { "if": [
-                                        {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForCdtrAgt.1.InstrInf"},
-                                        {
-                                            "substr": [
-                                                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForCdtrAgt.1.InstrInf"},
-                                                0,
-                                                30
-                                            ]
-                                        },
-                                        null
-                                    ]}
+                                    null
+                                ]},
+                                { "if": [
+                                    { "or": [
+                                        {"var": "data.ISO20022_MX.document.PmtInf.InstrForDbtrAgt"},
+                                        {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.InstrForDbtrAgt"}
+                                    ]},
+                                    {
+                                        "instruction_code": "OTHR",
+                                        "additional_info": { "if": [
+                                            {"var": "data.ISO20022_MX.document.PmtInf.InstrForDbtrAgt"},
+                                            {"substr": [{"var": "data.ISO20022_MX.document.PmtInf.InstrForDbtrAgt"}, 0, 30]},
+                                            { "if": [
+                                                {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.InstrForDbtrAgt"},
+                                                {"substr": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.InstrForDbtrAgt"}, 0, 30]},
+                                                null
+                                            ]}
+                                        ]}
+                                    },
+                                    null
                                 ]}
-                            }
+                            ]
                         },
                         {
-                            "path": "data.SwiftMT.fields.23E.6",
-                            "condition": { "or": [
-                                {"var": "data.ISO20022_MX.document.PmtInf.0.InstrForDbtrAgt"},
-                                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForDbtrAgt"}
-                            ]},
+                            "path": "data.SwiftMT.fields.##.0.#23E",
                             "logic": {
-                                "instruction_code": "OTHR",
-                                "additional_info": { "if": [
-                                    {"var": "data.ISO20022_MX.document.PmtInf.0.InstrForDbtrAgt"},
-                                    {
-                                        "substr": [{"var": "data.ISO20022_MX.document.PmtInf.0.InstrForDbtrAgt"}, 0, 30]
-                                    },
-                                    { "if": [
-                                        {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForDbtrAgt"},
-                                        {
-                                            "substr": [
-                                                {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.InstrForDbtrAgt"},
-                                                0,
-                                                30
-                                            ]
-                                        },
-                                        null
-                                    ]}
-                                ]}
+                                "filter": [
+                                    {"var": "temp_data.instruction_codes_raw"},
+                                    {"!=": [{"var": ""}, null]}
+                                ]
                             }
                         }
                     ]
@@ -198,22 +267,16 @@
         {
             "id": "map_fx_reference",
             "name": "Map FX Deal Reference Field 21F",
-            "description": "Maps ExchangeRateInformation ContractIdentification to field 21F",
-            "condition": {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.XchgRateInf.CtrctId"},
+            "description": "Maps ExchangeRateInformation ContractIdentification to field 21F with TR009 validation",
+            "condition": {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.XchgRateInf.CtrctId"},
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.21F",
+                            "path": "data.SwiftMT.fields.##.0.#21F",
                             "logic": {
-                                "fx_deal_reference": {
-                                    "substr": [
-                                        {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf.0.XchgRateInf.CtrctId"},
-                                        0,
-                                        16
-                                    ]
-                                }
+                                "reference": {"substr": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.XchgRateInf.CtrctId"}, 0, 16]}
                             }
                         }
                     ]

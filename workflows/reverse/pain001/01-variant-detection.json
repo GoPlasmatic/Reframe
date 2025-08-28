@@ -1,57 +1,59 @@
 {
     "id": "pain001-variant-detection",
-    "name": "pain.001 Variant Detection",
-    "description": "Detects pain.001 CBPR+ variant and validates single transaction requirement for MT101 transformation",
-    "priority": 1,
+    "name": "pain.001 Message Variant Detection",
+    "description": "Detects pain.001 messages for MT101 transformation",
+    "priority": 2,
     "condition": { "and": [
         {"==": [{"var": "ISO20022_MX.message_type"}, "pain.001.001.09"]},
-        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
-        {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
-        {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
-        {"==": [{"var": "progress.status_code"}, 200]}
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]}
     ]},
     "tasks": [
         {
-            "id": "detect_variant",
+            "id": "detect_pain001_variant",
             "name": "Detect pain.001 Variant",
-            "description": "Validates pain.001 is CBPR+ variant and has single transaction for MT101 transformation",
+            "description": "Detects pain.001 message variant and sets target MT type",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
+                        {"path": "temp_data.detected_variant", "logic": "pain.001-to-MT101"},
+                        {"path": "temp_data.target_mt_type", "logic": "MT101"},
+                        {"path": "data.SwiftMT.message_type", "logic": "101"},
                         {
-                            "path": "temp_data.variant",
-                            "logic": { "if": [
-                                { "and": [
-                                    {"==": [{"var": "data.ISO20022_MX.header.BizSvc"}, "swift.cbprplus.02"]},
-                                    {"==": [{"var": "data.ISO20022_MX.document.GrpHdr.NbOfTxs"}, "1"]},
-                                    {"==": [{"length": {"var": "data.ISO20022_MX.document.PmtInf"}}, 1]},
-                                    {"==": [{"length": {"var": "data.ISO20022_MX.document.PmtInf.0.CdtTrfTxInf"}}, 1]}
-                                ]},
-                                "CBPR_SINGLE",
-                                "INVALID"
-                            ]}
-                        },
-                        {
-                            "path": "data.SwiftMT",
-                            "logic": {"message_type": "101", "variant": {"var": "temp_data.variant"}}
+                            "path": "temp_data.variant_info",
+                            "logic": {
+                                "source_type": "pain.001.001.09",
+                                "target_type": "MT101",
+                                "description": "Customer Credit Transfer Initiation to Request for Transfer",
+                                "cbpr_compliant": true
+                            }
                         }
                     ]
                 }
             }
         },
         {
-            "id": "validate_variant",
-            "name": "Validate Variant",
-            "description": "Ensures pain.001 is valid for MT101 transformation",
+            "id": "validate_pain001_structure",
+            "name": "Validate pain.001 Structure",
+            "description": "Validates basic pain.001 message structure",
             "function": {
                 "name": "validate",
                 "input": {
-                    "validations": [
+                    "rules": [
                         {
-                            "rule": {"==": [{"var": "temp_data.variant"}, "CBPR_SINGLE"]},
-                            "error_code": "T20053",
-                            "error_message": "pain.001 must be CBPR+ variant with single transaction for MT101 transformation"
+                            "path": "data.ISO20022_MX.document.GrpHdr",
+                            "logic": {"exists": ["data", "ISO20022_MX", "document", "GrpHdr"]},
+                            "message": "pain.001 must have GroupHeader"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.PmtInf",
+                            "logic": {"exists": ["data", "ISO20022_MX", "document", "PmtInf"]},
+                            "message": "pain.001 must have PaymentInformation"
+                        },
+                        {
+                            "path": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf",
+                            "logic": {"exists": ["data", "ISO20022_MX", "document", "PmtInf", "CdtTrfTxInf"]},
+                            "message": "pain.001 must have CreditTransferTransactionInformation"
                         }
                     ]
                 }

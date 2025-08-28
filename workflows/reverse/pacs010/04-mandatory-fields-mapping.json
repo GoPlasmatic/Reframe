@@ -2,10 +2,10 @@
     "id": "pacs010-to-mt204-mandatory-fields",
     "name": "pacs.010 to MT204 Mandatory Fields Mapping",
     "description": "Maps mandatory fields from pacs.010 to MT204 Sequence A and B",
-    "priority": 4,
+    "priority": 5,
     "condition": { "and": [
-        {"==": [{"var": "SwiftMT.message_type"}, "204"]},
-        {"==": [{"var": "SwiftMT.variant"}, "MC"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.010.001.03"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "pacs010-to-mt204-headers"]},
         {"==": [{"var": "progress.task_id"}, "map_user_header"]},
         {"==": [{"var": "progress.status_code"}, 200]}
@@ -20,7 +20,7 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.20_seq_a",
+                            "path": "data.SwiftMT.fields.#20",
                             "logic": {
                                 "reference": { "if": [
                                     {"var": "data.ISO20022_MX.document.CdtInstr.CdtId"},
@@ -32,30 +32,22 @@
                             }
                         },
                         {
-                            "path": "data.SwiftMT.fields.19",
+                            "path": "data.SwiftMT.fields.#19",
                             "logic": {
-                                "sum_of_amounts": { "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.IntrBkSttlmAmt.$value"},
-                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.IntrBkSttlmAmt.$value"},
-                                    "0"
+                                "amount": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.IntrBkSttlmAmt.$value"},
+                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.IntrBkSttlmAmt.$value"},
+                                    0
                                 ]}
                             }
                         },
                         {
-                            "path": "data.SwiftMT.fields.30",
+                            "path": "data.SwiftMT.fields.#30",
                             "logic": {
-                                "value_date": { "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.IntrBkSttlmDt"},
-                                    {
-                                        "replace": [
-                                            {
-                                                "substr": [{"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.IntrBkSttlmDt"}, 2, 8]
-                                            },
-                                            "-",
-                                            ""
-                                        ]
-                                    },
-                                    "991231"
+                                "execution_date": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.IntrBkSttlmDt"},
+                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.IntrBkSttlmDt"},
+                                    "1999-12-31"
                                 ]}
                             }
                         }
@@ -64,58 +56,62 @@
             }
         },
         {
-            "id": "map_sequence_b_reference_fields",
-            "name": "Map Sequence B Reference Fields",
-            "description": "Maps field 20 and 21 for Sequence B from PaymentIdentification",
+            "id": "initialize_transactions_array",
+            "name": "Initialize Transactions Array",
+            "description": "Creates the transactions array structure for MT204",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.20_seq_b",
+                            "path": "data.SwiftMT.fields.##",
+                            "logic": [{}]
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_transaction_fields",
+            "name": "Map Transaction Fields",
+            "description": "Maps transaction fields including field 20, 21, and 32B for Sequence B",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.##.0.#20",
                             "logic": {
                                 "reference": { "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtId.InstrId"},
+                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.PmtId.InstrId"},
                                     {
-                                        "substr": [{"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtId.InstrId"}, 0, 16]
+                                        "substr": [{"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.PmtId.InstrId"}, 0, 16]
                                     },
                                     "NOTPROVIDED"
                                 ]}
                             }
                         },
                         {
-                            "path": "data.SwiftMT.fields.21",
+                            "path": "data.SwiftMT.fields.##.0.#21",
                             "logic": {
-                                "related_reference": { "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtId.EndToEndId"},
+                                "reference": { "if": [
+                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.PmtId.EndToEndId"},
                                     {
                                         "substr": [
-                                            {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.PmtId.EndToEndId"},
+                                            {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.PmtId.EndToEndId"},
                                             0,
                                             16
                                         ]
                                     },
-                                    "NOTPROVIDED"
+                                    null
                                 ]}
                             }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_amount_field",
-            "name": "Map Amount Field",
-            "description": "Maps InterbankSettlementAmount to field 32B",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
+                        },
                         {
-                            "path": "data.SwiftMT.fields.32B",
+                            "path": "data.SwiftMT.fields.##.0.32B",
                             "logic": {
-                                "currency": {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.IntrBkSttlmAmt.@Ccy"},
-                                "amount": {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.IntrBkSttlmAmt.$value"}
+                                "currency": {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.IntrBkSttlmAmt.@Ccy"},
+                                "amount": {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.IntrBkSttlmAmt.$value"}
                             }
                         }
                     ]

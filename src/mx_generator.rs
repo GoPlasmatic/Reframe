@@ -221,6 +221,55 @@ fn generate_pacs009_xml(
     Ok(format!("{}\n{}", xml_declaration, xml_body))
 }
 
+/// Generate pacs.010 XML from parsed JSON
+fn generate_pacs010_xml(
+    app_hdr: &Value,
+    document: &Value,
+) -> Result<String, Box<dyn std::error::Error>> {
+    debug!("Parsing pacs.010 header");
+    let header_str = serde_json::to_string(app_hdr)?;
+    let hd = &mut serde_json::Deserializer::from_str(&header_str);
+    let header: bah_pacs_010_001_03::BusinessApplicationHeaderV02 =
+        deserialize(hd).map_err(|e| {
+            let path = e.path().to_string();
+            let inner_err = e.into_inner().to_string();
+            format!(
+                "Failed to parse pacs.010 header at path '{}': {}",
+                path, inner_err
+            )
+        })?;
+
+    debug!("Parsing pacs.010 document");
+    let doc_content = document
+        .get("FIDrctDbt")
+        .ok_or("Missing FIDrctDbt in Document")?;
+
+    let doc_str = serde_json::to_string(doc_content)?;
+    let dd = &mut serde_json::Deserializer::from_str(&doc_str);
+    let doc: pacs_010_001_03::FinancialInstitutionDirectDebitV03 = deserialize(dd).map_err(|e| {
+        let path = e.path().to_string();
+        let inner_err = e.into_inner().to_string();
+        error!(
+            "Failed to parse pacs.010 document at path '{}': {}",
+            path, inner_err
+        );
+        format!(
+            "Failed to parse pacs.010 document at path '{}': {}",
+            path, inner_err
+        )
+    })?;
+
+    let envelope = MxEnvelope::new(
+        header,
+        doc,
+        "urn:iso:std:iso:20022:tech:xsd:pacs.010.001.03".to_string(),
+    );
+    let xml_declaration = r#"<?xml version="1.0" encoding="UTF-8"?>"#;
+    let xml_body = xml_to_string(&envelope)?;
+
+    Ok(format!("{}\n{}", xml_declaration, xml_body))
+}
+
 /// Generate camt.052 XML from parsed JSON
 fn generate_camt052_xml(
     app_hdr: &Value,
@@ -1105,6 +1154,7 @@ pub fn generate_mx_from_json(
         "pacs.004" => generate_pacs004_xml(&envelope.app_hdr, &envelope.document)?,
         "pacs.008" => generate_pacs008_xml(&envelope.app_hdr, &envelope.document)?,
         "pacs.009" => generate_pacs009_xml(&envelope.app_hdr, &envelope.document)?,
+        "pacs.010" => generate_pacs010_xml(&envelope.app_hdr, &envelope.document)?,
         "camt.029" => generate_camt029_xml(&envelope.app_hdr, &envelope.document)?,
         "camt.052" => generate_camt052_xml(&envelope.app_hdr, &envelope.document)?,
         "camt.053" => generate_camt053_xml(&envelope.app_hdr, &envelope.document)?,

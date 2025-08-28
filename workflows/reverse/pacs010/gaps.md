@@ -26,18 +26,21 @@
 
 ## Header Mapping Gaps
 ✅ Basic header fields mapped (03-headers-mapping.json)
+✅ Block 3 service type identifier mapped per CBPR+ specification
+✅ UETR preservation in Block 3 field 121
 
 **Missing mappings:**
-- Service type code for direct debit scenarios
 - Priority mapping for collection urgency
 - Network delivery requirements for MT204
-- Message user reference preservation
 
 ## Field Mapping Gaps
 **Mandatory fields (04-mandatory-fields-mapping.json):**
 - Field 20: ✅ Direct debit reference mapped
 - Field 21: ✅ Related reference mapped
 - Field 32A: ✅ Value date, currency, amount
+- Field 32B: ✅ Transaction amount mapped
+- Field 19: ✅ Sum of amounts mapped
+- Block 3 field 121: ✅ UETR mapped
 - Field 50A/K: ⚠️ Creditor details mapping
 - Field 59A/F: ⚠️ Debtor details mapping
 
@@ -69,8 +72,9 @@
 - Cross-validation with mandate information
 
 ## CBPR+ Compliance Gaps
-- UETR preservation for direct debit transactions
-- Service level code handling for direct debit scenarios
+- ✅ UETR preservation for direct debit transactions (Block 3 field 121)
+- ✅ Service level code handling for direct debit scenarios
+- ✅ Service type identifier mapped from BizSvc
 - Clearing system member identification needs enhancement
 - Market practice rules for direct debit not fully enforced
 - Regulatory compliance for cross-border direct debits
@@ -80,6 +84,10 @@
 - Sophisticated party and agent field processing
 - Good sender/receiver information handling
 - Direct debit specific scenarios well supported
+- ✅ Enhanced with UETR preservation in Block 3 field 121
+- ✅ Added Block 3 service type identifier mapping
+- ✅ Created test scenario for margin collection variant
+- ⚠️ **Note**: pacs.010 not supported in mx_generator library yet
 
 ## Recommendations
 1. Complete CBPR+ compliance implementation

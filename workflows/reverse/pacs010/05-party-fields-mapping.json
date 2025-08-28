@@ -2,12 +2,12 @@
     "id": "pacs010-to-mt204-party-fields",
     "name": "pacs.010 to MT204 Party Fields Mapping",
     "description": "Maps party fields including Debtor (53A/B/D) and Creditor (58A/D)",
-    "priority": 5,
+    "priority": 6,
     "condition": { "and": [
-        {"==": [{"var": "SwiftMT.message_type"}, "204"]},
-        {"==": [{"var": "SwiftMT.variant"}, "MC"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.010.001.03"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "pacs010-to-mt204-mandatory-fields"]},
-        {"==": [{"var": "progress.task_id"}, "map_amount_field"]},
+        {"==": [{"var": "progress.task_id"}, "map_transaction_fields"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
@@ -20,27 +20,27 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.53",
+                            "path": "data.SwiftMT.fields.##.0.#53",
                             "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Dbtr.FinInstnId.BICFI"},
+                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.Dbtr.FinInstnId.BICFI"},
                                 {
                                     "A": {
                                         "party_identifier": { "if": [
-                                            {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.DbtrAcct.Id.IBAN"},
+                                            {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.DbtrAcct.Id.IBAN"},
                                             {
                                                 "cat": [
                                                     "/",
-                                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.DbtrAcct.Id.IBAN"}
+                                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.DbtrAcct.Id.IBAN"}
                                                 ]
                                             },
                                             { "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.DbtrAcct.Id.Othr.Id"},
+                                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.DbtrAcct.Id.Othr.Id"},
                                                 {
                                                     "cat": [
                                                         "/",
                                                         {
                                                             "substr": [
-                                                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.DbtrAcct.Id.Othr.Id"},
+                                                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.DbtrAcct.Id.Othr.Id"},
                                                                 0,
                                                                 33
                                                             ]
@@ -50,32 +50,32 @@
                                                 null
                                             ]}
                                         ]},
-                                        "identifier_code": {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Dbtr.FinInstnId.BICFI"}
+                                        "bic": {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.Dbtr.FinInstnId.BICFI"}
                                     }
                                 },
                                 { "if": [
                                     { "and": [
-                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Dbtr.FinInstnId.ClrSysMmbId.MmbId"},
-                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.DbtrAcct"}
+                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.Dbtr.FinInstnId.ClrSysMmbId.MmbId"},
+                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.DbtrAcct"}
                                     ]},
                                     {
                                         "B": {
                                             "party_identifier": { "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.DbtrAcct.Id.IBAN"},
+                                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.DbtrAcct.Id.IBAN"},
                                                 {
                                                     "cat": [
                                                         "/",
-                                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.DbtrAcct.Id.IBAN"}
+                                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.DbtrAcct.Id.IBAN"}
                                                     ]
                                                 },
                                                 { "if": [
-                                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.DbtrAcct.Id.Othr.Id"},
+                                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.DbtrAcct.Id.Othr.Id"},
                                                     {
                                                         "cat": [
                                                             "/",
                                                             {
                                                                 "substr": [
-                                                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.DbtrAcct.Id.Othr.Id"},
+                                                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.DbtrAcct.Id.Othr.Id"},
                                                                     0,
                                                                     33
                                                                 ]
@@ -86,20 +86,20 @@
                                                         "cat": [
                                                             "//",
                                                             { "if": [
-                                                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Dbtr.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Dbtr.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.Dbtr.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.Dbtr.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
                                                                 ""
                                                             ]},
-                                                            {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Dbtr.FinInstnId.ClrSysMmbId.MmbId"}
+                                                            {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.Dbtr.FinInstnId.ClrSysMmbId.MmbId"}
                                                         ]
                                                     }
                                                 ]}
                                             ]},
                                             "location": { "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Dbtr.FinInstnId.Nm"},
+                                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.Dbtr.FinInstnId.Nm"},
                                                 {
                                                     "substr": [
-                                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Dbtr.FinInstnId.Nm"},
+                                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.Dbtr.FinInstnId.Nm"},
                                                         0,
                                                         35
                                                     ]
@@ -109,25 +109,25 @@
                                         }
                                     },
                                     { "if": [
-                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Dbtr.FinInstnId.Nm"},
+                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.Dbtr.FinInstnId.Nm"},
                                         {
                                             "D": {
                                                 "party_identifier": { "if": [
-                                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.DbtrAcct.Id.IBAN"},
+                                                    {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.DbtrAcct.Id.IBAN"},
                                                     {
                                                         "cat": [
                                                             "/",
-                                                            {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.DbtrAcct.Id.IBAN"}
+                                                            {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.DbtrAcct.Id.IBAN"}
                                                         ]
                                                     },
                                                     { "if": [
-                                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.DbtrAcct.Id.Othr.Id"},
+                                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.DbtrAcct.Id.Othr.Id"},
                                                         {
                                                             "cat": [
                                                                 "/",
                                                                 {
                                                                     "substr": [
-                                                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.DbtrAcct.Id.Othr.Id"},
+                                                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.DbtrAcct.Id.Othr.Id"},
                                                                         0,
                                                                         33
                                                                     ]
@@ -140,16 +140,16 @@
                                                 "name_and_address": [
                                                     {
                                                         "substr": [
-                                                            {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Dbtr.FinInstnId.Nm"},
+                                                            {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.Dbtr.FinInstnId.Nm"},
                                                             0,
                                                             35
                                                         ]
                                                     },
                                                     { "if": [
-                                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Dbtr.FinInstnId.PstlAdr.AdrLine.0"},
+                                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.Dbtr.FinInstnId.PstlAdr.AdrLine.0"},
                                                         {
                                                             "substr": [
-                                                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Dbtr.FinInstnId.PstlAdr.AdrLine.0"},
+                                                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.Dbtr.FinInstnId.PstlAdr.AdrLine.0"},
                                                                 0,
                                                                 35
                                                             ]
@@ -157,10 +157,10 @@
                                                         null
                                                     ]},
                                                     { "if": [
-                                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Dbtr.FinInstnId.PstlAdr.AdrLine.1"},
+                                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.Dbtr.FinInstnId.PstlAdr.AdrLine.1"},
                                                         {
                                                             "substr": [
-                                                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Dbtr.FinInstnId.PstlAdr.AdrLine.1"},
+                                                                {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.Dbtr.FinInstnId.PstlAdr.AdrLine.1"},
                                                                 0,
                                                                 35
                                                             ]
@@ -168,8 +168,8 @@
                                                         null
                                                     ]},
                                                     { "if": [
-                                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Dbtr.FinInstnId.PstlAdr.Ctry"},
-                                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.0.Dbtr.FinInstnId.PstlAdr.Ctry"},
+                                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.Dbtr.FinInstnId.PstlAdr.Ctry"},
+                                                        {"var": "data.ISO20022_MX.document.CdtInstr.DrctDbtTxInf.Dbtr.FinInstnId.PstlAdr.Ctry"},
                                                         null
                                                     ]}
                                                 ]
@@ -193,7 +193,7 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.58",
+                            "path": "data.SwiftMT.fields.#58",
                             "logic": { "if": [
                                 {"var": "data.ISO20022_MX.document.CdtInstr.Cdtr.FinInstnId.BICFI"},
                                 {
@@ -214,7 +214,7 @@
                                                 null
                                             ]}
                                         ]},
-                                        "identifier_code": {"var": "data.ISO20022_MX.document.CdtInstr.Cdtr.FinInstnId.BICFI"}
+                                        "bic": {"var": "data.ISO20022_MX.document.CdtInstr.Cdtr.FinInstnId.BICFI"}
                                     }
                                 },
                                 { "if": [

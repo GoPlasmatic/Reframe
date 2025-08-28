@@ -8,8 +8,8 @@ use dataflow_rs::engine::{
 use serde_json::Value;
 use swift_mt_message::SwiftMessage;
 use swift_mt_message::messages::{
-    MT103, MT104, MT110, MT111, MT112, MT190, MT191, MT192, MT196, MT199, MT202, MT205, MT210, MT290,
-    MT291, MT292, MT296, MT299, MT940, MT942,
+    MT103, MT104, MT110, MT111, MT112, MT190, MT191, MT192, MT196, MT199, MT202, MT204, MT205, MT210, 
+    MT290, MT291, MT292, MT296, MT299, MT940, MT942,
 };
 use tracing::{debug, error, instrument};
 
@@ -82,6 +82,7 @@ fn parse_mt_by_type(json_str: &str, mt_type: &str) -> Result<String> {
         "196" => MT196,
         "199" => MT199,
         "202" => MT202,
+        "204" => MT204,
         "205" => MT205,
         "210" => MT210,
         "290" => MT290,
@@ -184,6 +185,7 @@ impl AsyncFunctionHandler for PublishMT {
             "pacs.003.001.08" => vec!["104"],
             "pacs.004.001.09" => vec!["103", "202", "205"],
             "pacs.009.001.08" => vec!["202", "205"],
+            "pacs.010.001.03" => vec!["204"],
             "pacs.002.001.10" => vec!["199", "299"],
             "camt.107.001.01" => vec!["110"],
             "camt.108.001.01" => vec!["111"],

@@ -1,0 +1,75 @@
+{
+    "description": "pacs.010 CBPR+ Margin Collection to MT204 Direct Debit Message",
+    "source_type": "pacs.010",
+    "target_type": "MT204",
+    "variant": "CBPR+_MC",
+    "variables": {
+        "msg_id": {"cat": ["DD", {"fake": ["i64", 100000000000, 999999999999]}]},
+        "creation_datetime": {"fake": ["iso8601_datetime"]},
+        "sender_bic": {"fake": ["bic"]},
+        "receiver_bic": {"fake": ["bic"]},
+        "creditor_bic": {"fake": ["bic"]},
+        "debtor_bic": {"fake": ["bic"]},
+        "credit_id": {"cat": ["CRD", {"fake": ["i64", 100000000000, 999999999999]}]},
+        "instruction_id": {"cat": ["INS", {"fake": ["i64", 100000000000, 999999999999]}]},
+        "end_to_end_id": {"cat": ["E2E", {"fake": ["i64", 100000000000, 999999999999]}]},
+        "uetr": {"fake": ["uuid"]},
+        "amount": 25000.50,
+        "currency": "USD",
+        "settlement_date": {"fake": ["date", "%Y-%m-%d", "+0d", "+5d"]},
+        "creditor_account": {"fake": ["iban"]},
+        "debtor_account": {"fake": ["iban"]}
+    },
+    "schema": {
+        "AppHdr": {
+            "Fr": {"FIId": {"FinInstnId": {"BICFI": {"var": "sender_bic"}}}},
+            "To": {"FIId": {"FinInstnId": {"BICFI": {"var": "receiver_bic"}}}},
+            "BizMsgIdr": {"var": "msg_id"},
+            "MsgDefIdr": "pacs.010.001.03",
+            "BizSvc": "swift.cbprplus.02",
+            "CreDt": {"var": "creation_datetime"}
+        },
+        "Document": {
+            "FIDrctDbt": {
+                "GrpHdr": {
+                    "MsgId": {"var": "msg_id"},
+                    "CreDtTm": {"var": "creation_datetime"},
+                    "NbOfTxs": "1",
+                    "InstgAgt": {"FinInstnId": {"BICFI": {"var": "sender_bic"}}},
+                    "InstdAgt": {"FinInstnId": {"BICFI": {"var": "receiver_bic"}}}
+                },
+                "CdtInstr": {
+                    "CdtId": {"var": "credit_id"},
+                    "InstgAgt": {"FinInstnId": {"BICFI": {"var": "sender_bic"}}},
+                    "InstdAgt": {"FinInstnId": {"BICFI": {"var": "receiver_bic"}}},
+                    "PmtTpInf": {
+                        "CtgyPurp": {"Cd": "MARG"}
+                    },
+                    "CdtrAgt": {"FinInstnId": {"BICFI": {"var": "creditor_bic"}}},
+                    "Cdtr": {"FinInstnId": {"BICFI": {"var": "creditor_bic"}}},
+                    "CdtrAcct": {"Id": {"IBAN": {"var": "creditor_account"}}},
+                    "DrctDbtTxInf": {
+                        "PmtId": {
+                            "InstrId": {"var": "instruction_id"},
+                            "EndToEndId": {"var": "end_to_end_id"},
+                            "UETR": {"var": "uetr"}
+                        },
+                        "PmtTpInf": {
+                            "SvcLvl": [{"Cd": "G002"}],
+                            "LclInstrm": {"Cd": "DD"}
+                        },
+                        "IntrBkSttlmAmt": {"@Ccy": {"var": "currency"}, "$value": {"var": "amount"}},
+                        "IntrBkSttlmDt": {"var": "settlement_date"},
+                        "Dbtr": {"FinInstnId": {"BICFI": {"var": "debtor_bic"}}},
+                        "DbtrAcct": {"Id": {"IBAN": {"var": "debtor_account"}}},
+                        "InstrForDbtrAgt": "MARGIN CALL SETTLEMENT",
+                        "Purp": {"Cd": "MARG"},
+                        "RmtInf": {
+                            "Ustrd": "Direct debit for margin requirements"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -289,6 +289,28 @@ impl ParseMX {
                     }
                 }
             }
+            "pacs.010.001.03" => {
+                let header = match from_str::<bah_pacs_010_001_03::BusinessApplicationHeaderV02>(
+                    app_hdr_content,
+                ) {
+                    Ok(header) => header,
+                    Err(e) => {
+                        error!("Failed to parse header: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse pacs.010 header: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(header) {
+                    Ok(value) => Ok(value),
+                    Err(e) => {
+                        error!("Failed to convert header: {:?}", e);
+                        Err(DataflowError::Validation(format!(
+                            "Failed to convert header to value: {e}"
+                        )))
+                    }
+                }
+            }
             "pacs.002.001.10" => {
                 let header = match from_str::<bah_pacs_002_001_10::BusinessApplicationHeaderV02>(
                     app_hdr_content,
@@ -678,6 +700,26 @@ impl ParseMX {
                     Ok(value) => Ok(value),
                     Err(e) => Err(DataflowError::Validation(format!(
                         "Failed to convert document to value: {e}"
+                    ))),
+                }
+            }
+            "pacs.010.001.03" => {
+                let document = match from_str::<
+                    pacs_010_001_03::FinancialInstitutionDirectDebitV03,
+                >(document_content)
+                {
+                    Ok(document) => document,
+                    Err(e) => {
+                        error!("Failed to parse pacs.010 document: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse pacs.010 document: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(document) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(DataflowError::Validation(format!(
+                        "Failed to convert pacs.010 document to value: {e}"
                     ))),
                 }
             }

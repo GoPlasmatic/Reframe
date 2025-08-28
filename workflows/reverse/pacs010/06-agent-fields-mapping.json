@@ -2,10 +2,10 @@
     "id": "pacs010-to-mt204-agent-fields",
     "name": "pacs.010 to MT204 Agent Fields Mapping",
     "description": "Maps agent fields including CreditorAgent (57A/B/D)",
-    "priority": 6,
+    "priority": 7,
     "condition": { "and": [
-        {"==": [{"var": "SwiftMT.message_type"}, "204"]},
-        {"==": [{"var": "SwiftMT.variant"}, "MC"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.010.001.03"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "progress.workflow_id"}, "pacs010-to-mt204-party-fields"]},
         {"==": [{"var": "progress.task_id"}, "map_creditor_field_58"]},
         {"==": [{"var": "progress.status_code"}, 200]}
@@ -15,13 +15,12 @@
             "id": "map_creditor_agent",
             "name": "Map Creditor Agent Field 57A/B/D",
             "description": "Maps CreditorAgent (Account With Institution) to field 57",
-            "condition": {"var": "data.ISO20022_MX.document.CdtInstr.CdtrAgt"},
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.57",
+                            "path": "data.SwiftMT.fields.#57",
                             "logic": { "if": [
                                 {"var": "data.ISO20022_MX.document.CdtInstr.CdtrAgt.FinInstnId.BICFI"},
                                 {
@@ -42,7 +41,7 @@
                                                 null
                                             ]}
                                         ]},
-                                        "identifier_code": {"var": "data.ISO20022_MX.document.CdtInstr.CdtrAgt.FinInstnId.BICFI"}
+                                        "bic": {"var": "data.ISO20022_MX.document.CdtInstr.CdtrAgt.FinInstnId.BICFI"}
                                     }
                                 },
                                 { "if": [

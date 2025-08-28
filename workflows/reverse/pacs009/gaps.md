@@ -8,9 +8,11 @@
 
 ## Precondition Gaps
 ✅ Basic message structure validation
-✅ Variant detection for MT200/MT202/MT205
+✅ Enhanced variant detection for MT200/MT202/MT205
+✅ ADV variant detection based on LocalInstrument or remittance info
+✅ COVE variant detection based on underlying customer transfer
 
-**Missing validations:**
+**Remaining gaps:**
 - Financial institution transfer authority validation
 - Settlement method validation for different MT types
 - Liquidity requirements validation
@@ -52,10 +54,16 @@
 - Time zone handling
 
 **Agent fields (07-agent-fields-mapping.json):**
-- Field 53A/D: ⚠️ Sender's correspondent mapping
-- Field 54A/D: ⚠️ Receiver's correspondent mapping
-- Field 56A/D: ⚠️ Intermediary institution mapping
-- Complex correspondent chain for FI transfers
+- Field 52A/D: ✅ Ordering institution mapping
+- Field 53A/D: ✅ Sender's correspondent mapping
+- Field 56A/D: ✅ Intermediary institution mapping
+- Field 57A/D: ✅ Account with institution mapping
+- Field 58A/D: ✅ Beneficiary institution mapping
+
+**ADV-specific fields (11-adv-fields-mapping.json):**
+- Field 53A/B: ✅ Instructing reimbursement agent (ADV variant)
+- Field 54A/D: ✅ Instructed reimbursement agent (ADV variant)
+- Field 55A/D: ✅ Third reimbursement agent (ADV variant)
 
 **Remittance fields (08-remittance-fields-mapping.json):**
 - Field 70: ⚠️ Remittance information for FI transfers
@@ -85,16 +93,23 @@
 - Regulatory compliance for cross-border FI transfers
 
 ## Implementation Notes
-- Comprehensive implementation with sophisticated FI transfer handling
-- Good cover payment support with dedicated workflow file
-- Time indication handling well implemented
-- Complex settlement scenarios supported
+- ✅ Enhanced hybrid implementation with variant-specific handling
+- ✅ Improved variant detection for CORE, COVE, and ADV
+- ✅ Added ADV-specific workflow for reimbursement agents
+- ✅ Good cover payment support with dedicated workflow file (10-cov-fields-mapping.json)
+- ✅ Time indication handling well implemented
+- ✅ Complex settlement scenarios supported
+- ✅ All test scenarios passing (core, cover, advice, serial, serial_cover)
+- ✅ Fixed false positive in ADV detection (removed broad remittance text scanning)
+- ✅ Fixed COVE variant detection using LocalInstrument code "COVE" as alternative to UndrlygCstmrCdtTrf
 
 ## Recommendations
-1. Complete CBPR+ compliance for FI transfer scenarios
-2. Enhance cover payment validation and consistency checking
-3. Improve time indication handling for MT200 scenarios
-4. Add comprehensive FI transfer authority validation
-5. Enhance regulatory compliance for cross-border FI transfers
-6. Improve cross-validation between different MT target types
-7. Add comprehensive test scenarios for complex FI transfer chains
+1. ✅ **COMPLETED**: Enhanced variant detection and ADV-specific handling
+2. ✅ **COMPLETED**: Added reimbursement agent fields for ADV variant
+3. Complete CBPR+ compliance for remaining FI transfer scenarios
+4. Enhance cover payment validation and consistency checking
+5. Improve time indication handling for MT200 scenarios
+6. Add comprehensive FI transfer authority validation
+7. Enhance regulatory compliance for cross-border FI transfers
+8. Improve cross-validation between different MT target types
+9. Add comprehensive test scenarios for complex FI transfer chains

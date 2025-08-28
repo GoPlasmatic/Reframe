@@ -1,0 +1,59 @@
+{
+    "id": "pacs004-mt103-postconditions",
+    "name": "PACS.004 to MT103 RETN Postconditions",
+    "description": "Validates postconditions and publishes MT103 RETN message",
+    "priority": 11,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs004-mt103-remittance-fields-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_field_77b"]},
+        {"==": [{"var": "SwiftMT.message_type"}, "103"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "validate_required_fields",
+            "name": "Validate Required Fields",
+            "description": "Ensure all mandatory fields are present",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.SwiftMT.fields.#20",
+                            "logic": {"exists": ["data", "SwiftMT", "fields", "20"]},
+                            "message": "Field 20 (Sender's Reference) is mandatory"
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.32A",
+                            "logic": {"exists": ["data", "SwiftMT", "fields", "32A"]},
+                            "message": "Field 32A (Value Date/Currency/Amount) is mandatory"
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.72",
+                            "logic": {"and": [
+                                {"exists": ["data", "SwiftMT", "fields", "72"]},
+                                {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]}
+                            ]},
+                            "message": "Field 72 must be present with /RETN/ in first line"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "publish_message",
+            "name": "Publish MT103 RETN",
+            "description": "Generate and publish the final MT103 RETN message",
+            "function": {
+                "name": "PublishMT",
+                "input": {
+                    "input_field_name": "SwiftMT",
+                    "output_field_name": "result",
+                    "source_format": "pacs.004.001.09"
+                }
+            }
+        }
+    ]
+}

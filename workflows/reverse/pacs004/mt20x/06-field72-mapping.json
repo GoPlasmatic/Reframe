@@ -1,0 +1,51 @@
+{
+    "id": "pacs004-mt20x-field72-mapping",
+    "name": "PACS.004 to MT202/205 RETN Field 72 Mapping",
+    "description": "Maps return information to Field 72 (Sender to Receiver Information)",
+    "priority": 10,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs004-mt20x-agent-fields-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_field_58"]},
+        {"in": [{"var": "SwiftMT.message_type"}, ["202", "205"]]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_field_72",
+            "name": "Map Field 72 - Sender to Receiver Information",
+            "description": "Map return information including /RETN/, /MREF/, /TREF/, /REAS/, /INFO/, /CHGS/",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#72",
+                            "logic": {
+                                "information": [
+                                    "/RETN/",
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"},
+                                        {"cat": ["/TREF/", {"var": "data.ISO20022_MX.document.TxInf.OrgnlEndToEndId"}]},
+                                        null
+                                    ]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.Rsn.Cd"},
+                                        {"cat": ["/REAS/", {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.Rsn.Cd"}]},
+                                        null
+                                    ]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.AddtlInf.0"},
+                                        {"cat": ["/INFO/", {"var": "data.ISO20022_MX.document.TxInf.RtrRsnInf.AddtlInf.0"}]},
+                                        null
+                                    ]}
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

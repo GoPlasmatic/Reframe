@@ -1,0 +1,50 @@
+{
+    "id": "pacs004-mt103-preconditions",
+    "name": "PACS.004 to MT103 RETN Preconditions",
+    "description": "Validates preconditions for pacs.004 to MT103 RETN transformation per CBPR+ specifications",
+    "priority": 3,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs004-variant-detection"]},
+        {"==": [{"var": "progress.task_id"}, "validate_variant"]},
+        {"==": [{"var": "SwiftMT.message_type"}, "103"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "validate_currency",
+            "name": "Validate Currency",
+            "description": "PREC001: Ensure commodities currencies are not present",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.Ccy",
+                            "logic": {"!": {"in": [{"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.Ccy"}, ["XAU", "XAG", "XPD", "XPT"]]}},
+                            "message": "T20054: Commodities currencies not allowed in Field 32A"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_transaction_count",
+            "name": "Validate Transaction Count",
+            "description": "PREC002: Ensure only one transaction is present",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.ISO20022_MX.document.GrpHdr.NbOfTxs",
+                            "logic": {"==": [{"var": "data.ISO20022_MX.document.GrpHdr.NbOfTxs"}, "1"]},
+                            "message": "T20053: Multiple transactions not supported for MT103 RETN"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,115 @@
+{
+    "id": "pacs004-mt103-agent-fields-mapping",
+    "name": "PACS.004 to MT103 RETN Agent Fields Mapping",
+    "description": "Maps agent fields for MT103 RETN (Fields 52, 56, 57)",
+    "priority": 9,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs004-mt103-party-fields-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_field_59"]},
+        {"==": [{"var": "SwiftMT.message_type"}, "103"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_field_52",
+            "name": "Map Field 52 - Ordering Institution",
+            "description": "TR016: Map Debtor Agent",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#52",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt"},
+                                { "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"},
+                                    {"cat": ["A/", {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"}]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                        {"cat": [
+                                            "D/",
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                            "\n",
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.DbtrAgt.FinInstnId.Nm"}
+                                        ]},
+                                        null
+                                    ]}
+                                ]},
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_56",
+            "name": "Map Field 56 - Intermediary Institution",
+            "description": "TR019: Map Intermediary Agent1",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#56",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1"},
+                                { "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.BICFI"},
+                                    {"cat": ["A/", {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.BICFI"}]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"},
+                                        {"cat": [
+                                            "D/",
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"},
+                                            "\n",
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.IntrmyAgt1.FinInstnId.Nm"}
+                                        ]},
+                                        null
+                                    ]}
+                                ]},
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_57",
+            "name": "Map Field 57 - Account With Institution",
+            "description": "TR021: Map Creditor Agent",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#57",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt"},
+                                { "if": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"},
+                                    {"cat": ["A/", {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"}]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                        {"cat": [
+                                            "D/",
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                            "\n",
+                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.CdtrAgt.FinInstnId.Nm"}
+                                        ]},
+                                        null
+                                    ]}
+                                ]},
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,77 @@
+{
+    "id": "pacs004-mt103-mandatory-fields-mapping",
+    "name": "PACS.004 to MT103 RETN Mandatory Fields Mapping",
+    "description": "Maps mandatory fields for MT103 RETN from pacs.004 (Fields 20, 32A)",
+    "priority": 5,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs004-mt103-headers-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_headers"]},
+        {"==": [{"var": "SwiftMT.message_type"}, "103"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_field_20",
+            "name": "Map Field 20 - Sender's Reference",
+            "description": "TR001: Map MessageIdentification with truncation handling",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#20",
+                            "logic": { "reference": 
+                                { "if": [
+                                    {">": [{"length": [{"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}]}, 16]},
+                                    {"cat": [
+                                        {"substr": [{"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}, 0, 15]},
+                                        "+"
+                                    ]},
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_32a",
+            "name": "Map Field 32A - Value Date/Currency/Amount",
+            "description": "TR004: Map settlement date, currency and amount",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.32A",
+                            "logic": {
+                                "value_date": {"var": "data.ISO20022_MX.document.TxInf.IntrBkSttlmDt"},
+                                "currency": {"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.@Ccy"},
+                                "amount": {"+": [{"var": "data.ISO20022_MX.document.TxInf.RtrdIntrBkSttlmAmt.$value"}]}
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_23b",
+            "name": "Map Field 23B - Bank Operation Code",
+            "description": "Fixed value for RETN",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.23B.instruction_code",
+                            "logic": "CRED"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

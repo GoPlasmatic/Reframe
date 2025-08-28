@@ -1,0 +1,88 @@
+{
+    "id": "pacs004-variant-detection",
+    "name": "PACS.004 Variant Detection",
+    "description": "Detects pacs.004 message variant and determines target MT message type (MT103RETN/MT202RETN/MT205RETN) according to CBPR+ PREC003",
+    "priority": 2,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "detect_variant",
+            "name": "Detect Message Variant",
+            "description": "Determine target MT message type based on original message and return chain",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.message_type",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"},
+                                { "if": [
+                                    { "or": [
+                                        {"starts_with": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]},
+                                        {"starts_with": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT103"]}
+                                    ]},
+                                    "103",
+                                    { "if": [
+                                        { "or": [
+                                            {"starts_with": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.009"]},
+                                            {"starts_with": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT202"]}
+                                        ]},
+                                        "202",
+                                        { "if": [
+                                            {"starts_with": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlGrpInf.OrgnlMsgNmId"}, "MT205"]},
+                                            "205",
+                                            { "if": [
+                                                { "and": [
+                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
+                                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
+                                                ]},
+                                                "202",
+                                                "103"
+                                            ]}
+                                        ]}
+                                    ]}
+                                ]},
+                                { "if": [
+                                    { "and": [
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
+                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"}
+                                    ]},
+                                    "202",
+                                    "103"
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "metadata.SwiftMT.message_type",
+                            "logic": {"var": "data.SwiftMT.message_type"}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_variant",
+            "name": "Validate Variant Detection",
+            "description": "Ensure valid message type was determined",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "path": "data.SwiftMT.message_type",
+                            "logic": {"in": [{"var": "data.SwiftMT.message_type"}, ["103", "202", "205"]]},
+                            "message": "Failed to determine valid target MT message type for pacs.004 return"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

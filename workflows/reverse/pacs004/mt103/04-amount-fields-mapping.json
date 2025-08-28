@@ -1,0 +1,128 @@
+{
+    "id": "pacs004-mt103-amount-fields-mapping",
+    "name": "PACS.004 to MT103 RETN Amount Fields Mapping",
+    "description": "Maps amount-related fields for MT103 RETN (Fields 13C, 33B, 36)",
+    "priority": 6,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs004-mt103-mandatory-fields-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_field_23b"]},
+        {"==": [{"var": "SwiftMT.message_type"}, "103"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_field_13c",
+            "name": "Map Field 13C - Time Indication",
+            "description": "TR005: Map debit and credit time indications",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.13C",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn"},
+                                [
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.DbtDtTm"},
+                                        {"cat": [
+                                            "/SNDTIME/",
+                                            {"time_offset": [{"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.DbtDtTm"}]}
+                                        ]},
+                                        null
+                                    ]},
+                                    { "if": [
+                                        {"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.CdtDtTm"},
+                                        {"cat": [
+                                            "/RNCTIME/",
+                                            {"time_offset": [{"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.CdtDtTm"}]}
+                                        ]},
+                                        null
+                                    ]}
+                                ],
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_33b",
+            "name": "Map Field 33B - Currency/Instructed Amount",
+            "description": "TR006/TR007: Map instructed amount if present",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.33B",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.TxInf.RtrdInstdAmt"},
+                                {"cat": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.RtrdInstdAmt.Ccy"},
+                                    {"replace": [
+                                        {"cat": [{"var": "data.ISO20022_MX.document.TxInf.RtrdInstdAmt.value"}]},
+                                        ".",
+                                        ","
+                                    ]}
+                                ]},
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_36",
+            "name": "Map Field 36 - Exchange Rate",
+            "description": "Map exchange rate if present",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#36",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.TxInf.XchgRate"},
+                                {"replace": [
+                                    {"cat": [{"var": "data.ISO20022_MX.document.TxInf.XchgRate"}]},
+                                    ".",
+                                    ","
+                                ]},
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_53b",
+            "name": "Map Field 53B - Sender's Correspondent",
+            "description": "Map settlement account",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.53B",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct"},
+                                { "if": [
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"},
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"},
+                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}
+                                ]},
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

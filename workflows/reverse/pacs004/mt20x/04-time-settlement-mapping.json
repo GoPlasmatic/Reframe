@@ -1,0 +1,90 @@
+{
+    "id": "pacs004-mt20x-time-settlement-mapping", 
+    "name": "PACS.004 to MT202/205 RETN Time and Settlement Fields Mapping",
+    "description": "Maps time indication (Field 13C) and settlement account (Field 53B)",
+    "priority": 8,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs004-mt20x-mandatory-fields-mapping"]},
+        {"==": [{"var": "progress.task_id"}, "map_field_32a"]},
+        {"in": [{"var": "SwiftMT.message_type"}, ["202", "205"]]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_field_13c",
+            "name": "Map Field 13C - Time Indication",
+            "description": "TR005: Map settlement time indications",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.13C",
+                            "logic": { "if": [
+                                {"or": [
+                                    {"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.DbtDtTm"},
+                                    {"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.CdtDtTm"}
+                                ]},
+                                {"filter": [
+                                    [
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.DbtDtTm"},
+                                            {"time_indication": {
+                                                "code": "/SNDTIME/",
+                                                "time": {"substr": [{"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.DbtDtTm"}, 11, 5]}
+                                            }},
+                                            null
+                                        ]},
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.CdtDtTm"},
+                                            {"time_indication": {
+                                                "code": "/RNCTIME/",
+                                                "time": {"substr": [{"var": "data.ISO20022_MX.document.TxInf.SttlmTmIndctn.CdtDtTm"}, 11, 5]}
+                                            }},
+                                            null
+                                        ]}
+                                    ],
+                                    {"!=": [{"var": ""}, null]}
+                                ]},
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "map_field_53b",
+            "name": "Map Field 53B - Sender's Correspondent",
+            "description": "Map settlement account if present",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.53B",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct"},
+                                {
+                                    "party_identifier": { "if": [
+                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"},
+                                        {"cat": ["/", {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"}]},
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"},
+                                            {"cat": ["/", {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}]},
+                                            null
+                                        ]}
+                                    ]},
+                                    "location": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Nm"}
+                                },
+                                null
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

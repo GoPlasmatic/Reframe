@@ -1,0 +1,65 @@
+{
+    "id": "pacs004-mt103-headers-mapping",
+    "name": "PACS.004 to MT103 RETN Headers Mapping",
+    "description": "Maps SWIFT headers for MT103 RETN from pacs.004",
+    "priority": 4,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "pacs004-mt103-preconditions"]},
+        {"==": [{"var": "progress.task_id"}, "validate_transaction_count"]},
+        {"==": [{"var": "SwiftMT.message_type"}, "103"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_headers",
+            "name": "Map SWIFT Headers",
+            "description": "Create Block 1, 2, and 3 headers for MT103 RETN",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.basic_header",
+                            "logic": {
+                                "application_id": "F",
+                                "service_id": "01",
+                                "sender_bic": {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
+                                "logical_terminal": {"cat": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, "AXXX"]},
+                                "session_number": "0000",
+                                "sequence_number": "000000"
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.application_header",
+                            "logic": {
+                                "direction": "I",
+                                "message_type": {"var": "data.SwiftMT.message_type"},
+                                "destination_address": {"cat": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, "AXXX"]},
+                                "receiver_bic": {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                "priority": "N"
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.user_header",
+                            "logic": {
+                                "unique_end_to_end_reference": {"var": "data.ISO20022_MX.document.TxInf.OrgnlUETR"},
+                                "service_type_identifier": {"if": [
+                                    {"and": [
+                                        {"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef"},
+                                        {"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf"},
+                                        {"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl"},
+                                        {"starts_with": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"}, "G"]}
+                                    ]},
+                                    {"substr": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"}, 1, 3]},
+                                    null
+                                ]}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

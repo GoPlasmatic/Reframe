@@ -1,0 +1,50 @@
+{
+    "id": "pacs008-variant-detection",
+    "name": "pacs.008 Variant Detection",
+    "description": "Detects pacs.008 variant for appropriate MT103 processing (standard or STP)",
+    "priority": 1,
+    "condition": { "and": [
+        {"==": [{"var": "ISO20022_MX.message_type"}, "pacs.008.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "detect_variant",
+            "name": "Detect pacs.008 Variant",
+            "description": "Determine if pacs.008 requires standard or STP processing based on content",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.variant",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForCdtrAgt"},
+                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.InstrForNxtAgt"}
+                                ]},
+                                "STP",
+                                "STANDARD"
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.message_type",
+                            "logic": "103"
+                        },
+                        {
+                            "path": "data.temp_data.Sender",
+                            "logic": {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}
+                        },
+                        {
+                            "path": "data.temp_data.Receiver",
+                            "logic": {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

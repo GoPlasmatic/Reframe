@@ -8,8 +8,8 @@ use dataflow_rs::engine::{
 use serde_json::Value;
 use swift_mt_message::SwiftMessage;
 use swift_mt_message::messages::{
-    MT101, MT103, MT104, MT110, MT111, MT112, MT190, MT191, MT192, MT196, MT199, MT202, MT204, MT205, MT210, 
-    MT290, MT291, MT292, MT296, MT299, MT900, MT910, MT940, MT942,
+    MT101, MT103, MT104, MT110, MT111, MT112, MT190, MT191, MT192, MT196, MT199, MT202, MT204,
+    MT205, MT210, MT290, MT291, MT292, MT296, MT299, MT900, MT910, MT940, MT942,
 };
 use tracing::{debug, error, instrument};
 

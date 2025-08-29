@@ -246,18 +246,19 @@ fn generate_pacs010_xml(
 
     let doc_str = serde_json::to_string(doc_content)?;
     let dd = &mut serde_json::Deserializer::from_str(&doc_str);
-    let doc: pacs_010_001_03::FinancialInstitutionDirectDebitV03 = deserialize(dd).map_err(|e| {
-        let path = e.path().to_string();
-        let inner_err = e.into_inner().to_string();
-        error!(
-            "Failed to parse pacs.010 document at path '{}': {}",
-            path, inner_err
-        );
-        format!(
-            "Failed to parse pacs.010 document at path '{}': {}",
-            path, inner_err
-        )
-    })?;
+    let doc: pacs_010_001_03::FinancialInstitutionDirectDebitV03 =
+        deserialize(dd).map_err(|e| {
+            let path = e.path().to_string();
+            let inner_err = e.into_inner().to_string();
+            error!(
+                "Failed to parse pacs.010 document at path '{}': {}",
+                path, inner_err
+            );
+            format!(
+                "Failed to parse pacs.010 document at path '{}': {}",
+                path, inner_err
+            )
+        })?;
 
     let envelope = MxEnvelope::new(
         header,

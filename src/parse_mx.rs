@@ -748,10 +748,9 @@ impl ParseMX {
                 }
             }
             "pacs.010.001.03" => {
-                let document = match from_str::<
-                    pacs_010_001_03::FinancialInstitutionDirectDebitV03,
-                >(document_content)
-                {
+                let document = match from_str::<pacs_010_001_03::FinancialInstitutionDirectDebitV03>(
+                    document_content,
+                ) {
                     Ok(document) => document,
                     Err(e) => {
                         error!("Failed to parse pacs.010 document: {:?}", e);
@@ -923,29 +922,29 @@ impl ParseMX {
                 }
             }
             "camt.054.001.08" => {
-                let document =
-                    match from_str::<camt_054_001_08::BankToCustomerDebitCreditNotificationV08>(
-                        document_content,
-                    ) {
-                        Ok(document) => document,
-                        Err(e) => {
-                            error!("Failed to parse camt.054 document: {:?}", e);
-                            error!(
-                                "Document content sample (first 1000 chars): {}",
-                                &document_content[..document_content.len().min(1000)]
-                            );
+                let document = match from_str::<
+                    camt_054_001_08::BankToCustomerDebitCreditNotificationV08,
+                >(document_content)
+                {
+                    Ok(document) => document,
+                    Err(e) => {
+                        error!("Failed to parse camt.054 document: {:?}", e);
+                        error!(
+                            "Document content sample (first 1000 chars): {}",
+                            &document_content[..document_content.len().min(1000)]
+                        );
 
-                            // Try to provide more specific error location information
-                            let error_msg = Self::analyze_xml_parsing_error(
-                                "camt.054",
-                                &e.to_string(),
-                                document_content,
-                            );
-                            return Err(DataflowError::Validation(format!(
-                                "Failed to parse camt.054 document: {error_msg}"
-                            )));
-                        }
-                    };
+                        // Try to provide more specific error location information
+                        let error_msg = Self::analyze_xml_parsing_error(
+                            "camt.054",
+                            &e.to_string(),
+                            document_content,
+                        );
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse camt.054 document: {error_msg}"
+                        )));
+                    }
+                };
                 match serde_json::to_value(document) {
                     Ok(value) => Ok(value),
                     Err(e) => Err(DataflowError::Validation(format!(

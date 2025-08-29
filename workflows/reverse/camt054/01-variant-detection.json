@@ -2,11 +2,12 @@
     "id": "camt054-variant-detection",
     "name": "camt.054 Variant Detection and Target Message Determination",
     "description": "Detects which MT message type to translate to based on indicators and preconditions",
-    "priority": 1,
+    "priority": 2,
     "condition": { "and": [
-        {"==": [{"var": "data.ISO20022_MX.message_type"}, "camt.054"]},
-        {"==": [{"var": "data.ISO20022_MX.message_version"}, "001.08"]},
-        {"==": [{"var": "progress.workflow_id"}, "parse-mx"]},
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.054.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "progress.workflow_id"}, "mx-parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mx_message"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
@@ -21,11 +22,11 @@
                         {
                             "path": "temp_data.trans103_indicator",
                             "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.AddtlNtfctnInf"},
+                                {"var": "data.ISO20022_MX.document.Ntfctn.0.AddtlNtfctnInf"},
                                 {
                                     "in": [
                                         "/TRANS103/",
-                                        {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.AddtlNtfctnInf"}
+                                        {"var": "data.ISO20022_MX.document.Ntfctn.0.AddtlNtfctnInf"}
                                     ]
                                 },
                                 false
@@ -34,11 +35,11 @@
                         {
                             "path": "temp_data.trans202_indicator",
                             "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.AddtlNtfctnInf"},
+                                {"var": "data.ISO20022_MX.document.Ntfctn.0.AddtlNtfctnInf"},
                                 {
                                     "in": [
                                         "/TRANS202/",
-                                        {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.AddtlNtfctnInf"}
+                                        {"var": "data.ISO20022_MX.document.Ntfctn.0.AddtlNtfctnInf"}
                                     ]
                                 },
                                 false
@@ -58,11 +59,11 @@
                     "mappings": [
                         {
                             "path": "temp_data.entry_status_valid",
-                            "logic": {"==": [{"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.Sts"}, "BOOK"]}
+                            "logic": {"==": [{"var": "data.ISO20022_MX.document.Ntfctn.0.Ntry.0.Sts.Cd"}, "BOOK"]}
                         },
                         {
                             "path": "temp_data.credit_debit_indicator",
-                            "logic": {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.CdtDbtInd"}
+                            "logic": {"var": "data.ISO20022_MX.document.Ntfctn.0.Ntry.0.CdtDbtInd"}
                         }
                     ]
                 }
@@ -79,10 +80,10 @@
                         {
                             "path": "temp_data.single_occurrence",
                             "logic": { "and": [
-                                {"<=": [{"count": {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn"}}, 1]},
-                                {"<=": [{"count": {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry"}}, 1]},
-                                {"<=": [{"count": {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls"}}, 1]},
-                                {"<=": [{"count": {"var": "data.ISO20022_MX.document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls"}}, 1]}
+                                {"<=": [{"length": {"var": "data.ISO20022_MX.document.Ntfctn"}}, 1]},
+                                {"<=": [{"length": {"var": "data.ISO20022_MX.document.Ntfctn.0.Ntry"}}, 1]},
+                                {"<=": [{"length": {"var": "data.ISO20022_MX.document.Ntfctn.0.Ntry.0.NtryDtls"}}, 1]},
+                                {"<=": [{"length": {"var": "data.ISO20022_MX.document.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls"}}, 1]}
                             ]}
                         }
                     ]
@@ -147,6 +148,14 @@
                                     ]}
                                 ]}
                             ]}
+                        },
+                        {
+                            "path": "metadata.SwiftMT.variant",
+                            "logic": {"var": "data.SwiftMT.variant"}
+                        },
+                        {
+                            "path": "metadata.SwiftMT.message_type",
+                            "logic": {"var": "data.SwiftMT.message_type"}
                         }
                     ]
                 }

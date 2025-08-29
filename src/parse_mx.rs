@@ -465,6 +465,28 @@ impl ParseMX {
                     }
                 }
             }
+            "camt.054.001.08" => {
+                let header = match from_str::<bah_camt_054_001::BusinessApplicationHeaderV02>(
+                    app_hdr_content,
+                ) {
+                    Ok(header) => header,
+                    Err(e) => {
+                        error!("Failed to parse header: {:?}", e);
+                        return Err(DataflowError::Validation(format!(
+                            "Failed to parse camt.054 header: {e}"
+                        )));
+                    }
+                };
+                match serde_json::to_value(header) {
+                    Ok(value) => Ok(value),
+                    Err(e) => {
+                        error!("Failed to convert header: {:?}", e);
+                        Err(DataflowError::Validation(format!(
+                            "Failed to convert header to value: {e}"
+                        )))
+                    }
+                }
+            }
             "camt.029.001.09" => {
                 let header = match from_str::<bah_camt_029_001::BusinessApplicationHeaderV02>(
                     app_hdr_content,
@@ -897,6 +919,37 @@ impl ParseMX {
                     Ok(value) => Ok(value),
                     Err(e) => Err(DataflowError::Validation(format!(
                         "Failed to convert camt.053 document to value: {e}"
+                    ))),
+                }
+            }
+            "camt.054.001.08" => {
+                let document =
+                    match from_str::<camt_054_001_08::BankToCustomerDebitCreditNotificationV08>(
+                        document_content,
+                    ) {
+                        Ok(document) => document,
+                        Err(e) => {
+                            error!("Failed to parse camt.054 document: {:?}", e);
+                            error!(
+                                "Document content sample (first 1000 chars): {}",
+                                &document_content[..document_content.len().min(1000)]
+                            );
+
+                            // Try to provide more specific error location information
+                            let error_msg = Self::analyze_xml_parsing_error(
+                                "camt.054",
+                                &e.to_string(),
+                                document_content,
+                            );
+                            return Err(DataflowError::Validation(format!(
+                                "Failed to parse camt.054 document: {error_msg}"
+                            )));
+                        }
+                    };
+                match serde_json::to_value(document) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(DataflowError::Validation(format!(
+                        "Failed to convert camt.054 document to value: {e}"
                     ))),
                 }
             }

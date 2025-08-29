@@ -1,39 +1,32 @@
 {
-    "description": "camt.054 CBPR+ to MT103 Customer Notification (Enhanced)",
+    "description": "camt.054 CBPR+ to MT202 Bank-to-Bank Notification",
     "source_type": "camt.054",
-    "target_type": "MT103",
-    "variant": "CBPR+_CUSTOMER_NOTIFICATION",
+    "target_type": "MT202",
+    "variant": "CBPR+_BANK_NOTIFICATION",
     "variables": {
-        "msg_id": {"cat": ["NOTIF", {"fake": ["i64", 10000000, 99999999]}]},
+        "msg_id": {"cat": ["BANK", {"fake": ["i64", 10000000, 99999999]}]},
         "uetr": {"fake": ["uuid"]},
         "creation_datetime": {"fake": ["iso8601_datetime"]},
         "sender_bic": {"fake": ["bic"]},
         "receiver_bic": {"fake": ["bic"]},
+        "debtor_agent_bic": {"fake": ["bic"]},
+        "creditor_agent_bic": {"fake": ["bic"]},
+        "intermediary_bic": {"fake": ["bic"]},
         "acct_id": {"cat": ["ACC", {"fake": ["i64", 100000, 999999]}]},
         "entry_ref": {"cat": ["REF", {"fake": ["i64", 100000, 999999]}]},
-        "amount": {"fake": ["f64", 1000.0, 50000.0]},
-        "instructed_amount": {"fake": ["f64", 1000.0, 50000.0]},
+        "amount": {"fake": ["f64", 10000.0, 500000.0]},
         "currency": "USD",
-        "instructed_currency": "EUR",
-        "exchange_rate": {"fake": ["f64", 0.8, 1.2]},
         "value_date": {
             "fake": ["date", "%Y-%m-%d", "0d", "0d"]
         },
         "settlement_date": {
             "fake": ["date", "%Y-%m-%d", "0d", "0d"]
         },
-        "ordering_customer": {"fake": ["name"]},
-        "ordering_customer_addr": {"fake": ["street_address"]},
-        "ordering_customer_country": {"fake": ["country_code"]},
-        "beneficiary": {"fake": ["name"]},
-        "beneficiary_addr": {"fake": ["street_address"]},
-        "beneficiary_country": {"fake": ["country_code"]},
-        "debtor_agent_bic": {"fake": ["bic"]},
-        "creditor_agent_bic": {"fake": ["bic"]},
-        "intermediary_bic": {"fake": ["bic"]},
-        "remittance_info": {"fake": ["words", 3, 7]},
-        "charges_amount": {"fake": ["f64", 10.0, 100.0]},
-        "acceptance_datetime": {"fake": ["iso8601_datetime"]}
+        "trans_ref": {"cat": ["TRN", {"fake": ["i64", 100000, 999999]}]},
+        "instr_id": {"cat": ["INST", {"fake": ["i64", 100000, 999999]}]},
+        "end_to_end_id": {"cat": ["E2E", {"fake": ["i64", 100000, 999999]}]},
+        "acceptance_datetime": {"fake": ["iso8601_datetime"]},
+        "additional_info": {"fake": ["words", 3, 7]}
     },
     "schema": {
         "AppHdr": {
@@ -46,16 +39,18 @@
         },
         "Document": {
             "BkToCstmrDbtCdtNtfctn": {
-                "GrpHdr": {"MsgId": {"var": "msg_id"}, "CreDtTm": {"var": "creation_datetime"}},
+                "GrpHdr": {
+                    "MsgId": {"var": "msg_id"},
+                    "CreDtTm": {"var": "creation_datetime"}
+                },
                 "Ntfctn": [
                     {
                         "Id": {"var": "acct_id"},
                         "CreDtTm": {"var": "creation_datetime"},
-                        "AddtlNtfctnInf": "/TRANS103/",
+                        "AddtlNtfctnInf": "/TRANS202/",
                         "Acct": {
-                            "Id": {"IBAN": {"cat": ["GB82WEST", {"fake": ["i64", 10000000000, 99999999999]}]}},
-                            "Ccy": {"var": "currency"},
-                            "Ownr": {"Nm": {"var": "beneficiary"}}
+                            "Id": {"Othr": {"Id": {"var": "acct_id"}}},
+                            "Ccy": {"var": "currency"}
                         },
                         "Ntry": [
                             {
@@ -65,15 +60,23 @@
                                 "Sts": {"Cd": "BOOK"},
                                 "BookgDt": {"Dt": {"var": "value_date"}},
                                 "ValDt": {"Dt": {"var": "value_date"}},
-                                "BkTxCd": {"Domn": {"Cd": "PMNT", "Fmly": {"Cd": "RCDT", "SubFmlyCd": "XBCT"}}},
+                                "BkTxCd": {
+                                    "Domn": {
+                                        "Cd": "PMNT",
+                                        "Fmly": {
+                                            "Cd": "RCDT",
+                                            "SubFmlyCd": "XBCT"
+                                        }
+                                    }
+                                },
                                 "NtryDtls": [
                                     {
                                         "TxDtls": [
                                             {
                                                 "Refs": {
-                                                    "InstrId": {"cat": ["INSTR", {"fake": ["i64", 100000, 999999]}]},
-                                                    "EndToEndId": {"cat": ["E2E", {"fake": ["i64", 100000, 999999]}]},
-                                                    "TxId": {"cat": ["TX", {"fake": ["i64", 100000, 999999]}]},
+                                                    "InstrId": {"var": "instr_id"},
+                                                    "EndToEndId": {"var": "end_to_end_id"},
+                                                    "TxId": {"var": "trans_ref"},
                                                     "UETR": {"var": "uetr"}
                                                 },
                                                 "RltdDts": {
@@ -81,34 +84,19 @@
                                                     "IntrBkSttlmDt": {"var": "settlement_date"}
                                                 },
                                                 "Amt": {"@Ccy": {"var": "currency"}, "$value": {"var": "amount"}},
-                                                "AmtDtls": {
-                                                    "InstdAmt": {
-                                                        "Amt": {"@Ccy": {"var": "instructed_currency"}, "$value": {"var": "instructed_amount"}},
-                                                        "CcyXchg": {
-                                                            "SrcCcy": {"var": "instructed_currency"},
-                                                            "TrgtCcy": {"var": "currency"},
-                                                            "XchgRate": {"var": "exchange_rate"}
-                                                        }
-                                                    }
-                                                },
                                                 "CdtDbtInd": "CRDT",
-                                                "ChrgBr": "SHAR",
                                                 "RltdPties": {
                                                     "Dbtr": {
-                                                        "Pty": {
-                                                            "Nm": {"var": "ordering_customer"},
-                                                            "PstlAdr": {
-                                                                "AdrLine": [{"var": "ordering_customer_addr"}],
-                                                                "Ctry": {"var": "ordering_customer_country"}
+                                                        "Agt": {
+                                                            "FinInstnId": {
+                                                                "BICFI": {"var": "debtor_agent_bic"}
                                                             }
                                                         }
                                                     },
                                                     "Cdtr": {
-                                                        "Pty": {
-                                                            "Nm": {"var": "beneficiary"},
-                                                            "PstlAdr": {
-                                                                "AdrLine": [{"var": "beneficiary_addr"}],
-                                                                "Ctry": {"var": "beneficiary_country"}
+                                                        "Agt": {
+                                                            "FinInstnId": {
+                                                                "BICFI": {"var": "creditor_agent_bic"}
                                                             }
                                                         }
                                                     }
@@ -130,7 +118,7 @@
                                                         }
                                                     }
                                                 },
-                                                "RmtInf": {"Ustrd": {"var": "remittance_info"}}
+                                                "AddtlTxInf": {"var": "additional_info"}
                                             }
                                         ]
                                     }

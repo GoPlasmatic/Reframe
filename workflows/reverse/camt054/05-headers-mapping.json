@@ -2,7 +2,7 @@
     "id": "camt054-headers-mapping",
     "name": "camt.054 Headers Mapping",
     "description": "Maps headers for all camt.054 variants (MT103 Advice, MT202 Advice, MT900, MT910)",
-    "priority": 5,
+    "priority": 4,
     "condition": { "and": [
         {
             "in": [
@@ -10,22 +10,15 @@
                 ["MT103_ADVICE", "MT202_ADVICE", "MT900", "MT910"]
             ]
         },
-        { "or": [
-            { "and": [
-                {"==": [{"var": "SwiftMT.variant"}, "MT103_ADVICE"]},
-                {"==": [{"var": "progress.workflow_id"}, "camt054-to-mt103-preconditions"]},
-                {"var": "temp_data.mt103_preconditions_met"}
-            ]},
-            { "and": [
-                {"==": [{"var": "SwiftMT.variant"}, "MT202_ADVICE"]},
-                {"==": [{"var": "progress.workflow_id"}, "camt054-to-mt202-preconditions"]},
-                {"var": "temp_data.mt202_preconditions_met"}
-            ]},
-            { "and": [
-                {"in": [{"var": "SwiftMT.variant"}, ["MT900", "MT910"]]},
-                {"==": [{"var": "progress.workflow_id"}, "camt054-to-mt9x0-preconditions"]},
-                {"var": "temp_data.mt9x0_preconditions_met"}
-            ]}
+        {"==": [{"var": "ISO20022_MX.message_type"}, "camt.054.001.08"]},
+        {"==": [{"var": "transformation_direction"}, "mx-to-mt"]},
+        {"starts_with": [{"var": "progress.task_id"}, "validate_"]},
+        {"in": [
+            {"var": "progress.workflow_id"}, [
+                "camt054-to-mt103-preconditions",
+                "camt054-to-mt202-preconditions",
+                "camt054-to-mt9x0-preconditions"
+            ]
         ]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
@@ -43,16 +36,37 @@
                             "logic": {
                                 "application_id": "F",
                                 "service_id": "01",
-                                "sender_bic": { "if": [
-                                    {"var": "data.ISO20022_MX.header.From.FinancialInstitutionIdentification.BICFI"},
-                                    {"var": "data.ISO20022_MX.header.From.FinancialInstitutionIdentification.BICFI"},
-                                    "NOTPROVIDED"
+                                "sender_bic": {
+                                    "substr": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, 0, 8]
+                                },
+                                "logical_terminal": { "if": [
+                                    {"==": [{"length": {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}}, 8]},
+                                    {"cat": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, "AXXX"]},
+                                    { "if": [
+                                        {"==": [{"length": {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}}, 11]},
+                                        {
+                                            "cat": [
+                                                {
+                                                    "substr": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, 0, 8]
+                                                },
+                                                "A",
+                                                {
+                                                    "substr": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, 8, 3]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "cat": [
+                                                {
+                                                    "substr": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, 0, 8]
+                                                },
+                                                "AXXX"
+                                            ]
+                                        }
+                                    ]}
                                 ]},
-                                "receiver_bic": { "if": [
-                                    {"var": "data.ISO20022_MX.header.To.FinancialInstitutionIdentification.BICFI"},
-                                    {"var": "data.ISO20022_MX.header.To.FinancialInstitutionIdentification.BICFI"},
-                                    "NOTPROVIDED"
-                                ]}
+                                "session_number": "0000",
+                                "sequence_number": "000000"
                             }
                         }
                     ]
@@ -70,12 +84,40 @@
                         {
                             "path": "data.SwiftMT.application_header",
                             "logic": {
-                                "input_output_identifier": "O",
+                                "direction": "O",
                                 "message_type": {"var": "data.SwiftMT.message_type"},
-                                "receiver_bic": {"var": "data.SwiftMT.basic_header.receiver_bic"},
+                                "receiver_bic": {
+                                    "substr": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, 0, 8]
+                                },
+                                "destination_address": { "if": [
+                                    {"==": [{"length": {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}}, 8]},
+                                    {"cat": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, "AXXX"]},
+                                    { "if": [
+                                        {"==": [{"length": {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}}, 11]},
+                                        {
+                                            "cat": [
+                                                {
+                                                    "substr": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, 0, 8]
+                                                },
+                                                "A",
+                                                {
+                                                    "substr": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, 8, 3]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "cat": [
+                                                {
+                                                    "substr": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, 0, 8]
+                                                },
+                                                "AXXX"
+                                            ]
+                                        }
+                                    ]}
+                                ]},
                                 "priority": "N",
-                                "delivery_monitoring": "",
-                                "obsolescence_period": ""
+                                "delivery_monitoring": "2",
+                                "obsolescence_period": "003"
                             }
                         }
                     ]
@@ -111,7 +153,7 @@
                         {
                             "path": "data.SwiftMT.application_header.priority",
                             "logic": { "if": [
-                                {">": [{"var": "temp_data.txn_path.Amt"}, 1000000]},
+                                {">": [{"var": "temp_data.txn_path.Amt.$value"}, 1000000]},
                                 "U",
                                 "N"
                             ]}

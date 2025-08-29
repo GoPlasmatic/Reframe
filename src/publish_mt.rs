@@ -9,7 +9,7 @@ use serde_json::Value;
 use swift_mt_message::SwiftMessage;
 use swift_mt_message::messages::{
     MT101, MT103, MT104, MT110, MT111, MT112, MT190, MT191, MT192, MT196, MT199, MT202, MT204, MT205, MT210, 
-    MT290, MT291, MT292, MT296, MT299, MT940, MT942,
+    MT290, MT291, MT292, MT296, MT299, MT900, MT910, MT940, MT942,
 };
 use tracing::{debug, error, instrument};
 
@@ -91,6 +91,8 @@ fn parse_mt_by_type(json_str: &str, mt_type: &str) -> Result<String> {
         "292" => MT292,
         "296" => MT296,
         "299" => MT299,
+        "900" => MT900,
+        "910" => MT910,
         "940" => MT940,
         "942" => MT942
     )
@@ -195,6 +197,7 @@ impl AsyncFunctionHandler for PublishMT {
             "camt.029.001.09" => vec!["196", "296"],
             "camt.052.001.08" => vec!["942"],
             "camt.053.001.08" => vec!["940"],
+            "camt.054.001.08" => vec!["103", "202", "900", "910"],
             "camt.056.001.08" => vec!["192", "292"],
             "camt.057.001.06" => vec!["210"],
             "camt.058.001.08" => vec!["292"],

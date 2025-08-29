@@ -23,14 +23,7 @@ RUN mkdir src && \
 # Copy source code and other files
 COPY src/ ./src/
 COPY workflows/ ./workflows/
-
-# Clone scenario repositories from GitHub
-RUN mkdir -p scenarios && \
-    git clone --depth 1 https://github.com/GoPlasmatic/SwiftMTMessage.git /tmp/SwiftMTMessage && \
-    git clone --depth 1 https://github.com/GoPlasmatic/MXMessage.git /tmp/MXMessage && \
-    cp -r /tmp/SwiftMTMessage/test_scenarios scenarios/SwiftMTMessage && \
-    cp -r /tmp/MXMessage/test_scenarios scenarios/MXMessage && \
-    rm -rf /tmp/SwiftMTMessage /tmp/MXMessage
+COPY scenarios/ ./scenarios/
 
 # Build the application
 RUN touch src/main.rs && cargo build --release

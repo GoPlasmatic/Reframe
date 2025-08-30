@@ -1,77 +1,148 @@
 # Reframe Test Suite
 
-This directory contains the test suite for the Reframe SWIFT MT ↔ ISO 20022 transformation service.
+Comprehensive testing framework for the Reframe SWIFT MT ↔ ISO 20022 transformation service, including functional validation, scenario testing, and performance benchmarking.
+
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [Test Components](#test-components)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Functional Testing](#functional-testing)
+- [Performance Testing](#performance-testing)
+- [Test Scripts Reference](#test-scripts-reference)
+- [CI/CD Integration](#cicd-integration)
+- [Troubleshooting](#troubleshooting)
 
 ## Overview
 
-The `test_scenarios.py` script implements an 8-step validation flow for testing SWIFT MT and ISO 20022 MX message transformations:
+The Reframe test suite provides comprehensive testing capabilities across three key areas:
 
-1. **List scenarios** - Discovers all applicable scenarios for a message type
-2. **Generate sample** - Creates sample messages using the Sample Generation API
-3. **Validate source** - Validates generated message with canonical enabled
-4. **Transform** - Transforms message using the Transformation API
-5. **Extract result** - Extracts the transformed message data
-6. **Validate transformed** - Validates transformed message with debug and canonical enabled
-7. **Reverse transform** - Performs reverse transformation to original format
-8. **Compare roundtrip** - Compares roundtrip result with original message
+1. **Functional Testing** - Validates message transformations, generation, and validation
+2. **Scenario Testing** - Tests real-world transformation scenarios with various message types
+3. **Performance Testing** - Measures throughput, latency, and resource utilization to validate vertical scaling improvements
 
-## Current Implementation Status
+## Test Components
 
-### Working Features
-✅ Scenario discovery from `scenarios/index.json`  
-✅ MT message validation with canonical option  
-✅ MT to MX transformation (produces XML with Envelope)  
-✅ Test result reporting with detailed status tracking  
-✅ Summary statistics generation  
+### 🧪 Functional Test Scripts
 
-### Known Limitations
-⚠️ **Sample Generation** - Currently using hardcoded MT103 test message as the `/generate/sample` endpoint requires scenario files in `scenarios/SwiftMTMessage/` format which don't exist yet
+| Script | Purpose | Key Features |
+|--------|---------|--------------|
+| `test_scenarios.py` | End-to-end transformation testing | 8-step validation flow, roundtrip testing |
+| `generate_sample.py` | Sample message generation | Support for MT and MX messages with scenarios |
+| `validate_sample.py` | Message validation testing | Combined generation and validation workflow |
 
-⚠️ **MX Validation** - The transformed XML includes an Envelope structure that the `/validate/mx` endpoint cannot parse (returns "Failed to extract document content")
+### 📊 Performance Test Scripts
 
-⚠️ **Roundtrip Testing** - Reverse transformation (MX to MT) fails due to the Envelope format issue, preventing full roundtrip validation
+| Script | Purpose | Key Features |
+|--------|---------|--------------|
+| `performance_test.py` | Comprehensive performance testing | Load, stress, spike, endurance tests |
+| `run_baseline_test.sh` | Full baseline test suite | Automated baseline metrics collection |
+| `quick_baseline_test.sh` | Quick performance check | Fast validation of key metrics |
 
-## Requirements
+## Installation
+
+### Prerequisites
+
+- Python 3.6+ 
+- Rust and Cargo (for running Reframe)
+- Unix-like environment (macOS/Linux)
+
+### Python Dependencies
 
 ```bash
-# Install Python dependencies
-pip install tabulate
+# Required dependencies
+pip3 install requests tabulate
+
+# Optional performance monitoring dependencies
+pip3 install psutil numpy  # For enhanced metrics
+
+# Optional for Apache Bench testing
+# macOS
+brew install ab
+# Ubuntu/Debian
+apt-get install apache2-utils
 ```
 
-The test script requires Python 3.6+ with the following modules:
-- `json`, `requests`, `argparse`, `pathlib`, `datetime`, `time`, `collections` (standard library)
-- `tabulate` (for table formatting)
+## Quick Start
 
-## Test Script Features
+### 1. Start Reframe Server
 
-### `test_scenarios.py` - Transformation Testing
+```bash
+# Build and run in release mode for accurate performance testing
+cargo build --release
+RUST_LOG=info cargo run --release
+```
 
-The script provides comprehensive testing with the following components:
+### 2. Run Basic Tests
 
-#### Main Components
-- **ReframeAPIClient** - HTTP client for API interactions
-- **ScenarioManager** - Discovers and loads transformation scenarios
-- **MessageGenerator** - Handles message generation (simplified version)
-- **ScenarioTester** - Main test orchestrator implementing the 8-step flow
-- **ResultsReporter** - Formats and exports test results
+```bash
+# Functional test - validate MT103 transformation
+python3 test/test_scenarios.py -m MT103
 
-#### Configuration Classes
-- **APIEndpoints** - API endpoint configuration
-- **ScenarioMapping** - Maps scenario names to generation templates
-- **TestResult** - Individual test result tracking
+# Generate sample message
+python3 test/generate_sample.py MT103 -s standard
 
-### `generate_sample.py` - Sample Message Generation
+# Quick performance check
+./test/quick_baseline_test.sh
+```
 
-Generates sample SWIFT MT or ISO 20022 messages using the Reframe API's `/generate/sample` endpoint.
+## Functional Testing
 
-#### Features
-- Generate samples for any supported message type
-- Specify scenarios for different message variations
-- Pretty-print XML output
-- Save generated messages to files
-- Debug mode for troubleshooting
+### test_scenarios.py - Transformation Testing
+
+Implements an 8-step validation flow for comprehensive transformation testing:
+
+1. **List scenarios** - Discovers applicable scenarios
+2. **Generate sample** - Creates test messages
+3. **Validate source** - Validates generated message
+4. **Transform** - Performs transformation
+5. **Extract result** - Extracts transformed data
+6. **Validate transformed** - Validates result
+7. **Reverse transform** - Tests roundtrip
+8. **Compare roundtrip** - Verifies consistency
 
 #### Usage Examples
+
+```bash
+# List all available message types
+python3 test_scenarios.py --list-types
+
+# Test specific message type
+python3 test_scenarios.py -m MT103
+
+# Test with specific scenarios
+python3 test_scenarios.py -m MT103 -s standard high_value
+
+# Test with multiple samples per scenario
+python3 test_scenarios.py -m pacs.008 --sample-count 5
+
+# Enable debug output
+python3 test_scenarios.py -m MT202 --debug
+
+# Export results to JSON
+python3 test_scenarios.py -m camt.054 --export
+```
+
+#### Command-line Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--message-type` | `-m` | Message type to test (e.g., MT103, pacs.008) |
+| `--scenario` | `-s` | Specific scenario(s) to test |
+| `--sample-count` | `-c` | Number of samples per scenario (default: 1) |
+| `--debug` | `-d` | Enable debug output |
+| `--export` | `-e` | Export results to JSON file |
+| `--base-url` | `-u` | Base URL of service (default: http://localhost:3000) |
+| `--list-types` | `-l` | List all available message types |
+| `--list-scenarios` | | List scenarios for a message type |
+
+### generate_sample.py - Sample Generation
+
+Generates sample SWIFT MT or ISO 20022 messages using the Reframe API.
+
+#### Usage Examples
+
 ```bash
 # Generate MT103 with standard scenario
 python3 generate_sample.py MT103 -s standard
@@ -86,83 +157,11 @@ python3 generate_sample.py camt.052 -o sample.xml
 python3 generate_sample.py MT202 -s correspondent -d
 ```
 
-### `validate_sample.py` - Generate and Validate Messages
-
-Combines generation and validation in a single workflow - generates a sample message and immediately validates it.
-
-#### Features
-- Generates sample messages using scenarios
-- Auto-detects MT vs MX message types
-- Validates with configurable options (business rules, canonical format)
-- Displays formatted validation results
-- Shows validation errors and warnings
-- Returns appropriate exit codes for CI/CD
-
-#### Usage Examples
-```bash
-# Generate and validate MT101 with single_payment scenario
-python3 validate_sample.py MT101 -s single_payment
-
-# Validate with business rules enabled
-python3 validate_sample.py pacs.008 -s cbpr_standard -b
-
-# Show generated message before validation (verbose mode)
-python3 validate_sample.py MT103 -s standard -v
-
-# Get raw JSON validation response
-python3 validate_sample.py MT202 -j
-
-# Full validation with all options
-python3 validate_sample.py camt.052 -s account_statement -v -b -f
-```
-
-## Usage
-
-### Basic Commands
-
-```bash
-# List all available message types
-python test_scenarios.py --list-types
-
-# List scenarios for a specific message type
-python test_scenarios.py --list-scenarios --message-type MT103
-
-# Test a specific message type with all scenarios
-python test_scenarios.py --message-type MT103
-
-# Test specific scenarios
-python test_scenarios.py -m MT103 -s standard high_value
-
-# Test with multiple samples per scenario
-python test_scenarios.py -m pacs.008 --sample-count 3
-
-# Enable debug output
-python test_scenarios.py -m MT202 --debug
-
-# Export results to JSON
-python test_scenarios.py -m camt.054 --export
-```
-
-### Command-line Options
-
-#### test_scenarios.py Options
+#### Command-line Options
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--message-type` | `-m` | Message type to test (e.g., MT103, pacs.008) |
-| `--scenario` | `-s` | Specific scenario(s) to test |
-| `--sample-count` | `-c` | Number of samples per scenario (default: 1) |
-| `--debug` | `-d` | Enable debug output |
-| `--export` | `-e` | Export results to JSON file |
-| `--base-url` | `-u` | Base URL of the service (default: http://localhost:3000) |
-| `--list-types` | `-l` | List all available message types |
-| `--list-scenarios` | | List scenarios for a message type |
-
-#### generate_sample.py Options
-
-| Option | Short | Description |
-|--------|-------|-------------|
-| `message_type` | | Message type to generate (positional argument) |
+| `message_type` | | Message type to generate (positional) |
 | `--scenario` | `-s` | Scenario to use for generation |
 | `--host` | `-H` | API host URL (default: http://localhost:3000) |
 | `--debug` | `-d` | Enable debug output |
@@ -170,232 +169,387 @@ python test_scenarios.py -m camt.054 --export
 | `--output` | `-o` | Output file (default: stdout) |
 | `--pretty` | `-p` | Pretty print XML output |
 
-#### validate_sample.py Options
+### validate_sample.py - Validation Testing
+
+Combines generation and validation in a single workflow.
+
+#### Usage Examples
+
+```bash
+# Generate and validate MT101
+python3 validate_sample.py MT101 -s single_payment
+
+# Validate with business rules
+python3 validate_sample.py pacs.008 -s cbpr_standard -b
+
+# Verbose mode with generated message display
+python3 validate_sample.py MT103 -s standard -v
+
+# Full validation with all options
+python3 validate_sample.py camt.052 -s cbpr -v -b -f
+```
+
+#### Command-line Options
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `message_type` | | Message type to generate and validate (positional argument) |
-| `--scenario` | `-s` | Scenario to use for generation |
-| `--host` | `-H` | API host URL (default: http://localhost:3000) |
-| `--debug` | `-d` | Enable debug output for generation |
-| `--business-validation` | `-b` | Enable business rule validation |
+| `message_type` | | Message type to validate (positional) |
+| `--scenario` | `-s` | Scenario to use |
+| `--host` | `-H` | API host URL |
+| `--debug` | `-d` | Enable debug output |
+| `--business-validation` | `-b` | Enable business rules |
 | `--no-canonical` | `-nc` | Disable canonical format |
-| `--fail-fast` | `-f` | Stop validation on first error |
+| `--fail-fast` | `-f` | Stop on first error |
 | `--json` | `-j` | Output raw JSON response |
-| `--verbose` | `-v` | Show generated message before validation |
+| `--verbose` | `-v` | Show generated message |
 
-## Understanding Test Results
+## Performance Testing
 
-### Result Table
+### performance_test.py - Comprehensive Performance Testing
 
-The test results are displayed in a formatted table with the following columns:
+Advanced performance testing framework designed to measure and validate vertical scaling improvements as documented in `scaling.md`.
 
-| Column | Description |
-|--------|-------------|
-| Message Type | The message type being tested (e.g., MT103, pacs.008) |
-| Scenario | The scenario name (truncated if too long) |
-| Sample | Sample number (when multiple samples are generated) |
-| Generator | ✅ Success / ❌ Failed - Message generation status |
-| Validator | ✅ Success / ❌ Failed - Message validation status |
-| Transform | ✅ Success / ❌ Failed - Transformation status |
-| Round Trip | ✅ Success / ⚠️ Warning / ❌ Failed / — Skipped - Round-trip test status |
-| Errors | Error message summary |
+#### Key Metrics Measured
 
-### Status Indicators
+- **Throughput**: Requests per second (RPS)
+- **Latency**: P50, P95, P99 percentiles
+- **CPU Usage**: Reframe process CPU utilization
+- **Memory Usage**: RSS (Resident Set Size)
+- **Thread Count**: Number of active threads
+- **Error Rates**: Failed request percentage
 
-- ✅ **Success**: Operation completed successfully
-- ❌ **Failed**: Operation failed
-- ⚠️ **Warning**: Partial success or known limitation
-- — **Skipped**: Step skipped due to previous failure or limitation
+#### Test Types
 
-### Example Output
+##### 1. Baseline Test
+Single-threaded sequential test to establish baseline performance.
 
-```
-Testing MT103 with 5 scenario(s), 1 sample(s) each...
-
-+----------------+--------------------------------+----------+-------------+-------------+-------------+--------------+----------------------+
-| Message Type   | Scenario                       |   Sample | Generator   | Validator   | Transform   | Round Trip   | Errors               |
-+================+================================+==========+=============+=============+=============+==============+======================+
-| MT103          | mt103_to_pacs008_cbpr_standard |        1 | ✅           | ✅           | ✅           | —            | MX validation skippe |
-+----------------+--------------------------------+----------+-------------+-------------+-------------+--------------+----------------------+
-| MT103          | mt103_to_pacs008_cbpr_high_... |        1 | ✅           | ✅           | ✅           | —            | MX validation skippe |
-+----------------+--------------------------------+----------+-------------+-------------+-------------+--------------+----------------------+
-
-================================================================================
-TEST SUMMARY
-================================================================================
-Total tests: 5
-Generation Success: 5/5 (100.0%)
-Validation Success: 5/5 (100.0%)
-Transformation Success: 5/5 (100.0%)
-Roundtrip Success: 0/5 (0.0%)
-
-Tests by Message Type:
-  MT Messages:
-    MT103: 5
+```bash
+python3 test/performance_test.py --baseline
 ```
 
-## Message Type Discovery
+##### 2. Load Test
+Fixed load with configurable concurrency.
 
-The script automatically discovers available message types from `scenarios/index.json` which contains:
-- Forward transformations (MT → MX) in the `forward` array
-- Reverse transformations (MX → MT) in the `reverse` array
+```bash
+# 100 concurrent connections, 1000 total requests
+python3 test/performance_test.py --test load -c 100 -n 1000
+```
 
-Each transformation entry specifies:
-- `source`: Source message type
-- `target`: Target message type
-- `file`: Workflow file path
-- `description`: Transformation description
+##### 3. Stress Test
+Gradually increasing load to find breaking point.
+
+```bash
+# Increase from 20 to 200 connections in steps
+python3 test/performance_test.py --test stress --max-concurrency 200
+```
+
+##### 4. Spike Test
+Sudden burst of traffic to test resilience.
+
+```bash
+# 500 concurrent connections for 10 seconds
+python3 test/performance_test.py --test spike -c 500
+```
+
+##### 5. Endurance Test
+Sustained load over extended period.
+
+```bash
+# 50 concurrent connections for 5 minutes
+python3 test/performance_test.py --test endurance -c 50 --duration 5
+```
+
+##### 6. Apache Bench Integration
+Industry-standard HTTP benchmarking.
+
+```bash
+# Requires ab installation
+python3 test/performance_test.py --test ab -c 100 -n 10000
+```
+
+#### Command-line Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--url` | Base URL of Reframe service | http://localhost:3000 |
+| `--test` | Test type: baseline, load, stress, spike, endurance, ab, all | - |
+| `--baseline` | Run baseline test and save results | - |
+| `-c, --concurrency` | Number of concurrent connections | 10 |
+| `-n, --requests` | Total number of requests | 1000 |
+| `--max-concurrency` | Maximum concurrency for stress test | 200 |
+| `--duration` | Duration in minutes for endurance test | 5 |
+| `--save` | Save results to JSON file | - |
+| `--compare` | Compare two result files | - |
+| `--html-report` | Generate HTML report with charts | - |
+| `--debug` | Enable debug output | - |
+
+#### Performance Comparison
+
+```bash
+# Compare baseline vs optimized results
+python3 test/performance_test.py --compare baseline.json optimized.json
+
+# Generate visual HTML report
+python3 test/performance_test.py --test stress --html-report
+```
+
+### Automated Performance Test Scripts
+
+#### run_baseline_test.sh
+Comprehensive baseline test suite that runs multiple test scenarios and saves results.
+
+```bash
+./test/run_baseline_test.sh
+```
+
+Runs:
+1. Single-threaded baseline (100 requests)
+2. Low concurrency (10 connections, 500 requests)
+3. Medium concurrency (50 connections, 1000 requests)
+4. High concurrency (100 connections, 1000 requests)
+5. Stress test (up to 100 connections)
+
+#### quick_baseline_test.sh
+Fast performance check for quick validation.
+
+```bash
+./test/quick_baseline_test.sh
+```
+
+Runs:
+1. Single-threaded baseline (100 requests)
+2. Low concurrency (10 connections, 100 requests)
+3. Medium concurrency (50 connections, 200 requests)
+
+### Expected Performance Metrics
+
+#### Current Architecture (Mutex-based)
+- **Throughput**: ~50-100 req/s
+- **CPU Usage**: 10-15% (single core on multi-core machine)
+- **P99 Latency**: 500ms-2s under load
+- **Concurrency**: 1 request at a time
+
+#### After Optimization (Target)
+- **Throughput**: ~2,000-5,000 req/s (20-50x improvement)
+- **CPU Usage**: 70-90% (all cores utilized)
+- **P99 Latency**: 50-200ms under load
+- **Concurrency**: 64+ simultaneous requests
+
+### Success Criteria Validation
+
+The performance tests validate the following criteria from `scaling.md`:
+
+- [ ] 10x throughput improvement
+- [ ] >70% CPU utilization under load
+- [ ] P99 latency <200ms at 80% capacity
+- [ ] Zero request drops under normal load
+- [ ] Graceful degradation under overload
+
+## Test Result Formats
+
+### Functional Test Results
+
+```
++----------------+----------+----------+-------------+-------------+-------------+--------------+
+| Message Type   | Scenario | Sample   | Generator   | Validator   | Transform   | Round Trip   |
++================+==========+==========+=============+=============+=============+==============+
+| MT103          | standard | 1        | ✅          | ✅          | ✅          | ✅           |
++----------------+----------+----------+-------------+-------------+-------------+--------------+
+```
+
+### Performance Test Results
+
+```
+============================================================
+Performance Test Results: Load Test (c=50)
+============================================================
+| Metric                 | Value         |
+|========================|===============|
+| Throughput             | 17.96 req/s   |
+| Latency P99            | 1526.52 ms    |
+| Reframe CPU Usage      | 13.5%         |
+| Reframe Memory (RSS)   | 705.33 MB     |
+| Reframe Threads        | 16            |
+| Concurrent Connections | 50            |
+```
+
+### JSON Export Format
+
+```json
+{
+  "test_name": "Load Test (c=50)",
+  "timestamp": "2025-08-30T17:30:00",
+  "duration_seconds": 28.15,
+  "total_requests": 200,
+  "successful_requests": 200,
+  "throughput_rps": 7.10,
+  "latency_p99_ms": 7766.74,
+  "cpu_usage_percent": 13.5,
+  "memory_usage_mb": 705.33,
+  "error_rate_percent": 0.0
+}
+```
+
+## CI/CD Integration
+
+### GitHub Actions Example
+
+```yaml
+name: Reframe Tests
+on: [push, pull_request]
+
+jobs:
+  functional-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build Reframe
+        run: cargo build --release
+      - name: Start Reframe
+        run: |
+          RUST_LOG=info cargo run --release &
+          sleep 5
+      - name: Run functional tests
+        run: |
+          python3 test/test_scenarios.py -m MT103 --export
+      - name: Upload results
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-results
+          path: test/logs/*.json
+
+  performance-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build Reframe
+        run: cargo build --release
+      - name: Run performance baseline
+        run: |
+          RUST_LOG=info cargo run --release &
+          sleep 5
+          python3 test/performance_test.py --baseline --save baseline.json
+      - name: Check performance criteria
+        run: |
+          python3 -c "
+          import json
+          with open('baseline.json') as f:
+              data = json.load(f)
+              assert data['throughput_rps'] > 50, 'Throughput too low'
+              assert data['latency_p99_ms'] < 2000, 'Latency too high'
+          "
+```
+
+### Exit Codes
+
+- **0**: Success (tests passed)
+- **1**: Failure (tests failed or criteria not met)
 
 ## Directory Structure
 
 ```
 test/
-├── README.md              # This file
-├── test_scenarios.py      # Main test script
-├── generate_sample.py     # Sample message generator
-├── validate_sample.py     # Generate and validate messages
-└── logs/                  # Test results (created automatically)
-    └── test_results_*.json  # Timestamped test results
-```
-
-## Running Tests
-
-### 1. Start the Reframe Server
-
-```bash
-cd ..
-cargo run
-# or with logging
-RUST_LOG=info cargo run
-```
-
-### 2. Run Tests
-
-```bash
-cd test
-
-# Quick test of one message type
-python test_scenarios.py -m MT103
-
-# Test with specific scenarios
-python test_scenarios.py -m MT103 -s standard high_value
-
-# Test with multiple samples
-python test_scenarios.py -m pacs.008 -c 5
-
-# Full test with debug and export
-python test_scenarios.py -m MT202 -d -e
-
-# Discover available types
-python test_scenarios.py --list-types
-
-# List scenarios for a type
-python test_scenarios.py --list-scenarios -m MT103
-```
-
-## CI/CD Integration
-
-The script returns appropriate exit codes for CI/CD:
-- Exit code 0: Success (≥95% validation success rate)
-- Exit code 1: Failure (<95% validation success rate)
-
-Example CI/CD usage:
-```bash
-# Run tests and check exit code
-python test_scenarios.py -m MT103 -e
-if [ $? -eq 0 ]; then
-    echo "Tests passed"
-else
-    echo "Tests failed"
-    exit 1
-fi
-```
-
-## Export Format
-
-Test results can be exported to JSON with the `--export` flag:
-
-```json
-{
-  "timestamp": "2025-01-08T10:30:00",
-  "base_url": "http://localhost:3000",
-  "statistics": {
-    "total": 10,
-    "generation_success": 10,
-    "transformation_success": 8,
-    "validation_success": 10,
-    "roundtrip_success": 7,
-    "by_message_type": {
-      "MT103": 10
-    }
-  },
-  "results": [
-    {
-      "message_type": "MT103",
-      "scenario": "standard",
-      "sample": 1,
-      "generation": "✅",
-      "validation": "✅",
-      "transformation": "✅",
-      "roundtrip": "✅",
-      "errors": []
-    }
-  ]
-}
+├── README.md                    # This file
+├── test_scenarios.py            # Functional transformation testing
+├── generate_sample.py           # Sample message generator
+├── validate_sample.py           # Validation testing
+├── performance_test.py          # Performance testing framework
+├── run_baseline_test.sh         # Full baseline test suite
+├── quick_baseline_test.sh       # Quick performance check
+├── results/                     # Test results (created automatically)
+│   └── baseline_*/              # Timestamped test results
+└── logs/                        # Functional test logs
+    └── test_results_*.json      # Timestamped test results
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **ModuleNotFoundError: No module named 'tabulate'**
-   ```bash
-   pip install tabulate
-   ```
+#### 1. Module Import Errors
+```bash
+# Install required Python packages
+pip3 install requests tabulate
 
-2. **Connection refused errors**
-   - Verify Reframe server is running on http://localhost:3000
-   - Use `--base-url` flag for different server location
+# Optional for enhanced monitoring
+pip3 install psutil numpy
+```
 
-3. **No scenarios found**
-   - Check that `scenarios/index.json` exists
-   - Verify the message type has entries in forward or reverse arrays
+#### 2. Connection Refused
+- Verify Reframe is running: `curl http://localhost:3000/health`
+- Check correct port: `lsof -i :3000`
+- Use `--url` flag for different server location
 
-4. **Generation failures**
-   - Currently using hardcoded MT103 for testing
-   - Proper scenario files in `scenarios/SwiftMTMessage/` format need to be created
-   - Use `--debug` flag for verbose output
+#### 3. Low Performance Metrics
+- Ensure using release build: `cargo build --release`
+- Check system resources: `top` or `htop`
+- Verify no other processes consuming CPU
 
-5. **MX validation skipped**
-   - The transformed XML includes an Envelope structure that validation can't parse
-   - This is a known limitation in the current implementation
+#### 4. CPU/Memory Showing 0
+- Install psutil for accurate metrics: `pip3 install psutil`
+- Script has fallback methods but psutil is recommended
 
-6. **Roundtrip failures**
-   - Reverse transformation (MX→MT) doesn't work with Envelope format
-   - This prevents full roundtrip testing currently
+#### 5. Apache Bench Not Found
+```bash
+# macOS
+brew install ab
 
-## Performance Considerations
+# Ubuntu/Debian
+apt-get install apache2-utils
+```
 
-- The script includes a 0.1 second delay between tests to avoid overwhelming the service
-- For large-scale testing, consider using `--sample-count` with smaller values
-- Export results for later analysis rather than running all tests interactively
+### Debug Mode
 
-## Next Steps for Full Implementation
+Enable debug output for detailed troubleshooting:
 
-1. **Create Scenario Files**: Generate proper scenario templates in `scenarios/SwiftMTMessage/[message_type]/` format for sample generation
+```bash
+# Functional tests
+python3 test_scenarios.py -m MT103 --debug
 
-2. **Fix MX Validation**: Update the validation endpoint to handle XML with Envelope structure or extract the document content before validation
+# Performance tests
+python3 performance_test.py --test load --debug
+```
 
-3. **Enable Roundtrip**: Fix reverse transformation to handle the Envelope format properly
+### Performance Monitoring
 
-4. **Extend Coverage**: Add support for more message types beyond MT103
+Monitor Reframe during tests:
 
-## Temporary Workarounds
+```bash
+# Watch process stats
+watch -n 1 'ps aux | grep -E "(cargo|reframe)" | grep -v grep'
 
-The script includes `test_scenario_simplified()` method that:
-- Uses hardcoded MT103 message for testing
-- Skips MX validation when it fails (expected due to Envelope format)
-- Documents limitations in error messages
+# Monitor port connections
+watch -n 1 'netstat -an | grep :3000 | grep ESTABLISHED | wc -l'
 
-This allows testing the transformation pipeline while the full implementation is being completed.
+# System resources
+top -o cpu  # macOS
+htop        # Linux
+```
+
+## Best Practices
+
+1. **Always use release builds** for performance testing
+2. **Run baseline tests** before making changes
+3. **Save test results** for comparison and tracking
+4. **Monitor system resources** during tests
+5. **Use appropriate test types** for different scenarios
+6. **Export results** for CI/CD and reporting
+
+## Contributing
+
+When adding new tests:
+
+1. Follow existing naming conventions
+2. Add documentation to this README
+3. Include appropriate error handling
+4. Support both debug and normal modes
+5. Provide example usage
+6. Update CI/CD configurations if needed
+
+## Support
+
+For issues or questions:
+- Check the [Troubleshooting](#troubleshooting) section
+- Review debug output with `--debug` flag
+- Check Reframe logs with `RUST_LOG=debug`
+- Report issues at https://github.com/anthropics/reframe/issues

@@ -1,17 +1,19 @@
-# Deployment Guide
+# Reframe v3.0 Deployment Guide - SR2025 Compliant
 
-This guide explains how to deploy Reframe v3.0, the enterprise-grade SWIFT MT ↔ ISO 20022 transformation service.
+This guide explains how to deploy Reframe v3.0, the SR2025-compliant enterprise-grade SWIFT MT ↔ ISO 20022 transformation service.
 
 ## Overview
 
-Reframe v3.0 is distributed as a Docker container for maximum portability and ease of deployment. The service can be deployed in any environment that supports Docker.
+Reframe v3.0 is the SR2025-compliant release (SWIFT Standards Release November 2025) distributed as a Docker container for maximum portability and ease of deployment. The service provides full bidirectional transformation capabilities between SWIFT MT and ISO 20022 formats with complete transparency and auditability.
 
 ## Architecture
 
-- **Container-based**: Single Docker image with all dependencies
-- **Stateless**: No persistent storage required
-- **REST API**: HTTP-based interface on port 3000
-- **Hot-reload**: Workflow configurations can be updated at runtime
+- **Container-based**: Single Docker image with all dependencies including SR2025 workflows
+- **Stateless**: No persistent storage required, enabling horizontal scaling
+- **REST API**: HTTP-based interface on port 3000 with OpenAPI documentation
+- **Hot-reload**: SR2025-compliant workflow configurations can be updated at runtime
+- **Performance**: Sub-millisecond transformation with Rust 1.75+ optimizations
+- **Compliance**: Full SR2025 validation and Business Application Header v3 support
 
 ## Quick Start
 
@@ -53,9 +55,16 @@ curl http://localhost:3000/health
 {
   "status": "healthy",
   "version": "3.0.0",
+  "sr2025": "compliant",
   "engines": {
-    "forward": "ready",
-    "reverse": "ready"
+    "forward": {
+      "status": "ready",
+      "workflows_loaded": 45
+    },
+    "reverse": {
+      "status": "ready",
+      "workflows_loaded": 52
+    }
   }
 }
 ```
@@ -89,13 +98,16 @@ docker run -p 3000:3000 reframe:local
 |----------|-------------|---------|
 | `RUST_LOG` | Logging level (debug, info, warn, error) | `info` |
 | `REFRAME_PORT` | Port to listen on | `3000` |
+| `REFRAME_SR2025` | Enable SR2025 compliance checks | `true` |
+| `REFRAME_BAH_VERSION` | Business Application Header version | `v3` |
 
 ### Volume Mounts
 
 | Path | Description |
 |------|-------------|
-| `/app/workflows` | Workflow configuration files |
-| `/app/scenarios` | Sample message generation scenarios |
+| `/app/workflows` | SR2025-compliant workflow configuration files |
+| `/app/scenarios` | SR2025 test message generation scenarios |
+| `/app/logs` | Application logs (optional) |
 
 ## Deployment Scenarios
 
@@ -368,14 +380,29 @@ curl -X POST http://localhost:3000/generate/sample \
   }'
 ```
 
+## SR2025 Compliance Notes
+
+### Key SR2025 Features
+- Business Application Header with enhanced party identification
+- Mandatory UETR (Unique End-to-end Transaction Reference)
+- LEI (Legal Entity Identifier) support
+- Structured remittance information
+
+### Validation
+Reframe v3.0 automatically validates:
+- SR2025 mandatory fields
+- Service level codes (G001, G002, G003, G004)
+- Cross-field business rules
+
 ## Support
 
 For issues and questions:
 
 1. Check the [GitHub Issues](https://github.com/GoPlasmatic/Reframe/issues)
 2. Review application logs with `RUST_LOG=debug`
-3. Verify workflow configurations
-4. Test with provided sample messages
+3. Verify SR2025 workflow configurations
+4. Test with SR2025-compliant sample messages
+5. Consult the [SR2025 Standards Guide](https://www.swift.com/standards/release-guide/sr2025)
 
 ## License
 

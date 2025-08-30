@@ -7,7 +7,7 @@
   
   [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
   [![Rust](https://img.shields.io/badge/Rust-1.70+-orange)](https://rust-lang.org)
-  [![Swift CBPR+](https://img.shields.io/badge/Swift-CBPR%2B%20SR2025-green.svg)](https://www.swift.com)
+  [![Swift SR2025](https://img.shields.io/badge/Swift-SR2025%20Compliant-green.svg)](https://www.swift.com)
   
   [📚 **Read the Docs**](docs/) | [🔧 **Installation Guide**](docs/installation.md) | [💡 **Explore the Architecture**](docs/architecture.md)
 </div>
@@ -52,8 +52,9 @@ In the evolving world of financial messaging, clarity and control are non-negoti
 
 ## 🏆 How Reframe Compares
 
-| Feature              | Reframe                                       | Traditional Solutions                 |
+| Feature              | Reframe v3.0                                  | Traditional Solutions                 |
 | -------------------- | --------------------------------------------- | ------------------------------------- |
+| **Standards** | ✅ SR2025 compliant (November 2025 release)   | ❌ Often lagging on latest standards  |
 | **Transparency** | ✅ Open source with 100% auditable JSON rules | ❌ Proprietary, black-box logic       |
 | **Transformation** | ✅ Fully bidirectional (MT ↔ MX)              | ❌ Often one-way or limited reverse   |
 | **Performance** | ✅ Rust-powered (sub-millisecond)             | ❌ Slower, often JVM-based            |
@@ -118,13 +119,12 @@ curl -X POST http://localhost:3000/admin/reload-workflows
 
 Our vision is to make Reframe the undisputed backbone for financial messaging.
 
-### 🎯 **What's New (v3.0)**
+### 🎯 **What's New in v3.0 (SR2025 Release)**
 
--   ✅ **Full Swift CBPR+ SR2025 specification support** - Complete compliance with the latest SWIFT standards.
--   ✅ Full bidirectional transformation for 30+ message variants.
--   ✅ Production-ready Docker deployment model.
--   ✅ Hot-reload API for dynamic configuration updates.
--   ✅ AI-powered tooling for generating message mapping suggestions.
+-   ✅ **Full Swift SR2025 Specification Compliance** - Complete implementation of the November 2025 SWIFT standards release.
+-   ✅ **Enhanced CBPR+ Support** - Updated Business Application Headers and improved structured remittance information.
+-   ✅ **SR2025 Validation Rules** - Comprehensive validation for new mandatory fields and enhanced data quality checks.
+-   ✅ **Dynamic Configuration Management** - Hot-reload workflows without service interruption.
 
 ### 🌟 **On the Horizon**
 
@@ -151,11 +151,11 @@ This project thrives on community input. We welcome you to:
 
 | Guide | Description |
 |-------|-------------|
-| [🔧 Installation Guide](docs/installation.md) | Complete setup instructions for all environments |
-| [📊 Workflow Guide](docs/workflow-guide.md) | How to create and configure transformation workflows |
-| [🗺️ Mapping Guide](docs/mapping-guide.md) | Field mapping and business rule configuration |
-| [🏗️ Architecture](docs/architecture.md) | Technical architecture and design decisions |
-| [📋 Message Formats](docs/message-formats.md) | Complete list of supported message types |
+| [🏗️ Architecture & Design](docs/architecture.md) | Complete technical architecture, design patterns, and implementation details |
+| [🔧 Installation Guide](docs/installation.md) | Setup instructions for all environments |
+| [📊 Workflow Guide](docs/workflow-guide.md) | Creating and configuring SR2025-compliant transformation workflows |
+| [🗺️ Mapping Guide](docs/mapping-guide.md) | SR2025 field mappings and business rules |
+| [📋 Message Formats](docs/message-formats.md) | SR2025 supported message types and variants |
 
 ---
 

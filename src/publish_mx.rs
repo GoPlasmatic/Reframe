@@ -9,7 +9,7 @@ use mx_message::document::*;
 use mx_message::header::*;
 use quick_xml::se::to_string as xml_to_string;
 use serde_json::Value;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, instrument, trace, warn};
 
 pub struct PublishMX;
 
@@ -57,13 +57,14 @@ impl AsyncFunctionHandler for PublishMX {
             .and_then(|v| v.get("method"))
             .and_then(|v| v.as_str())
             .unwrap_or("Unknown");
-        println!(
-            "message_type: {}, message_method: {}",
-            message_type, message_method
+        debug!(
+            message_type = %message_type,
+            message_method = %message_method,
+            "Processing MT message"
         );
 
         let result = if source_format.ends_with(".Header") {
-            info!(source_format = %source_format, "Processing MT to MX header");
+            debug!(source_format = %source_format, "Processing MT to MX header");
             handle_mt_to_mx_header(
                 input_data.clone(),
                 message,
@@ -72,7 +73,7 @@ impl AsyncFunctionHandler for PublishMX {
                 message_method,
             )
         } else if source_format.ends_with(".Document") {
-            info!(source_format = %source_format, "Processing MT to MX document");
+            debug!(source_format = %source_format, "Processing MT to MX document");
             handle_mt_to_mx_document(
                 input_data.clone(),
                 message,
@@ -89,7 +90,7 @@ impl AsyncFunctionHandler for PublishMX {
 
         match &result {
             Ok((status, _)) => {
-                info!(
+                debug!(
                     source_format = %source_format,
                     output_field = output_field_name,
                     status = status,
@@ -427,7 +428,7 @@ where
 
     // Use serde_path_to_error for detailed path information
     let json_str = data.to_string();
-    println!("MT101 Document JSON being serialized: {}", json_str);
+    trace!("MT101 document JSON: {}", json_str);
     let mut deserializer = serde_json::Deserializer::from_str(&json_str);
     match serde_path_to_error::deserialize::<_, T>(&mut deserializer) {
         Ok(document_data) => {

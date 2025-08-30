@@ -117,8 +117,9 @@ pub fn get_scenario_file_path(
     scenario_id: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     debug!(
-        "Finding scenario file for {} with ID: {}",
-        message_type, scenario_id
+        message_type = %message_type,
+        scenario_id = %scenario_id,
+        "Finding scenario file"
     );
 
     // Load the scenario index
@@ -135,6 +136,6 @@ pub fn get_scenario_file_path(
             )
         })?;
 
-    debug!("Found scenario file: {}", scenario_file);
+    debug!(scenario_file = %scenario_file, "Found scenario file");
     Ok(scenario_file)
 }

@@ -40,7 +40,7 @@ pub fn generate_mt_from_json(
     message_type: &str,
     json_data: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Generating {} from JSON data", message_type);
+    debug!(message_type = %message_type, "Generating MT message from JSON data");
 
     // Parse JSON into appropriate SwiftMessage type and serialize to MT format
     let mt_string = match message_type {
@@ -72,12 +72,12 @@ pub fn generate_mt_from_json(
         "MT942" => parse_mt_message!(MT942, "MT942", json_data),
         "MT950" => parse_mt_message!(MT950, "MT950", json_data),
         _ => {
-            error!("Unsupported MT message type: {}", message_type);
+            error!(message_type = %message_type, "Unsupported MT message type");
             return Err(format!("Unsupported MT message type: {}", message_type).into());
         }
     };
 
-    debug!("Successfully generated {} message", message_type);
+    debug!(message_type = %message_type, "Successfully generated MT message");
     Ok(mt_string)
 }
 

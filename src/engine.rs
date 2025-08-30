@@ -4,7 +4,7 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{info, warn};
+use tracing::{info, warn, debug};
 
 use crate::parse_mt::ParseMT;
 use crate::parse_mx::ParseMX;
@@ -14,7 +14,7 @@ use crate::types::AppState;
 use dataflow_rs::engine::functions::validation::ValidationFunction;
 
 pub async fn initialize_engines() -> AppState {
-    info!("🔧 Initializing Forward and Reverse Engines");
+    info!("Initializing forward and reverse transformation engines");
 
     let forward_engine = initialize_forward_engine()
         .await
@@ -24,7 +24,7 @@ pub async fn initialize_engines() -> AppState {
         .await
         .expect("Failed to initialize reverse engine");
 
-    info!("✅ Both engines initialized successfully");
+    info!("Both engines initialized successfully");
 
     AppState {
         forward_engine: Arc::new(Mutex::new(forward_engine)),
@@ -33,7 +33,7 @@ pub async fn initialize_engines() -> AppState {
 }
 
 async fn initialize_forward_engine() -> Result<Engine, Box<dyn std::error::Error>> {
-    info!("🔄 Setting up Forward Engine (MT → MX)");
+    debug!("Setting up forward engine (MT to ISO 20022)");
 
     let mut engine = Engine::new();
 
@@ -45,12 +45,12 @@ async fn initialize_forward_engine() -> Result<Engine, Box<dyn std::error::Error
     // Load forward workflows
     load_workflows_for_engine(&mut engine, "workflows/forward").await?;
 
-    info!("✅ Forward Engine (MT → MX) ready");
+    debug!("Forward engine ready");
     Ok(engine)
 }
 
 async fn initialize_reverse_engine() -> Result<Engine, Box<dyn std::error::Error>> {
-    info!("🔄 Setting up Reverse Engine (MX → MT)");
+    debug!("Setting up reverse engine (ISO 20022 to MT)");
 
     let mut engine = Engine::new();
 
@@ -62,7 +62,7 @@ async fn initialize_reverse_engine() -> Result<Engine, Box<dyn std::error::Error
     // Load reverse workflows
     load_workflows_for_engine(&mut engine, "workflows/reverse").await?;
 
-    info!("✅ Reverse Engine (MX → MT) ready");
+    debug!("Reverse engine ready");
     Ok(engine)
 }
 
@@ -70,7 +70,7 @@ async fn load_workflows_for_engine(
     engine: &mut Engine,
     workflow_dir: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    info!("📁 Loading workflows from {}", workflow_dir);
+    debug!(directory = %workflow_dir, "Loading workflow configurations");
 
     let index_path = format!("{workflow_dir}/index.json");
     if !Path::new(&index_path).exists() {
@@ -94,9 +94,9 @@ async fn load_workflows_for_engine(
 
                     engine.add_workflow(&workflow);
 
-                    info!("📄 Loaded workflow: {}", path);
+                    debug!(workflow = %path, "Loaded workflow file");
                 } else {
-                    warn!("Workflow file not found: {}", full_path);
+                    warn!(file = %full_path, "Workflow file not found");
                 }
             }
         }
@@ -106,7 +106,7 @@ async fn load_workflows_for_engine(
 }
 
 pub async fn reload_engines(app_state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
-    info!("🔄 Reloading both Forward and Reverse Engines");
+    info!("Reloading workflow configurations for both engines");
 
     let new_forward_engine = initialize_forward_engine().await?;
     let new_reverse_engine = initialize_reverse_engine().await?;
@@ -121,6 +121,6 @@ pub async fn reload_engines(app_state: &AppState) -> Result<(), Box<dyn std::err
         *reverse_guard = new_reverse_engine;
     }
 
-    info!("✅ Both engines reloaded successfully");
+    info!("Engines reloaded successfully");
     Ok(())
 }

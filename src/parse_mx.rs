@@ -10,7 +10,7 @@ use mx_message::document::*;
 use mx_message::header::*;
 use quick_xml::de::from_str;
 use serde_json::{Value, json};
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, error, instrument};
 
 pub struct ParseMX;
 
@@ -53,7 +53,7 @@ impl AsyncFunctionHandler for ParseMX {
         let document_content = Self::extract_document_content(&payload);
 
         let message_type = Self::extract_message_type(document_xmlns, app_hdr_content.clone())?;
-        info!("Message type: {:?}", message_type);
+        debug!("Message type: {:?}", message_type);
 
         let app_hdr_content = app_hdr_content.ok_or_else(|| {
             DataflowError::Validation(
@@ -688,7 +688,7 @@ impl ParseMX {
     }
 
     pub fn parse_document(message_type: &str, document_content: &str) -> Result<Value> {
-        info!("Parsing document for message type: {:?}", message_type);
+        debug!("Parsing document for message type: {:?}", message_type);
         match message_type {
             "pacs.008.001.08" => {
                 let document = match from_str::<pacs_008_001_08::FIToFICustomerCreditTransferV08>(

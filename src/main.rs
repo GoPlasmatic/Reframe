@@ -1,12 +1,13 @@
 use axum::{
     Router,
     routing::{get, post},
+    middleware,
 };
 use tracing::info;
-use tracing_subscriber::EnvFilter;
 
 // Module declarations
 mod engine;
+mod logging;
 mod handlers;
 mod helper;
 mod mt_generator;
@@ -25,19 +26,37 @@ mod validation_helpers;
 use engine::initialize_engines;
 use handlers::{
     generate_sample, health_check, reload_workflows, transform_mt_to_mx, transform_mx_to_mt,
-    validate_mt, validate_mx,
+    validate_mt, validate_mx, correlation_middleware,
 };
+use logging::{init_logging, log_system_info, LogConfig};
 use openapi::swagger_ui;
 
 #[tokio::main]
 async fn main() {
-    // Initialize logging
-    initialize_logging();
+    // Initialize professional logging system
+    let log_config = LogConfig {
+        format: if std::env::var("LOG_FORMAT").as_deref() == Ok("json") {
+            logging::LogFormat::Json
+        } else if cfg!(debug_assertions) {
+            logging::LogFormat::Pretty
+        } else {
+            logging::LogFormat::Compact
+        },
+        ..Default::default()
+    };
+    
+    if let Err(e) = init_logging(log_config) {
+        // Use eprintln here since logging isn't initialized yet
+        eprintln!("Failed to initialize logging: {}", e);
+    }
+
+    // Log system information
+    log_system_info(env!("CARGO_PKG_VERSION"));
 
     // Initialize scenario paths for sample generation
     initialize_scenario_paths();
 
-    info!("🚀 Starting Reframe Bidirectional Transformation Service");
+    info!("Service initialization started");
 
     // Initialize dual engines
     let app_state = initialize_engines().await;
@@ -52,40 +71,29 @@ async fn main() {
         .route("/validate/mx", post(validate_mx))
         .route("/admin/reload-workflows", post(reload_workflows))
         .merge(swagger_ui())
+        .layer(middleware::from_fn(correlation_middleware))
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    info!("🌐 Server running on http://0.0.0.0:3000");
-    info!("📡 Forward endpoint: POST /transform/mt-to-mx");
-    info!("📡 Reverse endpoint: POST /transform/mx-to-mt");
-    info!("🔧 Sample generation: POST /generate/sample (supports MT and MX)");
-    info!("🔍 MT validation: POST /validate/mt");
-    info!("🔍 MX validation: POST /validate/mx");
-    info!("🔄 Workflow reload: POST /admin/reload-workflows");
-    info!("🏥 Health check: GET /health");
-    info!("📚 API Documentation: GET /swagger-ui");
-    info!("📋 OpenAPI Spec: GET /api-docs/openapi.json");
+    
+    info!("Service started successfully");
+    info!("Listening on: http://0.0.0.0:3000");
+    info!("Available endpoints:");
+    info!("  POST /transform/mt-to-mx    - MT to ISO 20022 transformation");
+    info!("  POST /transform/mx-to-mt    - ISO 20022 to MT transformation");
+    info!("  POST /generate/sample       - Generate sample messages");
+    info!("  POST /validate/mt           - Validate MT messages");
+    info!("  POST /validate/mx           - Validate ISO 20022 messages");
+    info!("  POST /admin/reload-workflows - Reload workflow configurations");
+    info!("  GET  /health                - Health check endpoint");
+    info!("  GET  /swagger-ui            - API documentation");
+    info!("  GET  /api-docs/openapi.json - OpenAPI specification");
 
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app)
+        .await
+        .expect("Failed to start server");
 }
 
-fn initialize_logging() {
-    // Simple tracing initialization to avoid conflicts
-    if std::env::var("RUST_LOG").is_err() {
-        unsafe {
-            std::env::set_var("RUST_LOG", "reframe=debug,info");
-        }
-    }
-
-    tracing_subscriber::fmt()
-        .with_target(false)
-        .with_thread_ids(true)
-        .with_file(true)
-        .with_line_number(true)
-        .with_env_filter(EnvFilter::from_default_env())
-        .try_init()
-        .ok(); // Ignore errors if already initialized
-}
 
 fn initialize_scenario_paths() {
     // Set environment variables for scenario paths
@@ -94,7 +102,7 @@ fn initialize_scenario_paths() {
         std::env::set_var("SWIFT_SCENARIO_PATH", "scenarios/SwiftMTMessage");
         std::env::set_var("MX_SCENARIO_PATH", "scenarios/MXMessage");
     }
-    info!("📁 Scenario paths configured:");
-    info!("   SWIFT: scenarios/SwiftMTMessage");
-    info!("   MX: scenarios/MXMessage");
+    tracing::debug!("Scenario paths configured");
+    tracing::debug!("  SWIFT: scenarios/SwiftMTMessage");
+    tracing::debug!("  MX: scenarios/MXMessage");
 }

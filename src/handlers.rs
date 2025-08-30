@@ -1,10 +1,17 @@
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{
+    Json, 
+    extract::{State, Request}, 
+    http::StatusCode,
+    middleware::Next,
+    response::Response,
+};
 use dataflow_rs::engine::message::Message;
 use quick_xml::Reader;
 use serde_json::Value;
 use std::time::Instant;
 use swift_mt_message::SwiftParser;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, error, info, warn, instrument, Span};
+use uuid::Uuid;
 
 use crate::engine::reload_engines;
 use crate::parse_mx::ParseMX;
@@ -94,6 +101,65 @@ fn extract_workflow_errors(message: &Message) -> Vec<String> {
     }
 
     errors
+}
+
+/// Middleware to add correlation IDs to requests
+pub async fn correlation_middleware(
+    mut req: Request,
+    next: Next,
+) -> Response {
+    let request_id = Uuid::new_v4().to_string();
+    let method = req.method().to_string();
+    let path = req.uri().path().to_string();
+    
+    // Create a span for this request
+    let span = tracing::info_span!(
+        "http_request",
+        request_id = %request_id,
+        method = %method,
+        path = %path,
+        latency_ms = tracing::field::Empty,
+        status = tracing::field::Empty,
+    );
+    
+    let _enter = span.enter();
+    
+    // Add request ID to extensions so handlers can access it
+    req.extensions_mut().insert(request_id.clone());
+    
+    let start = Instant::now();
+    debug!("Request started");
+    
+    let response = next.run(req).await;
+    
+    let latency = start.elapsed();
+    let status = response.status();
+    
+    // Record metrics in the span
+    Span::current().record("latency_ms", latency.as_millis() as u64);
+    Span::current().record("status", status.as_u16());
+    
+    if status.is_success() {
+        info!(
+            status = status.as_u16(),
+            latency_ms = latency.as_millis(),
+            "Request completed successfully"
+        );
+    } else if status.is_client_error() {
+        warn!(
+            status = status.as_u16(),
+            latency_ms = latency.as_millis(),
+            "Request failed with client error"
+        );
+    } else {
+        error!(
+            status = status.as_u16(),
+            latency_ms = latency.as_millis(),
+            "Request failed with server error"
+        );
+    }
+    
+    response
 }
 
 // New endpoint handlers
@@ -190,7 +256,9 @@ pub async fn transform_mt_to_mx(
                                 })),
                                 Err(xml_error) => {
                                     error!(
-                                        "❌ MT to MX transformation produced malformed XML: {}",
+                                        message_type = "MT",
+                                        error_type = "MALFORMED_XML",
+                                        "Transformation produced malformed XML: {}",
                                         xml_error
                                     );
                                     Ok(Json(TransformationResponse {
@@ -255,7 +323,10 @@ pub async fn transform_mt_to_mx(
                                 }))
                             } else {
                                 error!(
-                                    "❌ MT to MX transformation produced malformed XML in multiple messages: {:?}",
+                                    message_type = "MT",
+                                    error_type = "XML_VALIDATION_ERROR",
+                                    error_count = errors.len(),
+                                    "Transformation produced malformed XML in multiple messages: {:?}",
                                     errors
                                 );
                                 Ok(Json(TransformationResponse {
@@ -288,7 +359,11 @@ pub async fn transform_mt_to_mx(
                             }
                         }
                         _ => {
-                            error!("❌ MT to MX transformation produced empty or invalid result");
+                            error!(
+                                message_type = "MT",
+                                error_type = "EMPTY_RESULT",
+                                "Transformation produced empty or invalid result"
+                            );
                             Ok(Json(TransformationResponse {
                                 success: false,
                                 result: None,
@@ -315,7 +390,11 @@ pub async fn transform_mt_to_mx(
                     }
                 }
                 _ => {
-                    error!("❌ MT to MX transformation completed but no valid result found");
+                    error!(
+                        message_type = "MT",
+                        error_type = "NO_RESULT",
+                        "Transformation completed but no valid result found"
+                    );
                     Ok(Json(TransformationResponse {
                         success: false,
                         result: None,
@@ -339,7 +418,12 @@ pub async fn transform_mt_to_mx(
             }
         }
         Err(e) => {
-            error!("❌ MT to MX transformation failed: {}", e);
+            error!(
+                message_type = "MT",
+                error_type = "TRANSFORMATION_FAILED",
+                error = %e,
+                "Transformation failed"
+            );
 
             Ok(Json(TransformationResponse {
                 success: false,
@@ -493,7 +577,11 @@ pub async fn transform_mx_to_mt(
                             }
                         }
                         _ => {
-                            error!("❌ MX to MT transformation produced empty or invalid result");
+                            error!(
+                                message_type = "MX",
+                                error_type = "EMPTY_RESULT",
+                                "Transformation produced empty or invalid result"
+                            );
                             Ok(Json(TransformationResponse {
                                 success: false,
                                 result: None,
@@ -520,7 +608,11 @@ pub async fn transform_mx_to_mt(
                     }
                 }
                 _ => {
-                    error!("❌ MX to MT transformation completed but no valid result found");
+                    error!(
+                        message_type = "MX",
+                        error_type = "NO_RESULT",
+                        "Transformation completed but no valid result found"
+                    );
                     Ok(Json(TransformationResponse {
                         success: false,
                         result: None,
@@ -544,7 +636,12 @@ pub async fn transform_mx_to_mt(
             }
         }
         Err(e) => {
-            error!("❌ MX to MT transformation failed: {}", e);
+            error!(
+                message_type = "MX",
+                error_type = "TRANSFORMATION_FAILED",
+                error = %e,
+                "Transformation failed"
+            );
 
             Ok(Json(TransformationResponse {
                 success: false,
@@ -609,7 +706,10 @@ pub async fn generate_sample(
     let result = match detect_message_category(&request.message_type) {
         MessageCategory::MT => {
             if !is_supported_message_type(&request.message_type) {
-                error!("❌ Unsupported MT message type: {}", request.message_type);
+                error!(
+                    message_type = %request.message_type,
+                    "Unsupported MT message type"
+                );
                 return Ok(Json(SampleGenerationResponse {
                     success: false,
                     message_type: request.message_type.clone(),
@@ -626,7 +726,10 @@ pub async fn generate_sample(
         }
         MessageCategory::MX => {
             if !is_supported_mx_type(&request.message_type) {
-                error!("❌ Unsupported MX message type: {}", request.message_type);
+                error!(
+                    message_type = %request.message_type,
+                    "Unsupported MX message type"
+                );
                 return Ok(Json(SampleGenerationResponse {
                     success: false,
                     message_type: request.message_type.clone(),
@@ -642,7 +745,10 @@ pub async fn generate_sample(
             generate_mx_from_config(&request.config, &request.message_type, &request.options).await
         }
         MessageCategory::Unknown => {
-            error!("❌ Unknown message type format: {}", request.message_type);
+            error!(
+                message_type = %request.message_type,
+                "Unknown message type format"
+            );
             return Ok(Json(SampleGenerationResponse {
                 success: false,
                 message_type: request.message_type.clone(),
@@ -692,7 +798,10 @@ pub async fn generate_sample(
             }))
         }
         Err(e) => {
-            error!("❌ Sample generation failed: {}", e);
+            error!(
+                error = %e,
+                "Sample generation failed"
+            );
 
             // Try to extract any JSON from the error message for debugging
             let error_str = e.to_string();
@@ -811,7 +920,11 @@ pub async fn reload_workflows(
         }
         Err(e) => {
             let reload_time = start_time.elapsed().as_millis() as u64;
-            error!("❌ Workflow reload failed after {}ms: {}", reload_time, e);
+            error!(
+                reload_time_ms = reload_time,
+                error = %e,
+                "Workflow reload failed"
+            );
 
             Ok(Json(ReloadResponse {
                 success: false,
@@ -911,7 +1024,10 @@ pub async fn validate_mt(
             }))
         }
         Err(parse_error) => {
-            error!("❌ MT validation failed: {:?}", parse_error);
+            error!(
+                error = ?parse_error,
+                "MT validation failed"
+            );
 
             // Extract detailed parse errors
             let errors = extract_mt_parse_errors(parse_error);
@@ -948,7 +1064,10 @@ pub async fn validate_mx(
 
     // First validate XML well-formedness
     if let Err(xml_error) = validate_xml_well_formed(&request.message) {
-        error!("❌ MX validation failed - XML malformed: {}", xml_error);
+        error!(
+            error = %xml_error,
+            "MX validation failed - XML malformed"
+        );
         return Ok(Json(ValidationResponse {
             success: false,
             message_type: None,
@@ -1053,7 +1172,10 @@ pub async fn validate_mx(
             }))
         }
         Err(parse_error) => {
-            error!("❌ MX validation failed: {:?}", parse_error);
+            error!(
+                error = ?parse_error,
+                "MX validation failed"
+            );
 
             let error_message = format!("{parse_error:?}");
             let mut errors = vec![ReframeError {

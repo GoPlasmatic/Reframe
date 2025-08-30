@@ -1,7 +1,7 @@
 use mx_message::parse_result::{ErrorCollector, ParserConfig as MxParserConfig};
 use mx_message::validation::Validate;
 use serde::de::DeserializeOwned;
-use tracing::{debug, info};
+use tracing::debug;
 
 use crate::types::{ErrorType, ReframeError};
 
@@ -85,7 +85,7 @@ pub fn validate_mx_document_generic<T>(
             collect_mx_validation_errors(collector, errors);
         }
         Err(parse_err) => {
-            info!("MX Validation: Parse failed with error: {}", parse_err);
+            debug!("MX Validation: Parse failed with error: {}", parse_err);
             errors.push(ReframeError {
                 error_type: ErrorType::ParserError,
                 code: "MX_PARSE_ERROR".to_string(),

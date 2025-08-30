@@ -7,7 +7,7 @@ use dataflow_rs::engine::{
 };
 use serde_json::{Value, json};
 use swift_mt_message::SwiftParser;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, error, instrument};
 
 pub struct ParseMT;
 
@@ -65,7 +65,7 @@ impl ParseMT {
         })?;
 
         let message_type = parsed_message.message_type().to_string();
-        info!(message_type = %message_type, "Successfully parsed SwiftMT message");
+        debug!(message_type = %message_type, "Successfully parsed SwiftMT message");
 
         let method: String;
 
@@ -361,7 +361,7 @@ impl ParseMT {
             });
         }
 
-        info!(
+        debug!(
             message_type = %message_type,
             method = %method,
             output_field = output_field_name,

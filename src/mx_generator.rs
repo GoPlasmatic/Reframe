@@ -21,7 +21,7 @@ fn generate_pacs008_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing pacs.008 header");
+    debug!(message_type = "pacs.008", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_pacs_008_001_08::BusinessApplicationHeaderV02 =
@@ -34,13 +34,14 @@ fn generate_pacs008_xml(
             )
         })?;
 
-    debug!("Parsing pacs.008 document");
+    debug!(message_type = "pacs.008", "Parsing message document");
     let doc_content = document
         .get("FIToFICstmrCdtTrf")
         .ok_or("Missing FIToFICstmrCdtTrf in Document")?;
 
     // Log the document structure for debugging
     debug!(
+        message_type = "pacs.008",
         "Document content: {}",
         serde_json::to_string_pretty(doc_content)?
     );
@@ -51,10 +52,12 @@ fn generate_pacs008_xml(
         let path = e.path().to_string();
         let inner_err = e.into_inner().to_string();
         error!(
-            "Failed to parse pacs.008 document at path '{}': {}",
-            path, inner_err
+            message_type = "pacs.008",
+            path = %path,
+            error = %inner_err,
+            "Document parsing failed"
         );
-        error!("Document JSON was: {}", doc_str);
+        debug!(document_json = %doc_str, "Failed document JSON");
         format!(
             "Failed to parse pacs.008 document at path '{}': {}",
             path, inner_err
@@ -80,7 +83,7 @@ fn generate_pacs002_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing pacs.002 header");
+    debug!(message_type = "pacs.002", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_pacs_002_001_10::BusinessApplicationHeaderV02 =
@@ -93,7 +96,7 @@ fn generate_pacs002_xml(
             )
         })?;
 
-    debug!("Parsing pacs.002 document");
+    debug!(message_type = "pacs.002", "Parsing message document");
     let doc_content = document
         .get("FIToFIPmtStsRpt")
         .ok_or("Missing FIToFIPmtStsRpt in Document")?;
@@ -129,7 +132,7 @@ fn generate_pacs004_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing pacs.004 header");
+    debug!(message_type = "pacs.004", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_pacs_004_001_09::BusinessApplicationHeaderV02 =
@@ -142,7 +145,7 @@ fn generate_pacs004_xml(
             )
         })?;
 
-    debug!("Parsing pacs.004 document");
+    debug!(message_type = "pacs.004", "Parsing message document");
     let doc_content = document.get("PmtRtr").ok_or("Missing PmtRtr in Document")?;
 
     let doc_str = serde_json::to_string(doc_content)?;
@@ -176,7 +179,7 @@ fn generate_pacs009_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing pacs.009 header");
+    debug!(message_type = "pacs.009", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_pacs_009_001_08::BusinessApplicationHeaderV02 =
@@ -189,7 +192,7 @@ fn generate_pacs009_xml(
             )
         })?;
 
-    debug!("Parsing pacs.009 document");
+    debug!(message_type = "pacs.009", "Parsing message document");
     let doc_content = document
         .get("FICdtTrf")
         .ok_or("Missing FICdtTrf in Document")?;
@@ -226,7 +229,7 @@ fn generate_pacs010_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing pacs.010 header");
+    debug!(message_type = "pacs.010", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_pacs_010_001_03::BusinessApplicationHeaderV02 =
@@ -239,7 +242,7 @@ fn generate_pacs010_xml(
             )
         })?;
 
-    debug!("Parsing pacs.010 document");
+    debug!(message_type = "pacs.010", "Parsing message document");
     let doc_content = document
         .get("FIDrctDbt")
         .ok_or("Missing FIDrctDbt in Document")?;
@@ -276,7 +279,7 @@ fn generate_camt052_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing camt.052 header");
+    debug!(message_type = "camt.052", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_camt_052_001_08::BusinessApplicationHeaderV02 =
@@ -289,7 +292,7 @@ fn generate_camt052_xml(
             )
         })?;
 
-    debug!("Parsing camt.052 document");
+    debug!(message_type = "camt.052", "Parsing message document");
     let doc_content = document
         .get("BkToCstmrAcctRpt")
         .ok_or("Missing BkToCstmrAcctRpt in Document")?;
@@ -325,7 +328,7 @@ fn generate_camt053_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing camt.053 header");
+    debug!(message_type = "camt.053", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_camt_053_001_08::BusinessApplicationHeaderV02 =
@@ -338,7 +341,7 @@ fn generate_camt053_xml(
             )
         })?;
 
-    debug!("Parsing camt.053 document");
+    debug!(message_type = "camt.053", "Parsing message document");
     let doc_content = document
         .get("BkToCstmrStmt")
         .ok_or("Missing BkToCstmrStmt in Document")?;
@@ -374,7 +377,7 @@ fn generate_camt106_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing camt.106 header");
+    debug!(message_type = "camt.106", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_camt_106_001_02::BusinessApplicationHeaderV02 =
@@ -387,7 +390,7 @@ fn generate_camt106_xml(
             )
         })?;
 
-    debug!("Parsing camt.106 document");
+    debug!(message_type = "camt.106", "Parsing message document");
     let doc_content = document
         .get("ChrgsPmtReq")
         .ok_or("Missing ChrgsPmtReq in Document")?;
@@ -423,7 +426,7 @@ fn generate_camt107_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing camt.107 header");
+    debug!(message_type = "camt.107", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_camt_107_001_01::BusinessApplicationHeaderV02 =
@@ -436,7 +439,7 @@ fn generate_camt107_xml(
             )
         })?;
 
-    debug!("Parsing camt.107 document");
+    debug!(message_type = "camt.107", "Parsing message document");
     let doc_content = document
         .get("ChqPresntmntNtfctn")
         .ok_or("Missing ChqPresntmntNtfctn in Document")?;
@@ -472,7 +475,7 @@ fn generate_camt108_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing camt.108 header");
+    debug!(message_type = "camt.108", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_camt_108_001_01::BusinessApplicationHeaderV02 =
@@ -485,7 +488,7 @@ fn generate_camt108_xml(
             )
         })?;
 
-    debug!("Parsing camt.108 document");
+    debug!(message_type = "camt.108", "Parsing message document");
     let doc_content = document
         .get("ChqCxlOrStopReq")
         .ok_or("Missing ChqCxlOrStopReq in Document")?;
@@ -522,7 +525,7 @@ fn generate_camt109_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing camt.109 header");
+    debug!(message_type = "camt.109", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_camt_109_001_01::BusinessApplicationHeaderV02 =
@@ -535,7 +538,7 @@ fn generate_camt109_xml(
             )
         })?;
 
-    debug!("Parsing camt.109 document");
+    debug!(message_type = "camt.109", "Parsing message document");
     let doc_content = document
         .get("ChqCxlOrStopRpt")
         .ok_or("Missing ChqCxlOrStopRpt in Document")?;
@@ -571,7 +574,7 @@ fn generate_camt054_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing camt.054 header");
+    debug!(message_type = "camt.054", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_camt_052_001_08::BusinessApplicationHeaderV02 =
@@ -584,7 +587,7 @@ fn generate_camt054_xml(
             )
         })?;
 
-    debug!("Parsing camt.054 document");
+    debug!(message_type = "camt.054", "Parsing message document");
     let doc_content = document
         .get("BkToCstmrDbtCdtNtfctn")
         .ok_or("Missing BkToCstmrDbtCdtNtfctn in Document")?;
@@ -621,7 +624,7 @@ fn generate_camt056_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing camt.056 header");
+    debug!(message_type = "camt.056", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_camt_056_001_08::BusinessApplicationHeaderV02 =
@@ -634,7 +637,7 @@ fn generate_camt056_xml(
             )
         })?;
 
-    debug!("Parsing camt.056 document");
+    debug!(message_type = "camt.056", "Parsing message document");
     let doc_content = document
         .get("FIToFIPmtCxlReq")
         .ok_or("Missing FIToFIPmtCxlReq in Document")?;
@@ -671,7 +674,7 @@ fn generate_camt057_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing camt.057 header");
+    debug!(message_type = "camt.057", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_camt_057_001_06::BusinessApplicationHeaderV02 =
@@ -684,7 +687,7 @@ fn generate_camt057_xml(
             )
         })?;
 
-    debug!("Parsing camt.057 document");
+    debug!(message_type = "camt.057", "Parsing message document");
     let doc_content = document
         .get("NtfctnToRcv")
         .ok_or("Missing NtfctnToRcv in Document")?;
@@ -720,7 +723,7 @@ fn generate_camt058_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing camt.058 header");
+    debug!(message_type = "camt.058", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_camt_058_001_08::BusinessApplicationHeaderV02 =
@@ -733,7 +736,7 @@ fn generate_camt058_xml(
             )
         })?;
 
-    debug!("Parsing camt.058 document");
+    debug!(message_type = "camt.058", "Parsing message document");
     let doc_content = document
         .get("NtfctnToRcvCxlAdvc")
         .ok_or("Missing NtfctnToRcvCxlAdvc in Document")?;
@@ -770,7 +773,7 @@ fn generate_camt105_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing camt.105 header");
+    debug!(message_type = "camt.105", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_camt_105_001_02::BusinessApplicationHeaderV02 =
@@ -783,7 +786,7 @@ fn generate_camt105_xml(
             )
         })?;
 
-    debug!("Parsing camt.105 document");
+    debug!(message_type = "camt.105", "Parsing message document");
     debug!("Full document: {}", serde_json::to_string_pretty(document)?);
     let doc_content = document
         .get("ChrgsPaymtNtfctn")
@@ -824,7 +827,7 @@ fn generate_camt029_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing camt.029 header");
+    debug!(message_type = "camt.029", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_camt_025_001_08::BusinessApplicationHeaderV02 =
@@ -837,7 +840,7 @@ fn generate_camt029_xml(
             )
         })?;
 
-    debug!("Parsing camt.029 document");
+    debug!(message_type = "camt.029", "Parsing message document");
     let doc_content = document
         .get("RsltnOfInvstgtn")
         .ok_or("Missing RsltnOfInvstgtn in Document")?;
@@ -873,7 +876,7 @@ fn generate_pain001_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing pain.001 header");
+    debug!(message_type = "pain.001", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_pain_001_001_09::BusinessApplicationHeaderV02 =
@@ -886,7 +889,7 @@ fn generate_pain001_xml(
             )
         })?;
 
-    debug!("Parsing pain.001 document");
+    debug!(message_type = "pain.001", "Parsing message document");
     let doc_content = document
         .get("CstmrCdtTrfInitn")
         .ok_or("Missing CstmrCdtTrfInitn in Document")?;
@@ -923,7 +926,7 @@ fn generate_pain002_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing pain.002 header");
+    debug!(message_type = "pain.002", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_pain_002_001_10::BusinessApplicationHeaderV02 =
@@ -936,7 +939,7 @@ fn generate_pain002_xml(
             )
         })?;
 
-    debug!("Parsing pain.002 document");
+    debug!(message_type = "pain.002", "Parsing message document");
     let doc_content = document
         .get("CstmrPmtStsRpt")
         .ok_or("Missing CstmrPmtStsRpt in Document")?;
@@ -972,7 +975,7 @@ fn generate_pain008_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing pain.008 header");
+    debug!(message_type = "pain.008", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_pain_008_001_08::BusinessApplicationHeaderV02 =
@@ -985,7 +988,7 @@ fn generate_pain008_xml(
             )
         })?;
 
-    debug!("Parsing pain.008 document");
+    debug!(message_type = "pain.008", "Parsing message document");
     let doc_content = document
         .get("CstmrDrctDbtInitn")
         .ok_or("Missing CstmrDrctDbtInitn in Document")?;
@@ -1021,7 +1024,7 @@ fn generate_pacs003_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing pacs.003 header");
+    debug!(message_type = "pacs.003", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_pacs_003_001_08::BusinessApplicationHeaderV02 =
@@ -1034,7 +1037,7 @@ fn generate_pacs003_xml(
             )
         })?;
 
-    debug!("Parsing pacs.003 document");
+    debug!(message_type = "pacs.003", "Parsing message document");
     let doc_content = document
         .get("FIToFICstmrDrctDbt")
         .ok_or("Missing FIToFICstmrDrctDbt in Document")?;
@@ -1070,7 +1073,7 @@ fn generate_admi024_xml(
     app_hdr: &Value,
     document: &Value,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    debug!("Parsing admi.024 header");
+    debug!(message_type = "admi.024", "Parsing message header");
     let header_str = serde_json::to_string(app_hdr)?;
     let hd = &mut serde_json::Deserializer::from_str(&header_str);
     let header: bah_admi_024_001_01::BusinessApplicationHeaderV02 =
@@ -1083,7 +1086,7 @@ fn generate_admi024_xml(
             )
         })?;
 
-    debug!("Parsing admi.024 document");
+    debug!(message_type = "admi.024", "Parsing message document");
     let doc_content = document
         .get("NtfctnOfCorr")
         .ok_or("Missing NtfctnOfCorr in Document")?;

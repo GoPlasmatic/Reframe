@@ -5,6 +5,7 @@ use dataflow_rs::engine::{
     error::Result,
     message::{Change, Message},
 };
+use datalogic_rs::DataLogic;
 use mx_message::document::*;
 use mx_message::header::*;
 use quick_xml::se::to_string as xml_to_string;
@@ -15,8 +16,8 @@ pub struct PublishMX;
 
 #[async_trait]
 impl AsyncFunctionHandler for PublishMX {
-    #[instrument(skip(self, message, input))]
-    async fn execute(&self, message: &mut Message, input: &Value) -> Result<(usize, Vec<Change>)> {
+    #[instrument(skip(self, message, input, _data_logic))]
+    async fn execute(&self, message: &mut Message, input: &Value, _data_logic: &mut DataLogic) -> Result<(usize, Vec<Change>)> {
         debug!("Starting MT to MX message publishing/conversion");
 
         let source_format = input

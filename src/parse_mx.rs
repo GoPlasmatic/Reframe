@@ -6,6 +6,7 @@ use dataflow_rs::engine::{
     error::Result,
     message::{Change, Message},
 };
+use datalogic_rs::DataLogic;
 use mx_message::document::*;
 use mx_message::header::*;
 use quick_xml::de::from_str;
@@ -16,8 +17,8 @@ pub struct ParseMX;
 
 #[async_trait]
 impl AsyncFunctionHandler for ParseMX {
-    #[instrument(skip(self, message, input))]
-    async fn execute(&self, message: &mut Message, input: &Value) -> Result<(usize, Vec<Change>)> {
+    #[instrument(skip(self, message, input, _data_logic))]
+    async fn execute(&self, message: &mut Message, input: &Value, _data_logic: &mut DataLogic) -> Result<(usize, Vec<Change>)> {
         debug!("Starting MX message parsing for reverse transformation");
 
         let input_field_name = input

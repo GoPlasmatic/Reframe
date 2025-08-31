@@ -57,6 +57,13 @@ async fn main() {
     initialize_scenario_paths();
 
     info!("Service initialization started");
+    
+    // Log concurrency configuration
+    let concurrency = std::env::var("ENGINE_CONCURRENCY")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(16);
+    info!("Engine concurrency level: {} (set ENGINE_CONCURRENCY env var to change)", concurrency);
 
     // Initialize dual engines
     let app_state = initialize_engines().await;

@@ -2,7 +2,6 @@ use dataflow_rs::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use utoipa::ToSchema;
 
 #[derive(Debug, Serialize, Clone, ToSchema)]
@@ -121,8 +120,8 @@ pub struct DebugInfo {
 // Application State with dual engines
 #[derive(Clone)]
 pub struct AppState {
-    pub forward_engine: Arc<Mutex<Engine>>,
-    pub reverse_engine: Arc<Mutex<Engine>>,
+    pub forward_engine: Arc<Engine>,
+    pub reverse_engine: Arc<Engine>,
 }
 
 // Health check response

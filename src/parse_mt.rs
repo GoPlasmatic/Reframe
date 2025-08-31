@@ -5,6 +5,7 @@ use dataflow_rs::engine::{
     error::Result,
     message::{Change, Message},
 };
+use datalogic_rs::DataLogic;
 use serde_json::{Value, json};
 use swift_mt_message::SwiftParser;
 use tracing::{debug, error, instrument};
@@ -13,8 +14,8 @@ pub struct ParseMT;
 
 #[async_trait]
 impl AsyncFunctionHandler for ParseMT {
-    #[instrument(skip(self, message, input))]
-    async fn execute(&self, message: &mut Message, input: &Value) -> Result<(usize, Vec<Change>)> {
+    #[instrument(skip(self, message, input, _data_logic))]
+    async fn execute(&self, message: &mut Message, input: &Value, _data_logic: &mut DataLogic) -> Result<(usize, Vec<Change>)> {
         debug!("Starting MT message parsing for forward transformation");
 
         let input_field_name = input

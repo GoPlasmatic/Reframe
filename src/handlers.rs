@@ -185,7 +185,7 @@ pub async fn transform_mt_to_mx(
     debug!("Request options: {:?}", request.options);
 
     // Use forward engine for MT to MX transformation
-    let engine = state.forward_engine.lock().await;
+    let engine = state.forward_engine.clone();
 
     let payload_value = Value::String(request.message.clone());
     let mut message = Message::new(&payload_value);
@@ -467,7 +467,7 @@ pub async fn transform_mx_to_mt(
     debug!("Request options: {:?}", request.options);
 
     // Use reverse engine for MX to MT transformation
-    let engine = state.reverse_engine.lock().await;
+    let engine = state.reverse_engine.clone();
 
     let payload_value = Value::String(request.message.clone());
     let mut message = Message::new(&payload_value);
@@ -857,18 +857,10 @@ pub async fn generate_sample(
         (status = 200, description = "Service is healthy", body = HealthResponse),
     )
 )]
-pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse> {
-    let forward_status = if state.forward_engine.try_lock().is_ok() {
-        "healthy"
-    } else {
-        "busy"
-    };
-
-    let reverse_status = if state.reverse_engine.try_lock().is_ok() {
-        "healthy"
-    } else {
-        "busy"
-    };
+pub async fn health_check(State(_state): State<AppState>) -> Json<HealthResponse> {
+    // Engines are now always available since they're thread-safe
+    let forward_status = "healthy";
+    let reverse_status = "healthy";
 
     Json(HealthResponse {
         status: "running".to_string(),

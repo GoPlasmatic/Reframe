@@ -5,6 +5,7 @@ use dataflow_rs::engine::{
     error::Result,
     message::{Change, Message},
 };
+use datalogic_rs::DataLogic;
 use serde_json::Value;
 use swift_mt_message::SwiftMessage;
 use swift_mt_message::messages::{
@@ -144,8 +145,8 @@ pub struct PublishMT;
 
 #[async_trait]
 impl AsyncFunctionHandler for PublishMT {
-    #[instrument(skip(self, message, input))]
-    async fn execute(&self, message: &mut Message, input: &Value) -> Result<(usize, Vec<Change>)> {
+    #[instrument(skip(self, message, input, _data_logic))]
+    async fn execute(&self, message: &mut Message, input: &Value, _data_logic: &mut DataLogic) -> Result<(usize, Vec<Change>)> {
         debug!("Starting MX to MT message publishing/conversion");
 
         let source_format = input

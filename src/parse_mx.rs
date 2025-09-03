@@ -1,8 +1,7 @@
 use crate::helper::Helper;
-use async_trait::async_trait;
 use dataflow_rs::engine::error::DataflowError;
 use dataflow_rs::engine::{
-    AsyncFunctionHandler,
+    FunctionConfig, FunctionHandler,
     error::Result,
     message::{Change, Message},
 };
@@ -15,11 +14,25 @@ use tracing::{debug, error, instrument};
 
 pub struct ParseMX;
 
-#[async_trait]
-impl AsyncFunctionHandler for ParseMX {
-    #[instrument(skip(self, message, input, _data_logic))]
-    async fn execute(&self, message: &mut Message, input: &Value, _data_logic: &mut DataLogic) -> Result<(usize, Vec<Change>)> {
+impl FunctionHandler for ParseMX {
+    #[instrument(skip(self, message, config, _datalogic))]
+    fn execute(
+        &self,
+        message: &mut Message,
+        config: &FunctionConfig,
+        _datalogic: &DataLogic,
+    ) -> Result<(usize, Vec<Change>)> {
         debug!("Starting MX message parsing for reverse transformation");
+
+        // Extract custom configuration
+        let input = match config {
+            FunctionConfig::Custom { input, .. } => input,
+            _ => {
+                return Err(DataflowError::Validation(
+                    "Invalid configuration type".to_string(),
+                ));
+            }
+        };
 
         let input_field_name = input
             .get("input_field_name")

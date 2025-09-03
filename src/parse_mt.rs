@@ -1,7 +1,6 @@
-use async_trait::async_trait;
 use dataflow_rs::engine::error::DataflowError;
 use dataflow_rs::engine::{
-    AsyncFunctionHandler,
+    FunctionConfig, FunctionHandler,
     error::Result,
     message::{Change, Message},
 };
@@ -12,11 +11,25 @@ use tracing::{debug, error, instrument};
 
 pub struct ParseMT;
 
-#[async_trait]
-impl AsyncFunctionHandler for ParseMT {
-    #[instrument(skip(self, message, input, _data_logic))]
-    async fn execute(&self, message: &mut Message, input: &Value, _data_logic: &mut DataLogic) -> Result<(usize, Vec<Change>)> {
+impl FunctionHandler for ParseMT {
+    #[instrument(skip(self, message, config, _datalogic))]
+    fn execute(
+        &self,
+        message: &mut Message,
+        config: &FunctionConfig,
+        _datalogic: &DataLogic,
+    ) -> Result<(usize, Vec<Change>)> {
         debug!("Starting MT message parsing for forward transformation");
+
+        // Extract custom configuration
+        let input = match config {
+            FunctionConfig::Custom { input, .. } => input,
+            _ => {
+                return Err(DataflowError::Validation(
+                    "Invalid configuration type".to_string(),
+                ));
+            }
+        };
 
         let input_field_name = input
             .get("input_field_name")
@@ -45,12 +58,11 @@ impl AsyncFunctionHandler for ParseMT {
         );
 
         self.parse_swift_mt(message, &payload, output_field_name)
-            .await
     }
 }
 
 impl ParseMT {
-    async fn parse_swift_mt(
+    fn parse_swift_mt(
         &self,
         message: &mut Message,
         payload: &str,
@@ -368,6 +380,23 @@ impl ParseMT {
             output_field = output_field_name,
             "MT message parsing completed successfully for forward transformation"
         );
+
+        // Directly write to message.data since dataflow-rs doesn't apply Changes from custom functions
+        if !message.data.is_object() {
+            debug!("Initializing message.data as empty object");
+            message.data = json!({});
+        }
+
+        if let Some(data_obj) = message.data.as_object_mut() {
+            debug!("Writing parsed MT data to data.{}", output_field_name);
+            data_obj.insert(output_field_name.to_string(), parsed_data.clone());
+            debug!(
+                "Successfully wrote SwiftMT data. Keys in data: {:?}",
+                data_obj.keys().collect::<Vec<_>>()
+            );
+        } else {
+            error!("Failed to get mutable reference to message.data object");
+        }
 
         Ok((
             200,

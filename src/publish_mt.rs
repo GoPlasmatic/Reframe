@@ -1,7 +1,6 @@
-use async_trait::async_trait;
 use dataflow_rs::engine::error::DataflowError;
 use dataflow_rs::engine::{
-    AsyncFunctionHandler,
+    FunctionConfig, FunctionHandler,
     error::Result,
     message::{Change, Message},
 };
@@ -143,11 +142,25 @@ fn route_by_message_type(
 
 pub struct PublishMT;
 
-#[async_trait]
-impl AsyncFunctionHandler for PublishMT {
-    #[instrument(skip(self, message, input, _data_logic))]
-    async fn execute(&self, message: &mut Message, input: &Value, _data_logic: &mut DataLogic) -> Result<(usize, Vec<Change>)> {
+impl FunctionHandler for PublishMT {
+    #[instrument(skip(self, message, config, _datalogic))]
+    fn execute(
+        &self,
+        message: &mut Message,
+        config: &FunctionConfig,
+        _datalogic: &DataLogic,
+    ) -> Result<(usize, Vec<Change>)> {
         debug!("Starting MX to MT message publishing/conversion");
+
+        // Extract custom configuration
+        let input = match config {
+            FunctionConfig::Custom { input, .. } => input,
+            _ => {
+                return Err(DataflowError::Validation(
+                    "Invalid configuration type".to_string(),
+                ));
+            }
+        };
 
         let source_format = input
             .get("source_format")

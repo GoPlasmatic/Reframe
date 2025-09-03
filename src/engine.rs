@@ -3,95 +3,90 @@ use serde_json::Value;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
-use tracing::{info, warn, debug};
+use tokio::sync::Mutex;
+use tracing::{debug, info, warn};
 
 use crate::parse_mt::ParseMT;
 use crate::parse_mx::ParseMX;
 use crate::publish_mt::PublishMT;
 use crate::publish_mx::PublishMX;
-use crate::types::AppState;
-use dataflow_rs::engine::functions::validation::ValidationFunction;
+use crate::types::{AppState, EngineWrapper};
 
 pub async fn initialize_engines() -> AppState {
     info!("Initializing forward and reverse transformation engines");
 
-    // Get concurrency from environment or use default
-    let concurrency = std::env::var("ENGINE_CONCURRENCY")
-        .ok()
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(16); // Default to 16 concurrent operations
-
-    info!("Initializing engines with concurrency level: {}", concurrency);
-
-    let forward_engine = initialize_forward_engine(concurrency)
+    let forward_engine = initialize_forward_engine()
         .await
         .expect("Failed to initialize forward engine");
 
-    let reverse_engine = initialize_reverse_engine(concurrency)
+    let reverse_engine = initialize_reverse_engine()
         .await
         .expect("Failed to initialize reverse engine");
 
     info!("Both engines initialized successfully");
 
     AppState {
-        forward_engine,
-        reverse_engine,
+        forward_engine: Arc::new(Mutex::new(forward_engine)),
+        reverse_engine: Arc::new(Mutex::new(reverse_engine)),
     }
 }
 
-async fn initialize_forward_engine(concurrency: usize) -> Result<Arc<Engine>, Box<dyn std::error::Error>> {
-    debug!("Setting up forward engine (MT to ISO 20022) with concurrency: {}", concurrency);
-
-    let mut engine = Engine::with_concurrency(concurrency);
-
-    // Register MT-specific functions for forward transformation
-    engine.register_task_function("ParseMT".to_string(), Box::new(ParseMT));
-    engine.register_task_function("PublishMX".to_string(), Box::new(PublishMX));
-    engine.register_task_function("validate".to_string(), Box::new(ValidationFunction::new()));
+async fn initialize_forward_engine() -> Result<Arc<EngineWrapper>, Box<dyn std::error::Error>> {
+    debug!("Setting up forward engine (MT to ISO 20022)");
 
     // Load forward workflows
-    load_workflows_for_engine(&mut engine, "workflows/forward").await?;
+    let workflows = load_workflows("workflows/forward").await?;
+
+    // Register MT-specific functions for forward transformation
+    let mut custom_functions = std::collections::HashMap::new();
+    custom_functions.insert(
+        "ParseMT".to_string(),
+        Box::new(ParseMT) as Box<dyn dataflow_rs::FunctionHandler + Send + Sync>,
+    );
+    custom_functions.insert(
+        "PublishMX".to_string(),
+        Box::new(PublishMX) as Box<dyn dataflow_rs::FunctionHandler + Send + Sync>,
+    );
+
+    // Create engine with workflows and custom functions
+    // Disable compiled logic due to issue with context variables in filter/reduce operations
+    let engine = Engine::new(workflows, Some(custom_functions), Some(false), None, None);
 
     debug!("Forward engine ready");
-    Ok(Arc::new(engine))
+    Ok(Arc::new(EngineWrapper::new(engine)))
 }
 
-async fn initialize_reverse_engine(concurrency: usize) -> Result<Arc<Engine>, Box<dyn std::error::Error>> {
-    debug!("Setting up reverse engine (ISO 20022 to MT) with concurrency: {}", concurrency);
-
-    let mut engine = Engine::with_concurrency(concurrency);
-
-    // Register MX-specific functions for reverse transformation
-    engine.register_task_function("ParseMX".to_string(), Box::new(ParseMX));
-    engine.register_task_function("PublishMT".to_string(), Box::new(PublishMT));
-    engine.register_task_function("validate".to_string(), Box::new(ValidationFunction::new()));
+async fn initialize_reverse_engine() -> Result<Arc<EngineWrapper>, Box<dyn std::error::Error>> {
+    debug!("Setting up reverse engine (ISO 20022 to MT)");
 
     // Load reverse workflows
-    load_workflows_for_engine(&mut engine, "workflows/reverse").await?;
+    let workflows = load_workflows("workflows/reverse").await?;
+
+    // Register MX-specific functions for reverse transformation
+    let mut custom_functions = std::collections::HashMap::new();
+    custom_functions.insert(
+        "ParseMX".to_string(),
+        Box::new(ParseMX) as Box<dyn dataflow_rs::FunctionHandler + Send + Sync>,
+    );
+    custom_functions.insert(
+        "PublishMT".to_string(),
+        Box::new(PublishMT) as Box<dyn dataflow_rs::FunctionHandler + Send + Sync>,
+    );
+
+    // Create engine with workflows and custom functions
+    // Disable compiled logic due to issue with context variables in filter/reduce operations
+    let engine = Engine::new(workflows, Some(custom_functions), Some(false), None, None);
 
     debug!("Reverse engine ready");
-    Ok(Arc::new(engine))
-}
-
-async fn load_workflows_for_engine(
-    engine: &mut Engine,
-    workflow_dir: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let workflows = load_workflows(workflow_dir).await?;
-    
-    for workflow in workflows {
-        engine.add_workflow(&workflow);
-    }
-    
-    Ok(())
+    Ok(Arc::new(EngineWrapper::new(engine)))
 }
 
 async fn load_workflows(workflow_dir: &str) -> Result<Vec<Workflow>, Box<dyn std::error::Error>> {
     debug!(directory = %workflow_dir, "Loading workflow configurations");
-    
+
     let mut workflows = Vec::new();
     let index_path = format!("{workflow_dir}/index.json");
-    
+
     if !Path::new(&index_path).exists() {
         warn!(
             "No index.json found in {}, skipping workflow loading",
@@ -125,13 +120,16 @@ async fn load_workflows(workflow_dir: &str) -> Result<Vec<Workflow>, Box<dyn std
 pub async fn reload_engines(app_state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
     info!("Reloading workflow configurations for both engines");
 
-    // Load forward workflows
-    let forward_workflows = load_workflows("workflows/forward").await?;
-    app_state.forward_engine.reload_workflows(forward_workflows)?;
-    
-    // Load reverse workflows
-    let reverse_workflows = load_workflows("workflows/reverse").await?;
-    app_state.reverse_engine.reload_workflows(reverse_workflows)?;
+    // Since the new engine doesn't support dynamic workflow reloading,
+    // we need to create new engine instances
+
+    // Create new forward engine
+    let new_forward_engine = initialize_forward_engine().await?;
+    *app_state.forward_engine.lock().await = new_forward_engine;
+
+    // Create new reverse engine
+    let new_reverse_engine = initialize_reverse_engine().await?;
+    *app_state.reverse_engine.lock().await = new_reverse_engine;
 
     info!("Engines reloaded successfully");
     Ok(())

@@ -18,14 +18,38 @@
             "function": {
                 "name": "validate",
                 "input": {
-                    "rules": { "and": [
-                        {"exists": ["data", "ISO20022_MX", "document", "RsltnOfInvstgtn", "CxlDtls", "TxInfAndSts", "CxlStsId"]},
-                        {"exists": ["data", "ISO20022_MX", "document", "RsltnOfInvstgtn", "CxlDtls", "TxInfAndSts", "RslvdCase", "Id"]},
-                        {"exists": ["data", "ISO20022_MX", "document", "RsltnOfInvstgtn", "Sts", "Conf"]},
-                        {"in": [{"var": "data.ISO20022_MX.document.Sts.Conf"}, ["CNCL", "PDCR", "RJCR"]]},
-                        {"exists": ["data", "ISO20022_MX", "document", "RsltnOfInvstgtn", "CxlDtls", "TxInfAndSts", "OrgnlUETR"]}
-                    ]},
-                    "error_message": "Required fields missing or invalid for camt.029 to MT196/MT296 transformation"
+                    "rules": [
+                        {
+                            "logic": {"!!": [{"var": "data.ISO20022_MX.document.Assgnmt.Id"}]},
+                            "path": "data",
+                            "message": "Assignment Id is required for camt.029 to MT196/MT296 transformation"
+                        },
+                        {
+                            "logic": {"!!": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsId"}]},
+                            "path": "data",
+                            "message": "Cancellation Status Id is required for camt.029 to MT196/MT296 transformation"
+                        },
+                        {
+                            "logic": {"!!": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.RslvdCase.Id"}]},
+                            "path": "data",
+                            "message": "Resolved Case Id is required for camt.029 to MT196/MT296 transformation"
+                        },
+                        {
+                            "logic": {"!!": [{"var": "data.ISO20022_MX.document.Sts.Conf"}]},
+                            "path": "data",
+                            "message": "Status Confirmation is required for camt.029 to MT196/MT296 transformation"
+                        },
+                        {
+                            "logic": {"in": [{"var": "data.ISO20022_MX.document.Sts.Conf"}, ["CNCL", "PDCR", "RJCR"]]},
+                            "path": "data",
+                            "message": "Status Confirmation must be CNCL, PDCR, or RJCR"
+                        },
+                        {
+                            "logic": {"!!": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlUETR"}]},
+                            "path": "data",
+                            "message": "Original UETR is required for camt.029 to MT196/MT296 transformation"
+                        }
+                    ]
                 }
             }
         }

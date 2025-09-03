@@ -1,6 +1,6 @@
 use axum::{
-    Json, 
-    extract::{State, Request}, 
+    Json,
+    extract::{Request, State},
     http::StatusCode,
     middleware::Next,
     response::Response,
@@ -10,7 +10,7 @@ use quick_xml::Reader;
 use serde_json::Value;
 use std::time::Instant;
 use swift_mt_message::SwiftParser;
-use tracing::{debug, error, info, warn, instrument, Span};
+use tracing::{Span, debug, error, info, instrument, warn};
 use uuid::Uuid;
 
 use crate::engine::reload_engines;
@@ -104,14 +104,11 @@ fn extract_workflow_errors(message: &Message) -> Vec<String> {
 }
 
 /// Middleware to add correlation IDs to requests
-pub async fn correlation_middleware(
-    mut req: Request,
-    next: Next,
-) -> Response {
+pub async fn correlation_middleware(mut req: Request, next: Next) -> Response {
     let request_id = Uuid::new_v4().to_string();
     let method = req.method().to_string();
     let path = req.uri().path().to_string();
-    
+
     // Create a span for this request
     let span = tracing::info_span!(
         "http_request",
@@ -121,24 +118,24 @@ pub async fn correlation_middleware(
         latency_ms = tracing::field::Empty,
         status = tracing::field::Empty,
     );
-    
+
     let _enter = span.enter();
-    
+
     // Add request ID to extensions so handlers can access it
     req.extensions_mut().insert(request_id.clone());
-    
+
     let start = Instant::now();
     debug!("Request started");
-    
+
     let response = next.run(req).await;
-    
+
     let latency = start.elapsed();
     let status = response.status();
-    
+
     // Record metrics in the span
     Span::current().record("latency_ms", latency.as_millis() as u64);
     Span::current().record("status", status.as_u16());
-    
+
     if status.is_success() {
         info!(
             status = status.as_u16(),
@@ -158,7 +155,7 @@ pub async fn correlation_middleware(
             "Request failed with server error"
         );
     }
-    
+
     response
 }
 
@@ -185,17 +182,18 @@ pub async fn transform_mt_to_mx(
     debug!("Request options: {:?}", request.options);
 
     // Use forward engine for MT to MX transformation
-    let engine = state.forward_engine.clone();
+    let engine = state.forward_engine.lock().await;
 
     let payload_value = Value::String(request.message.clone());
     let mut message = Message::new(&payload_value);
+    message.data = serde_json::json!({}); // Initialize data field as empty object
     message.metadata = serde_json::json!({
         "transformation_direction": "mt-to-mx"
     });
 
     let processing_time = start_time.elapsed().as_millis() as u64;
 
-    match engine.process_message(&mut message).await {
+    match engine.process_message(&mut message) {
         Ok(_) => {
             info!(
                 "✅ MT to MX transformation completed in {}ms",
@@ -467,17 +465,18 @@ pub async fn transform_mx_to_mt(
     debug!("Request options: {:?}", request.options);
 
     // Use reverse engine for MX to MT transformation
-    let engine = state.reverse_engine.clone();
+    let engine = state.reverse_engine.lock().await;
 
     let payload_value = Value::String(request.message.clone());
     let mut message = Message::new(&payload_value);
+    message.data = serde_json::json!({}); // Initialize data field as empty object
     message.metadata = serde_json::json!({
         "transformation_direction": "mx-to-mt"
     });
 
     let processing_time = start_time.elapsed().as_millis() as u64;
 
-    match engine.process_message(&mut message).await {
+    match engine.process_message(&mut message) {
         Ok(_) => {
             info!(
                 "✅ MX to MT transformation completed in {}ms",

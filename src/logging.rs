@@ -1,9 +1,9 @@
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{
+    EnvFilter,
     fmt::{self, format::FmtSpan, time::FormatTime},
     layer::SubscriberExt,
     util::SubscriberInitExt,
-    EnvFilter,
 };
 
 /// Custom time formatter for consistent timestamp format
@@ -66,8 +66,8 @@ impl Default for LogConfig {
 /// Initialize the logging system with the given configuration
 pub fn init_logging(config: LogConfig) -> Result<(), Box<dyn std::error::Error>> {
     // Create environment filter
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(&config.level));
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&config.level));
 
     // Create the base subscriber
     let subscriber = tracing_subscriber::registry().with(env_filter);
@@ -95,11 +95,8 @@ pub fn init_logging(config: LogConfig) -> Result<(), Box<dyn std::error::Error>>
                     .json()
                     .with_writer(file_appender)
                     .with_ansi(false);
-                
-                subscriber
-                    .with(console_layer)
-                    .with(file_layer)
-                    .try_init()?;
+
+                subscriber.with(console_layer).with(file_layer).try_init()?;
             } else {
                 subscriber.with(console_layer).try_init()?;
             }
@@ -129,11 +126,8 @@ pub fn init_logging(config: LogConfig) -> Result<(), Box<dyn std::error::Error>>
                     .with_writer(file_appender)
                     .with_ansi(false)
                     .with_timer(CustomTimeFormat);
-                
-                subscriber
-                    .with(console_layer)
-                    .with(file_layer)
-                    .try_init()?;
+
+                subscriber.with(console_layer).with(file_layer).try_init()?;
             } else {
                 subscriber.with(console_layer).try_init()?;
             }
@@ -163,11 +157,8 @@ pub fn init_logging(config: LogConfig) -> Result<(), Box<dyn std::error::Error>>
                     .with_writer(file_appender)
                     .with_ansi(false)
                     .with_timer(CustomTimeFormat);
-                
-                subscriber
-                    .with(console_layer)
-                    .with(file_layer)
-                    .try_init()?;
+
+                subscriber.with(console_layer).with(file_layer).try_init()?;
             } else {
                 subscriber.with(console_layer).try_init()?;
             }
@@ -182,15 +173,28 @@ pub fn log_system_info(version: &str) {
     tracing::info!("===========================================");
     tracing::info!("Reframe Transformation Service");
     tracing::info!("Version: {}", version);
-    tracing::info!("Build: {}", if cfg!(debug_assertions) { "Debug" } else { "Release" });
+    tracing::info!(
+        "Build: {}",
+        if cfg!(debug_assertions) {
+            "Debug"
+        } else {
+            "Release"
+        }
+    );
     tracing::info!("===========================================");
-    
+
     // Log runtime environment
     tracing::debug!("Runtime Information:");
     tracing::debug!("  CPU Cores: {}", num_cpus::get());
-    tracing::debug!("  Physical Memory: {} MB", sys_info::mem_info().map(|m| m.total / 1024).unwrap_or(0));
-    tracing::debug!("  OS: {} {}", sys_info::os_type().unwrap_or_else(|_| "Unknown".to_string()), 
-                   sys_info::os_release().unwrap_or_else(|_| "".to_string()));
+    tracing::debug!(
+        "  Physical Memory: {} MB",
+        sys_info::mem_info().map(|m| m.total / 1024).unwrap_or(0)
+    );
+    tracing::debug!(
+        "  OS: {} {}",
+        sys_info::os_type().unwrap_or_else(|_| "Unknown".to_string()),
+        sys_info::os_release().unwrap_or_else(|_| "".to_string())
+    );
 }
 
 /// Create a span for a request with correlation ID
@@ -244,4 +248,3 @@ macro_rules! log_transformation {
         }
     };
 }
-

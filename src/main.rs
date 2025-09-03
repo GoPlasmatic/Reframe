@@ -1,15 +1,14 @@
 use axum::{
-    Router,
+    Router, middleware,
     routing::{get, post},
-    middleware,
 };
 use tracing::info;
 
 // Module declarations
 mod engine;
-mod logging;
 mod handlers;
 mod helper;
+mod logging;
 mod mt_generator;
 mod mx_generator;
 mod openapi;
@@ -25,10 +24,10 @@ mod validation_helpers;
 // Import public items from modules
 use engine::initialize_engines;
 use handlers::{
-    generate_sample, health_check, reload_workflows, transform_mt_to_mx, transform_mx_to_mt,
-    validate_mt, validate_mx, correlation_middleware,
+    correlation_middleware, generate_sample, health_check, reload_workflows, transform_mt_to_mx,
+    transform_mx_to_mt, validate_mt, validate_mx,
 };
-use logging::{init_logging, log_system_info, LogConfig};
+use logging::{LogConfig, init_logging, log_system_info};
 use openapi::swagger_ui;
 
 #[tokio::main]
@@ -44,7 +43,7 @@ async fn main() {
         },
         ..Default::default()
     };
-    
+
     if let Err(e) = init_logging(log_config) {
         // Use eprintln here since logging isn't initialized yet
         eprintln!("Failed to initialize logging: {}", e);
@@ -57,13 +56,6 @@ async fn main() {
     initialize_scenario_paths();
 
     info!("Service initialization started");
-    
-    // Log concurrency configuration
-    let concurrency = std::env::var("ENGINE_CONCURRENCY")
-        .ok()
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(16);
-    info!("Engine concurrency level: {} (set ENGINE_CONCURRENCY env var to change)", concurrency);
 
     // Initialize dual engines
     let app_state = initialize_engines().await;
@@ -82,7 +74,7 @@ async fn main() {
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    
+
     info!("Service started successfully");
     info!("Listening on: http://0.0.0.0:3000");
     info!("Available endpoints:");
@@ -100,7 +92,6 @@ async fn main() {
         .await
         .expect("Failed to start server");
 }
-
 
 fn initialize_scenario_paths() {
     // Set environment variables for scenario paths

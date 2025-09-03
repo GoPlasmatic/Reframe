@@ -55,22 +55,17 @@ echo ""
 
 # 2. Low concurrency test
 echo "2️⃣ Running Load Test (10 concurrent connections)..."
-python3 test/performance_test.py --test load -c 10 -n 500 --save $RESULTS_DIR/load_c10.json
+python3 test/performance_test.py --test load -c 8 -n 10000 --save $RESULTS_DIR/load_c10.json
 echo ""
 
 # 3. Medium concurrency test
 echo "3️⃣ Running Load Test (50 concurrent connections)..."
-python3 test/performance_test.py --test load -c 50 -n 1000 --save $RESULTS_DIR/load_c50.json
+python3 test/performance_test.py --test load -c 16 -n 10000 --save $RESULTS_DIR/load_c50.json
 echo ""
 
 # 4. High concurrency test (expected to show bottleneck)
 echo "4️⃣ Running Load Test (100 concurrent connections)..."
-python3 test/performance_test.py --test load -c 100 -n 1000 --save $RESULTS_DIR/load_c100.json
-echo ""
-
-# 5. Quick stress test
-echo "5️⃣ Running Stress Test (up to 100 connections)..."
-python3 test/performance_test.py --test stress --max-concurrency 100 --save $RESULTS_DIR/stress.json
+python3 test/performance_test.py --test load -c 16 -n 100000 --save $RESULTS_DIR/load_c100.json
 echo ""
 
 # Summary

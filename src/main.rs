@@ -6,6 +6,7 @@ use tracing::info;
 
 // Module declarations
 mod engine;
+mod engine_pool;
 mod handlers;
 mod helper;
 mod logging;
@@ -52,15 +53,12 @@ async fn main() {
     // Log system information
     log_system_info(env!("CARGO_PKG_VERSION"));
 
-    // Initialize scenario paths for sample generation
-    initialize_scenario_paths();
-
     info!("Service initialization started");
 
-    // Initialize dual engines
+    // Initialize engine pools for vertical scaling
     let app_state = initialize_engines().await;
 
-    // Build router with new endpoints
+    // Build router with pooled endpoints
     let app = Router::new()
         .route("/health", get(health_check))
         .route("/transform/mt-to-mx", post(transform_mt_to_mx))
@@ -77,6 +75,15 @@ async fn main() {
 
     info!("Service started successfully");
     info!("Listening on: http://0.0.0.0:3000");
+
+    let pool_size = std::env::var("REFRAME_POOL_SIZE")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or_else(num_cpus::get);
+    info!(
+        "🚀 Engine pooling enabled with {} engines per direction",
+        pool_size
+    );
     info!("Available endpoints:");
     info!("  POST /transform/mt-to-mx    - MT to ISO 20022 transformation");
     info!("  POST /transform/mx-to-mt    - ISO 20022 to MT transformation");
@@ -91,16 +98,4 @@ async fn main() {
     axum::serve(listener, app)
         .await
         .expect("Failed to start server");
-}
-
-fn initialize_scenario_paths() {
-    // Set environment variables for scenario paths
-    // These will be used by swift-mt-message and mx-message libraries
-    unsafe {
-        std::env::set_var("SWIFT_SCENARIO_PATH", "scenarios/SwiftMTMessage");
-        std::env::set_var("MX_SCENARIO_PATH", "scenarios/MXMessage");
-    }
-    tracing::debug!("Scenario paths configured");
-    tracing::debug!("  SWIFT: scenarios/SwiftMTMessage");
-    tracing::debug!("  MX: scenarios/MXMessage");
 }

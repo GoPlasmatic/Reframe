@@ -140,11 +140,11 @@ impl EngineWrapper {
     }
 }
 
-// Application State with dual engines
+// Application State with engine pools for vertical scaling
 #[derive(Clone)]
 pub struct AppState {
-    pub forward_engine: Arc<Mutex<Arc<EngineWrapper>>>,
-    pub reverse_engine: Arc<Mutex<Arc<EngineWrapper>>>,
+    pub forward_pool: Arc<Mutex<crate::engine_pool::EnginePool>>,
+    pub reverse_pool: Arc<Mutex<crate::engine_pool::EnginePool>>,
 }
 
 // Health check response

@@ -8,6 +8,7 @@ use axum::{
 use dataflow_rs::engine::message::Message;
 use quick_xml::Reader;
 use serde_json::Value;
+use std::sync::Arc;
 use std::time::Instant;
 use swift_mt_message::SwiftParser;
 use tracing::{Span, debug, error, info, instrument, warn};
@@ -213,7 +214,8 @@ pub async fn transform_mt_to_mx(
     let processing_time = start_time.elapsed().as_millis() as u64;
 
     // Lock the engine for exclusive access
-    let engine = pooled_engine.engine_mutex.lock().await;
+    let mut engine_guard = pooled_engine.engine_mutex.lock().await;
+    let engine = Arc::get_mut(&mut *engine_guard).expect("Failed to get mutable reference to engine");
     match engine.process_message(&mut message) {
         Ok(_) => {
             info!(
@@ -517,7 +519,8 @@ pub async fn transform_mx_to_mt(
     let processing_time = start_time.elapsed().as_millis() as u64;
 
     // Lock the engine for exclusive access
-    let engine = pooled_engine.engine_mutex.lock().await;
+    let mut engine_guard = pooled_engine.engine_mutex.lock().await;
+    let engine = Arc::get_mut(&mut *engine_guard).expect("Failed to get mutable reference to engine");
     match engine.process_message(&mut message) {
         Ok(_) => {
             info!(

@@ -133,7 +133,7 @@ impl EngineWrapper {
     }
 
     pub fn process_message(
-        &self,
+        &mut self,
         message: &mut dataflow_rs::engine::message::Message,
     ) -> dataflow_rs::Result<()> {
         self.inner.process_message(message)

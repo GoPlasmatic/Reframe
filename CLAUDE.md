@@ -28,7 +28,78 @@ RUST_LOG=info cargo run
 
 # Kill existing process on port 3000 and restart
 lsof -i :3000 | grep LISTEN | awk '{print $2}' | xargs kill -9 2>/dev/null; RUST_LOG=info cargo run
+
+# Run with custom performance configuration
+REFRAME_THREAD_COUNT=8 REFRAME_MAX_CONCURRENT_TASKS=32 cargo run --release
+
+# Run benchmark to find optimal configuration
+python3 test/benchmark_config.py
 ```
+
+### Performance Configuration
+
+Reframe supports environment variables to tune performance based on your hardware and workload:
+
+#### Environment Variables
+
+- **`REFRAME_THREAD_COUNT`**: Number of worker threads per engine (default: CPU count)
+  - Controls parallelism within each transformation engine
+  - Higher values improve throughput for CPU-bound workloads
+  - Recommended: 4-8 for most servers
+
+- **`REFRAME_MAX_CONCURRENT_TASKS`**: Maximum concurrent transformations (default: thread_count × 4)
+  - Limits concurrent requests to prevent resource exhaustion
+  - Uses semaphore-based rate limiting
+  - Higher values allow more concurrent clients
+  - Recommended: 16-64 depending on available memory
+
+#### Configuration Examples
+
+```bash
+# Conservative (low resources, single-core VPS)
+REFRAME_THREAD_COUNT=1 REFRAME_MAX_CONCURRENT_TASKS=4 cargo run
+
+# Balanced (4-core server, default for most deployments)
+REFRAME_THREAD_COUNT=4 REFRAME_MAX_CONCURRENT_TASKS=16 cargo run
+
+# High performance (8+ cores, based on benchmark results)
+REFRAME_THREAD_COUNT=8 REFRAME_MAX_CONCURRENT_TASKS=32 cargo run --release
+
+# Maximum throughput (powerful servers with 16+ cores)
+REFRAME_THREAD_COUNT=16 REFRAME_MAX_CONCURRENT_TASKS=64 cargo run --release
+
+# Custom based on your benchmark results
+REFRAME_THREAD_COUNT=6 REFRAME_MAX_CONCURRENT_TASKS=48 cargo run --release
+```
+
+#### Performance Tuning Guide
+
+1. **Run the benchmark script** to find optimal settings for your hardware:
+   ```bash
+   python3 test/benchmark_config.py
+   ```
+
+2. **Analyze results** to identify:
+   - Best throughput configuration
+   - Best latency configuration
+   - Balanced configuration for mixed workloads
+
+3. **Consider your workload**:
+   - **High throughput**: Use more workers (8-16) and higher concurrency (32-64)
+   - **Low latency**: Use fewer workers (1-4) and moderate concurrency (4-16)
+   - **Balanced**: Use 4-8 workers with 16-32 concurrent tasks
+
+4. **Monitor in production**:
+   - Watch for "Failed to acquire semaphore" errors (increase MAX_CONCURRENT_TASKS)
+   - Monitor CPU usage (adjust THREAD_COUNT based on utilization)
+   - Track response times (reduce concurrency if latency increases)
+
+#### Benchmark Results
+
+Based on dataflow-rs async benchmarks:
+- Single-threaded baseline: ~108,000 msg/s
+- Optimal async config (8 workers, 32 tasks): ~259,000 msg/s
+- **2.38x performance improvement** with proper configuration
 
 ### Testing
 

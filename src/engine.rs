@@ -105,7 +105,16 @@ pub async fn initialize_engines() -> AppState {
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or_else(num_cpus::get);
 
-    info!("Configuring engines with {} worker threads each", thread_count);
+    // Get max concurrent tasks from environment or use default based on threads
+    let max_concurrent_tasks = std::env::var("REFRAME_MAX_CONCURRENT_TASKS")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(thread_count * 4); // Default: 4x thread count
+
+    info!("Configuration:");
+    info!("  • Worker threads per engine: {}", thread_count);
+    info!("  • Max concurrent tasks: {}", max_concurrent_tasks);
+    info!("  • CPU cores available: {}", num_cpus::get());
 
     // Create forward engine with thread pool
     let forward_engine = initialize_forward_engine(thread_count)
@@ -117,11 +126,15 @@ pub async fn initialize_engines() -> AppState {
         .await
         .expect("Failed to initialize reverse engine");
 
+    // Create semaphore for concurrent task limiting
+    let max_concurrent_tasks = Arc::new(tokio::sync::Semaphore::new(max_concurrent_tasks));
+
     info!("Threaded engines initialized successfully");
 
     AppState {
         forward_engine,
         reverse_engine,
+        max_concurrent_tasks,
     }
 }
 

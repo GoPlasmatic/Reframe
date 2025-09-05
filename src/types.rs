@@ -122,6 +122,7 @@ pub struct DebugInfo {
 pub struct AppState {
     pub forward_engine: Arc<dataflow_rs::ThreadedEngine>,
     pub reverse_engine: Arc<dataflow_rs::ThreadedEngine>,
+    pub max_concurrent_tasks: Arc<tokio::sync::Semaphore>,
 }
 
 // Health check response

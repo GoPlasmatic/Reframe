@@ -189,6 +189,13 @@ pub async fn transform_mt_to_mx(
         "transformation_direction": "mt-to-mx"
     });
 
+    // Acquire semaphore permit for concurrent task limiting
+    let _permit = state.max_concurrent_tasks.acquire().await
+        .map_err(|e| {
+            error!("Failed to acquire semaphore permit: {}", e);
+            StatusCode::SERVICE_UNAVAILABLE
+        })?;
+
     // Process message using the threaded forward engine
     match state.forward_engine.process_message(message.clone()).await {
         Ok(result_message) => {
@@ -471,6 +478,13 @@ pub async fn transform_mx_to_mt(
     message.metadata = serde_json::json!({
         "transformation_direction": "mx-to-mt"
     });
+
+    // Acquire semaphore permit for concurrent task limiting
+    let _permit = state.max_concurrent_tasks.acquire().await
+        .map_err(|e| {
+            error!("Failed to acquire semaphore permit: {}", e);
+            StatusCode::SERVICE_UNAVAILABLE
+        })?;
 
     // Process message using the threaded reverse engine
     match state.reverse_engine.process_message(message.clone()).await {

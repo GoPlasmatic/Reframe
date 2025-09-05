@@ -8,13 +8,12 @@ use axum::{
 use dataflow_rs::engine::message::Message;
 use quick_xml::Reader;
 use serde_json::Value;
-use std::sync::Arc;
 use std::time::Instant;
 use swift_mt_message::SwiftParser;
 use tracing::{Span, debug, error, info, instrument, warn};
 use uuid::Uuid;
 
-use crate::engine::reload_engine_pools;
+use crate::engine::reload_engines;
 use crate::parse_mx::ParseMX;
 use crate::sample_generator::{
     generate_mt_from_config, generate_mx_from_config, is_supported_message_type,
@@ -182,28 +181,7 @@ pub async fn transform_mt_to_mx(
     info!("🔄 Processing MT to MX transformation request");
     debug!("Request options: {:?}", request.options);
 
-    // Acquire engine from pool
-    let pool = state.forward_pool.lock().await;
-    let pooled_engine = match pool.acquire().await {
-        Ok(engine) => engine,
-        Err(e) => {
-            error!("Failed to acquire engine from pool: {}", e);
-            return Ok(Json(TransformationResponse {
-                success: false,
-                result: None,
-                debug_info: None,
-                errors: vec![ReframeError::internal_error(format!(
-                    "Failed to acquire transformation engine: {}",
-                    e
-                ))],
-                warnings: Vec::new(),
-            }));
-        }
-    };
-
-    // Release the pool lock immediately
-    drop(pool);
-
+    // Prepare message for transformation
     let payload_value = Value::String(request.message.clone());
     let mut message = Message::new(&payload_value);
     message.data = serde_json::json!({}); // Initialize data field as empty object
@@ -211,17 +189,16 @@ pub async fn transform_mt_to_mx(
         "transformation_direction": "mt-to-mx"
     });
 
-    let processing_time = start_time.elapsed().as_millis() as u64;
-
-    // Lock the engine for exclusive access
-    let mut engine_guard = pooled_engine.engine_mutex.lock().await;
-    let engine = Arc::get_mut(&mut *engine_guard).expect("Failed to get mutable reference to engine");
-    match engine.process_message(&mut message) {
-        Ok(_) => {
+    // Process message using the threaded forward engine
+    match state.forward_engine.process_message(message.clone()).await {
+        Ok(result_message) => {
+            let processing_time = start_time.elapsed().as_millis() as u64;
             info!(
                 "✅ MT to MX transformation completed in {}ms",
                 processing_time
             );
+            // Update message with result
+            message = result_message;
 
             // Check for validation/processing errors even if engine returned Ok
             let workflow_errors = extract_workflow_errors(&message);
@@ -236,7 +213,7 @@ pub async fn transform_mt_to_mx(
                     debug_info: if request.options.debug {
                         let message_json = serde_json::to_value(&message).unwrap();
                         Some(DebugInfo {
-                            engine_state: "forward (pooled)".to_string(),
+                            engine_state: "forward (threaded)".to_string(),
                             workflow_execution: vec!["Failed - Validation errors".to_string()],
                             intermediate_data: message_json,
                         })
@@ -265,7 +242,7 @@ pub async fn transform_mt_to_mx(
                                     debug_info: if request.options.debug {
                                         let message_json = serde_json::to_value(&message).unwrap();
                                         Some(DebugInfo {
-                                            engine_state: "forward (pooled)".to_string(),
+                                            engine_state: "forward (threaded)".to_string(),
                                             workflow_execution: vec!["Completed".to_string()],
                                             intermediate_data: message_json,
                                         })
@@ -289,7 +266,7 @@ pub async fn transform_mt_to_mx(
                                             let message_json =
                                                 serde_json::to_value(&message).unwrap();
                                             Some(DebugInfo {
-                                                engine_state: "forward (pooled)".to_string(),
+                                                engine_state: "forward (threaded)".to_string(),
                                                 workflow_execution: vec![
                                                     "Failed - Malformed XML output".to_string(),
                                                 ],
@@ -329,7 +306,7 @@ pub async fn transform_mt_to_mx(
                                     debug_info: if request.options.debug {
                                         let message_json = serde_json::to_value(&message).unwrap();
                                         Some(DebugInfo {
-                                            engine_state: "forward (pooled)".to_string(),
+                                            engine_state: "forward (threaded)".to_string(),
                                             workflow_execution: vec![format!(
                                                 "Completed - {} messages generated",
                                                 arr.len()
@@ -356,7 +333,7 @@ pub async fn transform_mt_to_mx(
                                     debug_info: if request.options.debug {
                                         let message_json = serde_json::to_value(&message).unwrap();
                                         Some(DebugInfo {
-                                            engine_state: "forward (pooled)".to_string(),
+                                            engine_state: "forward (threaded)".to_string(),
                                             workflow_execution: vec![format!(
                                                 "Failed - XML validation errors in {} messages",
                                                 errors.len()
@@ -391,7 +368,7 @@ pub async fn transform_mt_to_mx(
                                 debug_info: if request.options.debug {
                                     let message_json = serde_json::to_value(message).unwrap();
                                     Some(DebugInfo {
-                                        engine_state: "forward (pooled)".to_string(),
+                                        engine_state: "forward (threaded)".to_string(),
                                         workflow_execution: vec![
                                             "Failed - Empty or invalid result".to_string(),
                                         ],
@@ -422,7 +399,7 @@ pub async fn transform_mt_to_mx(
                         debug_info: if request.options.debug {
                             let message_json = serde_json::to_value(message).unwrap();
                             Some(DebugInfo {
-                                engine_state: "forward (pooled)".to_string(),
+                                engine_state: "forward (threaded)".to_string(),
                                 workflow_execution: vec!["Failed - No result produced".to_string()],
                                 intermediate_data: message_json,
                             })
@@ -487,28 +464,7 @@ pub async fn transform_mx_to_mt(
     info!("🔄 Processing MX to MT transformation request");
     debug!("Request options: {:?}", request.options);
 
-    // Acquire engine from pool
-    let pool = state.reverse_pool.lock().await;
-    let pooled_engine = match pool.acquire().await {
-        Ok(engine) => engine,
-        Err(e) => {
-            error!("Failed to acquire engine from pool: {}", e);
-            return Ok(Json(TransformationResponse {
-                success: false,
-                result: None,
-                debug_info: None,
-                errors: vec![ReframeError::internal_error(format!(
-                    "Failed to acquire transformation engine: {}",
-                    e
-                ))],
-                warnings: Vec::new(),
-            }));
-        }
-    };
-
-    // Release the pool lock immediately
-    drop(pool);
-
+    // Prepare message for transformation
     let payload_value = Value::String(request.message.clone());
     let mut message = Message::new(&payload_value);
     message.data = serde_json::json!({}); // Initialize data field as empty object
@@ -516,17 +472,16 @@ pub async fn transform_mx_to_mt(
         "transformation_direction": "mx-to-mt"
     });
 
-    let processing_time = start_time.elapsed().as_millis() as u64;
-
-    // Lock the engine for exclusive access
-    let mut engine_guard = pooled_engine.engine_mutex.lock().await;
-    let engine = Arc::get_mut(&mut *engine_guard).expect("Failed to get mutable reference to engine");
-    match engine.process_message(&mut message) {
-        Ok(_) => {
+    // Process message using the threaded reverse engine
+    match state.reverse_engine.process_message(message.clone()).await {
+        Ok(result_message) => {
+            let processing_time = start_time.elapsed().as_millis() as u64;
             info!(
                 "✅ MX to MT transformation completed in {}ms",
                 processing_time
             );
+            // Update message with result
+            message = result_message;
 
             // Check for validation/processing errors even if engine returned Ok
             let workflow_errors = extract_workflow_errors(&message);
@@ -541,7 +496,7 @@ pub async fn transform_mx_to_mt(
                     debug_info: if request.options.debug {
                         let message_json = serde_json::to_value(&message).unwrap();
                         Some(DebugInfo {
-                            engine_state: "reverse (pooled)".to_string(),
+                            engine_state: "reverse (threaded)".to_string(),
                             workflow_execution: vec!["Failed - Validation errors".to_string()],
                             intermediate_data: message_json,
                         })
@@ -577,7 +532,7 @@ pub async fn transform_mx_to_mt(
                                     debug_info: if request.options.debug {
                                         let message_json = serde_json::to_value(&message).unwrap();
                                         Some(DebugInfo {
-                                            engine_state: "reverse (pooled)".to_string(),
+                                            engine_state: "reverse (threaded)".to_string(),
                                             workflow_execution: vec!["Completed".to_string()],
                                             intermediate_data: message_json,
                                         })
@@ -599,7 +554,7 @@ pub async fn transform_mx_to_mt(
                                             let message_json =
                                                 serde_json::to_value(&message).unwrap();
                                             Some(DebugInfo {
-                                                engine_state: "reverse (pooled)".to_string(),
+                                                engine_state: "reverse (threaded)".to_string(),
                                                 workflow_execution: vec![
                                                     "Failed - Malformed SWIFT MT output"
                                                         .to_string(),
@@ -632,7 +587,7 @@ pub async fn transform_mx_to_mt(
                                 debug_info: if request.options.debug {
                                     let message_json = serde_json::to_value(message).unwrap();
                                     Some(DebugInfo {
-                                        engine_state: "reverse (pooled)".to_string(),
+                                        engine_state: "reverse (threaded)".to_string(),
                                         workflow_execution: vec![
                                             "Failed - Empty or invalid result".to_string(),
                                         ],
@@ -663,7 +618,7 @@ pub async fn transform_mx_to_mt(
                         debug_info: if request.options.debug {
                             let message_json = serde_json::to_value(message).unwrap();
                             Some(DebugInfo {
-                                engine_state: "reverse (pooled)".to_string(),
+                                engine_state: "reverse (threaded)".to_string(),
                                 workflow_execution: vec!["Failed - No result produced".to_string()],
                                 intermediate_data: message_json,
                             })
@@ -902,23 +857,26 @@ pub async fn generate_sample(
     )
 )]
 pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse> {
-    // Get pool metrics
-    let forward_stats = state.forward_pool.lock().await.metrics();
-    let reverse_stats = state.reverse_pool.lock().await.metrics();
+    // Check engine health
+    let forward_healthy = state.forward_engine.is_healthy();
+    let reverse_healthy = state.reverse_engine.is_healthy();
 
-    let forward_status = format!(
-        "healthy (pool: {}/{}, utilization: {:.1}%)",
-        forward_stats.active_engines,
-        forward_stats.pool_size,
-        forward_stats.utilization_percent()
-    );
+    let thread_count = std::env::var("REFRAME_THREAD_COUNT")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or_else(num_cpus::get);
 
-    let reverse_status = format!(
-        "healthy (pool: {}/{}, utilization: {:.1}%)",
-        reverse_stats.active_engines,
-        reverse_stats.pool_size,
-        reverse_stats.utilization_percent()
-    );
+    let forward_status = if forward_healthy {
+        format!("healthy (threaded, {} workers)", thread_count)
+    } else {
+        "degraded".to_string()
+    };
+
+    let reverse_status = if reverse_healthy {
+        format!("healthy (threaded, {} workers)", thread_count)
+    } else {
+        "degraded".to_string()
+    };
 
     Json(HealthResponse {
         status: "running".to_string(),
@@ -929,14 +887,14 @@ pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse>
         },
         capabilities: vec![
             format!(
-                "MT-to-MX transformation (pooled, {} engines)",
-                forward_stats.pool_size
+                "MT-to-MX transformation (threaded, {} workers)",
+                thread_count
             ),
             format!(
-                "MX-to-MT transformation (pooled, {} engines)",
-                reverse_stats.pool_size
+                "MX-to-MT transformation (threaded, {} workers)",
+                thread_count
             ),
-            "Vertical scaling enabled".to_string(),
+            "Vertical scaling with thread pools".to_string(),
             "MT sample generation (26 message types)".to_string(),
         ],
     })
@@ -959,7 +917,7 @@ pub async fn reload_workflows(
 
     info!("🔄 Processing workflow reload request");
 
-    match reload_engine_pools(&state).await {
+    match reload_engines(&state).await {
         Ok(()) => {
             let reload_time = start_time.elapsed().as_millis() as u64;
             info!(
@@ -970,7 +928,7 @@ pub async fn reload_workflows(
             Ok(Json(ReloadResponse {
                 success: true,
                 message: format!(
-                    "Workflows reloaded successfully in {reload_time}ms (pooled mode)"
+                    "Workflows reloaded successfully in {reload_time}ms (threaded mode)"
                 ),
                 timestamp: chrono::Utc::now().to_rfc3339(),
                 error: None,

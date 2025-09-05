@@ -6,7 +6,6 @@ use tracing::info;
 
 // Module declarations
 mod engine;
-mod engine_pool;
 mod handlers;
 mod helper;
 mod logging;
@@ -55,7 +54,7 @@ async fn main() {
 
     info!("Service initialization started");
 
-    // Initialize engine pools for vertical scaling
+    // Initialize threaded engines for vertical scaling
     let app_state = initialize_engines().await;
 
     // Build router with pooled endpoints
@@ -76,13 +75,13 @@ async fn main() {
     info!("Service started successfully");
     info!("Listening on: http://0.0.0.0:3000");
 
-    let pool_size = std::env::var("REFRAME_POOL_SIZE")
+    let thread_count = std::env::var("REFRAME_THREAD_COUNT")
         .ok()
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or_else(num_cpus::get);
     info!(
-        "🚀 Engine pooling enabled with {} engines per direction",
-        pool_size
+        "🚀 Threaded engines enabled with {} worker threads per direction",
+        thread_count
     );
     info!("Available endpoints:");
     info!("  POST /transform/mt-to-mx    - MT to ISO 20022 transformation");

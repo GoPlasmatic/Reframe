@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use utoipa::ToSchema;
 
 #[derive(Debug, Serialize, Clone, ToSchema)]
@@ -117,34 +116,12 @@ pub struct DebugInfo {
     pub intermediate_data: Value,
 }
 
-// Wrapper for Engine to make it Send + Sync
-pub struct EngineWrapper {
-    inner: Box<dataflow_rs::Engine>,
-}
 
-unsafe impl Send for EngineWrapper {}
-unsafe impl Sync for EngineWrapper {}
-
-impl EngineWrapper {
-    pub fn new(engine: dataflow_rs::Engine) -> Self {
-        Self {
-            inner: Box::new(engine),
-        }
-    }
-
-    pub fn process_message(
-        &mut self,
-        message: &mut dataflow_rs::engine::message::Message,
-    ) -> dataflow_rs::Result<()> {
-        self.inner.process_message(message)
-    }
-}
-
-// Application State with engine pools for vertical scaling
+// Application State with threaded engines for vertical scaling
 #[derive(Clone)]
 pub struct AppState {
-    pub forward_pool: Arc<Mutex<crate::engine_pool::EnginePool>>,
-    pub reverse_pool: Arc<Mutex<crate::engine_pool::EnginePool>>,
+    pub forward_engine: Arc<dataflow_rs::ThreadedEngine>,
+    pub reverse_engine: Arc<dataflow_rs::ThreadedEngine>,
 }
 
 // Health check response

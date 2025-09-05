@@ -116,7 +116,6 @@ pub struct DebugInfo {
     pub intermediate_data: Value,
 }
 
-
 // Application State with threaded engines for vertical scaling
 #[derive(Clone)]
 pub struct AppState {

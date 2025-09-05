@@ -79,12 +79,12 @@ async fn main() {
         .ok()
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or_else(num_cpus::get);
-    
+
     let max_concurrent_tasks = std::env::var("REFRAME_MAX_CONCURRENT_TASKS")
         .ok()
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or(thread_count * 4);
-    
+
     info!("🚀 Performance Configuration:");
     info!("  • Worker threads per engine: {}", thread_count);
     info!("  • Max concurrent tasks: {}", max_concurrent_tasks);

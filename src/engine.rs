@@ -11,8 +11,13 @@ use crate::publish_mt::PublishMT;
 use crate::publish_mx::PublishMX;
 use crate::types::AppState;
 
-pub async fn initialize_forward_engine(thread_count: usize) -> Result<Arc<ThreadedEngine>, Box<dyn std::error::Error>> {
-    debug!("Setting up forward engine (MT to ISO 20022) with {} threads", thread_count);
+pub async fn initialize_forward_engine(
+    thread_count: usize,
+) -> Result<Arc<ThreadedEngine>, Box<dyn std::error::Error>> {
+    debug!(
+        "Setting up forward engine (MT to ISO 20022) with {} threads",
+        thread_count
+    );
 
     // Load forward workflows
     let workflows = load_workflows("workflows/forward").await?;
@@ -35,8 +40,13 @@ pub async fn initialize_forward_engine(thread_count: usize) -> Result<Arc<Thread
     Ok(Arc::new(engine))
 }
 
-pub async fn initialize_reverse_engine(thread_count: usize) -> Result<Arc<ThreadedEngine>, Box<dyn std::error::Error>> {
-    debug!("Setting up reverse engine (ISO 20022 to MT) with {} threads", thread_count);
+pub async fn initialize_reverse_engine(
+    thread_count: usize,
+) -> Result<Arc<ThreadedEngine>, Box<dyn std::error::Error>> {
+    debug!(
+        "Setting up reverse engine (ISO 20022 to MT) with {} threads",
+        thread_count
+    );
 
     // Load reverse workflows
     let workflows = load_workflows("workflows/reverse").await?;
@@ -150,9 +160,9 @@ pub async fn reload_engines(_app_state: &AppState) -> Result<(), Box<dyn std::er
     // Note: Since ThreadedEngine doesn't have a reload method, we need to create new engines
     // In a production system, you might want to implement a more graceful reload mechanism
     // For now, this is a placeholder that would need to be coordinated with the handlers
-    
+
     info!("Engine reload would require recreating engines with updated workflows");
     info!("This operation is not currently supported without restarting the service");
-    
+
     Err("Hot reload not supported with ThreadedEngine. Please restart the service.".into())
 }

@@ -5,6 +5,7 @@ use axum::{
 use tracing::info;
 
 // Module declarations
+mod ascii_art;
 mod engine;
 mod handlers;
 mod helper;
@@ -22,6 +23,7 @@ mod types;
 mod validation_helpers;
 
 // Import public items from modules
+use ascii_art::display_ascii_art;
 use engine::initialize_engines;
 use handlers::{
     correlation_middleware, generate_sample, health_check, reload_workflows, transform_mt_to_mx,
@@ -32,6 +34,9 @@ use openapi::swagger_ui;
 
 #[tokio::main]
 async fn main() {
+    // Display ASCII art at startup
+    display_ascii_art();
+    
     // Initialize professional logging system
     let log_config = LogConfig {
         format: if std::env::var("LOG_FORMAT").as_deref() == Ok("json") {

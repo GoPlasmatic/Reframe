@@ -64,6 +64,9 @@ EXPOSE 3000
 ENV RUST_LOG=info
 ENV REFRAME_PORT=3000
 ENV API_SERVER_URL=http://localhost:3000
+# Performance tuning variables (can be overridden at runtime)
+ENV REFRAME_THREAD_COUNT=""
+ENV REFRAME_MAX_CONCURRENT_TASKS=""
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

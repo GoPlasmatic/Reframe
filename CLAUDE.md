@@ -33,7 +33,7 @@ lsof -i :3000 | grep LISTEN | awk '{print $2}' | xargs kill -9 2>/dev/null; RUST
 REFRAME_THREAD_COUNT=8 REFRAME_MAX_CONCURRENT_TASKS=32 cargo run --release
 
 # Run benchmark to find optimal configuration
-python3 test/benchmark_config.py
+python3 test/simple_benchmark.py
 ```
 
 ### Performance Configuration
@@ -67,39 +67,7 @@ REFRAME_THREAD_COUNT=8 REFRAME_MAX_CONCURRENT_TASKS=32 cargo run --release
 
 # Maximum throughput (powerful servers with 16+ cores)
 REFRAME_THREAD_COUNT=16 REFRAME_MAX_CONCURRENT_TASKS=64 cargo run --release
-
-# Custom based on your benchmark results
-REFRAME_THREAD_COUNT=6 REFRAME_MAX_CONCURRENT_TASKS=48 cargo run --release
 ```
-
-#### Performance Tuning Guide
-
-1. **Run the benchmark script** to find optimal settings for your hardware:
-   ```bash
-   python3 test/benchmark_config.py
-   ```
-
-2. **Analyze results** to identify:
-   - Best throughput configuration
-   - Best latency configuration
-   - Balanced configuration for mixed workloads
-
-3. **Consider your workload**:
-   - **High throughput**: Use more workers (8-16) and higher concurrency (32-64)
-   - **Low latency**: Use fewer workers (1-4) and moderate concurrency (4-16)
-   - **Balanced**: Use 4-8 workers with 16-32 concurrent tasks
-
-4. **Monitor in production**:
-   - Watch for "Failed to acquire semaphore" errors (increase MAX_CONCURRENT_TASKS)
-   - Monitor CPU usage (adjust THREAD_COUNT based on utilization)
-   - Track response times (reduce concurrency if latency increases)
-
-#### Benchmark Results
-
-Based on dataflow-rs async benchmarks:
-- Single-threaded baseline: ~108,000 msg/s
-- Optimal async config (8 workers, 32 tasks): ~259,000 msg/s
-- **2.38x performance improvement** with proper configuration
 
 ### Testing
 
@@ -146,9 +114,6 @@ cargo clippy
 
 # Run clippy with all warnings as errors
 cargo clippy -- -D warnings
-
-# Check for unused dependencies
-cargo machete
 ```
 
 ### Docker Operations
@@ -260,7 +225,7 @@ Each scenario file contains:
 
 - **mx-message** (3.0): ISO 20022 message structures and serialization
 - **swift-mt-message** (3.0): SWIFT MT message handling  
-- **dataflow-rs** (0.1): Workflow engine for transformation pipelines
+- **dataflow-rs** (1.0): Workflow engine for transformation pipelines
 - **datafake-rs** (0.1): Test data generation from JSON schemas
 - **axum** (0.8): Async web framework
 - **tokio** (1.47): Async runtime
@@ -422,5 +387,8 @@ The Dockerfile uses a multi-stage build:
 3. **Scenario loading**: Clones SwiftMTMessage and MXMessage repos for test scenarios
 
 Container runs as non-root user (appuser) on port 3000.
-- Any path field within mapping function (ex: "path": "data.SwiftMT.fields.25") with a pure numberic components without variant shall have # in front to represent the number as string key instead of array index notation. Correct "path": "data.SwiftMT.fields.#25" And this hash is not needed for fields with variant "path": "data.SwiftMT.fields.32A"
+
+## Workflow-Specific Notes
+
+- Any path field within mapping function (ex: "path": "data.SwiftMT.fields.25") with a pure numeric component without variant shall have # in front to represent the number as string key instead of array index notation. Correct: "path": "data.SwiftMT.fields.#25". This hash is not needed for fields with variant "path": "data.SwiftMT.fields.32A"
 - Need to call reload workflow API for the workflow changes to take effect

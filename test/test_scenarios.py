@@ -152,7 +152,7 @@ class ReframeAPIClient:
         response = self._make_request(
             "POST",
             self.endpoints.validate_mt,
-            json={"message": message, "options": {"canonical": True}}
+            json={"message": message, "options": {"canonical": True, "business_validation": True}}
         )
         
         errors = []

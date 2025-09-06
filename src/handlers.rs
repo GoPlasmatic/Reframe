@@ -1031,7 +1031,7 @@ pub async fn validate_mt(
             // Perform business validation if requested
             if request.options.business_validation {
                 crate::validation_helpers::perform_mt_business_validation(
-                    &message_type,
+                    &parsed_message,
                     &mut errors,
                 );
             }

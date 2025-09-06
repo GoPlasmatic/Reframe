@@ -36,7 +36,7 @@ use openapi::swagger_ui;
 async fn main() {
     // Display ASCII art at startup
     display_ascii_art();
-    
+
     // Initialize professional logging system
     let log_config = LogConfig {
         format: if std::env::var("LOG_FORMAT").as_deref() == Ok("json") {

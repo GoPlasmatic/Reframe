@@ -20,7 +20,7 @@ const LOGO_DATA_4BIT: &[u8] = &[
     0x54, 0xf0, 0xb6, 0x5a, 0x0a, 0x5c, 0x1b, 0x5c, 0x4f, 0x0b, 0x65, 0xf1, 0x01, 0xb5, 0xf0, 0xa4,
     0xf0, 0xb6, 0x5f, 0x10, 0x1b, 0x5f, 0x0d, 0x4f, 0x0b, 0x65, 0xf1, 0x01, 0xb5, 0xf0, 0xf4, 0xf0,
     0xc6, 0x5f, 0x10, 0x1b, 0x5f, 0x13, 0x4f, 0x0b, 0x65, 0xf1, 0x01, 0xb5, 0xf1, 0x64, 0xf0, 0xc6,
-    0x5f, 0x12, 0x19, 0x5f, 0x1b, 0x4f, 0x0a, 0x65, 0xf1, 0x41, 0x15, 0xf1, 0xe4, 0xb0
+    0x5f, 0x12, 0x19, 0x5f, 0x1b, 0x4f, 0x0a, 0x65, 0xf1, 0x41, 0x15, 0xf1, 0xe4, 0xb0,
 ];
 const LOGO_NIBBLE_COUNT: usize = 603;
 
@@ -29,37 +29,58 @@ pub fn display_ascii_art() {
     let logo_content = decode_logo_4bit();
     let colored_logo = colorize_ascii(&logo_content);
     print!("{}", colored_logo);
-    
+
     println!(); // Add blank line after ASCII art
 }
 
 fn decode_logo_4bit() -> String {
     let mut result = String::new();
     let mut nibbles = Vec::new();
-    
+
     // Unpack bytes to nibbles
     for byte in LOGO_DATA_4BIT {
         nibbles.push((byte >> 4) & 0xF);
         nibbles.push(byte & 0xF);
     }
-    
+
     // Only use actual nibbles
     nibbles.truncate(LOGO_NIBBLE_COUNT);
-    
+
     let mut i = 0;
     let mut last_char = ' ';
-    
+
     while i < nibbles.len() {
         let nibble = nibbles[i];
-        
+
         match nibble {
-            0x0 => { last_char = '0'; result.push(last_char); }  // White
-            0x1 => { last_char = '2'; result.push(last_char); }  // Green
-            0x2 => { last_char = '3'; result.push(last_char); }  // Red
-            0x3 => { last_char = '4'; result.push(last_char); }  // Yellow
-            0x4 => { last_char = '5'; result.push(last_char); }  // Blue
-            0x5 => { last_char = ' '; result.push(last_char); }  // Space
-            0x6 => { last_char = '\n'; result.push(last_char); } // Newline
+            0x0 => {
+                last_char = '0';
+                result.push(last_char);
+            } // White
+            0x1 => {
+                last_char = '2';
+                result.push(last_char);
+            } // Green
+            0x2 => {
+                last_char = '3';
+                result.push(last_char);
+            } // Red
+            0x3 => {
+                last_char = '4';
+                result.push(last_char);
+            } // Yellow
+            0x4 => {
+                last_char = '5';
+                result.push(last_char);
+            } // Blue
+            0x5 => {
+                last_char = ' ';
+                result.push(last_char);
+            } // Space
+            0x6 => {
+                last_char = '\n';
+                result.push(last_char);
+            } // Newline
             0x7..=0xE => {
                 // RLE: repeat last char
                 let count = (nibble - 0x6) as usize;
@@ -79,25 +100,25 @@ fn decode_logo_4bit() -> String {
             }
             _ => {}
         }
-        
+
         i += 1;
     }
-    
+
     result
 }
 
 fn colorize_ascii(content: &str) -> String {
     let mut result = String::new();
-    
+
     // Using 256-color ANSI codes for better color matching
     // Format: \x1b[38;5;{color_number}m
     const RESET: &str = "\x1b[0m";
-    const WHITE: &str = "\x1b[38;5;231m";    // Pure white (closest to #FFFFFF)
-    const GREEN: &str = "\x1b[38;5;72m";     // Sea green (closest to #48B38F)
-    const RED: &str = "\x1b[38;5;168m";      // Pink red (closest to #D1405C)
-    const YELLOW: &str = "\x1b[38;5;221m";   // Light yellow (closest to #FACC68)
-    const CYAN: &str = "\x1b[38;5;74m";      // Sky blue (closest to #3193C3)
-    
+    const WHITE: &str = "\x1b[38;5;231m"; // Pure white (closest to #FFFFFF)
+    const GREEN: &str = "\x1b[38;5;72m"; // Sea green (closest to #48B38F)
+    const RED: &str = "\x1b[38;5;168m"; // Pink red (closest to #D1405C)
+    const YELLOW: &str = "\x1b[38;5;221m"; // Light yellow (closest to #FACC68)
+    const CYAN: &str = "\x1b[38;5;74m"; // Sky blue (closest to #3193C3)
+
     for line in content.lines() {
         let mut current_color = "";
         for ch in line.chars() {
@@ -108,35 +129,35 @@ fn colorize_ascii(content: &str) -> String {
                         current_color = WHITE;
                     }
                     result.push('#');
-                },
+                }
                 '2' => {
                     if current_color != GREEN {
                         result.push_str(GREEN);
                         current_color = GREEN;
                     }
                     result.push('#');
-                },
+                }
                 '3' => {
                     if current_color != RED {
                         result.push_str(RED);
                         current_color = RED;
                     }
                     result.push('#');
-                },
+                }
                 '4' => {
                     if current_color != YELLOW {
                         result.push_str(YELLOW);
                         current_color = YELLOW;
                     }
                     result.push('#');
-                },
+                }
                 '5' => {
                     if current_color != CYAN {
                         result.push_str(CYAN);
                         current_color = CYAN;
                     }
                     result.push('#');
-                },
+                }
                 ' ' => result.push(' '),
                 _ => result.push(ch),
             }
@@ -146,6 +167,6 @@ fn colorize_ascii(content: &str) -> String {
         }
         result.push('\n');
     }
-    
+
     result
 }

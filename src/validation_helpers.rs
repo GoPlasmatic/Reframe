@@ -139,26 +139,39 @@ pub fn perform_mt_business_validation(
     errors: &mut Vec<ReframeError>,
 ) {
     debug!("Performing MT business validation");
-    
+
     // Call the validate method on the ParsedSwiftMessage
     let validation_result: ValidationResult = parsed_message.validate();
-    
+
     // Convert validation errors to ReframeError format
     if !validation_result.is_valid {
         for error in validation_result.errors {
             let (field_tag, message, code) = match error {
-                ValidationError::FormatValidation { field_tag, message } => 
-                    (Some(field_tag), message, "FORMAT"),
-                ValidationError::LengthValidation { field_tag, expected, actual } => 
-                    (Some(field_tag), format!("Expected length: {}, got: {}", expected, actual), "LENGTH"),
-                ValidationError::PatternValidation { field_tag, message } => 
-                    (Some(field_tag), message, "PATTERN"),
-                ValidationError::ValueValidation { field_tag, message } => 
-                    (Some(field_tag), message, "VALUE"),
-                ValidationError::BusinessRuleValidation { rule_name, message } => 
-                    (None, format!("Business rule '{}' failed: {}", rule_name, message), "BUSINESS_RULE"),
+                ValidationError::FormatValidation { field_tag, message } => {
+                    (Some(field_tag), message, "FORMAT")
+                }
+                ValidationError::LengthValidation {
+                    field_tag,
+                    expected,
+                    actual,
+                } => (
+                    Some(field_tag),
+                    format!("Expected length: {}, got: {}", expected, actual),
+                    "LENGTH",
+                ),
+                ValidationError::PatternValidation { field_tag, message } => {
+                    (Some(field_tag), message, "PATTERN")
+                }
+                ValidationError::ValueValidation { field_tag, message } => {
+                    (Some(field_tag), message, "VALUE")
+                }
+                ValidationError::BusinessRuleValidation { rule_name, message } => (
+                    None,
+                    format!("Business rule '{}' failed: {}", rule_name, message),
+                    "BUSINESS_RULE",
+                ),
             };
-            
+
             errors.push(ReframeError {
                 error_type: ErrorType::BusinessValidationError,
                 code: format!("MT_VALIDATION_{}", code),
@@ -169,7 +182,7 @@ pub fn perform_mt_business_validation(
             });
         }
     }
-    
+
     // Add warnings if any (use Info type for warnings)
     for warning in validation_result.warnings {
         errors.push(ReframeError {

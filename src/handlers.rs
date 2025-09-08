@@ -877,7 +877,7 @@ pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse>
         .ok()
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or_else(num_cpus::get);
-    
+
     let max_concurrent = std::env::var("REFRAME_MAX_CONCURRENT_TASKS")
         .ok()
         .and_then(|s| s.parse::<usize>().ok())

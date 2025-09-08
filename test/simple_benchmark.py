@@ -21,8 +21,10 @@ async def make_request(session, url, data):
 
 async def get_sample_message(session):
     """Get a sample MT103 message from the generator API"""
+    import os
+    base_url = os.environ.get('REFRAME_URL', 'http://localhost:3000')
     try:
-        async with session.post("http://localhost:3000/generate/sample",
+        async with session.post(f"{base_url}/generate/sample",
                                 json={"message_type": "MT103", "config": {"scenario": "standard"}}) as resp:
             if resp.status == 200:
                 result = await resp.json()
@@ -41,7 +43,9 @@ async def get_sample_message(session):
 
 async def run_test(num_requests=100, concurrent=8):
     """Run a simple performance test"""
-    url = "http://localhost:3000/transform/mt-to-mx"
+    import os
+    base_url = os.environ.get('REFRAME_URL', 'http://localhost:3000')
+    url = f"{base_url}/transform/mt-to-mx"
     
     async with aiohttp.ClientSession() as session:
         # Get sample message
@@ -121,24 +125,27 @@ async def main():
     print("================================\n")
     
     # Check if server is running
+    import os
+    base_url = os.environ.get('REFRAME_URL', 'http://localhost:3000')
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get("http://localhost:3000/health") as resp:
+            async with session.get(f"{base_url}/health") as resp:
                 if resp.status != 200:
-                    print("Server is not running!")
+                    print(f"Server at {base_url} is not running!")
                     return
                 health = await resp.json()
-                print(f"Server is running: {health['engines']}\n")
-    except:
-        print("Cannot connect to server on port 3000!")
+                print(f"Server at {base_url} is running: {health['engines']}")
+                print(f"Environment: REFRAME_URL={base_url}\n")
+    except Exception as e:
+        print(f"Cannot connect to server at {base_url}!")
+        print(f"Error: {e}")
         return
     
     # Test different concurrency levels
     configs = [
-        (100000, 8, "8 concurrent"),
-        (100000, 32, "32 concurrent"),
-        (100000, 128, "128 concurrent"),
-        (100000, 256, "256 concurrent"),
+        (100000, 4, "4 concurrent"),
+        (100000, 16, "16 concurrent"),
+        (100000, 64, "64 concurrent"),
     ]
     
     results = []

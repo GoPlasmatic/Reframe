@@ -877,6 +877,11 @@ pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse>
         .ok()
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or_else(num_cpus::get);
+    
+    let max_concurrent = std::env::var("REFRAME_MAX_CONCURRENT_TASKS")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(thread_count * 4);
 
     let forward_status = if forward_healthy {
         format!("healthy (threaded, {} workers)", thread_count)
@@ -894,9 +899,13 @@ pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse>
         status: "running".to_string(),
         timestamp: chrono::Utc::now().to_rfc3339(),
         engines: EngineStatus {
-            forward: forward_status,
-            reverse: reverse_status,
+            forward: forward_status.clone(),
+            reverse: reverse_status.clone(),
         },
+        config: Some(crate::types::ConfigInfo {
+            thread_count,
+            max_concurrent,
+        }),
         capabilities: vec![
             format!(
                 "MT-to-MX transformation (threaded, {} workers)",

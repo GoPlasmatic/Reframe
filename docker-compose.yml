@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # Reframe application instance with custom performance configuration
+  reframe-app:
+    build: .
+    container_name: reframe-app
+    ports:
+      - "3000:3000"
+    environment:
+      - RUST_LOG=error
+      - REFRAME_THREAD_COUNT=10
+      - REFRAME_MAX_CONCURRENT_TASKS=40
+    networks:
+      - reframe-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Benchmark runner container
+  benchmark-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.benchmark
+    container_name: benchmark-runner
+    depends_on:
+      reframe-app:
+        condition: service_healthy
+    environment:
+      - REFRAME_URL=http://reframe-app:3000
+      - PYTHONUNBUFFERED=1
+    networks:
+      - reframe-network
+    command: python3 /app/test/simple_benchmark.py
+
+networks:
+  reframe-network:
+    driver: bridge

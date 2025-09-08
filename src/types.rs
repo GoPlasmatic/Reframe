@@ -131,12 +131,20 @@ pub struct HealthResponse {
     pub timestamp: String,
     pub engines: EngineStatus,
     pub capabilities: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub config: Option<ConfigInfo>,
 }
 
 #[derive(Serialize, ToSchema)]
 pub struct EngineStatus {
     pub forward: String,
     pub reverse: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct ConfigInfo {
+    pub thread_count: usize,
+    pub max_concurrent: usize,
 }
 
 #[derive(Serialize, ToSchema)]

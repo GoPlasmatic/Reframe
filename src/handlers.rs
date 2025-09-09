@@ -189,12 +189,6 @@ pub async fn transform_mt_to_mx(
         "transformation_direction": "mt-to-mx"
     });
 
-    // Acquire semaphore permit for concurrent task limiting
-    let _permit = state.max_concurrent_tasks.acquire().await.map_err(|e| {
-        error!("Failed to acquire semaphore permit: {}", e);
-        StatusCode::SERVICE_UNAVAILABLE
-    })?;
-
     // Process message using the threaded forward engine
     match state.forward_engine.process_message(message.clone()).await {
         Ok(result_message) => {
@@ -477,12 +471,6 @@ pub async fn transform_mx_to_mt(
     message.metadata = serde_json::json!({
         "transformation_direction": "mx-to-mt"
     });
-
-    // Acquire semaphore permit for concurrent task limiting
-    let _permit = state.max_concurrent_tasks.acquire().await.map_err(|e| {
-        error!("Failed to acquire semaphore permit: {}", e);
-        StatusCode::SERVICE_UNAVAILABLE
-    })?;
 
     // Process message using the threaded reverse engine
     match state.reverse_engine.process_message(message.clone()).await {
@@ -869,31 +857,18 @@ pub async fn generate_sample(
     )
 )]
 pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse> {
-    // Check engine health
-    let forward_healthy = state.forward_engine.is_healthy();
-    let reverse_healthy = state.reverse_engine.is_healthy();
+    // RayonEngine is always healthy if it exists
+    // Get actual thread count from the engines
+    let forward_thread_count = state.forward_engine.thread_count();
+    let reverse_thread_count = state.reverse_engine.thread_count();
 
     let thread_count = std::env::var("REFRAME_THREAD_COUNT")
         .ok()
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or_else(num_cpus::get);
 
-    let max_concurrent = std::env::var("REFRAME_MAX_CONCURRENT_TASKS")
-        .ok()
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(thread_count * 4);
-
-    let forward_status = if forward_healthy {
-        format!("healthy (threaded, {} workers)", thread_count)
-    } else {
-        "degraded".to_string()
-    };
-
-    let reverse_status = if reverse_healthy {
-        format!("healthy (threaded, {} workers)", thread_count)
-    } else {
-        "degraded".to_string()
-    };
+    let forward_status = format!("healthy (RayonEngine, {} workers)", forward_thread_count);
+    let reverse_status = format!("healthy (RayonEngine, {} workers)", reverse_thread_count);
 
     Json(HealthResponse {
         status: "running".to_string(),
@@ -902,20 +877,17 @@ pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse>
             forward: forward_status.clone(),
             reverse: reverse_status.clone(),
         },
-        config: Some(crate::types::ConfigInfo {
-            thread_count,
-            max_concurrent,
-        }),
+        config: Some(crate::types::ConfigInfo { thread_count }),
         capabilities: vec![
             format!(
-                "MT-to-MX transformation (threaded, {} workers)",
-                thread_count
+                "MT-to-MX transformation (RayonEngine, {} workers)",
+                forward_thread_count
             ),
             format!(
-                "MX-to-MT transformation (threaded, {} workers)",
-                thread_count
+                "MX-to-MT transformation (RayonEngine, {} workers)",
+                reverse_thread_count
             ),
-            "Vertical scaling with thread pools".to_string(),
+            "High-performance CPU-optimized processing with work-stealing".to_string(),
             "MT sample generation (26 message types)".to_string(),
         ],
     })

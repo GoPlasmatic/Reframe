@@ -85,16 +85,11 @@ async fn main() {
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or_else(num_cpus::get);
 
-    let max_concurrent_tasks = std::env::var("REFRAME_MAX_CONCURRENT_TASKS")
-        .ok()
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(thread_count * 4);
-
     info!("🚀 Performance Configuration:");
-    info!("  • Worker threads per engine: {}", thread_count);
-    info!("  • Max concurrent tasks: {}", max_concurrent_tasks);
+    info!("  • Rayon worker threads per engine: {}", thread_count);
     info!("  • Total engines: 2 (forward + reverse)");
     info!("  • CPU cores available: {}", num_cpus::get());
+    info!("  • Work-stealing enabled for automatic load balancing");
     info!("");
     info!("Available endpoints:");
     info!("  POST /transform/mt-to-mx    - MT to ISO 20022 transformation");

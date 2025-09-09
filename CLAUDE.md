@@ -29,8 +29,8 @@ RUST_LOG=info cargo run
 # Kill existing process on port 3000 and restart
 lsof -i :3000 | grep LISTEN | awk '{print $2}' | xargs kill -9 2>/dev/null; RUST_LOG=info cargo run
 
-# Run with custom performance configuration
-REFRAME_THREAD_COUNT=8 REFRAME_MAX_CONCURRENT_TASKS=32 cargo run --release
+# Run with custom thread count
+REFRAME_THREAD_COUNT=8 cargo run --release
 
 # Run benchmark to find optimal configuration
 python3 test/simple_benchmark.py
@@ -38,36 +38,45 @@ python3 test/simple_benchmark.py
 
 ### Performance Configuration
 
-Reframe supports environment variables to tune performance based on your hardware and workload:
+Reframe uses RayonEngine for high-performance CPU-optimized message processing. RayonEngine provides:
+- **Work-stealing thread pool**: Automatically balances load across all threads
+- **Near-linear scaling**: Performance scales efficiently with CPU cores
+- **Thread-local engines**: Each worker maintains its own compiled logic for zero contention
+- **Automatic parallelization**: Batch operations are automatically distributed
 
 #### Environment Variables
 
-- **`REFRAME_THREAD_COUNT`**: Number of worker threads per engine (default: CPU count)
-  - Controls parallelism within each transformation engine
-  - Higher values improve throughput for CPU-bound workloads
-  - Recommended: 4-8 for most servers
-
-- **`REFRAME_MAX_CONCURRENT_TASKS`**: Maximum concurrent transformations (default: thread_count × 4)
-  - Limits concurrent requests to prevent resource exhaustion
-  - Uses semaphore-based rate limiting
-  - Higher values allow more concurrent clients
-  - Recommended: 16-64 depending on available memory
+- **`REFRAME_THREAD_COUNT`**: Number of Rayon worker threads per engine (default: CPU count)
+  - Controls the size of the Rayon thread pool for parallel processing
+  - Each engine (forward and reverse) gets its own thread pool
+  - Work-stealing ensures optimal CPU utilization even with uneven workloads
+  - Recommended: Use CPU count for best performance, or reduce for resource-constrained environments
 
 #### Configuration Examples
 
 ```bash
+# Default (uses all CPU cores)
+cargo run --release
+
 # Conservative (low resources, single-core VPS)
-REFRAME_THREAD_COUNT=1 REFRAME_MAX_CONCURRENT_TASKS=4 cargo run
+REFRAME_THREAD_COUNT=1 cargo run
 
-# Balanced (4-core server, default for most deployments)
-REFRAME_THREAD_COUNT=4 REFRAME_MAX_CONCURRENT_TASKS=16 cargo run
+# Balanced (4-core server)
+REFRAME_THREAD_COUNT=4 cargo run --release
 
-# High performance (8+ cores, based on benchmark results)
-REFRAME_THREAD_COUNT=8 REFRAME_MAX_CONCURRENT_TASKS=32 cargo run --release
+# High performance (8-core server)
+REFRAME_THREAD_COUNT=8 cargo run --release
 
-# Maximum throughput (powerful servers with 16+ cores)
-REFRAME_THREAD_COUNT=16 REFRAME_MAX_CONCURRENT_TASKS=64 cargo run --release
+# Maximum throughput (16+ core servers)
+REFRAME_THREAD_COUNT=16 cargo run --release
 ```
+
+#### Performance Characteristics
+
+- **CPU-bound workloads**: RayonEngine excels at transformation tasks with minimal I/O
+- **Automatic load balancing**: Work-stealing ensures no thread sits idle
+- **Efficient batching**: Process multiple messages in parallel with `process_batch`
+- **Memory efficiency**: Thread-local engines reduce contention and improve cache locality
 
 ### Testing
 

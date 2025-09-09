@@ -116,12 +116,11 @@ pub struct DebugInfo {
     pub intermediate_data: Value,
 }
 
-// Application State with threaded engines for vertical scaling
+// Application State with Rayon engines for high-performance CPU-optimized processing
 #[derive(Clone)]
 pub struct AppState {
-    pub forward_engine: Arc<dataflow_rs::ThreadedEngine>,
-    pub reverse_engine: Arc<dataflow_rs::ThreadedEngine>,
-    pub max_concurrent_tasks: Arc<tokio::sync::Semaphore>,
+    pub forward_engine: Arc<dataflow_rs::RayonEngine>,
+    pub reverse_engine: Arc<dataflow_rs::RayonEngine>,
 }
 
 // Health check response
@@ -144,7 +143,6 @@ pub struct EngineStatus {
 #[derive(Serialize, ToSchema)]
 pub struct ConfigInfo {
     pub thread_count: usize,
-    pub max_concurrent: usize,
 }
 
 #[derive(Serialize, ToSchema)]

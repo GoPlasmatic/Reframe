@@ -1,4 +1,4 @@
-use dataflow_rs::{ThreadedEngine, Workflow};
+use dataflow_rs::{RayonEngine, Workflow};
 use serde_json::Value;
 use std::fs;
 use std::path::Path;
@@ -13,9 +13,9 @@ use crate::types::AppState;
 
 pub async fn initialize_forward_engine(
     thread_count: usize,
-) -> Result<Arc<ThreadedEngine>, Box<dyn std::error::Error>> {
+) -> Result<Arc<RayonEngine>, Box<dyn std::error::Error>> {
     debug!(
-        "Setting up forward engine (MT to ISO 20022) with {} threads",
+        "Setting up forward engine (MT to ISO 20022) with {} threads using RayonEngine",
         thread_count
     );
 
@@ -33,18 +33,22 @@ pub async fn initialize_forward_engine(
         Box::new(PublishMX) as Box<dyn dataflow_rs::FunctionHandler + Send + Sync>,
     );
 
-    // Create threaded engine with workflows, custom functions, and thread count
-    let engine = ThreadedEngine::new(workflows, Some(custom_functions), None, thread_count);
+    // Create Rayon engine with workflows, custom functions, and thread count
+    let engine =
+        RayonEngine::with_thread_count(workflows, Some(custom_functions), None, thread_count);
 
-    debug!("Forward engine ready with {} worker threads", thread_count);
+    debug!(
+        "Forward engine ready with {} worker threads (RayonEngine)",
+        thread_count
+    );
     Ok(Arc::new(engine))
 }
 
 pub async fn initialize_reverse_engine(
     thread_count: usize,
-) -> Result<Arc<ThreadedEngine>, Box<dyn std::error::Error>> {
+) -> Result<Arc<RayonEngine>, Box<dyn std::error::Error>> {
     debug!(
-        "Setting up reverse engine (ISO 20022 to MT) with {} threads",
+        "Setting up reverse engine (ISO 20022 to MT) with {} threads using RayonEngine",
         thread_count
     );
 
@@ -62,10 +66,14 @@ pub async fn initialize_reverse_engine(
         Box::new(PublishMT) as Box<dyn dataflow_rs::FunctionHandler + Send + Sync>,
     );
 
-    // Create threaded engine with workflows, custom functions, and thread count
-    let engine = ThreadedEngine::new(workflows, Some(custom_functions), None, thread_count);
+    // Create Rayon engine with workflows, custom functions, and thread count
+    let engine =
+        RayonEngine::with_thread_count(workflows, Some(custom_functions), None, thread_count);
 
-    debug!("Reverse engine ready with {} worker threads", thread_count);
+    debug!(
+        "Reverse engine ready with {} worker threads (RayonEngine)",
+        thread_count
+    );
     Ok(Arc::new(engine))
 }
 
@@ -105,9 +113,9 @@ async fn load_workflows(workflow_dir: &str) -> Result<Vec<Workflow>, Box<dyn std
     Ok(workflows)
 }
 
-/// Initialize threaded engines for vertical scaling
+/// Initialize Rayon engines for high-performance CPU-optimized processing
 pub async fn initialize_engines() -> AppState {
-    info!("Initializing threaded engines for vertical scaling");
+    info!("Initializing RayonEngine for high-performance CPU-optimized processing");
 
     // Get thread count from environment or use CPU count
     let thread_count = std::env::var("REFRAME_THREAD_COUNT")
@@ -115,41 +123,31 @@ pub async fn initialize_engines() -> AppState {
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or_else(num_cpus::get);
 
-    // Get max concurrent tasks from environment or use default based on threads
-    let max_concurrent_tasks = std::env::var("REFRAME_MAX_CONCURRENT_TASKS")
-        .ok()
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(thread_count * 4); // Default: 4x thread count
-
     info!("Configuration:");
-    info!("  • Worker threads per engine: {}", thread_count);
-    info!("  • Max concurrent tasks: {}", max_concurrent_tasks);
+    info!("  • Rayon worker threads per engine: {}", thread_count);
     info!("  • CPU cores available: {}", num_cpus::get());
+    info!("  • Engine type: RayonEngine (work-stealing pool)");
 
-    // Create forward engine with thread pool
+    // Create forward engine with Rayon thread pool
     let forward_engine = initialize_forward_engine(thread_count)
         .await
         .expect("Failed to initialize forward engine");
 
-    // Create reverse engine with thread pool
+    // Create reverse engine with Rayon thread pool
     let reverse_engine = initialize_reverse_engine(thread_count)
         .await
         .expect("Failed to initialize reverse engine");
 
-    // Create semaphore for concurrent task limiting
-    let max_concurrent_tasks = Arc::new(tokio::sync::Semaphore::new(max_concurrent_tasks));
-
-    info!("Threaded engines initialized successfully");
+    info!("RayonEngine instances initialized successfully");
 
     AppState {
         forward_engine,
         reverse_engine,
-        max_concurrent_tasks,
     }
 }
 
 pub async fn reload_engines(_app_state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
-    info!("Reloading workflow configurations for threaded engines");
+    info!("Reloading workflow configurations for RayonEngine");
 
     // Get thread count for new engines
     let _thread_count = std::env::var("REFRAME_THREAD_COUNT")
@@ -157,12 +155,12 @@ pub async fn reload_engines(_app_state: &AppState) -> Result<(), Box<dyn std::er
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or_else(num_cpus::get);
 
-    // Note: Since ThreadedEngine doesn't have a reload method, we need to create new engines
+    // Note: Since RayonEngine doesn't have a reload method, we need to create new engines
     // In a production system, you might want to implement a more graceful reload mechanism
     // For now, this is a placeholder that would need to be coordinated with the handlers
 
     info!("Engine reload would require recreating engines with updated workflows");
     info!("This operation is not currently supported without restarting the service");
 
-    Err("Hot reload not supported with ThreadedEngine. Please restart the service.".into())
+    Err("Hot reload not supported with RayonEngine. Please restart the service.".into())
 }

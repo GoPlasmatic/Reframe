@@ -1,5 +1,6 @@
-use dataflow_rs::{RayonEngine, Workflow};
+use dataflow_rs::{AsyncFunctionHandler, Engine, Workflow};
 use serde_json::Value;
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
@@ -11,69 +12,53 @@ use crate::publish_mt::PublishMT;
 use crate::publish_mx::PublishMX;
 use crate::types::AppState;
 
-pub async fn initialize_forward_engine(
-    thread_count: usize,
-) -> Result<Arc<RayonEngine>, Box<dyn std::error::Error>> {
-    debug!(
-        "Setting up forward engine (MT to ISO 20022) with {} threads using RayonEngine",
-        thread_count
-    );
+pub async fn initialize_forward_engine() -> Result<Arc<Engine>, Box<dyn std::error::Error>> {
+    debug!("Setting up forward engine (MT to ISO 20022) with async Engine");
 
     // Load forward workflows
     let workflows = load_workflows("workflows/forward").await?;
 
     // Register MT-specific functions for forward transformation
-    let mut custom_functions = std::collections::HashMap::new();
+    let mut custom_functions: HashMap<String, Box<dyn AsyncFunctionHandler + Send + Sync>> =
+        HashMap::new();
     custom_functions.insert(
         "ParseMT".to_string(),
-        Box::new(ParseMT) as Box<dyn dataflow_rs::FunctionHandler + Send + Sync>,
+        Box::new(ParseMT) as Box<dyn AsyncFunctionHandler + Send + Sync>,
     );
     custom_functions.insert(
         "PublishMX".to_string(),
-        Box::new(PublishMX) as Box<dyn dataflow_rs::FunctionHandler + Send + Sync>,
+        Box::new(PublishMX) as Box<dyn AsyncFunctionHandler + Send + Sync>,
     );
 
-    // Create Rayon engine with workflows, custom functions, and thread count
-    let engine =
-        RayonEngine::with_thread_count(workflows, Some(custom_functions), None, thread_count);
+    // Create async engine with workflows and custom functions
+    let engine = Engine::new(workflows, Some(custom_functions));
 
-    debug!(
-        "Forward engine ready with {} worker threads (RayonEngine)",
-        thread_count
-    );
+    debug!("Forward engine ready with async Engine");
     Ok(Arc::new(engine))
 }
 
-pub async fn initialize_reverse_engine(
-    thread_count: usize,
-) -> Result<Arc<RayonEngine>, Box<dyn std::error::Error>> {
-    debug!(
-        "Setting up reverse engine (ISO 20022 to MT) with {} threads using RayonEngine",
-        thread_count
-    );
+pub async fn initialize_reverse_engine() -> Result<Arc<Engine>, Box<dyn std::error::Error>> {
+    debug!("Setting up reverse engine (ISO 20022 to MT) with async Engine");
 
     // Load reverse workflows
     let workflows = load_workflows("workflows/reverse").await?;
 
     // Register MX-specific functions for reverse transformation
-    let mut custom_functions = std::collections::HashMap::new();
+    let mut custom_functions: HashMap<String, Box<dyn AsyncFunctionHandler + Send + Sync>> =
+        HashMap::new();
     custom_functions.insert(
         "ParseMX".to_string(),
-        Box::new(ParseMX) as Box<dyn dataflow_rs::FunctionHandler + Send + Sync>,
+        Box::new(ParseMX) as Box<dyn AsyncFunctionHandler + Send + Sync>,
     );
     custom_functions.insert(
         "PublishMT".to_string(),
-        Box::new(PublishMT) as Box<dyn dataflow_rs::FunctionHandler + Send + Sync>,
+        Box::new(PublishMT) as Box<dyn AsyncFunctionHandler + Send + Sync>,
     );
 
-    // Create Rayon engine with workflows, custom functions, and thread count
-    let engine =
-        RayonEngine::with_thread_count(workflows, Some(custom_functions), None, thread_count);
+    // Create async engine with workflows and custom functions
+    let engine = Engine::new(workflows, Some(custom_functions));
 
-    debug!(
-        "Reverse engine ready with {} worker threads (RayonEngine)",
-        thread_count
-    );
+    debug!("Reverse engine ready with async Engine");
     Ok(Arc::new(engine))
 }
 
@@ -113,32 +98,26 @@ async fn load_workflows(workflow_dir: &str) -> Result<Vec<Workflow>, Box<dyn std
     Ok(workflows)
 }
 
-/// Initialize Rayon engines for high-performance CPU-optimized processing
+/// Initialize async engines for high-performance multi-threaded processing
 pub async fn initialize_engines() -> AppState {
-    info!("Initializing RayonEngine for high-performance CPU-optimized processing");
-
-    // Get thread count from environment or use CPU count
-    let thread_count = std::env::var("REFRAME_THREAD_COUNT")
-        .ok()
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or_else(num_cpus::get);
+    info!("Initializing async Engine for high-performance multi-threaded processing");
 
     info!("Configuration:");
-    info!("  • Rayon worker threads per engine: {}", thread_count);
     info!("  • CPU cores available: {}", num_cpus::get());
-    info!("  • Engine type: RayonEngine (work-stealing pool)");
+    info!("  • Engine type: Async Engine (Tokio runtime)");
+    info!("  • Runtime: Tokio multi-threaded");
 
-    // Create forward engine with Rayon thread pool
-    let forward_engine = initialize_forward_engine(thread_count)
+    // Create forward engine with async support
+    let forward_engine = initialize_forward_engine()
         .await
         .expect("Failed to initialize forward engine");
 
-    // Create reverse engine with Rayon thread pool
-    let reverse_engine = initialize_reverse_engine(thread_count)
+    // Create reverse engine with async support
+    let reverse_engine = initialize_reverse_engine()
         .await
         .expect("Failed to initialize reverse engine");
 
-    info!("RayonEngine instances initialized successfully");
+    info!("Async Engine instances initialized successfully");
 
     AppState {
         forward_engine,
@@ -147,20 +126,14 @@ pub async fn initialize_engines() -> AppState {
 }
 
 pub async fn reload_engines(_app_state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
-    info!("Reloading workflow configurations for RayonEngine");
+    info!("Reloading workflow configurations for async Engine");
 
-    // Get thread count for new engines
-    let _thread_count = std::env::var("REFRAME_THREAD_COUNT")
-        .ok()
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or_else(num_cpus::get);
+    // Note: Since we can't replace Arc references in place, hot reload would require
+    // a different approach (e.g., using a wrapper type or recreating the AppState)
+    // For now, hot reload requires a service restart
 
-    // Note: Since RayonEngine doesn't have a reload method, we need to create new engines
-    // In a production system, you might want to implement a more graceful reload mechanism
-    // For now, this is a placeholder that would need to be coordinated with the handlers
+    info!("Hot reload not currently supported without service restart");
+    info!("Please restart the service to load updated workflows");
 
-    info!("Engine reload would require recreating engines with updated workflows");
-    info!("This operation is not currently supported without restarting the service");
-
-    Err("Hot reload not supported with RayonEngine. Please restart the service.".into())
+    Err("Hot reload not supported without service restart. Please restart the service.".into())
 }

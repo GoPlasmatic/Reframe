@@ -8,6 +8,7 @@ use axum::{
 use dataflow_rs::engine::message::Message;
 use quick_xml::Reader;
 use serde_json::Value;
+use std::sync::Arc;
 use std::time::Instant;
 use swift_mt_message::SwiftParser;
 use tracing::{Span, debug, error, info, instrument, warn};
@@ -77,7 +78,7 @@ pub fn extract_workflow_errors(message: &Message) -> Vec<String> {
     // Check for errors in the message's error array
     if !message.errors.is_empty() {
         for error in &message.errors {
-            let error_msg = &error.error_message;
+            let error_msg = &error.message;
             // Clean up the error message to make it more user-friendly
             let clean_error = if error_msg.starts_with("Validation error: ") {
                 error_msg
@@ -183,22 +184,20 @@ pub async fn transform_mt_to_mx(
 
     // Prepare message for transformation
     let payload_value = Value::String(request.message.clone());
-    let mut message = Message::new(&payload_value);
+    let mut message = Message::new(Arc::new(payload_value));
     message.data = serde_json::json!({}); // Initialize data field as empty object
     message.metadata = serde_json::json!({
         "transformation_direction": "mt-to-mx"
     });
 
-    // Process message using the threaded forward engine
-    match state.forward_engine.process_message(message.clone()).await {
-        Ok(result_message) => {
+    // Process message using the async forward engine
+    match state.forward_engine.process_message(&mut message).await {
+        Ok(()) => {
             let processing_time = start_time.elapsed().as_millis() as u64;
             info!(
                 "✅ MT to MX transformation completed in {}ms",
                 processing_time
             );
-            // Update message with result
-            message = result_message;
 
             // Check for validation/processing errors even if engine returned Ok
             let workflow_errors = extract_workflow_errors(&message);
@@ -427,7 +426,7 @@ pub async fn transform_mt_to_mx(
                 success: false,
                 result: None,
                 debug_info: if request.options.debug {
-                    let message_json = serde_json::to_value(message).unwrap();
+                    let message_json = serde_json::to_value(&message).unwrap();
                     Some(DebugInfo {
                         engine_state: "forward".to_string(),
                         workflow_execution: vec![format!("Failed - Engine error: {}", e)],
@@ -466,22 +465,20 @@ pub async fn transform_mx_to_mt(
 
     // Prepare message for transformation
     let payload_value = Value::String(request.message.clone());
-    let mut message = Message::new(&payload_value);
+    let mut message = Message::new(Arc::new(payload_value));
     message.data = serde_json::json!({}); // Initialize data field as empty object
     message.metadata = serde_json::json!({
         "transformation_direction": "mx-to-mt"
     });
 
-    // Process message using the threaded reverse engine
-    match state.reverse_engine.process_message(message.clone()).await {
-        Ok(result_message) => {
+    // Process message using the async reverse engine
+    match state.reverse_engine.process_message(&mut message).await {
+        Ok(()) => {
             let processing_time = start_time.elapsed().as_millis() as u64;
             info!(
                 "✅ MX to MT transformation completed in {}ms",
                 processing_time
             );
-            // Update message with result
-            message = result_message;
 
             // Check for validation/processing errors even if engine returned Ok
             let workflow_errors = extract_workflow_errors(&message);
@@ -646,7 +643,7 @@ pub async fn transform_mx_to_mt(
                 success: false,
                 result: None,
                 debug_info: if request.options.debug {
-                    let message_json = serde_json::to_value(message).unwrap();
+                    let message_json = serde_json::to_value(&message).unwrap();
                     Some(DebugInfo {
                         engine_state: "reverse".to_string(),
                         workflow_execution: vec![format!("Failed - Engine error: {}", e)],
@@ -856,19 +853,12 @@ pub async fn generate_sample(
         (status = 200, description = "Service is healthy", body = HealthResponse),
     )
 )]
-pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse> {
-    // RayonEngine is always healthy if it exists
-    // Get actual thread count from the engines
-    let forward_thread_count = state.forward_engine.thread_count();
-    let reverse_thread_count = state.reverse_engine.thread_count();
+pub async fn health_check(State(_state): State<AppState>) -> Json<HealthResponse> {
+    // Async Engine is always healthy if it exists
+    let cpu_count = num_cpus::get();
 
-    let thread_count = std::env::var("REFRAME_THREAD_COUNT")
-        .ok()
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or_else(num_cpus::get);
-
-    let forward_status = format!("healthy (RayonEngine, {} workers)", forward_thread_count);
-    let reverse_status = format!("healthy (RayonEngine, {} workers)", reverse_thread_count);
+    let forward_status = "healthy (Async Engine, Tokio runtime)".to_string();
+    let reverse_status = "healthy (Async Engine, Tokio runtime)".to_string();
 
     Json(HealthResponse {
         status: "running".to_string(),
@@ -877,17 +867,13 @@ pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse>
             forward: forward_status.clone(),
             reverse: reverse_status.clone(),
         },
-        config: Some(crate::types::ConfigInfo { thread_count }),
+        config: Some(crate::types::ConfigInfo {
+            thread_count: cpu_count,
+        }),
         capabilities: vec![
-            format!(
-                "MT-to-MX transformation (RayonEngine, {} workers)",
-                forward_thread_count
-            ),
-            format!(
-                "MX-to-MT transformation (RayonEngine, {} workers)",
-                reverse_thread_count
-            ),
-            "High-performance CPU-optimized processing with work-stealing".to_string(),
+            "MT-to-MX transformation (Async Engine, Tokio runtime)".to_string(),
+            "MX-to-MT transformation (Async Engine, Tokio runtime)".to_string(),
+            "High-performance async multi-threaded processing".to_string(),
             "MT sample generation (26 message types)".to_string(),
         ],
     })

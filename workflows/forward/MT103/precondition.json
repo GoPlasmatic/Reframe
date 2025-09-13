@@ -2,7 +2,7 @@
     "id": "mt103-precondition",
     "name": "MT103 Message Precondition",
     "description": "Precondition checks for MT103 message",
-    "priority": 3,
+    "priority": 4,
     "condition": { "and": [
         {"==": [{"var": "SwiftMT.message_type"}, "103"]},
         {"in": [{"var": "SwiftMT.method"}, ["normal", "stp"]]},
@@ -40,37 +40,6 @@
                                 ]}
                             ]},
                             "message": "PREC001: Translation stopped - Business Application Header (BAH) translation incomplete. Missing Sender or Receiver BIC from TR001."
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC002_validate_rejection_return",
-            "name": "PREC002: Check Field 72 for Rejection/Return",
-            "description": "CBPR+ PREC002: Stop translation if field 72 starts with /REJT/ or /RETN/ (Error T20063)",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.72.information"},
-                                {
-                                    "!": {
-                                        "some": [
-                                            {"var": "data.SwiftMT.fields.72.information"},
-                                            { "or": [
-                                                {"starts_with": [{"var": ""}, "/REJT/"]},
-                                                {"starts_with": [{"var": ""}, "/RETN/"]}
-                                            ]}
-                                        ]
-                                    }
-                                },
-                                true
-                            ]},
-                            "message": "T20063: Translation stopped - Field 72 contains /REJT/ or /RETN/ indicating rejection or return message"
                         }
                     ]
                 }
@@ -127,27 +96,6 @@
                                 ]}
                             },
                             "message": "T20007/T11001: Field 57B with location only requires NOTPROVIDED"
-                        },
-                        {
-                            "path": "temp_data",
-                            "logic": {
-                                "!": { "if": [
-                                    {"var": "data.SwiftMT.fields.72.information"},
-                                    {
-                                        "!": {
-                                            "some": [
-                                                {"var": "data.SwiftMT.fields.72.information"},
-                                                { "or": [
-                                                    {"starts_with": [{"var": ""}, "/REJT/"]},
-                                                    {"starts_with": [{"var": ""}, "/RETN/"]}
-                                                ]}
-                                            ]
-                                        }
-                                    },
-                                    false
-                                ]}
-                            },
-                            "message": "T20063: Translation stopped - Field 72 contains /REJT/ or /RETN/ indicating rejection or return message"
                         }
                     ]
                 }

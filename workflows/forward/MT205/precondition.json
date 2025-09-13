@@ -2,20 +2,18 @@
     "id": "mt205-precondition",
     "name": "MT205 Message Precondition",
     "description": "Precondition checks for MT205 message with automatic CORE translation (always serial payment)",
-    "priority": 3,
+    "priority": 4,
     "condition": { "and": [
         {"==": [{"var": "SwiftMT.message_type"}, "205"]},
         {"==": [{"var": "SwiftMT.method"}, "normal"]},
-        {"!=": [{"var": "SwiftMT.user_header.validation_flag"}, "COV"]},
-        {"!": {"some": [{"var": "SwiftMT.fields.72.information"}, {"==": [{"var": ""}, "/COV/"]}]}},
         {
             "in": [
                 {"var": "progress.workflow_id"},
                 [
                     "mt205-bah-mapper",
                     "mt205cov-bah-mapper",
-                    "mt205-rejt-bah-mapper",
-                    "mt205-retn-bah-mapper"
+                    "mt205rejt-bah-mapper",
+                    "mt205retn-bah-mapper"
                 ]
             ]
         },
@@ -66,11 +64,11 @@
                         {
                             "path": "data",
                             "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.72.lines"},
+                                {"var": "data.SwiftMT.fields.72.information"},
                                 {
                                     "!": { "or": [
-                                        {"starts_with": [{"var": "data.SwiftMT.fields.72.lines.0"}, "/REJT/"]},
-                                        {"starts_with": [{"var": "data.SwiftMT.fields.72.lines.0"}, "/RETN/"]}
+                                        {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/REJT/"]},
+                                        {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]}
                                     ]}
                                 },
                                 true

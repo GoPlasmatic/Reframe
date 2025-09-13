@@ -1,6 +1,7 @@
+use async_trait::async_trait;
 use dataflow_rs::engine::error::DataflowError;
 use dataflow_rs::engine::{
-    FunctionConfig, FunctionHandler,
+    AsyncFunctionHandler, FunctionConfig,
     error::Result,
     message::{Change, Message},
 };
@@ -9,17 +10,19 @@ use mx_message::document::*;
 use mx_message::header::*;
 use quick_xml::se::to_string as xml_to_string;
 use serde_json::Value;
+use std::sync::Arc;
 use tracing::{debug, error, instrument, trace, warn};
 
 pub struct PublishMX;
 
-impl FunctionHandler for PublishMX {
+#[async_trait]
+impl AsyncFunctionHandler for PublishMX {
     #[instrument(skip(self, message, config, _datalogic))]
-    fn execute(
+    async fn execute(
         &self,
         message: &mut Message,
         config: &FunctionConfig,
-        _datalogic: &DataLogic,
+        _datalogic: Arc<DataLogic>,
     ) -> Result<(usize, Vec<Change>)> {
         debug!("Starting MT to MX message publishing/conversion");
 
@@ -58,19 +61,22 @@ impl FunctionHandler for PublishMX {
                 "Field {} not found in message data {}",
                 input_field_name, message.data
             ))
-        })?;
+        })?.clone();
 
-        let message_metadata = message.metadata.clone();
-        let message_type = message_metadata
+        let message_type = message
+            .metadata
             .get("SwiftMT")
             .and_then(|v| v.get("message_type"))
             .and_then(|v| v.as_str())
-            .unwrap_or("Unknown");
-        let message_method = message_metadata
+            .unwrap_or("Unknown")
+            .to_string();
+        let message_method = message
+            .metadata
             .get("SwiftMT")
             .and_then(|v| v.get("method"))
             .and_then(|v| v.as_str())
-            .unwrap_or("Unknown");
+            .unwrap_or("Unknown")
+            .to_string();
         debug!(
             message_type = %message_type,
             message_method = %message_method,
@@ -80,20 +86,20 @@ impl FunctionHandler for PublishMX {
         let result = if source_format.ends_with(".Header") {
             debug!(source_format = %source_format, "Processing MT to MX header");
             handle_mt_to_mx_header(
-                input_data.clone(),
+                input_data,
                 message,
                 output_field_name,
-                message_type,
-                message_method,
+                &message_type,
+                &message_method,
             )
         } else if source_format.ends_with(".Document") {
             debug!(source_format = %source_format, "Processing MT to MX document");
             handle_mt_to_mx_document(
-                input_data.clone(),
+                input_data,
                 message,
                 output_field_name,
-                message_type,
-                message_method,
+                &message_type,
+                &message_method,
             )
         } else {
             error!(source_format = %source_format, "Invalid source format for MT to MX - must end with .Header or .Document");
@@ -234,9 +240,9 @@ fn handle_mt_to_mx_header(
     Ok((
         200,
         vec![Change {
-            path: format!("data.{}", output_field_name),
-            old_value: Value::Null,
-            new_value: result_value,
+            path: Arc::from(format!("data.{}", output_field_name)),
+            old_value: Arc::new(Value::Null),
+            new_value: Arc::new(result_value),
         }],
     ))
 }
@@ -393,9 +399,9 @@ fn handle_mt_to_mx_document(
     Ok((
         200,
         vec![Change {
-            path: format!("data.{}", output_field_name),
-            old_value: Value::Null,
-            new_value: result_value,
+            path: Arc::from(format!("data.{}", output_field_name)),
+            old_value: Arc::new(Value::Null),
+            new_value: Arc::new(result_value),
         }],
     ))
 }

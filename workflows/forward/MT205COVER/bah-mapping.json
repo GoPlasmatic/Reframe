@@ -2,16 +2,12 @@
     "id": "mt205cov-bah-mapper",
     "name": "MT205 COV Business Application Header Mapping for CBPR+",
     "description": "Maps MT205 COV message to ISO 20022 Business Application Header (AppHdr) using head.001.001.02 schema for Corporate Cover payments",
-    "priority": 2,
+    "priority": 3,
     "condition": { "and": [
         {"==": [{"var": "SwiftMT.message_type"}, "205"]},
-        { "or": [
-            {"==": [{"var": "SwiftMT.method"}, "cover"]},
-            {"==": [{"var": "SwiftMT.user_header.validation_flag"}, "COV"]},
-            {"some": [{"var": "SwiftMT.fields.72.information"}, {"==": [{"var": ""}, "/COV/"]}]}
-        ]},
-        {"==": [{"var": "progress.workflow_id"}, "parser"]},
-        {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
+        {"==": [{"var": "SwiftMT.method"}, "cover"]},
+        {"==": [{"var": "progress.workflow_id"}, "mt205-method-detector"]},
+        {"==": [{"var": "progress.task_id"}, "detect_mt205_method"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
@@ -34,7 +30,7 @@
                                         {"var": "data.SwiftMT.fields.52.A.bic"},
                                         { "if": [
                                             {"var": "data.SwiftMT.fields.52.D.name_and_address"},
-                                            null,
+                                            "NOTPROVIDED",
                                             "NOTPROVIDED"
                                         ]}
                                     ]}
@@ -47,7 +43,7 @@
                                         {"var": "data.SwiftMT.fields.58.A.bic"},
                                         { "if": [
                                             {"var": "data.SwiftMT.fields.58.D.name_and_address"},
-                                            null,
+                                            "NOTPROVIDED",
                                             "NOTPROVIDED"
                                         ]}
                                     ]}

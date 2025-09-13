@@ -18,31 +18,38 @@
                 "name": "map",
                 "input": {
                     "mappings": [
+                        {"path": "temp_data.Sender", "logic": {"var": "temp_data.Sender"}},
+                        {"path": "temp_data.Receiver", "logic": {"var": "temp_data.Receiver"}},
                         {
-                            "path": "temp_data",
-                            "logic": {
-                                "settlement_method": { "if": [
-                                    {"!": {"var": "data.SwiftMT.fields.53.B"}},
-                                    "INDA",
-                                    { "if": [
-                                        { "and": [
-                                            {"var": "data.SwiftMT.fields.53.B.party_identifier"},
-                                            {"starts_with": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, "/C"]}
-                                        ]},
-                                        "INGA",
-                                        "INDA"
-                                    ]}
-                                ]},
-                                "settlement_account": { "if": [
-                                    {"var": "data.SwiftMT.fields.53.B.party_identifier"},
-                                    { "if": [
-                                        {"starts_with": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, "/"]},
-                                        {"substr": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, 1]},
-                                        null
+                            "path": "temp_data.UETR",
+                            "logic": {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}
+                        },
+                        {
+                            "path": "temp_data.settlement_method",
+                            "logic": { "if": [
+                                {"!": {"var": "data.SwiftMT.fields.53.B"}},
+                                "INDA",
+                                { "if": [
+                                    { "and": [
+                                        {"var": "data.SwiftMT.fields.53.B.party_identifier"},
+                                        {"starts_with": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, "/C"]}
                                     ]},
-                                    null
+                                    "INGA",
+                                    "INDA"
                                 ]}
-                            }
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.settlement_account",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.53.B.party_identifier"},
+                                { "if": [
+                                    {"starts_with": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, "/"]},
+                                    {"substr": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, 1]},
+                                    null
+                                ]},
+                                null
+                            ]}
                         }
                     ]
                 }
@@ -93,7 +100,6 @@
                 "name": "map",
                 "input": {
                     "mappings": [
-                        {"path": "data.Document.FIToFICdtTrf.CdtTrfTxInf", "logic": {}},
                         {
                             "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf",
                             "logic": {
@@ -149,10 +155,42 @@
                                     {"var": "data.SwiftMT.fields.32A.value_date"},
                                     "9999-12-31"
                                 ]},
-                                "InstgAgt": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}},
-                                "InstdAgt": {"FinInstnId": {"BICFI": {"var": "temp_data.Receiver"}}},
-                                "Dbtr": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}},
-                                "Cdtr": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}},
+                                "InstgAgt": {
+                                    "FinInstnId": {
+                                        "BICFI": { "if": [
+                                            {"var": "temp_data.Sender"},
+                                            {"var": "temp_data.Sender"},
+                                            "NOTPROVIDED"
+                                        ]}
+                                    }
+                                },
+                                "InstdAgt": {
+                                    "FinInstnId": {
+                                        "BICFI": { "if": [
+                                            {"var": "temp_data.Receiver"},
+                                            {"var": "temp_data.Receiver"},
+                                            "NOTPROVIDED"
+                                        ]}
+                                    }
+                                },
+                                "Dbtr": {
+                                    "FinInstnId": {
+                                        "BICFI": { "if": [
+                                            {"var": "temp_data.Sender"},
+                                            {"var": "temp_data.Sender"},
+                                            "NOTPROVIDED"
+                                        ]}
+                                    }
+                                },
+                                "Cdtr": {
+                                    "FinInstnId": {
+                                        "BICFI": { "if": [
+                                            {"var": "temp_data.Sender"},
+                                            {"var": "temp_data.Sender"},
+                                            "NOTPROVIDED"
+                                        ]}
+                                    }
+                                },
                                 "CdtrAgt": { "if": [
                                     {"var": "data.SwiftMT.fields.57.A.bic"},
                                     {"FinInstnId": {"BICFI": {"var": "data.SwiftMT.fields.57.A.bic"}}},
@@ -177,7 +215,7 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0.IntrmyAgt1",
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.IntrmyAgt1",
                             "logic": { "if": [
                                 {"var": "data.SwiftMT.fields.56.A.bic"},
                                 {"FinInstnId": {"BICFI": {"var": "data.SwiftMT.fields.56.A.bic"}}},
@@ -204,7 +242,7 @@
                             ]}
                         },
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0.IntrmyAgt1Acct",
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.IntrmyAgt1Acct",
                             "condition": { "or": [
                                 { "and": [
                                     {"var": "data.SwiftMT.fields.56.A.party_identifier"},
@@ -280,7 +318,7 @@
                             ]}
                         },
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0.CdtrAgt",
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.CdtrAgt",
                             "logic": { "if": [
                                 {"var": "data.SwiftMT.fields.57.A.bic"},
                                 {"FinInstnId": {"BICFI": {"var": "data.SwiftMT.fields.57.A.bic"}}},
@@ -333,7 +371,7 @@
                             ]}
                         },
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0.CdtrAgtAcct",
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.CdtrAgtAcct",
                             "condition": { "or": [
                                 { "and": [
                                     {"var": "data.SwiftMT.fields.57.A.party_identifier"},
@@ -406,7 +444,7 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0.PmtTpInf.SvcLvl",
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl",
                             "condition": {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/SVCLVL/"]},
                             "logic": { "if": [
                                 {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/SVCLVL/([^/]+)"]},
@@ -417,7 +455,7 @@
                             ]}
                         },
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0.PmtTpInf.LclInstrm",
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.LclInstrm",
                             "condition": {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/LOCINS/"]},
                             "logic": { "if": [
                                 {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/LOCINS/([^/]+)"]},
@@ -428,7 +466,7 @@
                             ]}
                         },
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0.PmtTpInf.CtgyPurp",
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.CtgyPurp",
                             "condition": {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/CATPURP/"]},
                             "logic": { "if": [
                                 {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/CATPURP/([^/]+)"]},
@@ -439,7 +477,7 @@
                             ]}
                         },
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0.Purp",
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.Purp",
                             "condition": {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/PURP/"]},
                             "logic": { "if": [
                                 {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/PURP/([^/]+)"]},
@@ -463,7 +501,7 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0.InstrForCdtrAgt",
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.InstrForCdtrAgt",
                             "condition": { "or": [
                                 {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/ACC/"]},
                                 {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/UDLC/"]},
@@ -491,7 +529,7 @@
                             }
                         },
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0.RmtInf",
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.RmtInf",
                             "condition": {"regex_match": [{"cat": [{"var": "data.SwiftMT.fields.72.information"}]}, "/BNF/"]},
                             "logic": {
                                 "Ustrd": [
@@ -515,7 +553,7 @@
                             }
                         },
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.0.InstrForNxtAgt",
+                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.InstrForNxtAgt",
                             "condition": {"var": "temp_data.field72_truncated"},
                             "logic": { "if": [
                                 {"var": "temp_data.field72_truncated"},

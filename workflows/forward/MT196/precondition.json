@@ -132,20 +132,20 @@
                             "path": "temp_data.has_valid_uetr",
                             "logic": { "if": [
                                 {"var": "temp_data.extracted_uetr"},
-                                {"==": [{"length": {"var": "temp_data.extracted_uetr"}}, 36]},
+                                true,
                                 false
                             ]}
                         },
                         {
                             "path": "temp_data.prec001_error",
                             "logic": { "if": [
-                                {"var": "temp_data.has_valid_uetr"},
-                                null,
+                                {"!": {"var": "temp_data.has_valid_uetr"}},
                                 { "if": [
                                     {"var": "temp_data.extracted_uetr"},
                                     "T20087: UETR has invalid UUID v4 format",
                                     "T20087: UETR is mandatory but missing in Block3 and Field 77A"
-                                ]}
+                                ]},
+                                null
                             ]}
                         }
                     ]
@@ -173,19 +173,23 @@
                         },
                         {
                             "path": "temp_data.has_valid_status",
-                            "logic": { "or": [
-                                {"in": ["/CNCL/", {"var": "temp_data.field76_first_line"}]},
-                                {"in": ["/PDCR/", {"var": "temp_data.field76_first_line"}]},
-                                {"in": ["/RJCR/", {"var": "temp_data.field76_first_line"}]},
-                                {"in": ["/CUST/", {"var": "temp_data.field76_first_line"}]}
+                            "logic": { "if": [
+                                {"var": "temp_data.field76_first_line"},
+                                { "or": [
+                                    {"starts_with": [{"var": "temp_data.field76_first_line"}, "/CNCL/"]},
+                                    {"starts_with": [{"var": "temp_data.field76_first_line"}, "/PDCR/"]},
+                                    {"starts_with": [{"var": "temp_data.field76_first_line"}, "/RJCR/"]},
+                                    {"starts_with": [{"var": "temp_data.field76_first_line"}, "/CUST/"]}
+                                ]},
+                                false
                             ]}
                         },
                         {
                             "path": "temp_data.prec002_error",
                             "logic": { "if": [
-                                {"var": "temp_data.has_valid_status"},
-                                null,
-                                "T20093: Field 76 Line 1 must contain /CNCL/, /PDCR/, /RJCR/, or /CUST/ pattern"
+                                {"!": {"var": "temp_data.has_valid_status"}},
+                                "T20093: Field 76 Line 1 must contain /CNCL/, /PDCR/, /RJCR/, or /CUST/ pattern",
+                                null
                             ]}
                         }
                     ]
@@ -213,9 +217,9 @@
                         {
                             "path": "temp_data.prec003_error",
                             "logic": { "if": [
-                                {"var": "temp_data.has_mandatory_fields"},
-                                null,
-                                "Mandatory MT196 fields (20, 21, 76) are missing or invalid"
+                                {"!": {"var": "temp_data.has_mandatory_fields"}},
+                                "Mandatory MT196 fields (20, 21, 76) are missing or invalid",
+                                null
                             ]}
                         }
                     ]
@@ -244,16 +248,16 @@
                         {
                             "path": "temp_data.status_code",
                             "logic": { "if": [
-                                {"in": ["/CNCL/", {"var": "temp_data.field76_first_line"}]},
+                                {"starts_with": [{"var": "temp_data.field76_first_line"}, "/CNCL/"]},
                                 "CNCL",
                                 { "if": [
-                                    {"in": ["/PDCR/", {"var": "temp_data.field76_first_line"}]},
+                                    {"starts_with": [{"var": "temp_data.field76_first_line"}, "/PDCR/"]},
                                     "PDCR",
                                     { "if": [
-                                        {"in": ["/RJCR/", {"var": "temp_data.field76_first_line"}]},
+                                        {"starts_with": [{"var": "temp_data.field76_first_line"}, "/RJCR/"]},
                                         "RJCR",
                                         { "if": [
-                                            {"in": ["/CUST/", {"var": "temp_data.field76_first_line"}]},
+                                            {"starts_with": [{"var": "temp_data.field76_first_line"}, "/CUST/"]},
                                             "CUST",
                                             "CNCL"
                                         ]}

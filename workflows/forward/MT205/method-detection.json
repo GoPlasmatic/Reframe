@@ -1,0 +1,60 @@
+{
+    "id": "mt205-method-detector",
+    "name": "MT205 Method Detection",
+    "description": "Detects MT205 message variants (normal, cover, reject, return) based on field 72 and user header",
+    "priority": 2,
+    "condition": { "and": [
+        {"==": [{"var": "SwiftMT.message_type"}, "205"]},
+        {"==": [{"var": "progress.workflow_id"}, "parser"]},
+        {"==": [{"var": "progress.task_id"}, "parse_mt_message"]},
+        {"==": [{"var": "progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "detect_mt205_method",
+            "name": "Detect MT205 Method",
+            "description": "Determines if MT205 is normal, cover, reject, or return based on field 72 content and user header validation flag",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "metadata.SwiftMT.method",
+                            "logic": { "if": [
+                                {"==": [{"var": "data.SwiftMT.user_header.validation_flag"}, "COV"]},
+                                "cover",
+                                { "if": [
+                                    {"var": "data.SwiftMT.fields.72.information"},
+                                    { "if": [
+                                        {"some": [{"var": "data.SwiftMT.fields.72.information"}, {"==": [{"var": ""}, "/COV/"]}]},
+                                        "cover",
+                                        { "if": [
+                                            {
+                                                "some": [
+                                                    {"var": "data.SwiftMT.fields.72.information"},
+                                                    {"starts_with": [{"var": ""}, "/REJT/"]}
+                                                ]
+                                            },
+                                            "reject",
+                                            { "if": [
+                                                {
+                                                    "some": [
+                                                        {"var": "data.SwiftMT.fields.72.information"},
+                                                        {"starts_with": [{"var": ""}, "/RETN/"]}
+                                                    ]
+                                                },
+                                                "return",
+                                                "normal"
+                                            ]}
+                                        ]}
+                                    ]},
+                                    "normal"
+                                ]}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

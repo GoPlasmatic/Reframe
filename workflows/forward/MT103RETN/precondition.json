@@ -2,7 +2,7 @@
     "id": "mt103-retn-precondition",
     "name": "MT103 RETN Message Precondition",
     "description": "Precondition checks for MT103 RETN return message including UETR validation and field 72 validation",
-    "priority": 3,
+    "priority": 4,
     "condition": { "and": [
         {"==": [{"var": "SwiftMT.message_type"}, "103"]},
         {"==": [{"var": "SwiftMT.method"}, "return"]},
@@ -84,36 +84,43 @@
         {
             "id": "PREC003_field_72_retn_validation",
             "name": "PREC003: Validate Field 72 Return Format",
-            "description": "Validate Field 72: Line 1 must start with /RETN/, Line 2 must follow /2!c2!n/ pattern, Line 3 must start with /MREF/",
+            "description": "Validate Field 72 or 77B: Line 1 must start with /RETN/ or /RETRES/, Line 2 must follow /2!c2!n/ pattern",
             "function": {
                 "name": "validate",
                 "input": {
                     "rules": [
                         {
-                            "path": "data.SwiftMT.fields.72",
+                            "path": "data.SwiftMT.fields",
                             "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.72.information"},
+                                {"var": "data.SwiftMT.fields.77B.narrative"},
                                 { "and": [
-                                    {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 0]},
-                                    {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]},
-                                    { "if": [
-                                        {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 1]},
-                                        { "and": [
-                                            {"starts_with": [{"var": "data.SwiftMT.fields.72.information.1"}, "/"]},
-                                            {"ends_with": [{"var": "data.SwiftMT.fields.72.information.1"}, "/"]},
-                                            {"==": [{"length": {"var": "data.SwiftMT.fields.72.information.1"}}, 6]}
-                                        ]},
-                                        true
-                                    ]},
-                                    { "if": [
-                                        {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 2]},
-                                        {"starts_with": [{"var": "data.SwiftMT.fields.72.information.2"}, "/MREF/"]},
-                                        true
-                                    ]}
+                                    {">": [{"length": {"var": "data.SwiftMT.fields.77B.narrative"}}, 0]},
+                                    {"starts_with": [{"var": "data.SwiftMT.fields.77B.narrative.0"}, "/RETRES/"]}
                                 ]},
-                                false
+                                { "if": [
+                                    {"var": "data.SwiftMT.fields.72.information"},
+                                    { "and": [
+                                        {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 0]},
+                                        {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]},
+                                        { "if": [
+                                            {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 1]},
+                                            { "and": [
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.72.information.1"}, "/"]},
+                                                {"ends_with": [{"var": "data.SwiftMT.fields.72.information.1"}, "/"]},
+                                                {"==": [{"length": {"var": "data.SwiftMT.fields.72.information.1"}}, 6]}
+                                            ]},
+                                            true
+                                        ]},
+                                        { "if": [
+                                            {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 2]},
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.72.information.2"}, "/MREF/"]},
+                                            true
+                                        ]}
+                                    ]},
+                                    false
+                                ]}
                             ]},
-                            "message": "T20314: Field 72 format invalid - Line 1 must be /RETN/, Line 2 must follow /2!c2!n/ pattern (e.g., /AC01/), Line 3 must start with /MREF/"
+                            "message": "T20314: Field 72 or 77B format invalid for MT103 RETN"
                         }
                     ]
                 }
@@ -130,15 +137,32 @@
                         {
                             "path": "temp_data.mref_value",
                             "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.72.information"},
-                                { "reduce": [
+                                { "or": [
                                     {"var": "data.SwiftMT.fields.72.information"},
+                                    {"var": "data.SwiftMT.fields.77B.narrative"}
+                                ]},
+                                { "reduce": [
+                                    { "if": [
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        {"var": "data.SwiftMT.fields.77B.narrative"}
+                                    ]},
                                     { "if": [
                                         { "or": [
                                             {"starts_with": [{"var": "current"}, "/MREF/"]},
-                                            {"starts_with": [{"var": "current"}, "/ORIG/"]}
+                                            {"starts_with": [{"var": "current"}, "/ORIG/"]},
+                                            {"starts_with": [{"var": "current"}, "/RETREF/"]}
                                         ]},
-                                        {"substr": [{"var": "current"}, 6]},
+                                        {
+                                            "substr": [
+                                                {"var": "current"},
+                                                { "if": [
+                                                    {"starts_with": [{"var": "current"}, "/RETREF/"]},
+                                                    8,
+                                                    6
+                                                ]}
+                                            ]
+                                        },
                                         {"var": "accumulator"}
                                     ]},
                                     ""
@@ -181,9 +205,16 @@
                         {
                             "path": "temp_data.original_end_to_end_id",
                             "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.72.information"},
-                                { "reduce": [
+                                { "or": [
                                     {"var": "data.SwiftMT.fields.72.information"},
+                                    {"var": "data.SwiftMT.fields.77B.narrative"}
+                                ]},
+                                { "reduce": [
+                                    { "if": [
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        {"var": "data.SwiftMT.fields.77B.narrative"}
+                                    ]},
                                     { "if": [
                                         {"starts_with": [{"var": "current"}, "/TREF/"]},
                                         {"substr": [{"var": "current"}, 6]},

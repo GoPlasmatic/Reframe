@@ -2,19 +2,51 @@
     "id": "mt205cov-document-mapper",
     "name": "MT205 COV to pacs.009 ADV Document Mapping for CBPR+",
     "description": "Maps MT205 COV message to ISO 20022 pacs.009.001.08 FinancialInstitutionCreditTransferV08 ADV document structure according to CBPR+ MT202-COVE translation specification for Cover payments",
-    "priority": 4,
+    "priority": 5,
     "condition": { "and": [
         {"==": [{"var": "SwiftMT.message_type"}, "205"]},
-        { "or": [
-            {"==": [{"var": "SwiftMT.method"}, "cover"]},
-            {"==": [{"var": "SwiftMT.user_header.validation_flag"}, "COV"]},
-            {"some": [{"var": "SwiftMT.fields.72.information"}, {"==": [{"var": ""}, "/COV/"]}]}
-        ]},
+        {"==": [{"var": "SwiftMT.method"}, "cover"]},
         {"==": [{"var": "progress.workflow_id"}, "mt205cov-precondition"]},
         {"==": [{"var": "progress.task_id"}, "MT205COV_set_cover_translation"]},
         {"==": [{"var": "progress.status_code"}, 200]}
     ]},
     "tasks": [
+        {
+            "id": "extract_sender_receiver",
+            "name": "Extract Sender and Receiver BICs",
+            "description": "Extracts sender and receiver BIC codes from SwiftMT headers for use throughout the document mapping",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.Sender",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                { "if": [
+                                    {"var": "data.SwiftMT.basic_header.sender"},
+                                    {"var": "data.SwiftMT.basic_header.sender"},
+                                    "NOTPROVIDED"
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.Receiver",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                { "if": [
+                                    {"var": "data.SwiftMT.application_header.receiver"},
+                                    {"var": "data.SwiftMT.application_header.receiver"},
+                                    "NOTPROVIDED"
+                                ]}
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
         {
             "id": "METAFCT003_settlement_method_determination",
             "name": "METAFCT003: Complete Settlement Method for MT205 COV (Tables 1-2 only)",
@@ -75,73 +107,80 @@
                             ]}
                         },
                         {
-                            "path": "temp_data",
-                            "logic": {
-                                "settlement_method": { "if": [
-                                    {"!": {"var": "temp_data.field_53a_present"}},
+                            "path": "temp_data.settlement_method",
+                            "logic": { "if": [
+                                {"!": {"var": "temp_data.field_53a_present"}},
+                                "INDA",
+                                { "if": [
+                                    {"var": "temp_data.field_53a_matches_sender"},
                                     "INDA",
                                     { "if": [
-                                        {"var": "temp_data.field_53a_matches_sender"},
-                                        "INDA",
+                                        {"var": "temp_data.field_53b_has_C_prefix"},
+                                        "INGA",
                                         { "if": [
-                                            {"var": "temp_data.field_53b_has_C_prefix"},
-                                            "INGA",
-                                            { "if": [
-                                                {"var": "data.SwiftMT.fields.53.D"},
-                                                "INDA",
-                                                "INDA"
-                                            ]}
+                                            {"var": "data.SwiftMT.fields.53.D"},
+                                            "INDA",
+                                            "INDA"
                                         ]}
                                     ]}
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.settlement_account",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "temp_data.field_53b_has_C_prefix"},
+                                    {"==": [{"var": "temp_data.settlement_method"}, "INGA"]}
                                 ]},
-                                "settlement_account": { "if": [
+                                {"substr": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, 2]},
+                                { "if": [
                                     { "and": [
-                                        {"var": "temp_data.field_53b_has_C_prefix"},
-                                        {"==": [{"var": "temp_data.settlement_method"}, "INGA"]}
+                                        {"var": "data.SwiftMT.fields.53.B.party_identifier"},
+                                        {"starts_with": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, "/"]}
                                     ]},
-                                    {"substr": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, 2]},
+                                    {"substr": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, 1]},
                                     { "if": [
                                         { "and": [
-                                            {"var": "data.SwiftMT.fields.53.B.party_identifier"},
-                                            {"starts_with": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, "/"]}
+                                            {"var": "data.SwiftMT.fields.53.A.party_identifier"},
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.53.A.party_identifier"}, "/"]}
                                         ]},
-                                        {"substr": [{"var": "data.SwiftMT.fields.53.B.party_identifier"}, 1]},
+                                        {"substr": [{"var": "data.SwiftMT.fields.53.A.party_identifier"}, 1]},
                                         { "if": [
                                             { "and": [
-                                                {"var": "data.SwiftMT.fields.53.A.party_identifier"},
-                                                {"starts_with": [{"var": "data.SwiftMT.fields.53.A.party_identifier"}, "/"]}
+                                                {"var": "data.SwiftMT.fields.53.D.party_identifier"},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.53.D.party_identifier"}, "/"]}
                                             ]},
-                                            {"substr": [{"var": "data.SwiftMT.fields.53.A.party_identifier"}, 1]},
-                                            { "if": [
-                                                { "and": [
-                                                    {"var": "data.SwiftMT.fields.53.D.party_identifier"},
-                                                    {"starts_with": [{"var": "data.SwiftMT.fields.53.D.party_identifier"}, "/"]}
-                                                ]},
-                                                {"substr": [{"var": "data.SwiftMT.fields.53.D.party_identifier"}, 1]},
-                                                null
-                                            ]}
+                                            {"substr": [{"var": "data.SwiftMT.fields.53.D.party_identifier"}, 1]},
+                                            null
                                         ]}
                                     ]}
-                                ]},
-                                "instructing_reimbursement_agent_bic": { "if": [
-                                    { "and": [
-                                        {"==": [{"var": "temp_data.settlement_method"}, "INGA"]},
-                                        {"var": "data.SwiftMT.fields.53.A.bic"}
-                                    ]},
-                                    {"var": "data.SwiftMT.fields.53.A.bic"},
-                                    null
-                                ]},
-                                "instructed_reimbursement_agent_bic": null,
-                                "instruction_for_next_agent_fin53": { "if": [
-                                    { "and": [
-                                        {"==": [{"var": "temp_data.settlement_method"}, "INDA"]},
-                                        {"var": "data.SwiftMT.fields.53.D"},
-                                        {"var": "data.SwiftMT.fields.53.D.name_and_address"}
-                                    ]},
-                                    {"join": [" ", {"var": "data.SwiftMT.fields.53.D.name_and_address"}]},
-                                    null
                                 ]}
-                            }
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.instructing_reimbursement_agent_bic",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"==": [{"var": "temp_data.settlement_method"}, "INGA"]},
+                                    {"var": "data.SwiftMT.fields.53.A.bic"}
+                                ]},
+                                {"var": "data.SwiftMT.fields.53.A.bic"},
+                                null
+                            ]}
+                        },
+                        {"path": "temp_data.instructed_reimbursement_agent_bic", "logic": null},
+                        {
+                            "path": "temp_data.instruction_for_next_agent_fin53",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"==": [{"var": "temp_data.settlement_method"}, "INDA"]},
+                                    {"var": "data.SwiftMT.fields.53.D"},
+                                    {"var": "data.SwiftMT.fields.53.D.name_and_address"}
+                                ]},
+                                {"join": [" ", {"var": "data.SwiftMT.fields.53.D.name_and_address"}]},
+                                null
+                            ]}
                         }
                     ]
                 }

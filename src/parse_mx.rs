@@ -1,7 +1,8 @@
 use crate::helper::Helper;
+use async_trait::async_trait;
 use dataflow_rs::engine::error::DataflowError;
 use dataflow_rs::engine::{
-    FunctionConfig, FunctionHandler,
+    AsyncFunctionHandler, FunctionConfig,
     error::Result,
     message::{Change, Message},
 };
@@ -10,17 +11,19 @@ use mx_message::document::*;
 use mx_message::header::*;
 use quick_xml::de::from_str;
 use serde_json::{Value, json};
+use std::sync::Arc;
 use tracing::{debug, error, instrument};
 
 pub struct ParseMX;
 
-impl FunctionHandler for ParseMX {
+#[async_trait]
+impl AsyncFunctionHandler for ParseMX {
     #[instrument(skip(self, message, config, _datalogic))]
-    fn execute(
+    async fn execute(
         &self,
         message: &mut Message,
         config: &FunctionConfig,
-        _datalogic: &DataLogic,
+        _datalogic: Arc<DataLogic>,
     ) -> Result<(usize, Vec<Change>)> {
         debug!("Starting MX message parsing for reverse transformation");
 
@@ -86,7 +89,7 @@ impl FunctionHandler for ParseMX {
         let parsed_result = json!({
             "header": header,
             "document": document,
-            "message_type": message_type.clone(),
+            "message_type": message_type,
         });
 
         // Store the parsed result in message data
@@ -116,9 +119,9 @@ impl FunctionHandler for ParseMX {
         Ok((
             200,
             vec![Change {
-                path: format!("data.{output_field_name}"),
-                old_value: Value::Null,
-                new_value: parsed_result,
+                path: Arc::from(format!("data.{output_field_name}")),
+                old_value: Arc::new(Value::Null),
+                new_value: Arc::new(parsed_result),
             }],
         ))
     }

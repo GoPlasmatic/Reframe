@@ -1,11 +1,13 @@
+use async_trait::async_trait;
 use dataflow_rs::engine::error::DataflowError;
 use dataflow_rs::engine::{
-    FunctionConfig, FunctionHandler,
+    AsyncFunctionHandler, FunctionConfig,
     error::Result,
     message::{Change, Message},
 };
 use datalogic_rs::DataLogic;
 use serde_json::Value;
+use std::sync::Arc;
 use swift_mt_message::SwiftMessage;
 use swift_mt_message::messages::{
     MT101, MT103, MT104, MT110, MT111, MT112, MT190, MT191, MT192, MT196, MT199, MT202, MT204,
@@ -142,13 +144,14 @@ fn route_by_message_type(
 
 pub struct PublishMT;
 
-impl FunctionHandler for PublishMT {
+#[async_trait]
+impl AsyncFunctionHandler for PublishMT {
     #[instrument(skip(self, message, config, _datalogic))]
-    fn execute(
+    async fn execute(
         &self,
         message: &mut Message,
         config: &FunctionConfig,
-        _datalogic: &DataLogic,
+        _datalogic: Arc<DataLogic>,
     ) -> Result<(usize, Vec<Change>)> {
         debug!("Starting MX to MT message publishing/conversion");
 
@@ -262,9 +265,9 @@ impl FunctionHandler for PublishMT {
         Ok((
             200,
             vec![Change {
-                path: format!("data.{output_field_name}"),
-                old_value: Value::Null,
-                new_value: Value::String(mt_message),
+                path: Arc::from(format!("data.{output_field_name}")),
+                old_value: Arc::new(Value::Null),
+                new_value: Arc::new(Value::String(mt_message)),
             }],
         ))
     }

@@ -116,11 +116,11 @@ pub struct DebugInfo {
     pub intermediate_data: Value,
 }
 
-// Application State with Rayon engines for high-performance CPU-optimized processing
+// Application State with async engines for high-performance multi-threaded processing
 #[derive(Clone)]
 pub struct AppState {
-    pub forward_engine: Arc<dataflow_rs::RayonEngine>,
-    pub reverse_engine: Arc<dataflow_rs::RayonEngine>,
+    pub forward_engine: Arc<dataflow_rs::Engine>,
+    pub reverse_engine: Arc<dataflow_rs::Engine>,
 }
 
 // Health check response

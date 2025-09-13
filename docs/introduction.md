@@ -3,7 +3,7 @@
 Reframe is a software application which is used for testing high performance computing
             frameworks.
 
-It is written in the
+It is written in the Python computing language. 
 
 You can test your compilers with the aid of this software application.
 

@@ -29,8 +29,8 @@ RUST_LOG=info cargo run
 # Kill existing process on port 3000 and restart
 lsof -i :3000 | grep LISTEN | awk '{print $2}' | xargs kill -9 2>/dev/null; RUST_LOG=info cargo run
 
-# Run with custom thread count
-REFRAME_THREAD_COUNT=8 cargo run --release
+# Run with custom Tokio thread count
+TOKIO_WORKER_THREADS=8 cargo run --release
 
 # Run benchmark to find optimal configuration
 python3 test/simple_benchmark.py
@@ -38,19 +38,17 @@ python3 test/simple_benchmark.py
 
 ### Performance Configuration
 
-Reframe uses RayonEngine for high-performance CPU-optimized message processing. RayonEngine provides:
-- **Work-stealing thread pool**: Automatically balances load across all threads
-- **Near-linear scaling**: Performance scales efficiently with CPU cores
-- **Thread-local engines**: Each worker maintains its own compiled logic for zero contention
-- **Automatic parallelization**: Batch operations are automatically distributed
+Reframe uses an async Engine with Tokio runtime for high-performance message processing:
+- **Async I/O**: Non-blocking operations for network and file handling
+- **CPU optimization**: Tokio worker threads automatically utilize all available CPU cores
+- **Efficient concurrency**: Handles thousands of concurrent requests efficiently
 
 #### Environment Variables
 
-- **`REFRAME_THREAD_COUNT`**: Number of Rayon worker threads per engine (default: CPU count)
-  - Controls the size of the Rayon thread pool for parallel processing
-  - Each engine (forward and reverse) gets its own thread pool
-  - Work-stealing ensures optimal CPU utilization even with uneven workloads
-  - Recommended: Use CPU count for best performance, or reduce for resource-constrained environments
+- **`TOKIO_WORKER_THREADS`**: Number of Tokio async runtime worker threads (default: CPU count)
+  - Controls the Tokio runtime thread pool size for async I/O and request handling
+  - Defaults to all available CPU cores for maximum performance
+  - Recommended: Leave unset for automatic CPU detection, or set explicitly for resource-constrained environments
 
 #### Configuration Examples
 
@@ -59,24 +57,24 @@ Reframe uses RayonEngine for high-performance CPU-optimized message processing. 
 cargo run --release
 
 # Conservative (low resources, single-core VPS)
-REFRAME_THREAD_COUNT=1 cargo run
+TOKIO_WORKER_THREADS=1 cargo run
 
 # Balanced (4-core server)
-REFRAME_THREAD_COUNT=4 cargo run --release
+TOKIO_WORKER_THREADS=4 cargo run --release
 
 # High performance (8-core server)
-REFRAME_THREAD_COUNT=8 cargo run --release
+TOKIO_WORKER_THREADS=8 cargo run --release
 
 # Maximum throughput (16+ core servers)
-REFRAME_THREAD_COUNT=16 cargo run --release
+TOKIO_WORKER_THREADS=16 cargo run --release
 ```
 
 #### Performance Characteristics
 
-- **CPU-bound workloads**: RayonEngine excels at transformation tasks with minimal I/O
-- **Automatic load balancing**: Work-stealing ensures no thread sits idle
-- **Efficient batching**: Process multiple messages in parallel with `process_batch`
-- **Memory efficiency**: Thread-local engines reduce contention and improve cache locality
+- **Async operations**: Non-blocking I/O for efficient resource utilization
+- **Automatic scaling**: Tokio runtime automatically scales with available CPU cores
+- **Efficient concurrency**: Handles multiple concurrent transformations efficiently
+- **Memory efficiency**: Async operations reduce memory overhead compared to thread-per-request models
 
 ### Testing
 

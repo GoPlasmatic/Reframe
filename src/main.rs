@@ -32,8 +32,26 @@ use handlers::{
 use logging::{LogConfig, init_logging, log_system_info};
 use openapi::swagger_ui;
 
-#[tokio::main]
-async fn main() {
+fn main() {
+    // Configure Tokio worker threads (default to all CPU cores)
+    let tokio_threads = std::env::var("TOKIO_WORKER_THREADS")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or_else(num_cpus::get);
+
+    // Build Tokio runtime with configured worker threads
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(tokio_threads)
+        .enable_all()
+        .thread_name("reframe-worker")
+        .build()
+        .expect("Failed to create Tokio runtime");
+
+    // Run the async main function
+    runtime.block_on(async_main());
+}
+
+async fn async_main() {
     // Display ASCII art at startup
     display_ascii_art();
 
@@ -80,16 +98,15 @@ async fn main() {
     info!("Service started successfully");
     info!("Listening on: http://0.0.0.0:3000");
 
-    let thread_count = std::env::var("REFRAME_THREAD_COUNT")
+    let tokio_threads = std::env::var("TOKIO_WORKER_THREADS")
         .ok()
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or_else(num_cpus::get);
 
     info!("🚀 Performance Configuration:");
-    info!("  • Rayon worker threads per engine: {}", thread_count);
+    info!("  • Tokio worker threads: {}", tokio_threads);
     info!("  • Total engines: 2 (forward + reverse)");
     info!("  • CPU cores available: {}", num_cpus::get());
-    info!("  • Work-stealing enabled for automatic load balancing");
     info!("");
     info!("Available endpoints:");
     info!("  POST /transform/mt-to-mx    - MT to ISO 20022 transformation");

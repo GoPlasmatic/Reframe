@@ -12,52 +12,9 @@
     ]},
     "tasks": [
         {
-            "id": "prepare_bah_context",
-            "name": "Prepare BAH Context for Rejection",
-            "description": "Extracts sender and receiver BIC codes from MT103 REJT headers to establish business application header context per TR001",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data",
-                            "logic": {
-                                "Sender": { "if": [
-                                    {"==": [{"var": "data.SwiftMT.application_header.direction"}, "I"]},
-                                    { "if": [
-                                        {"var": "data.SwiftMT.basic_header.sender_bic"},
-                                        {"var": "data.SwiftMT.basic_header.sender_bic"},
-                                        "NOTPROVIDED"
-                                    ]},
-                                    { "if": [
-                                        {"var": "data.SwiftMT.application_header.mir_sender_bic"},
-                                        {"var": "data.SwiftMT.application_header.mir_sender_bic"},
-                                        "NOTPROVIDED"
-                                    ]}
-                                ]},
-                                "Receiver": { "if": [
-                                    {"==": [{"var": "data.SwiftMT.application_header.direction"}, "I"]},
-                                    { "if": [
-                                        {"var": "data.SwiftMT.application_header.receiver_bic"},
-                                        {"var": "data.SwiftMT.application_header.receiver_bic"},
-                                        "NOTPROVIDED"
-                                    ]},
-                                    { "if": [
-                                        {"var": "data.SwiftMT.basic_header.sender_bic"},
-                                        {"var": "data.SwiftMT.basic_header.sender_bic"},
-                                        "NOTPROVIDED"
-                                    ]}
-                                ]}
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
             "id": "map_cbpr_plus_rejection_header",
-            "name": "Map CBPR+ Business Application Header for Rejection (AppHdr)",
-            "description": "Constructs complete business application header for MT103 rejection messages using structural output with sender/receiver BIC, message identification, and service metadata",
+            "name": "Map CBPR+ Business Application Header with Context",
+            "description": "Constructs complete business application header for MT103 rejection messages with sender/receiver extraction",
             "function": {
                 "name": "map",
                 "input": {
@@ -65,17 +22,35 @@
                         {
                             "path": "data.AppHdr",
                             "logic": {
-                                "Fr": {"FIId": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}}},
-                                "To": {"FIId": {"FinInstnId": {"BICFI": {"var": "temp_data.Receiver"}}}},
+                                "Fr": {"FIId": {"FinInstnId": {"BICFI": { "if": [
+                                    {"==": [{"var": "data.SwiftMT.application_header.direction"}, "I"]},
+                                    { "if": [
+                                        {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                        {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                        "NOTPROVIDED"
+                                    ]},
+                                    { "if": [
+                                        {"var": "data.SwiftMT.application_header.mir_sender_bic"},
+                                        {"var": "data.SwiftMT.application_header.mir_sender_bic"},
+                                        "NOTPROVIDED"
+                                    ]}
+                                ]}}}},
+                                "To": {"FIId": {"FinInstnId": {"BICFI": { "if": [
+                                    {"==": [{"var": "data.SwiftMT.application_header.direction"}, "I"]},
+                                    { "if": [
+                                        {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                        {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                        "NOTPROVIDED"
+                                    ]},
+                                    { "if": [
+                                        {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                        {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                        "NOTPROVIDED"
+                                    ]}
+                                ]}}}},
                                 "BizMsgIdr": { "if": [
-                                    { "or": [
-                                        {"var": "data.SwiftMT.fields.20.reference"},
-                                        {"var": "data.SwiftMT.fields.20.reference"}
-                                    ]},
-                                    { "or": [
-                                        {"var": "data.SwiftMT.fields.20.reference"},
-                                        {"var": "data.SwiftMT.fields.20.reference"}
-                                    ]},
+                                    {"var": "data.SwiftMT.fields.20.reference"},
+                                    {"var": "data.SwiftMT.fields.20.reference"},
                                     "NOTPROVIDED"
                                 ]},
                                 "MsgDefIdr": "pacs.002.001.10",
@@ -98,6 +73,38 @@
                                     false
                                 ]}
                             }
+                        },
+                        {
+                            "path": "temp_data.Sender",
+                            "logic": { "if": [
+                                {"==": [{"var": "data.SwiftMT.application_header.direction"}, "I"]},
+                                { "if": [
+                                    {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                    {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                    "NOTPROVIDED"
+                                ]},
+                                { "if": [
+                                    {"var": "data.SwiftMT.application_header.mir_sender_bic"},
+                                    {"var": "data.SwiftMT.application_header.mir_sender_bic"},
+                                    "NOTPROVIDED"
+                                ]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.Receiver",
+                            "logic": { "if": [
+                                {"==": [{"var": "data.SwiftMT.application_header.direction"}, "I"]},
+                                { "if": [
+                                    {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                    {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                    "NOTPROVIDED"
+                                ]},
+                                { "if": [
+                                    {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                    {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                    "NOTPROVIDED"
+                                ]}
+                            ]}
                         }
                     ]
                 }
@@ -118,14 +125,8 @@
                                 "To": {"FIId": {"FinInstnId": {"BICFI": {"var": "temp_data.Receiver"}}}},
                                 "MsgDefIdr": "pacs.002.001.10",
                                 "BizMsgIdr": { "if": [
-                                    { "or": [
-                                        {"var": "data.SwiftMT.fields.20.reference"},
-                                        {"var": "data.SwiftMT.fields.20.reference"}
-                                    ]},
-                                    { "or": [
-                                        {"var": "data.SwiftMT.fields.20.reference"},
-                                        {"var": "data.SwiftMT.fields.20.reference"}
-                                    ]},
+                                    {"var": "data.SwiftMT.fields.20.reference"},
+                                    {"var": "data.SwiftMT.fields.20.reference"},
                                     "NOTPROVIDED"
                                 ]},
                                 "CreDt": { "if": [

@@ -1,0 +1,85 @@
+{
+    "id": "admi024-postconditions",
+    "name": "admi.024 to MT199 Postconditions",
+    "description": "Applies formatting, validates and generates MT199",
+    "priority": 5,
+    "condition": {"and": [
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "admi.024.001.01"]},
+        {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "metadata.progress.workflow_id"}, "admi024-fields-mapping"]},
+        {"==": [{"var": "metadata.progress.task_id"}, "map_mandatory_fields"]},
+        {"==": [{"var": "metadata.progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "format_and_validate",
+            "name": "Format and Validate MT199",
+            "description": "Apply field 79 formatting and validate final message",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#79.information",
+                            "condition": {"var": "data.SwiftMT.fields.79.information"},
+                            "logic": {
+                                "filter": [
+                                    {
+                                        "map": [
+                                            {"var": "data.SwiftMT.fields.79.information"},
+                                            {"if": [
+                                                {"or": [
+                                                    {"starts_with": [{"var": ""}, ":"]},
+                                                    {"starts_with": [{"var": ""}, "-"]}
+                                                ]},
+                                                {"substr": [{"var": ""}, 1]},
+                                                {"var": ""}
+                                            ]}
+                                        ]
+                                    },
+                                    {"!=": [{"trim": {"var": ""}}, ""]}
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_final_message",
+            "name": "Validate Final Message",
+            "description": "Validates MT199 structure",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "logic": {"exists": ["data", "SwiftMT", "fields", "20", "reference"]},
+                            "message": "T20010: Field 20 is mandatory for MT199"
+                        },
+                        {
+                            "logic": {"and": [
+                                {"exists": ["data", "SwiftMT", "fields", "79", "information"]},
+                                {">": [{"length": {"var": "data.SwiftMT.fields.79.information"}}, 0]}
+                            ]},
+                            "message": "T20011: Field 79 is mandatory and cannot be empty"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "generate_mt199",
+            "name": "Generate MT199",
+            "description": "Generate the final MT199 message",
+            "function": {
+                "name": "PublishMT",
+                "input": {
+                    "input_field_name": "SwiftMT",
+                    "output_field_name": "result",
+                    "source_format": "admi.024.001.01"
+                }
+            }
+        }
+    ]
+}

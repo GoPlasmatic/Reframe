@@ -1,20 +1,20 @@
 {
-    "id": "admi024-mandatory-fields-mapping",
-    "name": "admi.024 to MT199 Mandatory Fields Mapping",
-    "description": "Maps mandatory fields (20, 79) per specification translation rules",
-    "priority": 5,
-    "condition": { "and": [
+    "id": "admi024-fields-mapping",
+    "name": "admi.024 to MT199 Fields Mapping",
+    "description": "Maps mandatory fields (20, 79) per specification",
+    "priority": 4,
+    "condition": {"and": [
         {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "admi.024.001.01"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
-        {"==": [{"var": "metadata.progress.workflow_id"}, "admi024-headers-mapping"]},
+        {"==": [{"var": "metadata.progress.workflow_id"}, "admi024-initialization"]},
         {"==": [{"var": "metadata.progress.task_id"}, "map_swift_headers"]},
         {"==": [{"var": "metadata.progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
-            "id": "map_field_20",
-            "name": "Map Transaction Reference (Field 20)",
-            "description": "Maps SenderNotificationIdentification to Field 20 per TR001",
+            "id": "map_mandatory_fields",
+            "name": "Map Mandatory Fields",
+            "description": "Maps field 20 (Transaction Reference) and field 79 (Narrative)",
             "function": {
                 "name": "map",
                 "input": {
@@ -22,61 +22,40 @@
                         {
                             "path": "data.SwiftMT.fields.#20",
                             "logic": {
-                                "reference": { "if": [
-                                    { "or": [
+                                "reference": {"if": [
+                                    {"or": [
                                         {"starts_with": [{"var": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId"}, "/"]},
                                         {"ends_with": [{"var": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId"}, "/"]},
                                         {"in": ["//", {"var": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId"}]}
                                     ]},
                                     "NOTPROVIDED",
-                                    { "if": [
+                                    {"if": [
                                         {">": [{"length": {"var": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId"}}, 16]},
-                                        {
-                                            "cat": [
-                                                {
-                                                    "substr": [{"var": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId"}, 0, 15]
-                                                },
-                                                "+"
-                                            ]
-                                        },
+                                        {"cat": [{"substr": [{"var": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId"}, 0, 15]}, "+"]},
                                         {"var": "data.ISO20022_MX.document.NtfctnData.SndrNtfctnId"}
                                     ]}
                                 ]}
                             }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_field_79",
-            "name": "Map Narrative (Field 79)",
-            "description": "Maps NotificationType and NotificationNarrative to Field 79 per MX_To_MT79NTTP",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
+                        },
                         {
                             "path": "data.SwiftMT.fields.#79",
                             "logic": {
-                                "information": { "if": [
+                                "information": {"if": [
                                     {"var": "data.ISO20022_MX.document.NtfctnData.NtfctnTp.Cd"},
                                     {
                                         "slice": [
                                             {
                                                 "cat": [
                                                     [{"cat": ["/NTTP/", {"var": "data.ISO20022_MX.document.NtfctnData.NtfctnTp.Cd"}]}],
-                                                    { "if": [
+                                                    {"if": [
                                                         {"var": "data.ISO20022_MX.document.NtfctnData.NtfctnNrrtv"},
                                                         {
                                                             "map": [
                                                                 {"var": "data.ISO20022_MX.document.NtfctnData.NtfctnNrrtv"},
-                                                                { "if": [
+                                                                {"if": [
                                                                     {"<=": [{"length": {"var": ""}}, 50]},
                                                                     {"var": ""},
-                                                                    {
-                                                                        "substr": [{"var": ""}, 0, 50]
-                                                                    }
+                                                                    {"substr": [{"var": ""}, 0, 50]}
                                                                 ]}
                                                             ]
                                                         },

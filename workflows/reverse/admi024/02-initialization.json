@@ -1,20 +1,44 @@
 {
-    "id": "admi024-headers-mapping",
-    "name": "admi.024 to MT199 Headers Mapping",
-    "description": "Maps SWIFT headers per specification - BAH/From to Sender, BAH/To to Receiver",
-    "priority": 4,
-    "condition": { "and": [
+    "id": "admi024-initialization",
+    "name": "admi.024 to MT199 Initialization",
+    "description": "Validates preconditions and maps SWIFT headers for MT199",
+    "priority": 3,
+    "condition": {"and": [
         {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "admi.024.001.01"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
-        {"==": [{"var": "metadata.progress.workflow_id"}, "admi024-preconditions"]},
-        {"==": [{"var": "metadata.progress.task_id"}, "validate_mandatory_fields"]},
+        {"==": [{"var": "metadata.progress.workflow_id"}, "admi024-variant-detection"]},
+        {"==": [{"var": "metadata.progress.task_id"}, "set_target_message"]},
         {"==": [{"var": "metadata.progress.status_code"}, 200]}
     ]},
     "tasks": [
         {
+            "id": "validate_and_map_headers",
+            "name": "Validate and Map Headers",
+            "description": "Validates mandatory fields and maps all SWIFT headers",
+            "function": {
+                "name": "validate",
+                "input": {
+                    "rules": [
+                        {
+                            "logic": {"exists": ["data", "ISO20022_MX", "document", "NtfctnData"]},
+                            "message": "T20000: NotificationData is required for MT199 transformation"
+                        },
+                        {
+                            "logic": {"exists": ["data", "ISO20022_MX", "document", "NtfctnData", "SndrNtfctnId"]},
+                            "message": "T20001: SenderNotificationIdentification is required for field 20"
+                        },
+                        {
+                            "logic": {"exists": ["data", "ISO20022_MX", "document", "NtfctnData", "NtfctnTp", "Cd"]},
+                            "message": "T20002: NotificationType Code is required for field 79"
+                        }
+                    ]
+                }
+            }
+        },
+        {
             "id": "map_swift_headers",
             "name": "Map SWIFT Headers",
-            "description": "Maps all SWIFT header blocks for MT199 from BAH per specification",
+            "description": "Maps all SWIFT header blocks from BAH",
             "function": {
                 "name": "map",
                 "input": {

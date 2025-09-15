@@ -1,0 +1,135 @@
+{
+    "id": "camt029-fields-mapping",
+    "name": "camt.029 to MT196/MT296 Fields Mapping",
+    "description": "Maps mandatory fields 20, 21, 76, optional 11R and 77A",
+    "priority": 4,
+    "condition": {"and": [
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "camt.029.001.09"]},
+        {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
+        {"==": [{"var": "metadata.progress.workflow_id"}, "camt029-headers-mapping"]},
+        {"==": [{"var": "metadata.progress.task_id"}, "map_swift_headers"]},
+        {"==": [{"var": "metadata.progress.status_code"}, 200]}
+    ]},
+    "tasks": [
+        {
+            "id": "map_all_fields",
+            "name": "Map All Fields",
+            "description": "Maps fields 20, 21, 76, optional 11R and 77A",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "data.SwiftMT.fields.#20",
+                            "logic": {
+                                "reference": {"if": [
+                                    {"or": [
+                                        {"starts_with": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsId"}, "/"]},
+                                        {"ends_with": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsId"}, "/"]},
+                                        {"==": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsId"}, "//"]}
+                                    ]},
+                                    "NOTPROVIDED",
+                                    {"if": [
+                                        {">": [{"length": {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsId"}}, 16]},
+                                        {"cat": [{"substr": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsId"}, 0, 15]}, "+"]},
+                                        {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsId"}
+                                    ]}
+                                ]}
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#21",
+                            "logic": {
+                                "reference": {"if": [
+                                    {"or": [
+                                        {"starts_with": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.RslvdCase.Id"}, "/"]},
+                                        {"ends_with": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.RslvdCase.Id"}, "/"]},
+                                        {"==": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.RslvdCase.Id"}, "//"]}
+                                    ]},
+                                    "NOTPROVIDED",
+                                    {"if": [
+                                        {">": [{"length": {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.RslvdCase.Id"}}, 16]},
+                                        {"cat": [{"substr": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.RslvdCase.Id"}, 0, 15]}, "+"]},
+                                        {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.RslvdCase.Id"}
+                                    ]}
+                                ]}
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.#76",
+                            "logic": {
+                                "information": {
+                                    "filter": [
+                                        [
+                                            {"cat": [
+                                                "/",
+                                                {"if": [
+                                                    {"==": [{"var": "data.ISO20022_MX.document.Sts.Conf"}, "CNCL"]}, "CANC",
+                                                    {"==": [{"var": "data.ISO20022_MX.document.Sts.Conf"}, "PDCR"]}, "PEND",
+                                                    {"==": [{"var": "data.ISO20022_MX.document.Sts.Conf"}, "RJCR"]}, "REJT",
+                                                    "UNKN"
+                                                ]},
+                                                "/"
+                                            ]},
+                                            {"if": [
+                                                {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.Rsn.Cd"},
+                                                {"cat": ["/", {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.Rsn.Cd"}, "/"]},
+                                                null
+                                            ]},
+                                            {"if": [
+                                                {"and": [
+                                                    {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"},
+                                                    {"==": [{"type": {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"}}, "array"]},
+                                                    {">": [{"length": {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"}}, 0]}
+                                                ]},
+                                                {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf.0"},
+                                                {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"}
+                                            ]},
+                                            {"if": [
+                                                {"and": [
+                                                    {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"},
+                                                    {"==": [{"type": {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"}}, "array"]},
+                                                    {">": [{"length": {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf"}}, 1]}
+                                                ]},
+                                                {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsRsnInf.AddtlInf.1"},
+                                                null
+                                            ]}
+                                        ],
+                                        {"!!": [{"var": ""}]}
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.11R",
+                            "logic": {
+                                "message_type": {"if": [
+                                    {"starts_with": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.008"]}, "103",
+                                    {"starts_with": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.003"]}, "104",
+                                    {"starts_with": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.009"]}, "202",
+                                    {"starts_with": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}, "pacs.010"]}, "204",
+                                    {"starts_with": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}, "MT10"]},
+                                        {"substr": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}, 4, 3]},
+                                    {"starts_with": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}, "MT20"]},
+                                        {"substr": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"}, 4, 3]},
+                                    "202"
+                                ]},
+                                "date": {"substr": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlCreDtTm"}, 0, 10]}
+                            }
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.77A",
+                            "condition": {"and": [
+                                {"not": {"var": "data.SwiftMT.user_header.uetr"}},
+                                {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlUETR"}
+                            ]},
+                            "logic": {
+                                "narrative": [{"cat": ["/UETR/", {"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlUETR"}]}]
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

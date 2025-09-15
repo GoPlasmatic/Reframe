@@ -326,10 +326,11 @@ impl ParseMT {
         };
 
         // Store the parsed result in message data
-        message.data_mut().as_object_mut().unwrap().insert(
-            output_field_name.to_string(),
-            parsed_data.clone()
-        );
+        message
+            .data_mut()
+            .as_object_mut()
+            .unwrap()
+            .insert(output_field_name.to_string(), parsed_data.clone());
 
         message.metadata_mut().as_object_mut().unwrap().insert(
             output_field_name.to_string(),

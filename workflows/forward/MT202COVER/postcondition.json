@@ -12,332 +12,263 @@
     ]},
     "tasks": [
         {
-            "id": "POSTC001_validate_settlement_method_cove",
-            "name": "POSTC001: Validate Settlement Method for COVE",
-            "description": "Ensure settlement method is correctly set based on METAFCT003 logic for cover payments",
+            "id": "validate_settlement_and_cover_type",
+            "name": "Validate Settlement Method and Cover Type",
+            "description": "Consolidated validation of settlement method, cover scenario, and cover-specific codes",
             "function": {
-                "name": "validate",
+                "name": "map",
                 "input": {
-                    "rules": [
+                    "mappings": [
                         {
-                            "path": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf",
-                            "logic": { "and": [
-                                {"var": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmMtd"},
-                                {"in": [{"var": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmMtd"}, ["INDA", "INGA"]]}
-                            ]},
-                            "message": "T20001: Settlement method must be INDA or INGA based on METAFCT003"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC002_validate_cover_scenario",
-            "name": "POSTC002: Validate Cover Scenario",
-            "description": "Ensure cover payment is properly identified and processed",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "temp_data",
-                            "logic": {"==": [{"var": "temp_data.MTType"}, "COVER"]},
-                            "message": "T20090: MT202 COV must be identified as COVER payment type"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC003_validate_clearing_channel",
-            "name": "POSTC003: Validate Clearing Channel Detection",
-            "description": "Ensure RTGS clearing channel is properly detected from field patterns",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf",
+                            "path": "temp_data.settlement_method_error",
                             "logic": { "if": [
-                                { "or": [
-                                    { "and": [
-                                        {"var": "data.SwiftMT.fields.56.A.party_identifier"},
-                                        { "or": [
-                                            {"starts_with": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, "//RT"]},
-                                            {"starts_with": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, "//FW"]}
-                                        ]}
-                                    ]},
-                                    { "and": [
-                                        {"var": "data.SwiftMT.fields.57.A.party_identifier"},
-                                        { "or": [
-                                            {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//RT"]},
-                                            {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//FW"]}
-                                        ]}
-                                    ]},
-                                    { "and": [
-                                        {"var": "data.SwiftMT.fields.58.A.party_identifier"},
-                                        { "or": [
-                                            {"starts_with": [{"var": "data.SwiftMT.fields.58.A.party_identifier"}, "//RT"]},
-                                            {"starts_with": [{"var": "data.SwiftMT.fields.58.A.party_identifier"}, "//FW"]}
-                                        ]}
-                                    ]}
+                                { "and": [
+                                    {"var": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmMtd"},
+                                    {"in": [{"var": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmMtd"}, ["INDA", "INGA"]]}
                                 ]},
-                                {"==": [{"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
-                                true
-                            ]},
-                            "message": "T20230: RTGS clearing channel not properly detected from //RT or //FW patterns"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC004_validate_time_indications",
-            "name": "POSTC004: Validate Time Indication Processing",
-            "description": "Ensure all time indication types are properly processed from field 13C",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.13.C.time_indication"},
-                                { "or": [
-                                    {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"},
-                                    {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"},
-                                    {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.SttlmTmIndctn.ClsTm"},
-                                    {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.SttlmTmIndctn.TillTm"},
-                                    {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.SttlmTmIndctn.FrTm"},
-                                    {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.SttlmTmIndctn.RjctTm"}
-                                ]},
-                                true
-                            ]},
-                            "message": "T20232: Time indication from field 13C not properly mapped"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC005_validate_underlying_customer_transfer",
-            "name": "POSTC005: Validate Underlying Customer Credit Transfer",
-            "description": "Ensure underlying customer credit transfer is properly mapped",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf",
-                            "logic": {"!!": {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf"}},
-                            "message": "T20092: Underlying customer credit transfer must be present for COV messages"
+                                null,
+                                "T20001: Settlement method must be INDA or INGA based on METAFCT003"
+                            ]}
                         },
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf",
-                            "logic": { "and": [
-                                {"!!": {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf.Dbtr"}},
-                                {"!!": {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf.DbtrAgt"}},
-                                {"!!": {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf.CdtrAgt"}},
-                                {"!!": {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf.Cdtr"}}
-                            ]},
-                            "message": "T20093: Underlying customer credit transfer missing required parties"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC006_validate_instruction_for_next_agent",
-            "name": "POSTC006: Validate InstructionForNextAgent Processing",
-            "description": "Ensure field 72 instructions are properly processed with priority logic",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
+                            "path": "temp_data.cover_scenario_error",
                             "logic": { "if": [
-                                { "and": [
-                                    {"var": "temp_data.field_72_has_ins"},
-                                    { "or": [
-                                        {"var": "temp_data.field_53a_bic_8char"},
-                                        {"var": "temp_data.field_54a_bic_8char"}
-                                    ]}
-                                ]},
-                                {">": [{"length": {"var": "temp_data.instruction_for_next_agent"}}, 0]},
-                                true
-                            ]},
-                            "message": "T20235: Field 72 /INS/ instruction not properly prioritized for field 53a/54a"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC007_validate_service_level",
-            "name": "POSTC007: Validate Service Level Code",
-            "description": "Ensure service level code pattern G00n is properly validated",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                                {"==": [{"var": "temp_data.MTType"}, "COVER"]},
+                                null,
+                                "T20090: MT202 COV must be identified as COVER payment type"
+                            ]}
+                        },
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf",
-                            "logic": { "if": [
-                                {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"},
-                                {
-                                    "match": [
-                                        {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"},
-                                        "^G00[1-9]$"
-                                    ]
-                                },
-                                true
-                            ]},
-                            "message": "T20240: Service level code must match pattern G00n where n is 1-9"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC008_validate_field_72_truncation",
-            "name": "POSTC008: Validate Field 72 Truncation",
-            "description": "Ensure field 72 concatenation is properly truncated to 210 characters",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": { "if": [
-                                { "and": [
-                                    {"var": "temp_data.field_72_concatenated"},
-                                    {">": [{"length": {"var": "temp_data.field_72_concatenated"}}, 210]}
-                                ]},
-                                {"<=": [{"length": {"var": "temp_data.instruction_for_next_agent"}}, 210]},
-                                true
-                            ]},
-                            "message": "T20250: Field 72 instructions must be truncated to 210 characters (6*35)"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC009_validate_remittance_information",
-            "name": "POSTC009: Validate Remittance Information from Field 70",
-            "description": "Ensure field 70 remittance information is properly mapped to underlying customer credit transfer",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.70.narrative"},
-                                { "and": [
-                                    {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "UndrlygCstmrCdtTrf", "RmtInf", "Ustrd"]},
-                                    {"!=": [{"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf.RmtInf.Ustrd"}, ""]}
-                                ]},
-                                true
-                            ]},
-                            "message": "T20094: Field 70 remittance information not properly mapped"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC010_validate_sequence_b_completeness",
-            "name": "POSTC010: Validate Sequence B Field Completeness",
-            "description": "Ensure all required Sequence B fields are properly mapped to underlying customer credit transfer",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": { "if": [
-                                {"var": "temp_data.has_sequence_b"},
-                                { "and": [
-                                    {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "UndrlygCstmrCdtTrf", "Dbtr", "Nm"]},
-                                    {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "UndrlygCstmrCdtTrf", "DbtrAcct", "Id"]},
-                                    {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "UndrlygCstmrCdtTrf", "Cdtr", "Nm"]},
-                                    {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "UndrlygCstmrCdtTrf", "CdtrAcct", "Id"]},
-                                    {"!=": [{"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf.Dbtr.Nm"}, "NOTPROVIDED"]},
-                                    {"!=": [{"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf.Cdtr.Nm"}, "NOTPROVIDED"]}
-                                ]},
-                                true
-                            ]},
-                            "message": "T20097: Underlying customer credit transfer missing required debtor/creditor details from Sequence B"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC011_validate_cbpr_compliance",
-            "name": "POSTC011: Validate CBPR+ Compliance",
-            "description": "Ensure CBPR+ specific requirements are met",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data.AppHdr",
-                            "logic": { "and": [
-                                {"exists": ["data", "AppHdr", "Fr", "FIId", "FinInstnId", "BICFI"]},
-                                {"exists": ["data", "AppHdr", "To", "FIId", "FinInstnId", "BICFI"]},
-                                {"==": [{"var": "data.AppHdr.BizSvc"}, "swift.cbprplus.02"]},
-                                {"==": [{"var": "data.AppHdr.MsgDefIdr"}, "pacs.009.001.08"]}
-                            ]},
-                            "message": "CBPR+ compliance: BAH must have correct BizSvc and MsgDefIdr values"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC012_validate_agent_mappings",
-            "name": "POSTC012: Validate Agent Field Mappings",
-            "description": "Ensure all agent fields are properly mapped with correct hierarchy",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf",
-                            "logic": { "and": [
-                                {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "InstgAgt"]},
-                                {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "InstdAgt"]},
-                                {"!=": [{"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.InstgAgt.FinInstnId.BICFI"}, ""]},
-                                {"!=": [{"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.InstdAgt.FinInstnId.BICFI"}, ""]}
-                            ]},
-                            "message": "Instructing and Instructed agents must be properly set from BAH translation"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC013_validate_cover_specific_codes",
-            "name": "POSTC013: Validate Cover-specific Codes",
-            "description": "Ensure cover-specific codes from field 72 are properly detected",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
+                            "path": "temp_data.cover_codes_error",
                             "logic": { "if": [
                                 { "or": [
-                                    {"var": "temp_data.field_72_has_cove"},
-                                    {"var": "temp_data.field_72_has_udlc"}
+                                    {"!": { "or": [
+                                        {"var": "temp_data.field_72_has_cove"},
+                                        {"var": "temp_data.field_72_has_udlc"}
+                                    ]}},
+                                    {"==": [{"var": "temp_data.MTType"}, "COVER"]}
                                 ]},
-                                {"==": [{"var": "temp_data.MTType"}, "COVER"]},
-                                true
-                            ]},
-                            "message": "T20098: Cover-specific codes (/COVE/, /UDLC/) detected but not processed as COVER type"
+                                null,
+                                "T20098: Cover-specific codes (/COVE/, /UDLC/) detected but not processed as COVER type"
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_clearing_and_service_codes",
+            "name": "Validate Clearing Channel and Service Codes",
+            "description": "Consolidated validation of clearing channel detection, time indications, and service level codes",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.clearing_channel_error",
+                            "logic": { "if": [
+                                { "or": [
+                                    {"!": { "or": [
+                                        { "and": [
+                                            {"var": "data.SwiftMT.fields.56.A.party_identifier"},
+                                            { "or": [
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, "//RT"]},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.56.A.party_identifier"}, "//FW"]}
+                                            ]}
+                                        ]},
+                                        { "and": [
+                                            {"var": "data.SwiftMT.fields.57.A.party_identifier"},
+                                            { "or": [
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//RT"]},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//FW"]}
+                                            ]}
+                                        ]},
+                                        { "and": [
+                                            {"var": "data.SwiftMT.fields.58.A.party_identifier"},
+                                            { "or": [
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.58.A.party_identifier"}, "//RT"]},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.58.A.party_identifier"}, "//FW"]}
+                                            ]}
+                                        ]}
+                                    ]}},
+                                    {"==": [{"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]}
+                                ]},
+                                null,
+                                "T20230: RTGS clearing channel not properly detected from //RT or //FW patterns"
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.time_indication_error",
+                            "logic": { "if": [
+                                { "or": [
+                                    {"!": {"var": "data.SwiftMT.fields.13.C.time_indication"}},
+                                    { "or": [
+                                        {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"},
+                                        {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"},
+                                        {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.SttlmTmIndctn.ClsTm"},
+                                        {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.SttlmTmIndctn.TillTm"},
+                                        {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.SttlmTmIndctn.FrTm"},
+                                        {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.SttlmTmIndctn.RjctTm"}
+                                    ]}
+                                ]},
+                                null,
+                                "T20232: Time indication from field 13C not properly mapped"
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.service_level_error",
+                            "logic": { "if": [
+                                { "or": [
+                                    {"!": {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"}},
+                                    {
+                                        "match": [
+                                            {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"},
+                                            "^G00[1-9]$"
+                                        ]
+                                    }
+                                ]},
+                                null,
+                                "T20240: Service level code must match pattern G00n where n is 1-9"
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_underlying_customer_transfer",
+            "name": "Validate Underlying Customer Transfer",
+            "description": "Consolidated validation of underlying customer credit transfer, remittance information, and sequence B completeness",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.underlying_transfer_error",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"!!": {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf"}},
+                                    {"!!": {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf.Dbtr"}},
+                                    {"!!": {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf.DbtrAgt"}},
+                                    {"!!": {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf.CdtrAgt"}},
+                                    {"!!": {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf.Cdtr"}}
+                                ]},
+                                null,
+                                "T20092/T20093: Underlying customer credit transfer must be present with required parties"
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.remittance_info_error",
+                            "logic": { "if": [
+                                { "or": [
+                                    {"!": {"var": "data.SwiftMT.fields.70.narrative"}},
+                                    { "and": [
+                                        {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "UndrlygCstmrCdtTrf", "RmtInf", "Ustrd"]},
+                                        {"!=": [{"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf.RmtInf.Ustrd"}, ""]}
+                                    ]}
+                                ]},
+                                null,
+                                "T20094: Field 70 remittance information not properly mapped"
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.sequence_b_error",
+                            "logic": { "if": [
+                                { "or": [
+                                    {"!": {"var": "temp_data.has_sequence_b"}},
+                                    { "and": [
+                                        {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "UndrlygCstmrCdtTrf", "Dbtr", "Nm"]},
+                                        {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "UndrlygCstmrCdtTrf", "DbtrAcct", "Id"]},
+                                        {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "UndrlygCstmrCdtTrf", "Cdtr", "Nm"]},
+                                        {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "UndrlygCstmrCdtTrf", "CdtrAcct", "Id"]},
+                                        {"!=": [{"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf.Dbtr.Nm"}, "NOTPROVIDED"]},
+                                        {"!=": [{"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.UndrlygCstmrCdtTrf.Cdtr.Nm"}, "NOTPROVIDED"]}
+                                    ]}
+                                ]},
+                                null,
+                                "T20097: Underlying customer credit transfer missing required debtor/creditor details from Sequence B"
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_field72_processing",
+            "name": "Validate Field 72 Processing",
+            "description": "Consolidated validation of field 72 instruction processing and truncation",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.field72_instruction_error",
+                            "logic": { "if": [
+                                { "or": [
+                                    {"!": { "and": [
+                                        {"var": "temp_data.field_72_has_ins"},
+                                        { "or": [
+                                            {"var": "temp_data.field_53a_bic_8char"},
+                                            {"var": "temp_data.field_54a_bic_8char"}
+                                        ]}
+                                    ]}},
+                                    {">": [{"length": {"var": "temp_data.instruction_for_next_agent"}}, 0]}
+                                ]},
+                                null,
+                                "T20235: Field 72 /INS/ instruction not properly prioritized for field 53a/54a"
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field72_truncation_error",
+                            "logic": { "if": [
+                                { "or": [
+                                    {"!": { "and": [
+                                        {"var": "temp_data.field_72_concatenated"},
+                                        {">": [{"length": {"var": "temp_data.field_72_concatenated"}}, 210]}
+                                    ]}},
+                                    {"<=": [{"length": {"var": "temp_data.instruction_for_next_agent"}}, 210]}
+                                ]},
+                                null,
+                                "T20250: Field 72 instructions must be truncated to 210 characters (6*35)"
+                            ]}
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "validate_cbpr_compliance_and_agents",
+            "name": "Validate CBPR+ Compliance and Agent Mappings",
+            "description": "Consolidated validation of CBPR+ compliance requirements and agent field mappings",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.cbpr_compliance_error",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"exists": ["data", "AppHdr", "Fr", "FIId", "FinInstnId", "BICFI"]},
+                                    {"exists": ["data", "AppHdr", "To", "FIId", "FinInstnId", "BICFI"]},
+                                    {"==": [{"var": "data.AppHdr.BizSvc"}, "swift.cbprplus.02"]},
+                                    {"==": [{"var": "data.AppHdr.MsgDefIdr"}, "pacs.009.001.08"]}
+                                ]},
+                                null,
+                                "CBPR+ compliance: BAH must have correct BizSvc and MsgDefIdr values"
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.agent_mappings_error",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "InstgAgt"]},
+                                    {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "InstdAgt"]},
+                                    {"!=": [{"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.InstgAgt.FinInstnId.BICFI"}, ""]},
+                                    {"!=": [{"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.InstdAgt.FinInstnId.BICFI"}, ""]}
+                                ]},
+                                null,
+                                "Instructing and Instructed agents must be properly set from BAH translation"
+                            ]}
                         }
                     ]
                 }

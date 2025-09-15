@@ -12,57 +12,62 @@
     ]},
     "tasks": [
         {
-            "id": "PREC001_validate_bah_translation",
-            "name": "PREC001: Validate BAH Translation",
-            "description": "Translation MT Headers => BAH is done. Define the Translation BAH/../ From and BAH/.. / To to InstructingAgent and InstructedAgent",
+            "id": "validate_mandatory_and_structural",
+            "name": "Validate Mandatory Fields and Structural Requirements",
+            "description": "Validates BAH translation, rejection/return checks, mandatory fields, and cover payment structure",
             "function": {
-                "name": "validate",
+                "name": "map",
                 "input": {
-                    "rules": [
+                    "mappings": [
                         {
-                            "path": "temp_data",
-                            "logic": { "and": [
-                                {"exists": ["temp_data", "Sender"]},
-                                {"exists": ["temp_data", "Receiver"]},
-                                {"!=": [{"var": "temp_data.Sender"}, "NOTPROVIDED"]},
-                                {"!=": [{"var": "temp_data.Receiver"}, "NOTPROVIDED"]}
-                            ]},
-                            "message": "Translation stopped: BAH translation not completed properly - TempSender or TempReceiver not defined"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC002_rejection_return_check",
-            "name": "PREC002: Check for Rejection/Return in Field 72",
-            "description": "IF Field 72, Line[1] starts with '/REJT/' OR '/RETN/' THEN T20063 STOP Translation",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
+                            "path": "temp_data.validation_error",
                             "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.72.information"},
-                                {
-                                    "!": { "or": [
-                                        {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/REJT/"]},
-                                        {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]}
+                                { "!": { "and": [
+                                    {"var": "temp_data.Sender"},
+                                    {"var": "temp_data.Receiver"},
+                                    {"!=": [{"var": "temp_data.Sender"}, "NOTPROVIDED"]},
+                                    {"!=": [{"var": "temp_data.Receiver"}, "NOTPROVIDED"]}
+                                ]}},
+                                "Translation stopped: BAH translation not completed properly - TempSender or TempReceiver not defined",
+                                { "if": [
+                                    { "and": [
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        { "or": [
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/REJT/"]},
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]}
+                                        ]}
+                                    ]},
+                                    "T20063: Translation stopped: Rejection or Return message detected in Field 72",
+                                    { "if": [
+                                        { "!": { "and": [
+                                            {"var": "data.SwiftMT.fields.20.reference"},
+                                            {"var": "data.SwiftMT.fields.21.reference"},
+                                            {"var": "data.SwiftMT.fields.32A.value_date"},
+                                            {"var": "data.SwiftMT.fields.32A.currency"},
+                                            {"var": "data.SwiftMT.fields.32A.amount"},
+                                            { "or": [
+                                                {"var": "data.SwiftMT.fields.58.A"},
+                                                {"var": "data.SwiftMT.fields.58.D"}
+                                            ]},
+                                            {"!=": [{"var": "data.SwiftMT.fields.20.reference"}, ""]},
+                                            {"!=": [{"var": "data.SwiftMT.fields.21.reference"}, ""]},
+                                            {"!=": [{"var": "data.SwiftMT.fields.32A.currency"}, ""]},
+                                            {">=": [{"var": "data.SwiftMT.fields.32A.amount"}, 0]}
+                                        ]}},
+                                        "T20080: Mandatory MT202 COV fields (20, 21, 32A, 58A/D) are missing or invalid",
+                                        null
                                     ]}
-                                },
-                                true
-                            ]},
-                            "message": "T20063: Translation stopped: Rejection or Return message detected in Field 72"
+                                ]}
+                            ]}
                         }
                     ]
                 }
             }
         },
         {
-            "id": "PREC003_extract_field72_codes",
-            "name": "PREC003: Extract Field 72 Codes for METAFCT003",
-            "description": "Extract field 72 codes for /INS/, /PHONBEN/, /TELEBEN/ and other codes for use in METAFCT003 logic",
+            "id": "extract_field72_and_cover_codes",
+            "name": "Extract Field 72 and Cover Payment Codes",
+            "description": "Extract field 72 codes including /INS/, /PHONBEN/, /TELEBEN/, /COVE/, /UDLC/ for METAFCT003 logic",
             "function": {
                 "name": "map",
                 "input": {
@@ -102,6 +107,32 @@
                             ]}
                         },
                         {
+                            "path": "temp_data.field_72_has_cove",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.72.information"},
+                                {
+                                    "some": [
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        {"starts_with": [{"var": ""}, "/COVE/"]}
+                                    ]
+                                },
+                                false
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field_72_has_udlc",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.fields.72.information"},
+                                {
+                                    "some": [
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        {"starts_with": [{"var": ""}, "/UDLC/"]}
+                                    ]
+                                },
+                                false
+                            ]}
+                        },
+                        {
                             "path": "temp_data.warning_T20200",
                             "logic": { "if": [
                                 {"var": "temp_data.field_72_has_phon"},
@@ -114,9 +145,9 @@
             }
         },
         {
-            "id": "PREC004_implement_metafct003",
-            "name": "PREC004: Implement METAFCT003 for Cover Scenarios",
-            "description": "Implements METAFCT003 logic with 4 tables for Cover payment settlement method determination",
+            "id": "implement_metafct003_and_settlement",
+            "name": "Implement METAFCT003 and Determine Settlement",
+            "description": "Implements METAFCT003 logic for Cover payment settlement method determination and sets cover message type",
             "function": {
                 "name": "map",
                 "input": {
@@ -201,19 +232,7 @@
                                     ]}
                                 ]}
                             ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "set_cov_message_type",
-            "name": "Set COV Message Type and Settlement Logic",
-            "description": "Set the message type to COV for cover payment processing and determine settlement method",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
+                        },
                         {"path": "temp_data.MTType", "logic": "COVER"},
                         {"path": "temp_data.translation_target", "logic": "pacs.009.001.08.COVE"},
                         {
@@ -285,42 +304,9 @@
             }
         },
         {
-            "id": "PREC005_validate_mandatory_fields",
-            "name": "PREC005: Validate Mandatory MT202 COV Fields",
-            "description": "Ensure all mandatory fields for MT202 COV are present and valid",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": { "and": [
-                                {"exists": ["data", "SwiftMT", "fields", "20", "reference"]},
-                                {"exists": ["data", "SwiftMT", "fields", "21", "reference"]},
-                                {"exists": ["data", "SwiftMT", "fields", "32A"]},
-                                {"exists": ["data", "SwiftMT", "fields", "32A", "value_date"]},
-                                {"exists": ["data", "SwiftMT", "fields", "32A", "currency"]},
-                                {"exists": ["data", "SwiftMT", "fields", "32A", "amount"]},
-                                { "or": [
-                                    {"exists": ["data", "SwiftMT", "fields", "58", "A"]},
-                                    {"exists": ["data", "SwiftMT", "fields", "58", "D"]}
-                                ]},
-                                {"!=": [{"var": "data.SwiftMT.fields.20.reference"}, ""]},
-                                {"!=": [{"var": "data.SwiftMT.fields.21.reference"}, ""]},
-                                {"!=": [{"var": "data.SwiftMT.fields.32A.currency"}, ""]},
-                                {"!=": [{"var": "data.SwiftMT.fields.32A.value_date"}, ""]},
-                                {">=": [{"var": "data.SwiftMT.fields.32A.amount"}, 0]}
-                            ]},
-                            "message": "T20080: Mandatory MT202 COV fields (20, 21, 32A, 58A/D) are missing or invalid"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC006_validate_sequence_b",
-            "name": "PREC006: Validate Sequence B (Underlying Customer Credit Transfer)",
-            "description": "Validate sequence B fields for underlying customer information in MT202 COV",
+            "id": "validate_sequence_b_and_cover_structure",
+            "name": "Validate Sequence B and Cover Structure",
+            "description": "Validate sequence B fields for underlying customer information and cover payment structure",
             "function": {
                 "name": "map",
                 "input": {
@@ -360,76 +346,28 @@
                             "path": "temp_data.value_date",
                             "logic": {"var": "data.SwiftMT.fields.32A.value_date"}
                         },
-                        {"path": "temp_data.currency", "logic": {"var": "data.SwiftMT.fields.32A.currency"}}
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC007_validate_cover_structure",
-            "name": "PREC007: Validate Cover Payment Structure",
-            "description": "Ensure MT202 COV has proper cover payment structure",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                        {"path": "temp_data.currency", "logic": {"var": "data.SwiftMT.fields.32A.currency"}},
                         {
-                            "path": "data",
+                            "path": "temp_data.cover_structure_error",
                             "logic": { "if": [
-                                {"var": "temp_data.has_sequence_b"},
-                                true,
                                 { "and": [
-                                    { "or": [
-                                        {"exists": ["data", "SwiftMT", "fields", "52", "A"]},
-                                        {"exists": ["data", "SwiftMT", "fields", "52", "D"]}
-                                    ]},
-                                    { "or": [
-                                        {"exists": ["data", "SwiftMT", "fields", "56", "A"]},
-                                        {"exists": ["data", "SwiftMT", "fields", "56", "D"]},
-                                        {"exists": ["data", "SwiftMT", "fields", "57", "A"]},
-                                        {"exists": ["data", "SwiftMT", "fields", "57", "B"]},
-                                        {"exists": ["data", "SwiftMT", "fields", "57", "D"]}
-                                    ]}
-                                ]}
-                            ]},
-                            "message": "T20081: MT202 COV requires proper cover payment structure with sequence B or appropriate agent fields"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC008_extract_cover_codes",
-            "name": "PREC008: Extract Cover Payment Codes",
-            "description": "Extract cover-specific codes from field 72 for processing",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.field_72_has_cove",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.72.information"},
-                                {
-                                    "some": [
-                                        {"var": "data.SwiftMT.fields.72.information"},
-                                        {"starts_with": [{"var": ""}, "/COVE/"]}
-                                    ]
-                                },
-                                false
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.field_72_has_udlc",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.72.information"},
-                                {
-                                    "some": [
-                                        {"var": "data.SwiftMT.fields.72.information"},
-                                        {"starts_with": [{"var": ""}, "/UDLC/"]}
-                                    ]
-                                },
-                                false
+                                    { "!": {"var": "temp_data.has_sequence_b"}},
+                                    { "!": { "and": [
+                                        { "or": [
+                                            {"var": "data.SwiftMT.fields.52.A"},
+                                            {"var": "data.SwiftMT.fields.52.D"}
+                                        ]},
+                                        { "or": [
+                                            {"var": "data.SwiftMT.fields.56.A"},
+                                            {"var": "data.SwiftMT.fields.56.D"},
+                                            {"var": "data.SwiftMT.fields.57.A"},
+                                            {"var": "data.SwiftMT.fields.57.B"},
+                                            {"var": "data.SwiftMT.fields.57.D"}
+                                        ]}
+                                    ]}}
+                                ]},
+                                "T20081: MT202 COV requires proper cover payment structure with sequence B or appropriate agent fields",
+                                null
                             ]}
                         },
                         {

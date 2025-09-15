@@ -12,17 +12,17 @@
     ]},
     "tasks": [
         {
-            "id": "prepare_bah_context",
-            "name": "Prepare BAH Context",
-            "description": "Extracts sender and receiver BIC codes from MT202 COV headers with fallback logic to field 52A/58A and field 52D/58D for establishing business application header context",
+            "id": "construct_business_application_header",
+            "name": "Construct Business Application Header with Related Metadata",
+            "description": "Builds complete CBPR+ business application header with inline sender/receiver extraction and related message metadata for MT202 COV",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "temp_data",
+                            "path": "data.AppHdr",
                             "logic": {
-                                "Sender": { "if": [
+                                "Fr": {"FIId": {"FinInstnId": {"BICFI": { "if": [
                                     {"var": "data.SwiftMT.basic_header.sender_bic"},
                                     {"var": "data.SwiftMT.basic_header.sender_bic"},
                                     { "if": [
@@ -34,8 +34,8 @@
                                             "NOTPROVIDED"
                                         ]}
                                     ]}
-                                ]},
-                                "Receiver": { "if": [
+                                ]}}}},
+                                "To": {"FIId": {"FinInstnId": {"BICFI": { "if": [
                                     {"var": "data.SwiftMT.application_header.receiver_bic"},
                                     {"var": "data.SwiftMT.application_header.receiver_bic"},
                                     { "if": [
@@ -47,26 +47,7 @@
                                             "NOTPROVIDED"
                                         ]}
                                     ]}
-                                ]}
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "construct_business_application_header",
-            "name": "Construct Business Application Header",
-            "description": "Builds CBPR+ business application header (AppHdr) with sender/receiver BIC, message identification, priority, and creation timestamp for MT202 COV cover payments",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.AppHdr",
-                            "logic": {
-                                "Fr": {"FIId": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}}},
-                                "To": {"FIId": {"FinInstnId": {"BICFI": {"var": "temp_data.Receiver"}}}},
+                                ]}}}},
                                 "BizMsgIdr": {"cat": [{"var": "data.SwiftMT.fields.20.reference"}, "-pacs.009.cov-001"]},
                                 "MsgDefIdr": "pacs.009.001.08",
                                 "BizSvc": "swift.cbprplus.02",
@@ -77,34 +58,75 @@
                                 ]},
                                 "CpyDplct": "CODU",
                                 "PssblDplct": false,
-                                "Prty": "NORM"
+                                "Prty": "NORM",
+                                "Rltd": {
+                                    "Fr": {"FIId": {"FinInstnId": {"BICFI": { "if": [
+                                        {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                        {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                        { "if": [
+                                            {"var": "data.SwiftMT.fields.52.A.bic"},
+                                            {"var": "data.SwiftMT.fields.52.A.bic"},
+                                            { "if": [
+                                                {"var": "data.SwiftMT.fields.52.D.name_and_address"},
+                                                null,
+                                                "NOTPROVIDED"
+                                            ]}
+                                        ]}
+                                    ]}}}},
+                                    "To": {"FIId": {"FinInstnId": {"BICFI": { "if": [
+                                        {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                        {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                        { "if": [
+                                            {"var": "data.SwiftMT.fields.58.A.bic"},
+                                            {"var": "data.SwiftMT.fields.58.A.bic"},
+                                            { "if": [
+                                                {"var": "data.SwiftMT.fields.58.D.name_and_address"},
+                                                null,
+                                                "NOTPROVIDED"
+                                            ]}
+                                        ]}
+                                    ]}}}},
+                                    "MsgDefIdr": "pacs.009.001.08",
+                                    "BizMsgIdr": {"var": "data.SwiftMT.fields.20.reference"},
+                                    "CreDt": { "if": [
+                                        {"var": "data.SwiftMT.fields.32A.value_date"},
+                                        {"cat": [{"var": "data.SwiftMT.fields.32A.value_date"}, "T00:00:00+00:00"]},
+                                        "9999-12-31T00:00:00+00:00"
+                                    ]}
+                                }
                             }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_related_message_metadata",
-            "name": "Map Related Message Metadata",
-            "description": "Maps related message metadata including sender/receiver BIC, message definition identifier, business message identifier, and creation date for message correlation",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
+                        },
                         {
-                            "path": "data.AppHdr.Rltd",
-                            "logic": {
-                                "Fr": {"FIId": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}}},
-                                "To": {"FIId": {"FinInstnId": {"BICFI": {"var": "temp_data.Receiver"}}}},
-                                "MsgDefIdr": "pacs.009.001.08",
-                                "BizMsgIdr": {"var": "data.SwiftMT.fields.20.reference"},
-                                "CreDt": { "if": [
-                                    {"var": "data.SwiftMT.fields.32A.value_date"},
-                                    {"cat": [{"var": "data.SwiftMT.fields.32A.value_date"}, "T00:00:00+00:00"]},
-                                    "9999-12-31T00:00:00+00:00"
+                            "path": "temp_data.Sender",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                { "if": [
+                                    {"var": "data.SwiftMT.fields.52.A.bic"},
+                                    {"var": "data.SwiftMT.fields.52.A.bic"},
+                                    { "if": [
+                                        {"var": "data.SwiftMT.fields.52.D.name_and_address"},
+                                        null,
+                                        "NOTPROVIDED"
+                                    ]}
                                 ]}
-                            }
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.Receiver",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                { "if": [
+                                    {"var": "data.SwiftMT.fields.58.A.bic"},
+                                    {"var": "data.SwiftMT.fields.58.A.bic"},
+                                    { "if": [
+                                        {"var": "data.SwiftMT.fields.58.D.name_and_address"},
+                                        null,
+                                        "NOTPROVIDED"
+                                    ]}
+                                ]}
+                            ]}
                         }
                     ]
                 }

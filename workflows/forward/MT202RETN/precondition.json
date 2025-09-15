@@ -12,80 +12,45 @@
     ]},
     "tasks": [
         {
-            "id": "PREC001_validate_temp_variables",
-            "name": "PREC001: Validate Temp Variables from TR001",
-            "description": "Ensure Temp~Sender and Temp~Receiver are properly defined from BAH translation",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "temp_data",
-                            "logic": { "and": [
-                                {"exists": ["temp_data", "Sender"]},
-                                {"exists": ["temp_data", "Receiver"]},
-                                {"!=": [{"var": "temp_data.Sender"}, "NOTPROVIDED"]},
-                                {"!=": [{"var": "temp_data.Receiver"}, "NOTPROVIDED"]}
-                            ]},
-                            "message": "Translation stopped: TempSender or TempReceiver is not properly provided from TR001"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC002_validate_uetr_present",
-            "name": "PREC002: Validate UETR Present and Format",
-            "description": "Ensure UETR is present and properly formatted for return messages",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
-                                {">=": [{"length": {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}}, 36]},
-                                false
-                            ]},
-                            "message": "T20087: UETR is required and must be properly formatted for MT202 RETN messages"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC003_complete_field72_validation",
-            "name": "PREC003: Complete Field 72 Format Validation",
-            "description": "Validates Field 72 lines 1-3 format according to specification for return messages",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data.SwiftMT.fields.72.information",
-                            "logic": { "and": [
-                                {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 0]},
-                                {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]},
-                                {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 1]},
-                                {"match": [{"var": "data.SwiftMT.fields.72.information.1"}, "^/[A-Z]{2}[0-9]{2}/$"]},
-                                {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 2]},
-                                {"starts_with": [{"var": "data.SwiftMT.fields.72.information.2"}, "/MREF/"]}
-                            ]},
-                            "message": "T20314: Field 72 format invalid - Line 1 must be /RETN/, Line 2 must follow /[A-Z]{2}[0-9]{2}/ pattern, Line 3 must start with /MREF/"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC004_extract_and_validate_mref",
-            "name": "PREC004: Extract and Validate MREF Format",
-            "description": "Extracts OrgInstructionID from /MREF/ in line 3 and validates format",
+            "id": "validate_and_extract_field72",
+            "name": "Validate and Extract Field 72 Data",
+            "description": "Validates basic requirements, Field 72 format, and extracts MREF and return details",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
+                        {
+                            "path": "temp_data.validation_error",
+                            "logic": { "if": [
+                                { "!": { "and": [
+                                    {"var": "temp_data.Sender"},
+                                    {"var": "temp_data.Receiver"},
+                                    {"!=": [{"var": "temp_data.Sender"}, "NOTPROVIDED"]},
+                                    {"!=": [{"var": "temp_data.Receiver"}, "NOTPROVIDED"]}
+                                ]}},
+                                "Translation stopped: TempSender or TempReceiver is not properly provided from TR001",
+                                { "if": [
+                                    { "!": { "if": [
+                                        {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                        {">=": [{"length": {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}}, 36]},
+                                        false
+                                    ]}},
+                                    "T20087: UETR is required and must be properly formatted for MT202 RETN messages",
+                                    { "if": [
+                                        { "!": { "and": [
+                                            {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 0]},
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]},
+                                            {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 1]},
+                                            {"match": [{"var": "data.SwiftMT.fields.72.information.1"}, "^/[A-Z]{2}[0-9]{2}/$"]},
+                                            {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 2]},
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.72.information.2"}, "/MREF/"]}
+                                        ]}},
+                                        "T20314: Field 72 format invalid - Line 1 must be /RETN/, Line 2 must follow /[A-Z]{2}[0-9]{2}/ pattern, Line 3 must start with /MREF/",
+                                        null
+                                    ]}
+                                ]}
+                            ]}
+                        },
                         {
                             "path": "temp_data.original_instruction_id_raw",
                             "logic": { "if": [
@@ -114,50 +79,7 @@
                                 ]},
                                 "NOTPROVIDED"
                             ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC004_validate_mref_format",
-            "name": "PREC004: Validate MREF Format",
-            "description": "Validates that extracted MREF doesn't start/end with / or contain //",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "temp_data.original_instruction_id",
-                            "logic": { "if": [
-                                { "and": [
-                                    {"var": "temp_data.original_instruction_id"},
-                                    {"!=": [{"var": "temp_data.original_instruction_id"}, "NOTPROVIDED"]},
-                                    {">": [{"length": {"var": "temp_data.original_instruction_id"}}, 0]}
-                                ]},
-                                {
-                                    "!": { "or": [
-                                        {"starts_with": [{"var": "temp_data.original_instruction_id"}, "/"]},
-                                        {"ends_with": [{"var": "temp_data.original_instruction_id"}, "/"]},
-                                        {"in": ["//", {"var": "temp_data.original_instruction_id"}]}
-                                    ]}
-                                },
-                                true
-                            ]},
-                            "message": "T20316: Invalid MREF format - cannot start/end with / or contain //"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "extract_field72_components",
-            "name": "Extract Field 72 Components for Return",
-            "description": "Extract return reason code and additional information from Field 72",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
+                        },
                         {
                             "path": "temp_data.return_reason_code_raw",
                             "logic": { "if": [
@@ -247,73 +169,69 @@
                                 ""
                             ]}
                         }
-                    ]
+                    ],
+                    "preserve": true
                 }
             }
         },
         {
-            "id": "PREC005_validate_mandatory_fields",
-            "name": "PREC005: Validate Mandatory MT202 RETN Fields",
-            "description": "Ensure all mandatory fields for MT202 RETN are present and valid",
+            "id": "validate_mandatory_and_agent_fields",
+            "name": "Validate Mandatory and Agent Fields",
+            "description": "Ensure all mandatory fields and agent fields for MT202 RETN are present and valid",
             "function": {
-                "name": "validate",
+                "name": "map",
                 "input": {
-                    "rules": [
+                    "mappings": [
                         {
-                            "path": "data",
-                            "logic": { "and": [
-                                {"exists": ["data", "SwiftMT", "fields", "20", "reference"]},
-                                {"exists": ["data", "SwiftMT", "fields", "21", "reference"]},
-                                {"exists": ["data", "SwiftMT", "fields", "32A"]},
-                                {"exists": ["data", "SwiftMT", "fields", "32A", "value_date"]},
-                                {"exists": ["data", "SwiftMT", "fields", "32A", "currency"]},
-                                {"exists": ["data", "SwiftMT", "fields", "32A", "amount"]},
-                                {"!=": [{"var": "data.SwiftMT.fields.20.reference"}, ""]},
-                                {"!=": [{"var": "data.SwiftMT.fields.21.reference"}, ""]},
-                                {"!=": [{"var": "data.SwiftMT.fields.32A.currency"}, ""]},
-                                {"!=": [{"var": "data.SwiftMT.fields.32A.value_date"}, ""]},
-                                {">=": [{"var": "data.SwiftMT.fields.32A.amount"}, 0]}
-                            ]},
-                            "message": "T20070: Mandatory MT202 RETN fields (20, 21, 32A) are missing or invalid"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC006_validate_agent_fields",
-            "name": "PREC006: Validate Agent Fields",
-            "description": "Ensure required agent fields are present for MT202 RETN",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": { "and": [
-                                { "or": [
-                                    {"exists": ["data", "SwiftMT", "fields", "52", "A"]},
-                                    {"exists": ["data", "SwiftMT", "fields", "52", "D"]}
-                                ]},
-                                { "or": [
-                                    {"exists": ["data", "SwiftMT", "fields", "57", "A"]},
-                                    {"exists": ["data", "SwiftMT", "fields", "57", "B"]},
-                                    {"exists": ["data", "SwiftMT", "fields", "57", "D"]}
-                                ]},
-                                { "or": [
-                                    {"exists": ["data", "SwiftMT", "fields", "58", "A"]},
-                                    {"exists": ["data", "SwiftMT", "fields", "58", "D"]}
+                            "path": "temp_data.validation_error",
+                            "logic": { "if": [
+                                {"var": "temp_data.validation_error"},
+                                {"var": "temp_data.validation_error"},
+                                { "if": [
+                                    { "!": { "and": [
+                                        {"var": "data.SwiftMT.fields.20.reference"},
+                                        {"var": "data.SwiftMT.fields.21.reference"},
+                                        {"var": "data.SwiftMT.fields.32A"},
+                                        {"var": "data.SwiftMT.fields.32A.value_date"},
+                                        {"var": "data.SwiftMT.fields.32A.currency"},
+                                        {"var": "data.SwiftMT.fields.32A.amount"},
+                                        {"!=": [{"var": "data.SwiftMT.fields.20.reference"}, ""]},
+                                        {"!=": [{"var": "data.SwiftMT.fields.21.reference"}, ""]},
+                                        {"!=": [{"var": "data.SwiftMT.fields.32A.currency"}, ""]},
+                                        {"!=": [{"var": "data.SwiftMT.fields.32A.value_date"}, ""]},
+                                        {">=": [{"var": "data.SwiftMT.fields.32A.amount"}, 0]}
+                                    ]}},
+                                    "T20070: Mandatory MT202 RETN fields (20, 21, 32A) are missing or invalid",
+                                    { "if": [
+                                        { "!": { "and": [
+                                            { "or": [
+                                                {"var": "data.SwiftMT.fields.52.A"},
+                                                {"var": "data.SwiftMT.fields.52.D"}
+                                            ]},
+                                            { "or": [
+                                                {"var": "data.SwiftMT.fields.57.A"},
+                                                {"var": "data.SwiftMT.fields.57.B"},
+                                                {"var": "data.SwiftMT.fields.57.D"}
+                                            ]},
+                                            { "or": [
+                                                {"var": "data.SwiftMT.fields.58.A"},
+                                                {"var": "data.SwiftMT.fields.58.D"}
+                                            ]}
+                                        ]}},
+                                        "T20071: Fields 52a, 57a, and 58a are mandatory for MT202 RETN",
+                                        null
+                                    ]}
                                 ]}
-                            ]},
-                            "message": "T20071: Fields 52a, 57a, and 58a are mandatory for MT202 RETN"
+                            ]}
                         }
-                    ]
+                    ],
+                    "preserve": true
                 }
             }
         },
         {
-            "id": "PREC007_extract_return_details",
-            "name": "PREC007: Extract Return Details from Field 72",
+            "id": "extract_return_details",
+            "name": "Extract Return Details",
             "description": "Extract return reason and additional information from field 72",
             "function": {
                 "name": "map",
@@ -340,12 +258,11 @@
                                 ]}
                             ]}
                         },
-                        {"path": "temp_data.additional_information", "logic": ""},
                         {
                             "path": "temp_data.has_intermediary",
                             "logic": { "or": [
-                                {"exists": ["data", "SwiftMT", "fields", "56", "A"]},
-                                {"exists": ["data", "SwiftMT", "fields", "56", "D"]}
+                                {"var": "data.SwiftMT.fields.56.A"},
+                                {"var": "data.SwiftMT.fields.56.D"}
                             ]}
                         },
                         {
@@ -357,7 +274,8 @@
                             "logic": {"var": "data.SwiftMT.fields.32A.value_date"}
                         },
                         {"path": "temp_data.currency", "logic": {"var": "data.SwiftMT.fields.32A.currency"}}
-                    ]
+                    ],
+                    "preserve": true
                 }
             }
         }

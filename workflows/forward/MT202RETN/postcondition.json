@@ -12,9 +12,9 @@
     ]},
     "tasks": [
         {
-            "id": "POSTC001_returned_instructed_amount_logic",
-            "name": "POSTC001: ReturnedInstructedAmount Logic",
-            "description": "Create dummy ReturnedInstructedAmount when ChargesInformation is present",
+            "id": "process_returned_instructed_amount",
+            "name": "Process Returned Instructed Amount and Exchange Rate",
+            "description": "Create dummy ReturnedInstructedAmount when ChargesInformation or ExchangeRate is present",
             "function": {
                 "name": "map",
                 "input": {
@@ -79,303 +79,210 @@
                                 ]}
                             ]}
                         }
-                    ]
+                    ],
+                    "preserve": true
                 }
             }
         },
         {
-            "id": "POSTC002_validate_return_reason",
-            "name": "POSTC002: Validate Return Reason",
-            "description": "Ensure return reason code is properly mapped",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data.Document.PmtRtr.TxInf",
-                            "logic": { "and": [
-                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "RtrRsnInf"]},
-                                { "or": [
-                                    { "if": [
-                                        {"exists": ["data", "Document", "PmtRtr", "TxInf", "RtrRsnInf", "Rsn", "Cd"]},
-                                        {
-                                            "in": [
-                                                {"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Cd"},
-                                                ["CUST", "TECH", "RQST", "DUPL", "AGNT"]
-                                            ]
-                                        },
-                                        false
-                                    ]},
-                                    {"exists": ["data", "Document", "PmtRtr", "TxInf", "RtrRsnInf", "Rsn", "Prtry"]}
-                                ]}
-                            ]},
-                            "message": "Return reason code must be present with valid CBPR+ code (CUST, TECH, RQST, DUPL, AGNT) or proprietary code"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC003_validate_transaction_status",
-            "name": "POSTC003: Validate Transaction Status",
-            "description": "Ensure transaction status is properly set for return messages",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data.Document.PmtRtr.TxInf",
-                            "logic": { "and": [
-                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "TxSts"]},
-                                {"==": [{"var": "data.Document.PmtRtr.TxInf.TxSts"}, "PDNG"]}
-                            ]},
-                            "message": "Transaction status must be PDNG for return messages"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC004_validate_settlement_method",
-            "name": "POSTC004: Validate Settlement Method",
-            "description": "Ensure settlement method is correctly set based on METAFCT005",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data.Document.PmtRtr.GrpHdr.SttlmInf",
-                            "logic": { "and": [
-                                {"var": "data.Document.PmtRtr.GrpHdr.SttlmInf.SttlmMtd"},
-                                {"in": [{"var": "data.Document.PmtRtr.GrpHdr.SttlmInf.SttlmMtd"}, ["INDA", "INGA", "CLRG"]]}
-                            ]},
-                            "message": "T22006: Settlement method must be INDA, INGA, or CLRG based on METAFCT005"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC005_validate_agents",
-            "name": "POSTC005: Validate Instructing and Instructed Agents",
-            "description": "Ensure agents are properly mapped from Temp variables",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data.Document.PmtRtr.TxInf",
-                            "logic": { "and": [
-                                {"var": "data.Document.PmtRtr.TxInf.InstgAgt.FinInstnId.BICFI"},
-                                {"var": "data.Document.PmtRtr.TxInf.InstdAgt.FinInstnId.BICFI"},
-                                {"!=": [{"var": "data.Document.PmtRtr.TxInf.InstgAgt.FinInstnId.BICFI"}, "NOTPROVIDED"]},
-                                {"!=": [{"var": "data.Document.PmtRtr.TxInf.InstdAgt.FinInstnId.BICFI"}, "NOTPROVIDED"]}
-                            ]},
-                            "message": "Instructing and Instructed agents must be properly set from BAH translation"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC006_validate_uetr",
-            "name": "POSTC006: Validate UETR Mapping",
-            "description": "Ensure UETR is properly mapped to OriginalUETR field",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
-                                {"==": [{"var": "data.Document.PmtRtr.TxInf.OrgnlUETR"}, {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}]},
-                                true
-                            ]},
-                            "message": "UETR must be properly mapped to OriginalUETR field"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC007_validate_amount_currency",
-            "name": "POSTC007: Validate Returned Amount and Currency",
-            "description": "Ensure returned interbank settlement amount and currency are properly mapped",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.32A"},
-                                { "and": [
-                                    {"==": [{"var": "data.Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt.@Ccy"}, {"var": "data.SwiftMT.fields.32A.currency"}]},
-                                    {"==": [{"var": "data.Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt.$value"}, {"var": "data.SwiftMT.fields.32A.amount"}]}
-                                ]},
-                                true
-                            ]},
-                            "message": "Returned amount and currency must match Field 32A values"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC008_validate_no_instruction_for_next_agent",
-            "name": "POSTC008: Validate No InstructionForNextAgent",
-            "description": "Ensure InstructionForNextAgent is not present for pacs.004",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data.Document.PmtRtr.TxInf",
-                            "logic": {"!": {"var": "data.Document.PmtRtr.TxInf.InstrForNxtAgt"}},
-                            "message": "InstructionForNextAgent must not be present in pacs.004 return messages"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC009_validate_clearing_channel",
-            "name": "POSTC009: Validate Clearing Channel Detection",
-            "description": "Ensure RTGS clearing channel is properly detected from field patterns",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data.Document.PmtRtr.TxInf.PmtTpInf",
-                            "logic": { "if": [
-                                { "or": [
-                                    { "and": [
-                                        {"var": "data.SwiftMT.fields.57.A.party_identifier"},
-                                        { "or": [
-                                            {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//RT"]},
-                                            {"starts_with": [{"var": "data.SwiftMT.fields.57.A.party_identifier"}, "//FW"]}
-                                        ]}
-                                    ]},
-                                    { "and": [
-                                        {"var": "data.SwiftMT.fields.57.B.party_identifier"},
-                                        { "or": [
-                                            {"starts_with": [{"var": "data.SwiftMT.fields.57.B.party_identifier"}, "//RT"]},
-                                            {"starts_with": [{"var": "data.SwiftMT.fields.57.B.party_identifier"}, "//FW"]}
-                                        ]}
-                                    ]}
-                                ]},
-                                {"==": [{"var": "data.Document.PmtRtr.TxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
-                                true
-                            ]},
-                            "message": "RTGS clearing channel not properly detected from //RT or //FW patterns"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC010_validate_charge_bearer",
-            "name": "POSTC010: Validate Charge Bearer Default",
-            "description": "Ensure ChargeBearer is set to SHAR when defaulted",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data.Document.PmtRtr.TxInf",
-                            "logic": { "if": [
-                                {"!": {"var": "data.SwiftMT.fields.71A"}},
-                                {"==": [{"var": "data.Document.PmtRtr.TxInf.ChrgBr"}, "SHAR"]},
-                                true
-                            ]},
-                            "message": "T20096: ChargeBearer should default to SHAR when field 71A is not present"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC011_validate_return_chain_agents",
-            "name": "POSTC011: Validate Return Chain Agents",
-            "description": "Ensure all agent fields in return chain are properly mapped",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data.Document.PmtRtr.TxInf",
-                            "logic": { "and": [
-                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "RtrChain"]},
-                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "RtrChain", "DbtrAgt"]},
-                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "RtrChain", "CdtrAgt"]},
-                                {"!=": [{"var": "data.Document.PmtRtr.TxInf.RtrChain.DbtrAgt.FinInstnId.BICFI"}, ""]},
-                                {"!=": [{"var": "data.Document.PmtRtr.TxInf.RtrChain.CdtrAgt.FinInstnId.BICFI"}, ""]}
-                            ]},
-                            "message": "Return chain must have complete debtor and creditor agent information"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC012_validate_cbpr_compliance",
-            "name": "POSTC012: Validate CBPR+ Compliance",
-            "description": "Ensure CBPR+ specific requirements are met",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data.AppHdr",
-                            "logic": { "and": [
-                                {"exists": ["data", "AppHdr", "Fr", "FIId", "FinInstnId", "BICFI"]},
-                                {"exists": ["data", "AppHdr", "To", "FIId", "FinInstnId", "BICFI"]},
-                                {"==": [{"var": "data.AppHdr.BizSvc"}, "swift.cbprplus.02"]},
-                                {"==": [{"var": "data.AppHdr.MsgDefIdr"}, "pacs.004.001.09"]}
-                            ]},
-                            "message": "CBPR+ compliance: BAH must have correct BizSvc and MsgDefIdr values"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC013_validate_original_transaction_reference",
-            "name": "POSTC013: Validate Original Transaction Reference",
-            "description": "Ensure original transaction details are properly preserved",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data.Document.PmtRtr.TxInf.OrgnlTxRef",
-                            "logic": { "and": [
-                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "OrgnlTxRef"]},
-                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "OrgnlTxRef", "IntrBkSttlmAmt"]},
-                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "OrgnlTxRef", "IntrBkSttlmDt"]},
-                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "OrgnlTxRef", "DbtrAgt"]},
-                                {"exists": ["data", "Document", "PmtRtr", "TxInf", "OrgnlTxRef", "CdtrAgt"]}
-                            ]},
-                            "message": "Original transaction reference must include amount, date, and agent information"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "set_postcondition_success",
-            "name": "Set Post-condition Success",
-            "description": "Mark post-condition validation as successful",
+            "id": "validate_all_postconditions",
+            "name": "Validate All Post-conditions",
+            "description": "Validate all post-condition requirements for MT202 RETN to pacs.004 transformation",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
-                        {"path": "temp_data.postcondition_validation", "logic": "SUCCESS"},
-                        {"path": "temp_data.mt202retn_compliance_version", "logic": "1.0.0"},
-                        {"path": "temp_data.postc001_executed", "logic": {"var": "temp_data.has_charges"}}
-                    ]
+                        {
+                            "path": "temp_data.postcondition_errors",
+                            "logic": []
+                        },
+                        {
+                            "path": "temp_data.postcondition_errors",
+                            "logic": { "if": [
+                                { "!": { "and": [
+                                    {"var": "data.Document.PmtRtr.TxInf.RtrRsnInf"},
+                                    { "or": [
+                                        {"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Cd"},
+                                        {"var": "data.Document.PmtRtr.TxInf.RtrRsnInf.Rsn.Prtry"}
+                                    ]}
+                                ]}},
+                                {"push": [{"var": "temp_data.postcondition_errors"}, "POSTC002: Return reason information must be present with either Cd or Prtry"]},
+                                {"var": "temp_data.postcondition_errors"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.postcondition_errors",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "data.Document.PmtRtr.TxInf.TxSts"},
+                                    {"!=": [{"var": "data.Document.PmtRtr.TxInf.TxSts"}, "PDNG"]}
+                                ]},
+                                {"push": [{"var": "temp_data.postcondition_errors"}, "POSTC003: Transaction status must be PDNG for returns"]},
+                                {"var": "temp_data.postcondition_errors"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.postcondition_errors",
+                            "logic": { "if": [
+                                { "!": { "and": [
+                                    {"var": "data.Document.PmtRtr.GrpHdr.SttlmInf.SttlmMtd"},
+                                    {
+                                        "in": [
+                                            {"var": "data.Document.PmtRtr.GrpHdr.SttlmInf.SttlmMtd"},
+                                            ["INDA", "INGA", "COVE"]
+                                        ]
+                                    }
+                                ]}},
+                                {"push": [{"var": "temp_data.postcondition_errors"}, "POSTC004: Settlement method must be INDA, INGA, or COVE"]},
+                                {"var": "temp_data.postcondition_errors"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.postcondition_errors",
+                            "logic": { "if": [
+                                { "!": { "and": [
+                                    {"var": "data.Document.PmtRtr.TxInf.InstgAgt.FinInstnId.BICFI"},
+                                    {"var": "data.Document.PmtRtr.TxInf.InstdAgt.FinInstnId.BICFI"},
+                                    {"!=": [{"var": "data.Document.PmtRtr.TxInf.InstgAgt.FinInstnId.BICFI"}, "NOTPROVIDED"]},
+                                    {"!=": [{"var": "data.Document.PmtRtr.TxInf.InstdAgt.FinInstnId.BICFI"}, "NOTPROVIDED"]}
+                                ]}},
+                                {"push": [{"var": "temp_data.postcondition_errors"}, "POSTC005: Instructing and Instructed agents must have valid BIC codes"]},
+                                {"var": "temp_data.postcondition_errors"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.postcondition_errors",
+                            "logic": { "if": [
+                                { "!": { "and": [
+                                    {"var": "data.Document.PmtRtr.TxInf.OrgnlUETR"},
+                                    {"!=": [{"var": "data.Document.PmtRtr.TxInf.OrgnlUETR"}, "NOTPROVIDED"]}
+                                ]}},
+                                {"push": [{"var": "temp_data.postcondition_errors"}, "POSTC006: Original UETR must be populated with valid value"]},
+                                {"var": "temp_data.postcondition_errors"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.postcondition_errors",
+                            "logic": { "if": [
+                                { "!": { "and": [
+                                    {"var": "data.Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt"},
+                                    {">": [{"var": "data.Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt.$value"}, 0]},
+                                    {"!=": [{"var": "data.Document.PmtRtr.TxInf.RtrdIntrBkSttlmAmt.@Ccy"}, ""]}
+                                ]}},
+                                {"push": [{"var": "temp_data.postcondition_errors"}, "POSTC007: Returned amount must have valid currency and positive value"]},
+                                {"var": "temp_data.postcondition_errors"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.postcondition_errors",
+                            "logic": { "if": [
+                                {"var": "data.Document.PmtRtr.TxInf.InstrForNxtAgt"},
+                                {"push": [{"var": "temp_data.postcondition_errors"}, "POSTC008: Instruction for next agent must not be present in returns"]},
+                                {"var": "temp_data.postcondition_errors"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.postcondition_errors",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "data.Document.PmtRtr.TxInf.OrgnlTxRef.PmtTpInf.ClrChanl"},
+                                    { "!": {
+                                        "in": [
+                                            {"var": "data.Document.PmtRtr.TxInf.OrgnlTxRef.PmtTpInf.ClrChanl"},
+                                            ["RTGS", "MPNS", "RTNS"]
+                                        ]
+                                    }}
+                                ]},
+                                {"push": [{"var": "temp_data.postcondition_errors"}, "POSTC009: Clearing channel must be RTGS, MPNS, RTNS, or not present"]},
+                                {"var": "temp_data.postcondition_errors"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.postcondition_errors",
+                            "logic": { "if": [
+                                {"!=": [{"var": "data.Document.PmtRtr.TxInf.ChrgBr"}, "SHAR"]},
+                                {"push": [{"var": "temp_data.postcondition_errors"}, "POSTC010: Charge bearer must be SHAR for CBPR+ returns"]},
+                                {"var": "temp_data.postcondition_errors"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.postcondition_errors",
+                            "logic": { "if": [
+                                { "!": { "and": [
+                                    {"var": "data.Document.PmtRtr.TxInf.RtrChain"},
+                                    { "or": [
+                                        {"var": "data.Document.PmtRtr.TxInf.RtrChain.DbtrAgt"},
+                                        {"var": "data.Document.PmtRtr.TxInf.RtrChain.CdtrAgt"},
+                                        {"var": "data.Document.PmtRtr.TxInf.RtrChain.Cdtr.Agt"}
+                                    ]}
+                                ]}},
+                                {"push": [{"var": "temp_data.postcondition_errors"}, "POSTC011: Return chain must contain at least one agent"]},
+                                {"var": "temp_data.postcondition_errors"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.postcondition_errors",
+                            "logic": { "if": [
+                                { "or": [
+                                    { "!": {"var": "data.AppHdr.BizSvc"}},
+                                    {"!=": [{"var": "data.AppHdr.BizSvc"}, "swift.cbprplus.02"]},
+                                    { "!": {"var": "data.AppHdr.MsgDefIdr"}},
+                                    {"!=": [{"var": "data.AppHdr.MsgDefIdr"}, "pacs.004.001.09"]},
+                                    { "!": {"var": "data.Document.PmtRtr.GrpHdr.NbOfTxs"}},
+                                    {"!=": [{"var": "data.Document.PmtRtr.GrpHdr.NbOfTxs"}, "1"]}
+                                ]},
+                                {"push": [{"var": "temp_data.postcondition_errors"}, "POSTC012: CBPR+ compliance check failed - BizSvc must be swift.cbprplus.02, MsgDefIdr must be pacs.004.001.09, NbOfTxs must be 1"]},
+                                {"var": "temp_data.postcondition_errors"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.postcondition_errors",
+                            "logic": { "if": [
+                                { "!": { "and": [
+                                    {"var": "data.Document.PmtRtr.TxInf.OrgnlTxRef"},
+                                    {"var": "data.Document.PmtRtr.TxInf.OrgnlTxRef.IntrBkSttlmAmt"},
+                                    {"var": "data.Document.PmtRtr.TxInf.OrgnlTxRef.IntrBkSttlmDt"}
+                                ]}},
+                                {"push": [{"var": "temp_data.postcondition_errors"}, "POSTC013: Original transaction reference must include settlement amount and date"]},
+                                {"var": "temp_data.postcondition_errors"}
+                            ]}
+                        }
+                    ],
+                    "preserve": true
+                }
+            }
+        },
+        {
+            "id": "finalize_postcondition",
+            "name": "Finalize Post-condition Validation",
+            "description": "Set final validation status",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.postcondition_status",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "temp_data.postcondition_errors"},
+                                    {">": [{"length": {"var": "temp_data.postcondition_errors"}}, 0]}
+                                ]},
+                                "FAILED",
+                                "SUCCESS"
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.validation_summary",
+                            "logic": {
+                                "timestamp": "9999-12-31T00:00:00+00:00",
+                                "validation_status": {"var": "temp_data.postcondition_status"},
+                                "mt202_return_processed": true,
+                                "warnings": {"var": "temp_data.postc001_warnings"},
+                                "errors": {"var": "temp_data.postcondition_errors"}
+                            }
+                        }
+                    ],
+                    "preserve": true
                 }
             }
         }

@@ -12,15 +12,14 @@
     ]},
     "tasks": [
         {
-            "id": "POSTC001_validate_mandatory_fields",
-            "name": "POSTC001: Validate Mandatory camt.029 Fields",
-            "description": "Ensure all mandatory fields for camt.029 ResolutionOfInvestigation are properly populated",
+            "id": "validate_mandatory_fields_and_uetr",
+            "name": "Validate Mandatory camt.029 Fields and UETR",
+            "description": "Ensure all mandatory fields for camt.029 ResolutionOfInvestigation are properly populated including UETR",
             "function": {
                 "name": "validate",
                 "input": {
                     "rules": [
                         {
-                            "path": "data.Document.RsltnOfInvstgtn",
                             "logic": { "and": [
                                 {"exists": ["data", "Document", "RsltnOfInvstgtn", "Assgnmt", "Id"]},
                                 {"exists": ["data", "Document", "RsltnOfInvstgtn", "Assgnmt", "Assgnr", "Agt", "FinInstnId", "BICFI"]},
@@ -31,7 +30,6 @@
                             "message": "POSTC001: camt.029 mandatory Assignment fields validation failed"
                         },
                         {
-                            "path": "data.Document.RsltnOfInvstgtn",
                             "logic": { "and": [
                                 {"exists": ["data", "Document", "RsltnOfInvstgtn", "Sts", "Conf"]},
                                 {"in": [{"var": "data.Document.RsltnOfInvstgtn.Sts.Conf"}, ["CNCL", "PDCR", "RJCR"]]}
@@ -39,28 +37,14 @@
                             "message": "POSTC001: camt.029 Status/Confirmation must be CNCL, PDCR, or RJCR"
                         },
                         {
-                            "path": "data",
                             "logic": { "and": [
                                 {"exists": ["data", "Document", "RsltnOfInvstgtn", "CxlDtls", "TxInfAndSts", "CxlStsId"]},
                                 {"exists": ["data", "Document", "RsltnOfInvstgtn", "CxlDtls", "TxInfAndSts", "OrgnlGrpInf", "OrgnlMsgId"]},
                                 {"exists": ["data", "Document", "RsltnOfInvstgtn", "CxlDtls", "TxInfAndSts", "RslvdCase", "Id"]}
                             ]},
                             "message": "POSTC001: camt.029 CancellationDetails mandatory fields validation failed"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC002_validate_uetr",
-            "name": "POSTC002: Validate UETR",
-            "description": "Ensure UETR is properly extracted when present in Block3 or Field 77A",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                        },
                         {
-                            "path": "data",
                             "logic": { "or": [
                                 {"!": {"var": "temp_data.prec001_uetr_check"}},
                                 {"exists": ["data", "Document", "RsltnOfInvstgtn", "CxlDtls", "TxInfAndSts", "OrgnlUETR"]}
@@ -72,15 +56,14 @@
             }
         },
         {
-            "id": "POSTC003_validate_reason_codes",
-            "name": "POSTC003: Validate Cancellation Reason Codes",
-            "description": "Ensure cancellation reason codes are properly mapped according to specification",
+            "id": "validate_reason_codes_and_arpl",
+            "name": "Validate Cancellation Reason Codes and ARPL Removal",
+            "description": "Ensure cancellation reason codes are properly mapped and ARPL is removed",
             "function": {
                 "name": "validate",
                 "input": {
                     "rules": [
                         {
-                            "path": "data",
                             "logic": { "if": [
                                 {"==": [{"var": "data.Document.RsltnOfInvstgtn.Sts.Conf"}, "CNCL"]},
                                 {"==": [{"var": "data.Document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsRsnInf.Rsn.Cd"}, "CUST"]},
@@ -97,27 +80,13 @@
                             "message": "POSTC003: Cancellation reason code does not match status confirmation"
                         },
                         {
-                            "path": "data",
                             "logic": { "or": [
                                 {"!": {"exists": ["data", "SwiftMT", "fields", "76", "information"]}},
                                 {"exists": ["data", "Document", "RsltnOfInvstgtn", "CxlDtls", "TxInfAndSts", "CxlStsRsnInf", "AddtlInf"]}
                             ]},
                             "message": "POSTC003: Field 76 content not properly mapped to AdditionalInformation"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC004_validate_field76_arpl_removal",
-            "name": "POSTC004: Validate Field 76 ARPL Code Removal",
-            "description": "Ensure ARPL code is properly removed from Field 76 for CBPR+ compliance",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                        },
                         {
-                            "path": "data",
                             "logic": { "if": [
                                 { "and": [
                                     {"exists": ["data", "SwiftMT", "fields", "76", "information", "0"]},

@@ -12,9 +12,9 @@
     ]},
     "tasks": [
         {
-            "id": "TR001_define_temp_variables",
-            "name": "TR001: Define Temp Variables for MT910 Processing",
-            "description": "Extract BIC codes from MT header blocks and prepare temporary variables for MT910 to camt.054 transformation",
+            "id": "construct_business_application_header",
+            "name": "Construct CBPR+ Business Application Header and Related Metadata",
+            "description": "Maps MT910 to complete ISO 20022 BAH with sender/receiver extraction and related message metadata",
             "function": {
                 "name": "map",
                 "input": {
@@ -35,26 +35,21 @@
                                 "NOTPROVIDED"
                             ]}
                         },
-                        {"path": "temp_data.message_type", "logic": "MT910"},
-                        {"path": "temp_data.target_schema", "logic": "camt.054.001.08"}
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_cbpr_plus_business_application_header",
-            "name": "Map CBPR+ Business Application Header (AppHdr)",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
                         {
                             "path": "data.AppHdr.Fr.FIId.FinInstnId.BICFI",
-                            "logic": {"var": "temp_data.Sender"}
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                "NOTPROVIDED"
+                            ]}
                         },
                         {
                             "path": "data.AppHdr.To.FIId.FinInstnId.BICFI",
-                            "logic": {"var": "temp_data.Receiver"}
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                "NOTPROVIDED"
+                            ]}
                         },
                         {
                             "path": "data.AppHdr.BizMsgIdr",
@@ -79,25 +74,22 @@
                         },
                         {"path": "data.AppHdr.CpyDplct", "logic": "CODU"},
                         {"path": "data.AppHdr.PssblDplct", "logic": false},
-                        {"path": "data.AppHdr.Prty", "logic": "NORM"}
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_cbpr_plus_message_metadata",
-            "name": "Map CBPR+ Message Metadata",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
+                        {"path": "data.AppHdr.Prty", "logic": "NORM"},
                         {
                             "path": "data.AppHdr.Rltd.Fr.FIId.FinInstnId.BICFI",
-                            "logic": {"var": "temp_data.Sender"}
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                {"var": "data.SwiftMT.basic_header.sender_bic"},
+                                "NOTPROVIDED"
+                            ]}
                         },
                         {
                             "path": "data.AppHdr.Rltd.To.FIId.FinInstnId.BICFI",
-                            "logic": {"var": "temp_data.Receiver"}
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                {"var": "data.SwiftMT.application_header.receiver_bic"},
+                                "NOTPROVIDED"
+                            ]}
                         },
                         {"path": "data.AppHdr.Rltd.MsgDefIdr", "logic": "camt.054.001.08"},
                         {

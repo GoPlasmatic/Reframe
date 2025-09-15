@@ -12,9 +12,9 @@
     ]},
     "tasks": [
         {
-            "id": "PREC001_validate_uetr_presence",
-            "name": "PREC001: Validate UETR Presence",
-            "description": "Check if UETR is present in Block3 or Field 77A pattern",
+            "id": "validate_mandatory_fields",
+            "name": "Validate Mandatory Fields and Status Codes",
+            "description": "Check UETR presence, Field 76 status codes, and temp variables",
             "function": {
                 "name": "map",
                 "input": {
@@ -34,15 +34,14 @@
             }
         },
         {
-            "id": "PREC002_validate_field_76_status",
-            "name": "PREC002: Validate Field 76 Status Codes",
-            "description": "Ensure field 76 first line starts with valid status codes /CNCL/, /PDCR/, or /RJCR/",
+            "id": "validate_all_preconditions",
+            "name": "Validate All Preconditions",
+            "description": "Validate Field 76 status codes and temp variables",
             "function": {
                 "name": "validate",
                 "input": {
                     "rules": [
                         {
-                            "path": "data",
                             "logic": { "and": [
                                 {"exists": ["data", "SwiftMT", "fields", "76", "information"]},
                                 {">": [{"length": {"var": "data.SwiftMT.fields.76.information"}}, 0]},
@@ -53,21 +52,8 @@
                                 ]}
                             ]},
                             "message": "T20093: Field 76 first line must start with /CNCL/, /PDCR/, or /RJCR/"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC003_validate_temp_variables",
-            "name": "PREC003: Validate Temp Variables from TR002",
-            "description": "Ensure Temp~Sender and Temp~Receiver are properly defined from BAH translation",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                        },
                         {
-                            "path": "temp_data",
                             "logic": { "and": [
                                 {"var": "temp_data.Sender"},
                                 {"var": "temp_data.Receiver"},
@@ -81,9 +67,9 @@
             }
         },
         {
-            "id": "TR001_extract_field_11S",
-            "name": "TR001: Extract Field 11S Components",
-            "description": "Extract MT type and date from Field 11S for original message identification",
+            "id": "extract_field_11S_and_map_message_type",
+            "name": "Extract Field 11S and Map Message Type",
+            "description": "Extract MT type and date from Field 11S/11R and map to MX equivalent",
             "function": {
                 "name": "map",
                 "input": {
@@ -111,19 +97,7 @@
                                     null
                                 ]}
                             ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "TR003_map_message_type",
-            "name": "TR003: Map MT Message Type to MX Equivalent",
-            "description": "Map field 11S/11R message type to corresponding MX message type using TR003 logic with pattern matching",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
+                        },
                         {
                             "path": "temp_data.original_message_type",
                             "logic": { "if": [

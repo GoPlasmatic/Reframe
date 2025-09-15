@@ -12,9 +12,9 @@
     ]},
     "tasks": [
         {
-            "id": "PREC001_extract_and_validate_uetr",
-            "name": "PREC001: Extract and Validate UETR",
-            "description": "Extract UETR from Block3 or Field 79 and validate format",
+            "id": "extract_and_validate_field79_data",
+            "name": "Extract and Validate UETR and Original Amount from Field 79",
+            "description": "Extract UETR from Block3/Field 79 and Original Amount from Field 79, validate formats",
             "function": {
                 "name": "map",
                 "input": {
@@ -22,10 +22,7 @@
                         {
                             "path": "temp_data.field_79_uetr_line",
                             "logic": { "if": [
-                                { "and": [
-                                    {"var": "data.SwiftMT.fields.79.information"},
-                                    {">": [{"length": {"var": "data.SwiftMT.fields.79.information"}}, 0]}
-                                ]},
+                                {"var": "data.SwiftMT.fields.79.information"},
                                 { "reduce": [
                                     {"var": "data.SwiftMT.fields.79.information"},
                                     { "if": [
@@ -39,68 +36,21 @@
                             ]}
                         },
                         {
-                            "path": "temp_data.extracted_uetr_from_79",
-                            "logic": { "if": [
-                                {"var": "temp_data.field_79_uetr_line"},
-                                {"substr": [{"var": "temp_data.field_79_uetr_line"}, 6]},
-                                null
-                            ]}
-                        },
-                        {
                             "path": "temp_data.final_uetr",
                             "logic": { "if": [
                                 {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
                                 {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
-                                {"var": "temp_data.extracted_uetr_from_79"}
+                                { "if": [
+                                    {"var": "temp_data.field_79_uetr_line"},
+                                    {"substr": [{"var": "temp_data.field_79_uetr_line"}, 6]},
+                                    null
+                                ]}
                             ]}
                         },
                         {
-                            "path": "temp_data.has_valid_uetr",
-                            "logic": { "if": [
-                                { "and": [
-                                    {"var": "temp_data.final_uetr"},
-                                    {"==": [{"length": {"var": "temp_data.final_uetr"}}, 36]}
-                                ]},
-                                true,
-                                false
-                            ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC001_validate_uetr_presence",
-            "name": "PREC001: Validate UETR Presence and Format",
-            "description": "Ensure UETR is present in Block3 or Field 79 with valid format",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "temp_data",
-                            "logic": {"var": "temp_data.has_valid_uetr"},
-                            "message": "T20087: UETR not found in Block3 or Field 79, or invalid UETR format"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC002_extract_and_validate_origamt",
-            "name": "PREC002: Extract and Validate Original Amount from Field 79",
-            "description": "Extract original amount, currency, and date from Field 79 /ORIGAMT/ line",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
                             "path": "temp_data.field_79_origamt_line",
                             "logic": { "if": [
-                                { "and": [
-                                    {"var": "data.SwiftMT.fields.79.information"},
-                                    {">": [{"length": {"var": "data.SwiftMT.fields.79.information"}}, 0]}
-                                ]},
+                                {"var": "data.SwiftMT.fields.79.information"},
                                 { "reduce": [
                                     {"var": "data.SwiftMT.fields.79.information"},
                                     { "if": [
@@ -114,36 +64,18 @@
                             ]}
                         },
                         {
-                            "path": "temp_data.has_origamt",
-                            "logic": { "if": [
-                                {"var": "temp_data.field_79_origamt_line"},
-                                true,
-                                false
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.origamt_value",
-                            "logic": { "if": [
-                                {"var": "temp_data.field_79_origamt_line"},
-                                {"substr": [{"var": "temp_data.field_79_origamt_line"}, 9]},
-                                ""
-                            ]}
-                        },
-                        {
                             "path": "temp_data.original_currency",
                             "logic": { "if": [
-                                {"var": "temp_data.origamt_value"},
-                                {
-                                    "substr": [{"var": "temp_data.origamt_value"}, 0, 3]
-                                },
+                                {"var": "temp_data.field_79_origamt_line"},
+                                {"substr": [{"substr": [{"var": "temp_data.field_79_origamt_line"}, 9]}, 0, 3]},
                                 "USD"
                             ]}
                         },
                         {
                             "path": "temp_data.original_amount",
                             "logic": { "if": [
-                                {"var": "temp_data.origamt_value"},
-                                {"substr": [{"var": "temp_data.origamt_value"}, 3]},
+                                {"var": "temp_data.field_79_origamt_line"},
+                                {"substr": [{"substr": [{"var": "temp_data.field_79_origamt_line"}, 9]}, 3]},
                                 "0.00"
                             ]}
                         }
@@ -152,16 +84,26 @@
             }
         },
         {
-            "id": "PREC002_validate_origamt_presence",
-            "name": "PREC002: Validate Original Amount Presence",
-            "description": "Ensure /ORIGAMT/ is present in Field 79",
+            "id": "validate_mandatory_fields",
+            "name": "Validate Mandatory Fields (UETR and Original Amount)",
+            "description": "Ensure UETR and Original Amount are present with valid formats",
             "function": {
                 "name": "validate",
                 "input": {
                     "rules": [
                         {
-                            "path": "temp_data",
-                            "logic": {"var": "temp_data.has_origamt"},
+                            "logic": { "and": [
+                                {"var": "temp_data.final_uetr"},
+                                {"==": [{"length": {"var": "temp_data.final_uetr"}}, 36]}
+                            ]},
+                            "message": "T20087: UETR not found in Block3 or Field 79, or invalid UETR format"
+                        },
+                        {
+                            "logic": { "if": [
+                                {"var": "temp_data.field_79_origamt_line"},
+                                true,
+                                false
+                            ]},
                             "message": "T20088: Original amount (/ORIGAMT/) is mandatory in Field 79"
                         }
                     ]
@@ -195,8 +137,8 @@
             }
         },
         {
-            "id": "extract_mt_type_from_field_11s",
-            "name": "Extract MT Type from Field 11S",
+            "id": "extract_original_message_type",
+            "name": "Extract and Convert Original Message Type",
             "description": "Extract original MT type from field 11S and convert to MX equivalent",
             "function": {
                 "name": "map",
@@ -209,37 +151,25 @@
                                 {"var": "data.SwiftMT.fields.11S.message_type"},
                                 "202"
                             ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "convert_mt_type_to_mx",
-            "name": "Convert MT Type to MX",
-            "description": "Convert MT type to corresponding MX message type according to TR003",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
+                        },
                         {
                             "path": "temp_data.original_mx_type",
                             "logic": { "if": [
-                                {"==": [{"var": "temp_data.original_mt_type"}, "103"]},
+                                {"==": [{"var": "data.SwiftMT.fields.11S.message_type"}, "103"]},
                                 "pacs.008",
                                 { "if": [
-                                    {"==": [{"var": "temp_data.original_mt_type"}, "104"]},
+                                    {"==": [{"var": "data.SwiftMT.fields.11S.message_type"}, "104"]},
                                     "pacs.003",
                                     { "if": [
-                                        {"==": [{"var": "temp_data.original_mt_type"}, "202"]},
+                                        {"==": [{"var": "data.SwiftMT.fields.11S.message_type"}, "202"]},
                                         "pacs.009",
                                         { "if": [
-                                            {"==": [{"var": "temp_data.original_mt_type"}, "205"]},
+                                            {"==": [{"var": "data.SwiftMT.fields.11S.message_type"}, "205"]},
                                             "pacs.009",
                                             { "if": [
-                                                {"==": [{"var": "temp_data.original_mt_type"}, "204"]},
+                                                {"==": [{"var": "data.SwiftMT.fields.11S.message_type"}, "204"]},
                                                 "pacs.010",
-                                                {"cat": ["MT", {"var": "temp_data.original_mt_type"}]}
+                                                {"cat": ["MT", {"var": "data.SwiftMT.fields.11S.message_type"}]}
                                             ]}
                                         ]}
                                     ]}
@@ -251,9 +181,9 @@
             }
         },
         {
-            "id": "TR001_process_field_79_and_separate_uetr",
-            "name": "TR001: Process Field 79 and Separate UETR from Narrative",
-            "description": "Separate UETR line from other narrative content in Field 79 for cancellation reason",
+            "id": "extract_cancellation_reason",
+            "name": "Extract Cancellation Reason from Field 79",
+            "description": "Process Field 79 to extract cancellation reason code and additional information",
             "function": {
                 "name": "map",
                 "input": {
@@ -261,10 +191,7 @@
                         {
                             "path": "temp_data.field_79_without_uetr",
                             "logic": { "if": [
-                                { "and": [
-                                    {"var": "data.SwiftMT.fields.79.information"},
-                                    {">": [{"length": {"var": "data.SwiftMT.fields.79.information"}}, 0]}
-                                ]},
+                                {"var": "data.SwiftMT.fields.79.information"},
                                 {
                                     "filter": [
                                         {"var": "data.SwiftMT.fields.79.information"},
@@ -277,10 +204,7 @@
                         {
                             "path": "temp_data.field_79_without_origamt",
                             "logic": { "if": [
-                                { "and": [
-                                    {"var": "temp_data.field_79_without_uetr"},
-                                    {">": [{"length": {"var": "temp_data.field_79_without_uetr"}}, 0]}
-                                ]},
+                                {"var": "temp_data.field_79_without_uetr"},
                                 {
                                     "filter": [
                                         {"var": "temp_data.field_79_without_uetr"},
@@ -293,10 +217,7 @@
                         {
                             "path": "temp_data.field_79_reason_line",
                             "logic": { "if": [
-                                { "and": [
-                                    {"var": "temp_data.field_79_without_origamt"},
-                                    {">": [{"length": {"var": "temp_data.field_79_without_origamt"}}, 0]}
-                                ]},
+                                {"var": "temp_data.field_79_without_origamt"},
                                 { "reduce": [
                                     {"var": "temp_data.field_79_without_origamt"},
                                     { "if": [
@@ -308,65 +229,34 @@
                                 ]},
                                 null
                             ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "MT_To_MXField79_extract_cancellation_reason",
-            "name": "Extract Cancellation Reason from Field 79",
-            "description": "Implement MT_To_MXField79 logic to extract cancellation reason code and additional information",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.extracted_reason_code",
-                            "logic": { "if": [
-                                {"var": "temp_data.field_79_reason_line"},
-                                {"substr": [{"var": "temp_data.field_79_reason_line"}, 8]},
-                                null
-                            ]}
                         },
                         {
                             "path": "temp_data.cancellation_reason",
                             "logic": { "if": [
-                                {"var": "temp_data.extracted_reason_code"},
+                                {"var": "temp_data.field_79_reason_line"},
                                 { "if": [
                                     {
                                         "in": [
-                                            {"var": "temp_data.extracted_reason_code"},
+                                            {"substr": [{"var": "temp_data.field_79_reason_line"}, 8]},
                                             ["AGNT", "AM09", "COVR", "CURR", "CUST", "CUTA", "DUPL", "FRAD", "TECH", "UPAY"]
                                         ]
                                     },
-                                    {"var": "temp_data.extracted_reason_code"},
+                                    {"substr": [{"var": "temp_data.field_79_reason_line"}, 8]},
                                     "NARR"
                                 ]},
                                 "NARR"
                             ]}
                         },
                         {
-                            "path": "temp_data.field79_lines_for_additional_info",
+                            "path": "temp_data.cancellation_additional_info",
                             "logic": { "if": [
-                                { "and": [
-                                    {"var": "temp_data.field_79_without_origamt"},
-                                    {">": [{"length": {"var": "temp_data.field_79_without_origamt"}}, 0]}
-                                ]},
+                                {"var": "temp_data.field_79_without_origamt"},
                                 {
                                     "filter": [
                                         {"var": "temp_data.field_79_without_origamt"},
                                         {"not": {"in": ["/REASON/", {"var": ""}]}}
                                     ]
                                 },
-                                []
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.cancellation_additional_info",
-                            "logic": { "if": [
-                                {"var": "temp_data.field79_lines_for_additional_info"},
-                                {"var": "temp_data.field79_lines_for_additional_info"},
                                 ["NOTPROVIDED"]
                             ]}
                         }

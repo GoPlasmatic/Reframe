@@ -12,9 +12,9 @@
     ]},
     "tasks": [
         {
-            "id": "construct_document_structure",
-            "name": "Construct camt.054 Document Structure",
-            "description": "Builds complete camt.054 document structure using structural output pattern from reference implementations",
+            "id": "construct_document_notification_and_account",
+            "name": "Construct Document Structure, Notification, and Account",
+            "description": "Builds complete camt.054 document structure with notification and account information",
             "function": {
                 "name": "map",
                 "input": {
@@ -33,102 +33,72 @@
                                         "Nm": "CUSTOMER",
                                         "Id": {"OrgId": {"Othr": [{"Id": {"var": "temp_data.Receiver"}, "SchmeNm": {"Cd": "TXID"}}]}}
                                     }
-                                }
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "construct_notification_structure",
-            "name": "Construct Notification Structure",
-            "description": "Builds notification structure with proper date handling and account information",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn",
-                            "logic": [
-                                {
-                                    "Id": { "if": [
-                                        {"var": "data.SwiftMT.fields.20.reference"},
-                                        {"var": "data.SwiftMT.fields.20.reference"},
-                                        "NOTPROVIDED"
-                                    ]},
-                                    "CreDtTm": { "if": [
-                                        {"var": "data.SwiftMT.fields.32A.value_date"},
-                                        {
-                                            "cat": [
-                                                {"var": "data.SwiftMT.fields.32A.value_date"},
-                                                "T",
-                                                {"format_date": [{"now": []}, "HH:mm:ss"]},
-                                                "+00:00"
-                                            ]
-                                        },
-                                        "9999-12-31T00:00:00+00:00"
-                                    ]},
-                                    "FrToDt": {
-                                        "FrDtTm": { "if": [
+                                },
+                                "Ntfctn": [
+                                    {
+                                        "Id": { "if": [
+                                            {"var": "data.SwiftMT.fields.20.reference"},
+                                            {"var": "data.SwiftMT.fields.20.reference"},
+                                            "NOTPROVIDED"
+                                        ]},
+                                        "CreDtTm": { "if": [
                                             {"var": "data.SwiftMT.fields.32A.value_date"},
-                                            {"cat": [{"var": "data.SwiftMT.fields.32A.value_date"}, "T00:00:00+00:00"]},
+                                            {
+                                                "cat": [
+                                                    {"var": "data.SwiftMT.fields.32A.value_date"},
+                                                    "T",
+                                                    {"format_date": [{"now": []}, "HH:mm:ss"]},
+                                                    "+00:00"
+                                                ]
+                                            },
                                             "9999-12-31T00:00:00+00:00"
                                         ]},
-                                        "ToDtTm": { "if": [
-                                            {"var": "data.SwiftMT.fields.32A.value_date"},
-                                            {"cat": [{"var": "data.SwiftMT.fields.32A.value_date"}, "T23:59:59+00:00"]},
-                                            "9999-12-31T23:59:59+00:00"
-                                        ]}
-                                    }
-                                }
-                            ]
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "construct_account_structure",
-            "name": "Construct Account Structure",
-            "description": "Builds account structure with proper field 25/25P handling and currency extraction",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "data.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Acct",
-                            "logic": {
-                                "Id": {
-                                    "Othr": {
-                                        "Id": { "if": [
-                                            {"var": "data.SwiftMT.fields.25.NoOption.authorisation"},
-                                            {"var": "data.SwiftMT.fields.25.NoOption.authorisation"},
-                                            { "if": [
-                                                {"var": "data.SwiftMT.fields.25.P.account"},
-                                                {"var": "data.SwiftMT.fields.25.P.account"},
-                                                "NOTPROVIDED"
+                                        "FrToDt": {
+                                            "FrDtTm": { "if": [
+                                                {"var": "data.SwiftMT.fields.32A.value_date"},
+                                                {"cat": [{"var": "data.SwiftMT.fields.32A.value_date"}, "T00:00:00+00:00"]},
+                                                "9999-12-31T00:00:00+00:00"
+                                            ]},
+                                            "ToDtTm": { "if": [
+                                                {"var": "data.SwiftMT.fields.32A.value_date"},
+                                                {"cat": [{"var": "data.SwiftMT.fields.32A.value_date"}, "T23:59:59+00:00"]},
+                                                "9999-12-31T23:59:59+00:00"
                                             ]}
-                                        ]}
-                                    }
-                                },
-                                "Ccy": { "if": [
-                                    {"var": "data.SwiftMT.fields.32A.currency"},
-                                    {"var": "data.SwiftMT.fields.32A.currency"},
-                                    "USD"
-                                ]},
-                                "Ownr": {
-                                    "Id": {
-                                        "OrgId": {
-                                            "AnyBIC": { "if": [
-                                                {"var": "data.SwiftMT.fields.25.P.identifier_code"},
-                                                {"var": "data.SwiftMT.fields.25.P.identifier_code"},
-                                                null
-                                            ]}
+                                        },
+                                        "Acct": {
+                                            "Id": {
+                                                "Othr": {
+                                                    "Id": { "if": [
+                                                        {"var": "data.SwiftMT.fields.25.NoOption.authorisation"},
+                                                        {"var": "data.SwiftMT.fields.25.NoOption.authorisation"},
+                                                        { "if": [
+                                                            {"var": "data.SwiftMT.fields.25.P.account"},
+                                                            {"var": "data.SwiftMT.fields.25.P.account"},
+                                                            "NOTPROVIDED"
+                                                        ]}
+                                                    ]}
+                                                }
+                                            },
+                                            "Ccy": { "if": [
+                                                {"var": "data.SwiftMT.fields.32A.currency"},
+                                                {"var": "data.SwiftMT.fields.32A.currency"},
+                                                "USD"
+                                            ]},
+                                            "Ownr": {
+                                                "Id": {
+                                                    "OrgId": {
+                                                        "AnyBIC": { "if": [
+                                                            {"var": "data.SwiftMT.fields.25.P.identifier_code"},
+                                                            {"var": "data.SwiftMT.fields.25.P.identifier_code"},
+                                                            null
+                                                        ]}
+                                                    }
+                                                }
+                                            },
+                                            "Svcr": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}}
                                         }
                                     }
-                                },
-                                "Svcr": {"FinInstnId": {"BICFI": {"var": "temp_data.Sender"}}}
+                                ]
                             }
                         }
                     ]

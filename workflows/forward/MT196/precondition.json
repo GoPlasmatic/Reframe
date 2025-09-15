@@ -12,9 +12,9 @@
     ]},
     "tasks": [
         {
-            "id": "TR004_extract_and_process_field77A",
-            "name": "TR004: Extract and Process Field 77A",
-            "description": "Extract UETR from Field 77A if present, handling // prefix on second line per specification",
+            "id": "extract_uetr_and_validate_mandatory_fields",
+            "name": "Extract UETR and Validate Mandatory Fields",
+            "description": "Extract UETR from Block3 or Field 77A, validate mandatory fields (PREC001, PREC003)",
             "function": {
                 "name": "map",
                 "input": {
@@ -73,6 +73,44 @@
                             ]}
                         },
                         {
+                            "path": "temp_data.extracted_uetr",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                {"var": "temp_data.uetr_from_field77A"}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.has_valid_uetr",
+                            "logic": {"!!": {"var": "temp_data.extracted_uetr"}}
+                        },
+                        {
+                            "path": "temp_data.prec001_error",
+                            "logic": { "if": [
+                                {"!": {"var": "temp_data.has_valid_uetr"}},
+                                "T20087: UETR is mandatory but missing in Block3 and Field 77A",
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.has_mandatory_fields",
+                            "logic": { "and": [
+                                {"var": "data.SwiftMT.fields.20.reference"},
+                                {"var": "data.SwiftMT.fields.21.reference"},
+                                {"var": "data.SwiftMT.fields.76.information"},
+                                {"!=": [{"var": "data.SwiftMT.fields.20.reference"}, ""]},
+                                {"!=": [{"var": "data.SwiftMT.fields.21.reference"}, ""]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.prec003_error",
+                            "logic": { "if": [
+                                {"!": {"var": "temp_data.has_mandatory_fields"}},
+                                "Mandatory MT196 fields (20, 21, 76) are missing or invalid",
+                                null
+                            ]}
+                        },
+                        {
                             "path": "temp_data.field77A_remaining_lines",
                             "logic": { "if": [
                                 { "and": [
@@ -109,53 +147,9 @@
             }
         },
         {
-            "id": "PREC001_validate_uetr_presence",
-            "name": "PREC001: Validate UETR Presence",
-            "description": "Ensure UETR is present in Block3 or Field 77A with valid UUID v4 format, otherwise raise T20087",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.extracted_uetr",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
-                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
-                                { "if": [
-                                    {"var": "temp_data.uetr_from_field77A"},
-                                    {"var": "temp_data.uetr_from_field77A"},
-                                    null
-                                ]}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.has_valid_uetr",
-                            "logic": { "if": [
-                                {"var": "temp_data.extracted_uetr"},
-                                true,
-                                false
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.prec001_error",
-                            "logic": { "if": [
-                                {"!": {"var": "temp_data.has_valid_uetr"}},
-                                { "if": [
-                                    {"var": "temp_data.extracted_uetr"},
-                                    "T20087: UETR has invalid UUID v4 format",
-                                    "T20087: UETR is mandatory but missing in Block3 and Field 77A"
-                                ]},
-                                null
-                            ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC002_validate_field76_patterns",
-            "name": "PREC002: Validate Field 76 Cancellation Patterns",
-            "description": "Ensure Field 76 Line 1 contains valid cancellation patterns: /CNCL/, /PDCR/, or /RJCR/",
+            "id": "process_field76_and_extract_details",
+            "name": "Process Field 76 and Extract Cancellation Details",
+            "description": "Validate Field 76 cancellation patterns (PREC002) and extract status code, reason code, and additional info",
             "function": {
                 "name": "map",
                 "input": {
@@ -191,59 +185,6 @@
                                 "T20093: Field 76 Line 1 must contain /CNCL/, /PDCR/, /RJCR/, or /CUST/ pattern",
                                 null
                             ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC003_validate_mandatory_fields",
-            "name": "PREC003: Validate Mandatory MT196 Fields",
-            "description": "Ensure mandatory fields for MT196 are present",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.has_mandatory_fields",
-                            "logic": { "and": [
-                                {"var": "data.SwiftMT.fields.20.reference"},
-                                {"var": "data.SwiftMT.fields.21.reference"},
-                                {"var": "data.SwiftMT.fields.76.information"},
-                                {"!=": [{"var": "data.SwiftMT.fields.20.reference"}, ""]},
-                                {"!=": [{"var": "data.SwiftMT.fields.21.reference"}, ""]}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.prec003_error",
-                            "logic": { "if": [
-                                {"!": {"var": "temp_data.has_mandatory_fields"}},
-                                "Mandatory MT196 fields (20, 21, 76) are missing or invalid",
-                                null
-                            ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "extract_field76_details",
-            "name": "Extract Field 76 Details with MT_To_MXField76",
-            "description": "Implement MT_To_MXField76 function to extract status code and remove ARPL code if present",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.field76_has_arpl",
-                            "logic": { "if": [
-                                {"var": "temp_data.field76_first_line"},
-                                { "and": [
-                                    {">": [{"length": {"var": "temp_data.field76_first_line"}}, 10]},
-                                    {"==": [{"substr": [{"var": "temp_data.field76_first_line"}, 6, 4]}, "ARPL"]}
-                                ]},
-                                false
-                            ]}
                         },
                         {
                             "path": "temp_data.status_code",
@@ -263,6 +204,17 @@
                                         ]}
                                     ]}
                                 ]}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.field76_has_arpl",
+                            "logic": { "if": [
+                                {"var": "temp_data.field76_first_line"},
+                                { "and": [
+                                    {">": [{"length": {"var": "temp_data.field76_first_line"}}, 10]},
+                                    {"==": [{"substr": [{"var": "temp_data.field76_first_line"}, 6, 4]}, "ARPL"]}
+                                ]},
+                                false
                             ]}
                         },
                         {
@@ -303,9 +255,9 @@
             }
         },
         {
-            "id": "PREC004_implement_tr003_message_type",
-            "name": "PREC004: Implement TR003 Message Type Translation",
-            "description": "Implement TR003 logic for MT type to MX type conversion from Field 11",
+            "id": "process_field11_and_message_type_translation",
+            "name": "Process Field 11 and Implement TR003 Message Type Translation",
+            "description": "Extract Field 11 details and implement TR003 logic for MT type to MX type conversion",
             "function": {
                 "name": "map",
                 "input": {
@@ -431,51 +383,44 @@
             }
         },
         {
-            "id": "validate_precondition_prec001",
-            "name": "Validate PREC001 - UETR Presence",
-            "description": "Validate UETR presence and format",
+            "id": "validate_all_preconditions",
+            "name": "Validate All Preconditions",
+            "description": "Validate PREC001 (UETR), PREC002 (Field 76), and PREC003 (Mandatory fields)",
             "function": {
-                "name": "validate",
+                "name": "map",
                 "input": {
-                    "rules": [
+                    "mappings": [
                         {
-                            "path": "temp_data",
-                            "logic": {"!": {"var": "temp_data.prec001_error"}},
-                            "message": "PREC001: UETR validation failed - check Block3 or Field 77A"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "validate_precondition_prec002",
-            "name": "Validate PREC002 - Field 76 Status",
-            "description": "Validate Field 76 cancellation patterns",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                            "path": "temp_data.validation_passed",
+                            "logic": { "and": [
+                                {"!": {"var": "temp_data.prec001_error"}},
+                                {"!": {"var": "temp_data.prec002_error"}},
+                                {"!": {"var": "temp_data.prec003_error"}}
+                            ]}
+                        },
                         {
-                            "path": "temp_data",
-                            "logic": {"!": {"var": "temp_data.prec002_error"}},
-                            "message": "PREC002: Field 76 Line 1 must contain valid cancellation pattern"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "validate_precondition_prec003",
-            "name": "Validate PREC003 - Mandatory Fields",
-            "description": "Validate mandatory MT196 fields are present",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                            "path": "temp_data.validation_error",
+                            "logic": { "if": [
+                                {"var": "temp_data.prec001_error"},
+                                {"var": "temp_data.prec001_error"},
+                                { "if": [
+                                    {"var": "temp_data.prec002_error"},
+                                    {"var": "temp_data.prec002_error"},
+                                    { "if": [
+                                        {"var": "temp_data.prec003_error"},
+                                        {"var": "temp_data.prec003_error"},
+                                        null
+                                    ]}
+                                ]}
+                            ]}
+                        },
                         {
-                            "path": "temp_data",
-                            "logic": {"!": {"var": "temp_data.prec003_error"}},
-                            "message": "PREC003: Mandatory MT196 fields are missing or invalid"
+                            "path": "errors",
+                            "logic": { "if": [
+                                {"var": "temp_data.validation_error"},
+                                [{"var": "temp_data.validation_error"}],
+                                []
+                            ]}
                         }
                     ]
                 }

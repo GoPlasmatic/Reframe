@@ -12,9 +12,9 @@
     ]},
     "tasks": [
         {
-            "id": "POSTC001_validate_mandatory_fields",
-            "name": "Validate Mandatory camt.029 Fields",
-            "description": "Ensures all mandatory camt.029 fields are present and not empty",
+            "id": "validate_mandatory_fields_and_mappings",
+            "name": "Validate Mandatory Fields and Core Mappings",
+            "description": "Validates all mandatory camt.029 fields, UETR mapping, and case references (POSTC001, POSTC002, POSTC010)",
             "function": {
                 "name": "validate",
                 "input": {
@@ -46,19 +46,7 @@
                                 {"var": "OrgnlGrpInf.OrgnlCreDtTm"}
                             ]},
                             "message": "POSTC001: Missing mandatory Original Group Information fields"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC002_validate_uetr_mapping",
-            "name": "Validate UETR Mapping",
-            "description": "Ensures UETR is properly mapped to OriginalUETR field",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                        },
                         {
                             "path": "data",
                             "logic": { "if": [
@@ -73,15 +61,23 @@
                                 true
                             ]},
                             "message": "POSTC002: UETR not properly mapped to OriginalUETR"
+                        },
+                        {
+                            "path": "data",
+                            "logic": { "and": [
+                                {"==": [{"var": "Document.RsltnOfInvstgtn.Assgnmt.Id"}, {"var": "SwiftMT.fields.20.reference"}]},
+                                {"==": [{"var": "Document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.RslvdCase.Id"}, {"var": "SwiftMT.fields.21.reference"}]}
+                            ]},
+                            "message": "POSTC010: Case references not properly mapped from Fields 20 and 21"
                         }
                     ]
                 }
             }
         },
         {
-            "id": "POSTC003_validate_status_code_mapping",
-            "name": "Validate Status Code Mapping",
-            "description": "Ensures status code from Field 76 is properly mapped",
+            "id": "validate_status_and_reason_codes",
+            "name": "Validate Status and Reason Code Mappings",
+            "description": "Validates status confirmation and cancellation reason codes (POSTC003, POSTC004)",
             "function": {
                 "name": "validate",
                 "input": {
@@ -98,19 +94,7 @@
                                 }
                             ]},
                             "message": "POSTC003: Invalid status confirmation code in camt.029"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC004_validate_reason_code_mapping",
-            "name": "Validate Reason Code Mapping",
-            "description": "Ensures cancellation reason codes are properly mapped",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                        },
                         {
                             "path": "data.Document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsRsnInf",
                             "logic": { "if": [
@@ -128,9 +112,9 @@
             }
         },
         {
-            "id": "POSTC005_validate_field76_processing",
-            "name": "Validate Field 76 Processing",
-            "description": "Ensures Field 76 is properly processed and mapped to Additional Information",
+            "id": "validate_field_processing_and_compliance",
+            "name": "Validate Field Processing and CBPR+ Compliance",
+            "description": "Validates Field 76/77A processing, original message type, and CBPR+ compliance (POSTC005, POSTC006, POSTC007, POSTC008)",
             "function": {
                 "name": "validate",
                 "input": {
@@ -146,19 +130,7 @@
                                 true
                             ]},
                             "message": "POSTC005: Field 76 information not properly mapped to Additional Information"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC006_validate_cbpr_compliance",
-            "name": "Validate CBPR+ Compliance",
-            "description": "Ensures transformation meets CBPR+ specific requirements",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                        },
                         {
                             "path": "data",
                             "logic": { "and": [
@@ -166,19 +138,7 @@
                                 {"==": [{"var": "AppHdr.MsgDefIdr"}, "camt.029.001.09"]}
                             ]},
                             "message": "POSTC006: Invalid CBPR+ service or message definition identifier"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC007_validate_original_message_type",
-            "name": "Validate Original Message Type",
-            "description": "Ensures Field 11R MT type is properly converted to MX type",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                        },
                         {
                             "path": "data",
                             "logic": { "if": [
@@ -190,19 +150,7 @@
                                 true
                             ]},
                             "message": "POSTC007: Original message type from Field 11R not properly converted"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC008_validate_field77a_warning",
-            "name": "Validate Field 77A Warning",
-            "description": "Ensures T20094 warning is raised when Field 77A has remaining content after UETR extraction",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                        },
                         {
                             "path": "data",
                             "logic": { "if": [
@@ -220,9 +168,9 @@
             }
         },
         {
-            "id": "POSTC009_validate_date_formatting",
+            "id": "validate_date_formatting",
             "name": "Validate Date Formatting",
-            "description": "Ensures dates are properly formatted according to ISO standard",
+            "description": "Ensures dates are properly formatted according to ISO standard (POSTC009)",
             "function": {
                 "name": "validate",
                 "input": {
@@ -244,26 +192,6 @@
                                 }
                             ]},
                             "message": "POSTC009: Date/time fields not properly formatted to ISO standard"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC010_validate_case_references",
-            "name": "Validate Case References",
-            "description": "Ensures case references from Fields 20 and 21 are properly mapped",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": { "and": [
-                                {"==": [{"var": "Document.RsltnOfInvstgtn.Assgnmt.Id"}, {"var": "SwiftMT.fields.20.reference"}]},
-                                {"==": [{"var": "Document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.RslvdCase.Id"}, {"var": "SwiftMT.fields.21.reference"}]}
-                            ]},
-                            "message": "POSTC010: Case references not properly mapped from Fields 20 and 21"
                         }
                     ]
                 }

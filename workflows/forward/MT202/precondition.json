@@ -12,61 +12,49 @@
     ]},
     "tasks": [
         {
-            "id": "PREC001_validate_temp_variables",
-            "name": "PREC001: Validate Temp Variables from TR001",
-            "description": "Ensure Temp~Sender and Temp~Receiver are properly defined from BAH translation",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "temp_data",
-                            "logic": { "and": [
-                                {"var": "temp_data.Sender"},
-                                {"var": "temp_data.Receiver"},
-                                {"!=": [{"var": "temp_data.Sender"}, "NOTPROVIDED"]},
-                                {"!=": [{"var": "temp_data.Receiver"}, "NOTPROVIDED"]}
-                            ]},
-                            "message": "Translation stopped: TempSender or TempReceiver is not properly provided from TR001"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC002_rejection_return_check",
-            "name": "PREC002: Check for Rejection/Return in Field 72",
-            "description": "IF Field 72, Line[1] starts with '/REJT/' OR '/RETN/' THEN T20063 STOP Translation",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.72.information"},
-                                {
-                                    "!": { "or": [
-                                        {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/REJT/"]},
-                                        {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]}
-                                    ]}
-                                },
-                                true
-                            ]},
-                            "message": "T20063: Translation stopped: Rejection or Return message detected in Field 72"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC003_extract_field72_codes",
-            "name": "PREC003: Extract Field 72 Codes for METAFCT002 and TR008",
-            "description": "Extract field 72 codes for /INS/, /ACC/, /REC/, /BNF/, /TSU/, /UDLC/, /PHONBEN/, /TELEBEN/ for use in METAFCT002 and TR008 logic",
+            "id": "validate_and_extract_field72",
+            "name": "Validate Context and Extract Field 72 Codes",
+            "description": "Validates context, mandatory fields, and extracts field 72 codes for METAFCT002 and TR008 logic",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
+                        {
+                            "path": "temp_data.validation_error",
+                            "logic": { "if": [
+                                { "!": { "and": [
+                                    {"var": "temp_data.Sender"},
+                                    {"var": "temp_data.Receiver"},
+                                    {"!=": [{"var": "temp_data.Sender"}, "NOTPROVIDED"]},
+                                    {"!=": [{"var": "temp_data.Receiver"}, "NOTPROVIDED"]}
+                                ]}},
+                                "Translation stopped: TempSender or TempReceiver is not properly provided from TR001",
+                                { "if": [
+                                    { "and": [
+                                        {"var": "data.SwiftMT.fields.72.information"},
+                                        { "or": [
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/REJT/"]},
+                                            {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]}
+                                        ]}
+                                    ]},
+                                    "T20063: Translation stopped: Rejection or Return message detected in Field 72",
+                                    { "if": [
+                                        { "!": { "and": [
+                                            {"var": "data.SwiftMT.fields.20.reference"},
+                                            {"var": "data.SwiftMT.fields.32A.value_date"},
+                                            {"var": "data.SwiftMT.fields.32A.currency"},
+                                            {"var": "data.SwiftMT.fields.32A.amount"},
+                                            {"var": "data.SwiftMT.fields.58.A"},
+                                            {"!=": [{"var": "data.SwiftMT.fields.20.reference"}, ""]},
+                                            {"!=": [{"var": "data.SwiftMT.fields.32A.currency"}, ""]},
+                                            {">": [{"var": "data.SwiftMT.fields.32A.amount"}, 0]}
+                                        ]}},
+                                        "Translation stopped: Mandatory MT202 fields (20, 32A, 58A) are missing or invalid",
+                                        null
+                                    ]}
+                                ]}
+                            ]}
+                        },
                         {
                             "path": "temp_data.field_72_has_ins",
                             "logic": { "if": [
@@ -179,35 +167,10 @@
             }
         },
         {
-            "id": "PREC003_validate_mandatory_fields",
-            "name": "PREC003: Validate Mandatory MT202 Fields",
-            "description": "Ensure mandatory fields for MT202 are present and valid",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": { "and": [
-                                {"var": "data.SwiftMT.fields.20.reference"},
-                                {"var": "data.SwiftMT.fields.32A.value_date"},
-                                {"var": "data.SwiftMT.fields.32A.currency"},
-                                {"var": "data.SwiftMT.fields.32A.amount"},
-                                {"var": "data.SwiftMT.fields.58.A"},
-                                {"!=": [{"var": "data.SwiftMT.fields.20.reference"}, ""]},
-                                {"!=": [{"var": "data.SwiftMT.fields.32A.currency"}, ""]},
-                                {">": [{"var": "data.SwiftMT.fields.32A.amount"}, 0]}
-                            ]},
-                            "message": "Translation stopped: Mandatory MT202 fields (20, 32A, 58A) are missing or invalid"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "TR006_clearing_channel_detection",
-            "name": "TR006: Detect Clearing Channel",
-            "description": "Detect RTGS clearing channel based on //RT or //FW in agent fields 56A/D, 57A/D, 58A/D",
+            "id": "detect_clearing_and_payment_type",
+            "name": "Detect Clearing Channel and Payment Type (METAFCT002)",
+            "description": "Detects RTGS clearing channel and implements METAFCT002 logic for Serial/Cover detection",
+            "condition": {"!=": [{"var": "metadata.SwiftMT.message_type"}, "205"]},
             "function": {
                 "name": "map",
                 "input": {
@@ -257,49 +220,26 @@
                                 "RTGS",
                                 null
                             ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC004_implement_complete_metafct002",
-            "name": "PREC004: Complete METAFCT002 Implementation",
-            "description": "Implements complete METAFCT002 logic with all 4 tables for Serial/Cover detection and settlement method determination",
-            "condition": {"!=": [{"var": "metadata.SwiftMT.message_type"}, "205"]},
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
+                        },
                         {
                             "path": "temp_data.sender_bic_8char",
-                            "logic": {
-                                "substr": [{"var": "temp_data.Sender"}, 0, 8]
-                            }
+                            "logic": {"substr": [{"var": "temp_data.Sender"}, 0, 8]}
                         },
                         {
                             "path": "temp_data.receiver_bic_8char",
-                            "logic": {
-                                "substr": [{"var": "temp_data.Receiver"}, 0, 8]
-                            }
+                            "logic": {"substr": [{"var": "temp_data.Receiver"}, 0, 8]}
                         },
                         {
                             "path": "temp_data.field_53a_bic_8char",
                             "logic": { "if": [
                                 {"var": "data.SwiftMT.fields.53.A.bic"},
-                                {
-                                    "substr": [{"var": "data.SwiftMT.fields.53.A.bic"}, 0, 8]
-                                },
+                                {"substr": [{"var": "data.SwiftMT.fields.53.A.bic"}, 0, 8]},
                                 { "if": [
                                     {"var": "data.SwiftMT.fields.53.B.bic"},
-                                    {
-                                        "substr": [{"var": "data.SwiftMT.fields.53.B.bic"}, 0, 8]
-                                    },
+                                    {"substr": [{"var": "data.SwiftMT.fields.53.B.bic"}, 0, 8]},
                                     { "if": [
                                         {"var": "data.SwiftMT.fields.53.D.bic"},
-                                        {
-                                            "substr": [{"var": "data.SwiftMT.fields.53.D.bic"}, 0, 8]
-                                        },
+                                        {"substr": [{"var": "data.SwiftMT.fields.53.D.bic"}, 0, 8]},
                                         null
                                     ]}
                                 ]}
@@ -309,45 +249,14 @@
                             "path": "temp_data.field_54a_bic_8char",
                             "logic": { "if": [
                                 {"var": "data.SwiftMT.fields.54.A.bic"},
-                                {
-                                    "substr": [{"var": "data.SwiftMT.fields.54.A.bic"}, 0, 8]
-                                },
+                                {"substr": [{"var": "data.SwiftMT.fields.54.A.bic"}, 0, 8]},
                                 { "if": [
                                     {"var": "data.SwiftMT.fields.54.B.bic"},
-                                    {
-                                        "substr": [{"var": "data.SwiftMT.fields.54.B.bic"}, 0, 8]
-                                    },
+                                    {"substr": [{"var": "data.SwiftMT.fields.54.B.bic"}, 0, 8]},
                                     { "if": [
                                         {"var": "data.SwiftMT.fields.54.D.bic"},
-                                        {
-                                            "substr": [{"var": "data.SwiftMT.fields.54.D.bic"}, 0, 8]
-                                        },
+                                        {"substr": [{"var": "data.SwiftMT.fields.54.D.bic"}, 0, 8]},
                                         null
-                                    ]}
-                                ]}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.metafct002_table",
-                            "logic": { "if": [
-                                { "and": [
-                                    {"!": {"var": "temp_data.field_53a_bic_8char"}},
-                                    {"!": {"var": "temp_data.field_54a_bic_8char"}}
-                                ]},
-                                "TABLE1",
-                                { "if": [
-                                    { "and": [
-                                        {"var": "temp_data.field_53a_bic_8char"},
-                                        {"!": {"var": "temp_data.field_54a_bic_8char"}}
-                                    ]},
-                                    "TABLE2",
-                                    { "if": [
-                                        { "and": [
-                                            {"!": {"var": "temp_data.field_53a_bic_8char"}},
-                                            {"var": "temp_data.field_54a_bic_8char"}
-                                        ]},
-                                        "TABLE3",
-                                        "TABLE4"
                                     ]}
                                 ]}
                             ]}
@@ -355,26 +264,33 @@
                         {
                             "path": "temp_data.MTType",
                             "logic": { "if": [
-                                {"==": [{"var": "temp_data.metafct002_table"}, "TABLE1"]},
+                                { "and": [
+                                    {"!": {"var": "temp_data.field_53a_bic_8char"}},
+                                    {"!": {"var": "temp_data.field_54a_bic_8char"}}
+                                ]},
                                 "SERIAL",
                                 { "if": [
-                                    {"==": [{"var": "temp_data.metafct002_table"}, "TABLE2"]},
-                                    { "if": [
-                                        {"==": [{"var": "temp_data.field_53a_bic_8char"}, {"var": "temp_data.sender_bic_8char"}]},
-                                        "SERIAL",
-                                        "COVER"
+                                    { "and": [
+                                        {"var": "temp_data.field_53a_bic_8char"},
+                                        {"!": {"var": "temp_data.field_54a_bic_8char"}},
+                                        {"==": [{"var": "temp_data.field_53a_bic_8char"}, {"var": "temp_data.sender_bic_8char"}]}
                                     ]},
+                                    "SERIAL",
                                     { "if": [
-                                        {"==": [{"var": "temp_data.metafct002_table"}, "TABLE3"]},
-                                        { "if": [
-                                            {"==": [{"var": "temp_data.field_54a_bic_8char"}, {"var": "temp_data.receiver_bic_8char"}]},
-                                            "SERIAL",
-                                            "COVER"
+                                        { "and": [
+                                            {"!": {"var": "temp_data.field_53a_bic_8char"}},
+                                            {"var": "temp_data.field_54a_bic_8char"},
+                                            {"==": [{"var": "temp_data.field_54a_bic_8char"}, {"var": "temp_data.receiver_bic_8char"}]}
                                         ]},
+                                        "SERIAL",
                                         { "if": [
-                                            { "or": [
-                                                {"==": [{"var": "temp_data.field_53a_bic_8char"}, {"var": "temp_data.sender_bic_8char"}]},
-                                                {"==": [{"var": "temp_data.field_54a_bic_8char"}, {"var": "temp_data.receiver_bic_8char"}]}
+                                            { "and": [
+                                                {"var": "temp_data.field_53a_bic_8char"},
+                                                {"var": "temp_data.field_54a_bic_8char"},
+                                                { "or": [
+                                                    {"==": [{"var": "temp_data.field_53a_bic_8char"}, {"var": "temp_data.sender_bic_8char"}]},
+                                                    {"==": [{"var": "temp_data.field_54a_bic_8char"}, {"var": "temp_data.receiver_bic_8char"}]}
+                                                ]}
                                             ]},
                                             "SERIAL",
                                             "COVER"
@@ -390,32 +306,22 @@
                                 "pacs.009.ADV",
                                 "pacs.009.CORE"
                             ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC005_validate_core_compatibility",
-            "name": "PREC005: Validate CORE Translation Compatibility",
-            "description": "Ensure COVER payments are redirected to ADV workflow and only SERIAL payments proceed to CORE workflow",
-            "condition": {"!=": [{"var": "metadata.SwiftMT.message_type"}, "205"]},
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                        },
                         {
-                            "path": "temp_data",
-                            "logic": {"!=": [{"var": "temp_data.MTType"}, "COVER"]},
-                            "message": "Translation stopped: COVER payment type detected - must use pacs.009 ADV workflow instead of CORE (T20089)"
+                            "path": "temp_data.cover_validation_error",
+                            "logic": { "if": [
+                                {"==": [{"var": "temp_data.MTType"}, "COVER"]},
+                                "Translation stopped: COVER payment type detected - must use pacs.009 ADV workflow instead of CORE (T20089)",
+                                null
+                            ]}
                         }
                     ]
                 }
             }
         },
         {
-            "id": "MT205_skip_cover_detection",
-            "name": "MT205: Skip Cover Detection and Set to CORE",
+            "id": "MT205_set_serial_type",
+            "name": "MT205: Set Serial Payment Type",
             "description": "MT205 always translates to pacs.009 CORE (serial payment) - no field 54a present",
             "condition": {"==": [{"var": "metadata.SwiftMT.message_type"}, "205"]},
             "function": {

@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
+use arc_swap::ArcSwap;
 use tracing::{debug, info, warn};
 
 use crate::parse_mt::ParseMT;
@@ -120,20 +121,26 @@ pub async fn initialize_engines() -> AppState {
     info!("Async Engine instances initialized successfully");
 
     AppState {
-        forward_engine,
-        reverse_engine,
+        forward_engine: Arc::new(ArcSwap::from(forward_engine)),
+        reverse_engine: Arc::new(ArcSwap::from(reverse_engine)),
     }
 }
 
-pub async fn reload_engines(_app_state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn reload_engines(app_state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
     info!("Reloading workflow configurations for async Engine");
 
-    // Note: Since we can't replace Arc references in place, hot reload would require
-    // a different approach (e.g., using a wrapper type or recreating the AppState)
-    // For now, hot reload requires a service restart
+    // Create new forward engine with updated workflows
+    let new_forward_engine = initialize_forward_engine().await?;
 
-    info!("Hot reload not currently supported without service restart");
-    info!("Please restart the service to load updated workflows");
+    // Create new reverse engine with updated workflows
+    let new_reverse_engine = initialize_reverse_engine().await?;
 
-    Err("Hot reload not supported without service restart. Please restart the service.".into())
+    // Atomically swap the engines
+    app_state.forward_engine.store(new_forward_engine);
+    app_state.reverse_engine.store(new_reverse_engine);
+
+    info!("✅ Workflow reload completed successfully");
+    info!("All new requests will use the updated workflows");
+
+    Ok(())
 }

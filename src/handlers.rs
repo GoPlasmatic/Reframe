@@ -191,7 +191,7 @@ pub async fn transform_mt_to_mx(
     }
 
     // Process message using the async forward engine
-    match state.forward_engine.process_message(&mut message).await {
+    match state.forward_engine.load().process_message(&mut message).await {
         Ok(()) => {
             let processing_time = start_time.elapsed().as_millis() as u64;
             info!(
@@ -471,7 +471,7 @@ pub async fn transform_mx_to_mt(
     }
 
     // Process message using the async reverse engine
-    match state.reverse_engine.process_message(&mut message).await {
+    match state.reverse_engine.load().process_message(&mut message).await {
         Ok(()) => {
             let processing_time = start_time.elapsed().as_millis() as u64;
             info!(
@@ -906,7 +906,7 @@ pub async fn reload_workflows(
             Ok(Json(ReloadResponse {
                 success: true,
                 message: format!(
-                    "Workflows reloaded successfully in {reload_time}ms (threaded mode)"
+                    "Workflows reloaded successfully in {reload_time}ms"
                 ),
                 timestamp: chrono::Utc::now().to_rfc3339(),
                 error: None,

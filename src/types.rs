@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
+use arc_swap::ArcSwap;
 use utoipa::ToSchema;
 
 #[derive(Debug, Serialize, Clone, ToSchema)]
@@ -119,8 +120,8 @@ pub struct DebugInfo {
 // Application State with async engines for high-performance multi-threaded processing
 #[derive(Clone)]
 pub struct AppState {
-    pub forward_engine: Arc<dataflow_rs::Engine>,
-    pub reverse_engine: Arc<dataflow_rs::Engine>,
+    pub forward_engine: Arc<ArcSwap<dataflow_rs::Engine>>,
+    pub reverse_engine: Arc<ArcSwap<dataflow_rs::Engine>>,
 }
 
 // Health check response

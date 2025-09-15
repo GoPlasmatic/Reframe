@@ -11,9 +11,9 @@
     ]},
     "tasks": [
         {
-            "id": "POSTC001_validate_mandatory_fields",
-            "name": "Validate Mandatory pacs.009 Fields",
-            "description": "Ensures all mandatory pacs.009 fields are present and not empty",
+            "id": "validate_mandatory_fields_and_mappings",
+            "name": "Validate Mandatory Fields and Core Mappings",
+            "description": "Validates all mandatory pacs.009 fields, UETR mapping, own account transfer, and agent mappings (POSTC001-004)",
             "function": {
                 "name": "validate",
                 "input": {
@@ -38,19 +38,7 @@
                                 {"var": "IntrBkSttlmDt"}
                             ]},
                             "message": "POSTC001: Missing mandatory Credit Transfer Transaction Information fields"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC002_validate_uetr_mapping",
-            "name": "Validate UETR Mapping",
-            "description": "Ensures UETR is properly mapped to PaymentIdentification field",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                        },
                         {
                             "path": "data",
                             "logic": { "and": [
@@ -58,19 +46,7 @@
                                 {"==": [{"var": "Document.FIToFICdtTrf.CdtTrfTxInf.PmtId.UETR"}, {"var": "SwiftMT.user_header.unique_end_to_end_reference"}]}
                             ]},
                             "message": "POSTC002: UETR not properly mapped from Block3 to PaymentIdentification"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC003_validate_own_account_transfer",
-            "name": "Validate Own Account Transfer",
-            "description": "Ensures Debtor and Creditor are the same for FI Transfer for Own Account",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                        },
                         {
                             "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf",
                             "logic": { "and": [
@@ -80,19 +56,7 @@
                                 {"==": [{"var": "Dbtr.FinInstnId.BICFI"}, {"var": "data.temp_data.Sender"}]}
                             ]},
                             "message": "POSTC003: For MT200 Own Account Transfer, Debtor and Creditor must be the same (Sender)"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC004_validate_agent_mappings",
-            "name": "Validate Agent Mappings",
-            "description": "Ensures InstructingAgent and InstructedAgent are properly mapped",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                        },
                         {
                             "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf",
                             "logic": { "and": [
@@ -106,9 +70,9 @@
             }
         },
         {
-            "id": "POSTC005_validate_settlement_method",
-            "name": "Validate Settlement Method",
-            "description": "Ensures settlement method is correctly determined based on Field 53B",
+            "id": "validate_settlement_and_payment_type",
+            "name": "Validate Settlement Method and Payment Type Information",
+            "description": "Validates settlement method, service level code, and clearing channel (POSTC005-007)",
             "function": {
                 "name": "validate",
                 "input": {
@@ -129,19 +93,7 @@
                                 {"==": [{"var": "Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmMtd"}, "INDA"]}
                             ]},
                             "message": "POSTC005: Settlement method not correctly determined from Field 53B"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC006_validate_service_level",
-            "name": "Validate Service Level Code",
-            "description": "Ensures service level code is properly transformed from Block3",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                        },
                         {
                             "path": "data",
                             "logic": { "if": [
@@ -154,19 +106,7 @@
                                 true
                             ]},
                             "message": "POSTC006: Service level code not properly transformed from Block3 ServiceTypeIdentifier"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC007_validate_clearing_channel",
-            "name": "Validate Clearing Channel",
-            "description": "Ensures RTGS clearing channel is set when appropriate",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                        },
                         {
                             "path": "data",
                             "logic": { "if": [
@@ -196,9 +136,9 @@
             }
         },
         {
-            "id": "POSTC008_validate_amount_mapping",
-            "name": "Validate Amount Mapping",
-            "description": "Ensures amount and currency from Field 32A are properly mapped",
+            "id": "validate_compliance_and_formatting",
+            "name": "Validate CBPR+ Compliance and Data Formatting",
+            "description": "Validates amount mapping, CBPR+ compliance, and date formatting (POSTC008-010)",
             "function": {
                 "name": "validate",
                 "input": {
@@ -210,19 +150,7 @@
                                 {"==": [{"var": "Document.FIToFICdtTrf.CdtTrfTxInf.IntrBkSttlmAmt.$value"}, {"var": "SwiftMT.fields.32A.amount"}]}
                             ]},
                             "message": "POSTC008: Amount and currency from Field 32A not properly mapped"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC009_validate_cbpr_compliance",
-            "name": "Validate CBPR+ Compliance",
-            "description": "Ensures transformation meets CBPR+ specific requirements",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                        },
                         {
                             "path": "data",
                             "logic": { "and": [
@@ -230,19 +158,7 @@
                                 {"==": [{"var": "AppHdr.MsgDefIdr"}, "pacs.009.001.08"]}
                             ]},
                             "message": "POSTC009: Invalid CBPR+ service or message definition identifier"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC010_validate_date_formatting",
-            "name": "Validate Date Formatting",
-            "description": "Ensures dates are properly formatted according to ISO standard",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                        },
                         {
                             "path": "data.Document.FIToFICdtTrf",
                             "logic": { "and": [

@@ -12,201 +12,174 @@
     ]},
     "tasks": [
         {
-            "id": "POSTC001_validate_rejection_status",
-            "name": "POSTC001: Validate Rejection Status",
-            "description": "Ensure transaction status is set to RJCT for rejection message",
+            "id": "validate_rejection_status_and_identifiers",
+            "name": "Validate Rejection Status and Identifiers",
+            "description": "Validate rejection status is RJCT, original instruction ID is present, and message name ID is correct",
             "function": {
-                "name": "validate",
+                "name": "map",
                 "input": {
-                    "rules": [
+                    "mappings": [
                         {
-                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts",
-                            "logic": {"==": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.TxSts"}, "RJCT"]},
-                            "message": "Transaction status must be RJCT for rejection messages"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC002_validate_original_instruction_id",
-            "name": "POSTC002: Validate Original Instruction ID",
-            "description": "Ensure OriginalInstructionID is properly extracted from MREF or set to NOTPROVIDED",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                            "path": "temp_data.postc001_rejection_status_error",
+                            "logic": { "if": [
+                                {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.TxSts"}, "RJCT"]},
+                                "Transaction status must be RJCT for rejection messages",
+                                null
+                            ]}
+                        },
                         {
-                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts",
-                            "logic": { "and": [
-                                {"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlInstrId"},
-                                {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlInstrId"}, ""]}
-                            ]},
-                            "message": "Original Instruction ID must be present (extracted from MREF or NOTPROVIDED)"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC003_validate_original_message_name",
-            "name": "POSTC003: Validate Original Message Name ID",
-            "description": "Ensure Original Message Name ID is correctly set based on source message type",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                            "path": "temp_data.postc002_original_instruction_error",
+                            "logic": { "if": [
+                                {"!": { "and": [
+                                    {"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlInstrId"},
+                                    {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlInstrId"}, ""]}
+                                ]}},
+                                "Original Instruction ID must be present (extracted from MREF or NOTPROVIDED)",
+                                null
+                            ]}
+                        },
                         {
-                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlGrpInf",
-                            "logic": {
-                                "in": [
+                            "path": "temp_data.postc003_message_name_error",
+                            "logic": { "if": [
+                                {"!": {"in": [
                                     {"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
                                     ["MT202", "MT205", "MT202 COVE", "MT205 COVE"]
-                                ]
-                            },
-                            "message": "Original Message Name ID must be MT202, MT205, MT202 COVE, or MT205 COVE"
+                                ]}},
+                                "Original Message Name ID must be MT202, MT205, MT202 COVE, or MT205 COVE",
+                                null
+                            ]}
                         }
-                    ]
+                    ],
+                    "preserve": true
                 }
             }
         },
         {
-            "id": "POSTC004_validate_rejection_reason",
-            "name": "POSTC004: Validate Rejection Reason",
-            "description": "Ensure rejection reason code is properly mapped to Cd or Prtry field",
+            "id": "validate_rejection_reason_and_additional_info",
+            "name": "Validate Rejection Reason and Additional Information",
+            "description": "Validate rejection reason code mapping and additional information format",
             "function": {
-                "name": "validate",
+                "name": "map",
                 "input": {
-                    "rules": [
+                    "mappings": [
                         {
-                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf",
+                            "path": "temp_data.postc004_rejection_reason_error",
                             "logic": { "if": [
                                 {"var": "temp_data.rejection_code"},
-                                { "or": [
-                                    {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.Rsn.Cd"}, null]},
-                                    {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.Rsn.Prtry"}, null]}
+                                { "if": [
+                                    {"!": { "or": [
+                                        {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.Rsn.Cd"}, null]},
+                                        {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.Rsn.Prtry"}, null]}
+                                    ]}},
+                                    "Rejection reason code must be mapped to either Cd (standard) or Prtry (proprietary)",
+                                    null
                                 ]},
-                                true
-                            ]},
-                            "message": "Rejection reason code must be mapped to either Cd (standard) or Prtry (proprietary)"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC005_validate_agents",
-            "name": "POSTC005: Validate Instructing and Instructed Agents",
-            "description": "Ensure agents are properly mapped from Temp variables",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                                null
+                            ]}
+                        },
                         {
-                            "path": "data.Document.FIToFIPmtStsRpt.GrpHdr",
-                            "logic": { "and": [
-                                {"var": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstgAgt.FinInstnId.BICFI"},
-                                {"var": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstdAgt.FinInstnId.BICFI"},
-                                {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstgAgt.FinInstnId.BICFI"}, "NOTPROVIDED"]},
-                                {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstdAgt.FinInstnId.BICFI"}, "NOTPROVIDED"]}
-                            ]},
-                            "message": "Instructing and Instructed agents must be properly set from BAH translation"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC006_validate_uetr",
-            "name": "POSTC006: Validate UETR Mapping",
-            "description": "Ensure UETR is properly mapped to OriginalUETR field",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
-                                {"==": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlUETR"}, {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}]},
-                                true
-                            ]},
-                            "message": "UETR must be properly mapped to OriginalUETR field"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC007_validate_additional_info_format",
-            "name": "POSTC007: Validate Additional Information Format",
-            "description": "Ensure additional information includes rejection code in /CODE/ format",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
-                        {
-                            "path": "data",
+                            "path": "temp_data.postc007_additional_info_error",
                             "logic": { "if": [
                                 { "and": [
                                     {"var": "temp_data.rejection_code"},
                                     {"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.AddtlInf.0"}
                                 ]},
-                                {"==": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.AddtlInf.0"}, {"cat": ["/", {"var": "temp_data.rejection_code"}, "/"]}]},
-                                true
-                            ]},
-                            "message": "Additional information should include rejection code in /CODE/ format"
+                                { "if": [
+                                    {"!=": [
+                                        {"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.AddtlInf.0"},
+                                        {"cat": ["/", {"var": "temp_data.rejection_code"}, "/"]}
+                                    ]},
+                                    "Additional information should include rejection code in /CODE/ format",
+                                    null
+                                ]},
+                                null
+                            ]}
                         }
-                    ]
+                    ],
+                    "preserve": true
                 }
             }
         },
         {
-            "id": "POSTC008_validate_amount_currency",
-            "name": "POSTC008: Validate Original Amount and Currency",
-            "description": "Ensure original interbank settlement amount and currency are properly mapped",
+            "id": "validate_agents_and_uetr",
+            "name": "Validate Agents and UETR Mapping",
+            "description": "Validate instructing/instructed agents are properly set and UETR is correctly mapped",
             "function": {
-                "name": "validate",
+                "name": "map",
                 "input": {
-                    "rules": [
+                    "mappings": [
                         {
-                            "path": "data",
+                            "path": "temp_data.postc005_agents_error",
+                            "logic": { "if": [
+                                {"!": { "and": [
+                                    {"var": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstgAgt.FinInstnId.BICFI"},
+                                    {"var": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstdAgt.FinInstnId.BICFI"},
+                                    {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstgAgt.FinInstnId.BICFI"}, "NOTPROVIDED"]},
+                                    {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstdAgt.FinInstnId.BICFI"}, "NOTPROVIDED"]}
+                                ]}},
+                                "Instructing and Instructed agents must be properly set from BAH translation",
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.postc006_uetr_error",
+                            "logic": { "if": [
+                                {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                { "if": [
+                                    {"!=": [
+                                        {"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlUETR"},
+                                        {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}
+                                    ]},
+                                    "UETR must be properly mapped to OriginalUETR field",
+                                    null
+                                ]},
+                                null
+                            ]}
+                        }
+                    ],
+                    "preserve": true
+                }
+            }
+        },
+        {
+            "id": "validate_amount_currency_and_party_restrictions",
+            "name": "Validate Amount, Currency, and Party Restrictions",
+            "description": "Validate original amount/currency match Field 32A and ensure party fields are not translated",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.postc008_amount_currency_error",
                             "logic": { "if": [
                                 {"var": "data.SwiftMT.fields.32A"},
-                                { "and": [
-                                    {"==": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlIntrBkSttlmAmt.@Ccy"}, {"var": "data.SwiftMT.fields.32A.currency"}]},
-                                    {"==": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlIntrBkSttlmAmt.$value"}, {"var": "data.SwiftMT.fields.32A.amount"}]}
+                                { "if": [
+                                    {"!": { "and": [
+                                        {"==": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlIntrBkSttlmAmt.@Ccy"}, {"var": "data.SwiftMT.fields.32A.currency"}]},
+                                        {"==": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlIntrBkSttlmAmt.$value"}, {"var": "data.SwiftMT.fields.32A.amount"}]}
+                                    ]}},
+                                    "Original amount and currency must match Field 32A values",
+                                    null
                                 ]},
-                                true
-                            ]},
-                            "message": "Original amount and currency must match Field 32A values"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "POSTC009_validate_no_party_translation",
-            "name": "POSTC009: Validate No Party Translation",
-            "description": "Ensure party fields (52a, 53a, 54a, 56a, 57a, 58a) are not translated per specification",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                                null
+                            ]}
+                        },
                         {
-                            "path": "data.Document.FIToFIPmtStsRpt.TxInfAndSts",
-                            "logic": {
-                                "!": { "or": [
+                            "path": "temp_data.postc009_party_fields_error",
+                            "logic": { "if": [
+                                { "or": [
                                     {"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlDbtr"},
                                     {"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlDbtrAgt"},
                                     {"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlIntrmyAgt1"},
                                     {"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlCdtrAgt"},
                                     {"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlCdtr"}
-                                ]}
-                            },
-                            "message": "Party fields should not be translated for pacs.002 rejection messages"
+                                ]},
+                                "Party fields should not be translated for pacs.002 rejection messages",
+                                null
+                            ]}
                         }
-                    ]
+                    ],
+                    "preserve": true
                 }
             }
         },

@@ -12,29 +12,16 @@
     ]},
     "tasks": [
         {
-            "id": "TR007_prepare_rejection_data",
-            "name": "TR007: Prepare Rejection Data",
-            "description": "Prepares rejection data using pre-extracted values from precondition and categorizes reason codes",
+            "id": "construct_rejection_status_report",
+            "name": "Construct Complete Rejection Status Report",
+            "description": "Constructs complete pacs.002 rejection status report with all agents, categorized reason codes, and transaction details inline",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
                             "path": "temp_data.standard_reason_codes",
-                            "logic": [
-                                "AC01",
-                                "AC04",
-                                "AC06",
-                                "AG01",
-                                "AG02",
-                                "AM05",
-                                "BE05",
-                                "MS03",
-                                "RR01",
-                                "RR02",
-                                "RR03",
-                                "RR04"
-                            ]
+                            "logic": ["AC01", "AC04", "AC06", "AG01", "AG02", "AM05", "BE05", "MS03", "RR01", "RR02", "RR03", "RR04"]
                         },
                         {
                             "path": "temp_data.is_standard_code",
@@ -47,99 +34,11 @@
                         {
                             "path": "temp_data.message_type_variant",
                             "logic": { "if": [
-                                {"var": "data.SwiftMT.user_header.validation_flag"},
-                                { "if": [
-                                    {"==": [{"var": "data.SwiftMT.user_header.validation_flag"}, "COV"]},
-                                    { "if": [
-                                        {"==": [{"var": "data.SwiftMT.message_type"}, "202"]},
-                                        "MT202 COVE",
-                                        "MT205 COVE"
-                                    ]},
-                                    { "if": [
-                                        {"==": [{"var": "data.SwiftMT.message_type"}, "202"]},
-                                        "MT202",
-                                        "MT205"
-                                    ]}
-                                ]},
-                                { "if": [
-                                    {"==": [{"var": "data.SwiftMT.message_type"}, "202"]},
-                                    "MT202",
-                                    "MT205"
-                                ]}
-                            ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_agent_fields",
-            "name": "Map Agent Fields from MT202",
-            "description": "Extract agent information from MT202 fields 52a, 56a, 57a, 58a for complete transaction context",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
-                        {
-                            "path": "temp_data.ordering_institution",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.52.A.bic"},
-                                {"var": "data.SwiftMT.fields.52.A.bic"},
-                                { "if": [
-                                    {"var": "data.SwiftMT.fields.52.D"},
-                                    "NOTPROVIDED",
-                                    null
-                                ]}
+                                {"==": [{"var": "data.SwiftMT.user_header.validation_flag"}, "COV"]},
+                                {"if": [{"==": [{"var": "data.SwiftMT.message_type"}, "202"]}, "MT202 COVE", "MT205 COVE"]},
+                                {"if": [{"==": [{"var": "data.SwiftMT.message_type"}, "202"]}, "MT202", "MT205"]}
                             ]}
                         },
-                        {
-                            "path": "temp_data.intermediary",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.56.A.bic"},
-                                {"var": "data.SwiftMT.fields.56.A.bic"},
-                                { "if": [
-                                    {"var": "data.SwiftMT.fields.56.D"},
-                                    "NOTPROVIDED",
-                                    null
-                                ]}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.account_with_institution",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.57.A.bic"},
-                                {"var": "data.SwiftMT.fields.57.A.bic"},
-                                { "if": [
-                                    {"var": "data.SwiftMT.fields.57.D"},
-                                    "NOTPROVIDED",
-                                    null
-                                ]}
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.beneficiary_institution",
-                            "logic": { "if": [
-                                {"var": "data.SwiftMT.fields.58.A.bic"},
-                                {"var": "data.SwiftMT.fields.58.A.bic"},
-                                { "if": [
-                                    {"var": "data.SwiftMT.fields.58.D"},
-                                    "NOTPROVIDED",
-                                    null
-                                ]}
-                            ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "map_rejection_status_report",
-            "name": "Map Rejection Status Report",
-            "description": "Constructs complete pacs.002 rejection status report including group header, transaction information, original group details, status, and reason information using structural output",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
                         {
                             "path": "data.Document.FIToFIPmtStsRpt",
                             "logic": {
@@ -225,24 +124,24 @@
                                             null
                                         ]},
                                         "DbtrAgt": { "if": [
-                                            {"var": "temp_data.ordering_institution"},
-                                            {"FinInstnId": {"BICFI": {"var": "temp_data.ordering_institution"}}},
-                                            null
+                                            {"var": "data.SwiftMT.fields.52.A.bic"},
+                                            {"FinInstnId": {"BICFI": {"var": "data.SwiftMT.fields.52.A.bic"}}},
+                                            {"if": [{"var": "data.SwiftMT.fields.52.D"}, {"FinInstnId": {"BICFI": "NOTPROVIDED"}}, null]}
                                         ]},
                                         "IntrmyAgt1": { "if": [
-                                            {"var": "temp_data.intermediary"},
-                                            {"FinInstnId": {"BICFI": {"var": "temp_data.intermediary"}}},
-                                            null
+                                            {"var": "data.SwiftMT.fields.56.A.bic"},
+                                            {"FinInstnId": {"BICFI": {"var": "data.SwiftMT.fields.56.A.bic"}}},
+                                            {"if": [{"var": "data.SwiftMT.fields.56.D"}, {"FinInstnId": {"BICFI": "NOTPROVIDED"}}, null]}
                                         ]},
                                         "CdtrAgt": { "if": [
-                                            {"var": "temp_data.account_with_institution"},
-                                            {"FinInstnId": {"BICFI": {"var": "temp_data.account_with_institution"}}},
-                                            null
+                                            {"var": "data.SwiftMT.fields.57.A.bic"},
+                                            {"FinInstnId": {"BICFI": {"var": "data.SwiftMT.fields.57.A.bic"}}},
+                                            {"if": [{"var": "data.SwiftMT.fields.57.D"}, {"FinInstnId": {"BICFI": "NOTPROVIDED"}}, null]}
                                         ]},
                                         "Cdtr": { "if": [
-                                            {"var": "temp_data.beneficiary_institution"},
-                                            {"FinInstnId": {"BICFI": {"var": "temp_data.beneficiary_institution"}}},
-                                            null
+                                            {"var": "data.SwiftMT.fields.58.A.bic"},
+                                            {"FinInstnId": {"BICFI": {"var": "data.SwiftMT.fields.58.A.bic"}}},
+                                            {"if": [{"var": "data.SwiftMT.fields.58.D"}, {"FinInstnId": {"BICFI": "NOTPROVIDED"}}, null]}
                                         ]}
                                     },
                                     "TxSts": "RJCT",

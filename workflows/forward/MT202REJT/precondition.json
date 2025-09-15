@@ -12,53 +12,52 @@
     ]},
     "tasks": [
         {
-            "id": "PREC001_validate_temp_variables",
-            "name": "PREC001: Validate Temp Variables from TR001",
-            "description": "Ensure Temp~Sender and Temp~Receiver are properly defined from BAH translation",
+            "id": "validate_temp_and_field72",
+            "name": "Validate BAH Variables and Field 72 Format",
+            "description": "Ensure Temp variables from BAH are set and Field 72 has proper rejection format",
             "function": {
-                "name": "validate",
+                "name": "map",
                 "input": {
-                    "rules": [
+                    "mappings": [
                         {
-                            "path": "temp_data",
+                            "path": "temp_data.validation_temp_vars",
                             "logic": { "and": [
                                 {"var": "temp_data.Sender"},
                                 {"var": "temp_data.Receiver"},
                                 {"!=": [{"var": "temp_data.Sender"}, "NOTPROVIDED"]},
                                 {"!=": [{"var": "temp_data.Receiver"}, "NOTPROVIDED"]}
-                            ]},
-                            "message": "Translation stopped: TempSender or TempReceiver is not properly provided from TR001"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC002_complete_field72_validation",
-            "name": "PREC002: Complete Field 72 Format Validation",
-            "description": "Validates Field 72 lines 1-3 format according to specification",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                            ]}
+                        },
                         {
-                            "path": "data.SwiftMT.fields.72.information",
+                            "path": "temp_data.validation_field72",
                             "logic": { "and": [
                                 {">=": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 3]},
                                 {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/REJT/"]},
                                 {"match": [{"var": "data.SwiftMT.fields.72.information.1"}, "^/[A-Z]{2}[0-9]{2}/$"]},
                                 {"starts_with": [{"var": "data.SwiftMT.fields.72.information.2"}, "/MREF/"]}
-                            ]},
-                            "message": "T20315: Field 72 format invalid - Line 1 must be /REJT/, Line 2 must follow /[A-Z]{2}[0-9]{2}/ pattern, Line 3 must start with /MREF/"
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.validation_errors",
+                            "logic": { "if": [
+                                {"!": {"var": "temp_data.validation_temp_vars"}},
+                                "Translation stopped: TempSender or TempReceiver is not properly provided from TR001",
+                                { "if": [
+                                    {"!": {"var": "temp_data.validation_field72"}},
+                                    "T20315: Field 72 format invalid - Line 1 must be /REJT/, Line 2 must follow /[A-Z]{2}[0-9]{2}/ pattern, Line 3 must start with /MREF/",
+                                    null
+                                ]}
+                            ]}
                         }
-                    ]
+                    ],
+                    "preserve": true
                 }
             }
         },
         {
-            "id": "PREC003_extract_and_validate_mref",
-            "name": "PREC003: Extract and Validate MREF Format",
-            "description": "Extracts OrgInstructionID from /MREF/ and validates format",
+            "id": "extract_mref_and_components",
+            "name": "Extract and Validate MREF and Field 72 Components",
+            "description": "Extract MREF, validate format, and extract rejection code and other components",
             "function": {
                 "name": "map",
                 "input": {
@@ -66,10 +65,7 @@
                         {
                             "path": "temp_data.original_instruction_id_raw",
                             "logic": { "if": [
-                                { "and": [
-                                    {"var": "data.SwiftMT.fields.72.information.2"},
-                                    {"starts_with": [{"var": "data.SwiftMT.fields.72.information.2"}, "/MREF/"]}
-                                ]},
+                                {"starts_with": [{"var": "data.SwiftMT.fields.72.information.2"}, "/MREF/"]},
                                 {"substr": [{"var": "data.SwiftMT.fields.72.information.2"}, 6]},
                                 ""
                             ]}
@@ -80,143 +76,58 @@
                                 {"var": "temp_data.original_instruction_id_raw"},
                                 { "if": [
                                     {"ends_with": [{"var": "temp_data.original_instruction_id_raw"}, "/"]},
-                                    {
-                                        "substr": [
-                                            {"var": "temp_data.original_instruction_id_raw"},
-                                            0,
-                                            {"subtract": [{"length": {"var": "temp_data.original_instruction_id_raw"}}, 1]}
-                                        ]
-                                    },
+                                    {"substr": [
+                                        {"var": "temp_data.original_instruction_id_raw"},
+                                        0,
+                                        {"subtract": [{"length": {"var": "temp_data.original_instruction_id_raw"}}, 1]}
+                                    ]},
                                     {"var": "temp_data.original_instruction_id_raw"}
                                 ]},
                                 "NOTPROVIDED"
                             ]}
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "PREC003_validate_mref_format",
-            "name": "PREC003: Validate MREF Format",
-            "description": "Validates that extracted MREF doesn't start/end with / or contain //",
-            "function": {
-                "name": "validate",
-                "input": {
-                    "rules": [
+                        },
                         {
-                            "path": "temp_data.original_instruction_id",
+                            "path": "temp_data.mref_valid",
                             "logic": { "if": [
                                 { "and": [
                                     {"var": "temp_data.original_instruction_id"},
                                     {"!=": [{"var": "temp_data.original_instruction_id"}, "NOTPROVIDED"]},
                                     {">": [{"length": {"var": "temp_data.original_instruction_id"}}, 0]}
                                 ]},
-                                {
-                                    "!": { "or": [
-                                        {"starts_with": [{"var": "temp_data.original_instruction_id"}, "/"]},
-                                        {"ends_with": [{"var": "temp_data.original_instruction_id"}, "/"]},
-                                        {"in": ["//", {"var": "temp_data.original_instruction_id"}]}
-                                    ]}
-                                },
+                                {"!": { "or": [
+                                    {"starts_with": [{"var": "temp_data.original_instruction_id"}, "/"]},
+                                    {"ends_with": [{"var": "temp_data.original_instruction_id"}, "/"]},
+                                    {"in": ["//", {"var": "temp_data.original_instruction_id"}]}
+                                ]}},
                                 true
-                            ]},
-                            "message": "T20316: Invalid MREF format - cannot start/end with / or contain //"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "id": "extract_field72_components",
-            "name": "Extract Field 72 Components",
-            "description": "Extract rejection code and additional information from Field 72",
-            "function": {
-                "name": "map",
-                "input": {
-                    "mappings": [
+                            ]}
+                        },
                         {
                             "path": "temp_data.rejection_code",
                             "logic": { "if": [
-                                { "and": [
-                                    {"var": "data.SwiftMT.fields.72.information"},
-                                    {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 1]},
-                                    {"var": "data.SwiftMT.fields.72.information.1"}
-                                ]},
-                                {
-                                    "substr": [{"var": "data.SwiftMT.fields.72.information.1"}, 1, 4]
-                                },
+                                {"var": "data.SwiftMT.fields.72.information.1"},
+                                {"substr": [{"var": "data.SwiftMT.fields.72.information.1"}, 1, 4]},
                                 ""
                             ]}
                         },
                         {
-                            "path": "temp_data.tref_line",
-                            "logic": { "if": [
-                                { "and": [
-                                    {"var": "data.SwiftMT.fields.72.information"},
-                                    {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 3]},
-                                    {"var": "data.SwiftMT.fields.72.information.3"}
-                                ]},
-                                { "if": [
-                                    {"starts_with": [{"var": "data.SwiftMT.fields.72.information.3"}, "/TREF/"]},
-                                    {"substr": [{"var": "data.SwiftMT.fields.72.information.3"}, 6]},
-                                    null
-                                ]},
-                                null
-                            ]}
-                        },
-                        {
-                            "path": "temp_data.chgs_line",
-                            "logic": { "if": [
-                                { "and": [
-                                    {"var": "data.SwiftMT.fields.72.information"},
-                                    {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 0]}
-                                ]},
-                                {
-                                    "some": [
-                                        {"var": "data.SwiftMT.fields.72.information"},
-                                        {"starts_with": [{"var": ""}, "/CHGS/"]}
-                                    ]
-                                },
-                                false
-                            ]}
-                        },
-                        {
                             "path": "temp_data.text_lines",
-                            "logic": { "if": [
-                                { "and": [
-                                    {"var": "data.SwiftMT.fields.72.information"},
-                                    {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 0]}
-                                ]},
-                                {
-                                    "filter": [
-                                        {"var": "data.SwiftMT.fields.72.information"},
-                                        {"starts_with": [{"var": ""}, "/TEXT/"]}
-                                    ]
-                                },
-                                []
+                            "logic": {"filter": [
+                                {"var": "data.SwiftMT.fields.72.information"},
+                                {"starts_with": [{"var": ""}, "/TEXT/"]}
                             ]}
                         },
                         {
                             "path": "temp_data.additional_information",
                             "logic": { "if": [
-                                { "and": [
+                                {">": [{"length": {"var": "temp_data.text_lines"}}, 0]},
+                                {"reduce": [
                                     {"var": "temp_data.text_lines"},
-                                    {">": [{"length": {"var": "temp_data.text_lines"}}, 0]}
-                                ]},
-                                { "reduce": [
-                                    {"var": "temp_data.text_lines"},
-                                    {
-                                        "cat": [
-                                            {"var": "accumulator"},
-                                            { "if": [
-                                                {"var": "accumulator"},
-                                                " ",
-                                                ""
-                                            ]},
-                                            {"substr": [{"var": "current"}, 6]}
-                                        ]
-                                    },
+                                    {"cat": [
+                                        {"var": "accumulator"},
+                                        {"if": [{"var": "accumulator"}, " ", ""]},
+                                        {"substr": [{"var": "current"}, 6]}
+                                    ]},
                                     ""
                                 ]},
                                 ""
@@ -227,41 +138,29 @@
                             "logic": { "if": [
                                 {"var": "temp_data.rejection_code"},
                                 { "if": [
-                                    {"==": [{"var": "temp_data.rejection_code"}, "AC01"]},
-                                    "Incorrect Account Number",
+                                    {"==": [{"var": "temp_data.rejection_code"}, "AC01"]}, "Incorrect Account Number",
                                     { "if": [
-                                        {"==": [{"var": "temp_data.rejection_code"}, "AC04"]},
-                                        "Closed Account Number",
+                                        {"==": [{"var": "temp_data.rejection_code"}, "AC04"]}, "Closed Account Number",
                                         { "if": [
-                                            {"==": [{"var": "temp_data.rejection_code"}, "AC06"]},
-                                            "Blocked Account",
+                                            {"==": [{"var": "temp_data.rejection_code"}, "AC06"]}, "Blocked Account",
                                             { "if": [
-                                                {"==": [{"var": "temp_data.rejection_code"}, "AG01"]},
-                                                "Transaction Forbidden",
+                                                {"==": [{"var": "temp_data.rejection_code"}, "AG01"]}, "Transaction Forbidden",
                                                 { "if": [
-                                                    {"==": [{"var": "temp_data.rejection_code"}, "AG02"]},
-                                                    "Invalid Bank Operation Code",
+                                                    {"==": [{"var": "temp_data.rejection_code"}, "AG02"]}, "Invalid Bank Operation Code",
                                                     { "if": [
-                                                        {"==": [{"var": "temp_data.rejection_code"}, "AM05"]},
-                                                        "Duplication",
+                                                        {"==": [{"var": "temp_data.rejection_code"}, "AM05"]}, "Duplication",
                                                         { "if": [
-                                                            {"==": [{"var": "temp_data.rejection_code"}, "BE05"]},
-                                                            "Unrecognised Initiator",
+                                                            {"==": [{"var": "temp_data.rejection_code"}, "BE05"]}, "Unrecognised Initiator",
                                                             { "if": [
-                                                                {"==": [{"var": "temp_data.rejection_code"}, "MS03"]},
-                                                                "Reason Not Specified",
+                                                                {"==": [{"var": "temp_data.rejection_code"}, "MS03"]}, "Reason Not Specified",
                                                                 { "if": [
-                                                                    {"==": [{"var": "temp_data.rejection_code"}, "RR01"]},
-                                                                    "Regulatory Reason",
+                                                                    {"==": [{"var": "temp_data.rejection_code"}, "RR01"]}, "Regulatory Reason",
                                                                     { "if": [
-                                                                        {"==": [{"var": "temp_data.rejection_code"}, "RR02"]},
-                                                                        "Regulatory Information Invalid",
+                                                                        {"==": [{"var": "temp_data.rejection_code"}, "RR02"]}, "Regulatory Information Invalid",
                                                                         { "if": [
-                                                                            {"==": [{"var": "temp_data.rejection_code"}, "RR03"]},
-                                                                            "Regulatory Information Missing",
+                                                                            {"==": [{"var": "temp_data.rejection_code"}, "RR03"]}, "Regulatory Information Missing",
                                                                             { "if": [
-                                                                                {"==": [{"var": "temp_data.rejection_code"}, "RR04"]},
-                                                                                "Regulatory Approval Rejected",
+                                                                                {"==": [{"var": "temp_data.rejection_code"}, "RR04"]}, "Regulatory Approval Rejected",
                                                                                 "Other Reason"
                                                                             ]}
                                                                         ]}
@@ -277,8 +176,44 @@
                                 ]},
                                 null
                             ]}
+                        },
+                        {
+                            "path": "temp_data.mref_error",
+                            "logic": { "if": [
+                                {"!": {"var": "temp_data.mref_valid"}},
+                                "T20316: Invalid MREF format - cannot start/end with / or contain //",
+                                null
+                            ]}
                         }
-                    ]
+                    ],
+                    "preserve": true
+                }
+            }
+        },
+        {
+            "id": "validate_all_preconditions",
+            "name": "Validate All Preconditions",
+            "description": "Final validation of all precondition errors collected",
+            "function": {
+                "name": "map",
+                "input": {
+                    "mappings": [
+                        {
+                            "path": "temp_data.all_errors",
+                            "logic": { "filter": [
+                                [
+                                    {"var": "temp_data.validation_errors"},
+                                    {"var": "temp_data.mref_error"}
+                                ],
+                                {"var": ""}
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.precondition_valid",
+                            "logic": {"==": [{"length": {"var": "temp_data.all_errors"}}, 0]}
+                        }
+                    ],
+                    "preserve": true
                 }
             }
         },
@@ -287,18 +222,33 @@
             "name": "Validate UETR Present",
             "description": "Ensure UETR is present as it's required for rejection messages",
             "function": {
-                "name": "validate",
+                "name": "map",
                 "input": {
-                    "rules": [
+                    "mappings": [
                         {
-                            "path": "data",
+                            "path": "temp_data.uetr_valid",
                             "logic": { "and": [
                                 {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
                                 {"!=": [{"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}, ""]}
-                            ]},
-                            "message": "Translation stopped: UETR is required for MT202 REJT messages"
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.uetr_error",
+                            "logic": { "if": [
+                                {"!": {"var": "temp_data.uetr_valid"}},
+                                "Translation stopped: UETR is required for MT202 REJT messages",
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "temp_data.final_precondition_valid",
+                            "logic": { "and": [
+                                {"var": "temp_data.precondition_valid"},
+                                {"var": "temp_data.uetr_valid"}
+                            ]}
                         }
-                    ]
+                    ],
+                    "preserve": true
                 }
             }
         }

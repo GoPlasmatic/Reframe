@@ -48,7 +48,7 @@ impl AsyncFunctionHandler for ParseMT {
             message.payload.to_string().replace("\\n", "\n")
         } else {
             message
-                .data
+                .data()
                 .get(input_field_name)
                 .and_then(Value::as_str)
                 .unwrap_or("")
@@ -94,37 +94,11 @@ impl ParseMT {
             };
 
             method = "normal".to_string();
-            debug!(method = %method, "Determined MT101 processing method");
 
-            // Debug: Check transaction count
-            debug!(
-                "MT101 has {} transactions",
-                mt101_message.fields.transactions.len()
-            );
-
-            // Debug: Print first transaction if exists
-            if let Some(first_tx) = mt101_message.fields.transactions.first() {
-                debug!("First transaction field_21: {:?}", first_tx.field_21);
-                debug!("First transaction field_32b: {:?}", first_tx.field_32b);
-            }
-
-            let json_value = serde_json::to_value(&mt101_message).map_err(|e| {
+            serde_json::to_value(&mt101_message).map_err(|e| {
                 error!(error = ?e, "MT101 JSON conversion failed");
                 DataflowError::Validation(format!("MT101 JSON conversion failed: {e}"))
-            })?;
-
-            // Debug: Check if "#" key exists in JSON
-            if let Some(obj) = json_value.as_object() {
-                debug!("MT101 JSON keys: {:?}", obj.keys().collect::<Vec<_>>());
-                if let Some(hash_field) = obj.get("#") {
-                    debug!("Found '#' field with type: {:?}", hash_field);
-                    if let Some(arr) = hash_field.as_array() {
-                        debug!("'#' field is an array with {} items", arr.len());
-                    }
-                }
-            }
-
-            json_value
+            })?
         } else if message_type == "103" {
             let Some(mt103_message) = parsed_message.into_mt103() else {
                 error!("Failed to convert SwiftMessage to MT103");
@@ -352,30 +326,18 @@ impl ParseMT {
         };
 
         // Store the parsed result in message data
-        if let Some(data_obj) = message.data.as_object_mut() {
-            data_obj.insert(output_field_name.to_string(), parsed_data.clone());
-        } else {
-            message.data = json!({
-                output_field_name: parsed_data
-            });
-        }
+        message.data_mut().as_object_mut().unwrap().insert(
+            output_field_name.to_string(),
+            parsed_data.clone()
+        );
 
-        if let Some(data_obj) = message.metadata.as_object_mut() {
-            data_obj.insert(
-                output_field_name.to_string(),
-                json!({
-                    "message_type": message_type,
-                    "method": method,
-                }),
-            );
-        } else {
-            message.metadata = json!({
-                output_field_name.to_string(): {
-                    "message_type": message_type,
-                    "method": method,
-                }
-            });
-        }
+        message.metadata_mut().as_object_mut().unwrap().insert(
+            output_field_name.to_string(),
+            json!({
+                "message_type": message_type,
+                "method": method,
+            }),
+        );
 
         debug!(
             message_type = %message_type,
@@ -384,22 +346,8 @@ impl ParseMT {
             "MT message parsing completed successfully for forward transformation"
         );
 
-        // Directly write to message.data since dataflow-rs doesn't apply Changes from custom functions
-        if !message.data.is_object() {
-            debug!("Initializing message.data as empty object");
-            message.data = json!({});
-        }
-
-        if let Some(data_obj) = message.data.as_object_mut() {
-            debug!("Writing parsed MT data to data.{}", output_field_name);
-            data_obj.insert(output_field_name.to_string(), parsed_data.clone());
-            debug!(
-                "Successfully wrote SwiftMT data. Keys in data: {:?}",
-                data_obj.keys().collect::<Vec<_>>()
-            );
-        } else {
-            error!("Failed to get mutable reference to message.data object");
-        }
+        // Important: invalidate cache after modifications
+        message.invalidate_context_cache();
 
         Ok((
             200,

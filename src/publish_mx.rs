@@ -51,27 +51,27 @@ impl AsyncFunctionHandler for PublishMX {
             .and_then(Value::as_str)
             .ok_or_else(|| DataflowError::Validation("Missing output_field_name".to_string()))?;
 
-        let input_data = message.data.get(input_field_name).ok_or_else(|| {
+        let input_data = message.data().get(input_field_name).ok_or_else(|| {
             error!(
                 input_field = input_field_name,
-                available_fields = ?message.data.as_object().map(|obj| obj.keys().collect::<Vec<_>>()),
+                available_fields = ?message.data().as_object().map(|obj| obj.keys().collect::<Vec<_>>()),
                 "Input field not found in message data for MT to MX transformation"
             );
             DataflowError::Validation(format!(
                 "Field {} not found in message data {}",
-                input_field_name, message.data
+                input_field_name, message.data()
             ))
         })?.clone();
 
         let message_type = message
-            .metadata
+            .metadata()
             .get("SwiftMT")
             .and_then(|v| v.get("message_type"))
             .and_then(|v| v.as_str())
             .unwrap_or("Unknown")
             .to_string();
         let message_method = message
-            .metadata
+            .metadata()
             .get("SwiftMT")
             .and_then(|v| v.get("method"))
             .and_then(|v| v.as_str())
@@ -235,7 +235,7 @@ fn handle_mt_to_mx_header(
     debug!("MT to MX header serialization completed");
 
     let result_value = Value::String(xml_string);
-    message.data[output_field_name] = result_value.clone();
+    message.data_mut()[output_field_name] = result_value.clone();
 
     Ok((
         200,
@@ -394,7 +394,8 @@ fn handle_mt_to_mx_document(
     debug!("MT to MX document serialization completed");
 
     let result_value = Value::String(xml_string);
-    message.data[output_field_name] = result_value.clone();
+    message.data_mut()[output_field_name] = result_value.clone();
+    message.invalidate_context_cache();
 
     Ok((
         200,

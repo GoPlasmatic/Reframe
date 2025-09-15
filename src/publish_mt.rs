@@ -181,15 +181,15 @@ impl AsyncFunctionHandler for PublishMT {
             .ok_or_else(|| DataflowError::Validation("Missing output_field_name".to_string()))?;
 
         // Extract data first to avoid borrow checker issues
-        let input_data = message.data.get(input_field_name).cloned().ok_or_else(|| {
+        let input_data = message.data().get(input_field_name).cloned().ok_or_else(|| {
             error!(
                 input_field = %input_field_name,
-                available_fields = ?message.data.as_object().map(|obj| obj.keys().collect::<Vec<_>>()),
+                available_fields = ?message.data().as_object().map(|obj| obj.keys().collect::<Vec<_>>()),
                 "Input field not found in message data for MX to MT transformation"
             );
             DataflowError::Validation(format!(
                 "Field {} not found in message data {}",
-                input_field_name, message.data
+                input_field_name, message.data()
             ))
         })?;
 
@@ -260,7 +260,8 @@ impl AsyncFunctionHandler for PublishMT {
         debug!(mt_message = %mt_message, "MT message published successfully");
 
         let result_value = Value::String(mt_message.clone());
-        message.data[output_field_name] = result_value.clone();
+        message.data_mut()[output_field_name] = result_value.clone();
+        message.invalidate_context_cache();
 
         Ok((
             200,

@@ -143,9 +143,9 @@ async def main():
     
     # Test different concurrency levels
     configs = [
-        (100000, 4, "4 concurrent"),
-        (100000, 16, "16 concurrent"),
-        (100000, 64, "64 concurrent"),
+        (10000, 16, "16 concurrent"),
+        (10000, 64, "64 concurrent"),
+        (10000, 128, "128 concurrent"),
     ]
     
     results = []

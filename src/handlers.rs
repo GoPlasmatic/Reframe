@@ -185,10 +185,10 @@ pub async fn transform_mt_to_mx(
     // Prepare message for transformation
     let payload_value = Value::String(request.message.clone());
     let mut message = Message::new(Arc::new(payload_value));
-    message.data = serde_json::json!({}); // Initialize data field as empty object
-    message.metadata = serde_json::json!({
-        "transformation_direction": "mt-to-mx"
-    });
+
+    if let Some(metadata_obj) = message.metadata_mut().as_object_mut() {
+        metadata_obj.insert("transformation_direction".to_string(), "mt-to-mx".into());
+    }
 
     // Process message using the async forward engine
     match state.forward_engine.process_message(&mut message).await {
@@ -228,7 +228,7 @@ pub async fn transform_mt_to_mx(
             }
 
             // Validate that the transformation actually produced a result
-            match message.data.get("result") {
+            match message.data().get("result") {
                 Some(result) if !result.is_null() => {
                     // Handle both string and array results (MT to MX can produce multiple messages)
                     match result {
@@ -466,10 +466,9 @@ pub async fn transform_mx_to_mt(
     // Prepare message for transformation
     let payload_value = Value::String(request.message.clone());
     let mut message = Message::new(Arc::new(payload_value));
-    message.data = serde_json::json!({}); // Initialize data field as empty object
-    message.metadata = serde_json::json!({
-        "transformation_direction": "mx-to-mt"
-    });
+    if let Some(metadata_obj) = message.metadata_mut().as_object_mut() {
+        metadata_obj.insert("transformation_direction".to_string(), "mx-to-mt".into());
+    }
 
     // Process message using the async reverse engine
     match state.reverse_engine.process_message(&mut message).await {
@@ -509,7 +508,7 @@ pub async fn transform_mx_to_mt(
             }
 
             // Validate that the transformation actually produced a result
-            match message.data.get("result") {
+            match message.data().get("result") {
                 Some(result) if !result.is_null() => {
                     // Handle both string and array results (workflow can return either)
                     let result_str = match result {

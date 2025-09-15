@@ -52,7 +52,7 @@ impl AsyncFunctionHandler for ParseMX {
             Helper::manual_unescape(&raw_payload)
         } else {
             message
-                .data
+                .data()
                 .get(input_field_name)
                 .and_then(Value::as_str)
                 .ok_or_else(|| {
@@ -93,28 +93,20 @@ impl AsyncFunctionHandler for ParseMX {
         });
 
         // Store the parsed result in message data
-        if let Some(data_obj) = message.data.as_object_mut() {
-            data_obj.insert(output_field_name.to_string(), parsed_result.clone());
-        } else {
-            message.data = json!({
-                output_field_name: parsed_result.clone()
-            });
-        }
+        message.data_mut().as_object_mut().unwrap().insert(
+            output_field_name.to_string(),
+            parsed_result.clone()
+        );
 
-        if let Some(data_obj) = message.metadata.as_object_mut() {
-            data_obj.insert(
-                output_field_name.to_string(),
-                json!({
-                    "message_type": message_type,
-                }),
-            );
-        } else {
-            message.metadata = json!({
-                output_field_name.to_string(): {
-                    "message_type": message_type,
-                }
-            });
-        }
+        message.metadata_mut().as_object_mut().unwrap().insert(
+            output_field_name.to_string(),
+            json!({
+                "message_type": message_type,
+            }),
+        );
+
+        // Important: invalidate cache after modifications
+        message.invalidate_context_cache();
 
         Ok((
             200,

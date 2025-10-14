@@ -8,28 +8,32 @@
         "receiver_bic": {"fake": ["bic"]},
         "intermediary1_bic": {"fake": ["bic"]},
         "intermediary2_bic": {"fake": ["bic"]},
-        "rejection_ref": {"cat": ["SREJ", {"fake": ["i64", 1000000000, 9999999999]}]},
-        "original_ref": {"cat": ["SORIG", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "rejection_ref": {"cat": ["SREJ", {"fake": ["u64", 1000000000, 9999999999]}]},
+        "original_ref": {"cat": ["SORIG", {"fake": ["u64", 1000000000, 9999999999]}]},
         "rejection_reason": "AC06",
         "uetr": {"fake": ["uuid"]},
         "rejection_datetime": {"fake": ["iso8601_datetime"]},
         "sender_lei": {"fake": ["lei"]},
         "receiver_lei": {"fake": ["lei"]},
-        "additional_info": {"substr": [{"fake": ["words", 5, 10]}, 0, 26]},
+        "additional_info": {
+            "substr": [{"fake": ["words", 5, 10]}, 0, 26]
+        },
         "beneficiary_institution_bic": {"fake": ["bic"]},
         "value_date": {
             "fake": ["date", "%y-%m-%d", "+0d", "+2d"]
         },
-        "currency": {"fake": ["currency_code"]},
-        "amount": {"fake": ["f64", 1000.0, 100000.0]}
+        "currency": {
+            "fake": ["enum", "USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD", "SEK", "NOK"]
+        },
+        "amount": {"fake": ["u64", 1000, 100000]}
     },
     "schema": {
         "basic_header": {
             "application_id": "F",
             "service_id": "01",
             "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
-            "session_number": {"cat": ["", {"fake": ["i64", 1, 9999]}]},
-            "sequence_number": {"cat": ["", {"fake": ["i64", 100000, 999999]}]},
+            "session_number": {"cat": ["", {"fake": ["u64", 1, 9999]}]},
+            "sequence_number": {"cat": ["", {"fake": ["u64", 100000, 999999]}]},
             "sender_bic": {"var": "sender_bic"}
         },
         "application_header": {
@@ -45,14 +49,16 @@
         "fields": {
             "20": {"reference": {"var": "rejection_ref"}},
             "21": {"reference": {"var": "original_ref"}},
-            "52": {"A": {"bic": {"var": "sender_bic"}}},
-            "53": {"A": {"bic": {"var": "intermediary1_bic"}}},
-            "56": {"A": {"bic": {"var": "intermediary2_bic"}}},
-            "57": {"A": {"bic": {"var": "receiver_bic"}}},
+            "52A": {"bic": {"var": "sender_bic"}},
+            "53A": {"bic": {"var": "intermediary1_bic"}},
+            "56A": {"bic": {"var": "intermediary2_bic"}},
+            "57A": {"bic": {"var": "receiver_bic"}},
             "72": {
                 "information": [
                     {"cat": ["/REJT/", {"var": "rejection_reason"}]},
-                    {"cat": ["/", {"var": "rejection_reason"}, "/"]},
+                    {
+                        "cat": ["/", {"var": "rejection_reason"}, "/"]
+                    },
                     {"cat": ["/MREF/", {"var": "original_ref"}]},
                     {"cat": ["/LEI/SENDER/", {"var": "sender_lei"}]},
                     {"cat": ["/LEI/RECEIVER/", {"var": "receiver_lei"}]},
@@ -64,7 +70,7 @@
                 "currency": {"var": "currency"},
                 "amount": {"var": "amount"}
             },
-            "58": {"A": {"bic": {"var": "beneficiary_institution_bic"}}}
+            "58A": {"bic": {"var": "beneficiary_institution_bic"}}
         }
     }
 }

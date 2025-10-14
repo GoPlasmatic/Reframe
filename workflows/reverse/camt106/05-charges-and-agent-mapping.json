@@ -4,7 +4,7 @@
     "description": "Maps charges breakdown to Field 71B and agents to Field 52 per CBPR+ specification",
     "priority": 6,
     "condition": { "and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "camt.106.001.02"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "camt.106"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "camt106-mandatory-fields-mapping"]},
         {"==": [{"var": "metadata.progress.task_id"}, "map_mandatory_fields"]},
@@ -24,7 +24,13 @@
                             "logic": {
                                 "details": {
                                     "map": [
-                                        {"slice": [{"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.ChrgsBrkdwn"}, 0, 6]},
+                                        {
+                                            "slice": [
+                                                {"var": "data.ISO20022_MX.Document.ChrgsPmtReq.Chrgs.PerTx.Rcrd.ChrgsBrkdwn"},
+                                                0,
+                                                6
+                                            ]
+                                        },
                                         {
                                             "cat": [
                                                 {"var": "Amt.@Ccy"},
@@ -56,8 +62,8 @@
             "name": "Map Field 52A from Group Header",
             "description": "Maps Field 52A when BICFI exists in Group Header",
             "condition": { "and": [
-                {"exists": ["data", "ISO20022_MX", "document", "GrpHdr", "ChrgsAcctAgt", "FinInstnId", "BICFI"]},
-                {"!": {"exists": ["data", "ISO20022_MX", "document", "GrpHdr", "ChrgsAcctAgtAcct"]}}
+                {"exists": ["data", "ISO20022_MX", "Document", "ChrgsPmtReq", "GrpHdr", "ChrgsAcctAgt", "FinInstnId", "BICFI"]},
+                {"!": {"exists": ["data", "ISO20022_MX", "Document", "ChrgsPmtReq", "GrpHdr", "ChrgsAcctAgtAcct"]}}
             ]},
             "function": {
                 "name": "map",
@@ -65,7 +71,7 @@
                     "mappings": [
                         {
                             "path": "data.SwiftMT.fields.52A",
-                            "logic": {"var": "data.ISO20022_MX.document.GrpHdr.ChrgsAcctAgt.FinInstnId.BICFI"}
+                            "logic": {"var": "data.ISO20022_MX.Document.ChrgsPmtReq.GrpHdr.ChrgsAcctAgt.FinInstnId.BICFI"}
                         }
                     ]
                 }
@@ -76,9 +82,9 @@
             "name": "Map Field 52A from Debtor Agent",
             "description": "Maps Field 52A when BICFI exists in Debtor Agent and not in Group Header",
             "condition": { "and": [
-                {"!": {"exists": ["data", "ISO20022_MX", "document", "GrpHdr", "ChrgsAcctAgt"]}},
-                {"exists": ["data", "ISO20022_MX", "document", "Chrgs", "PerTx", "Rcrd", "DbtrAgt", "FinInstnId", "BICFI"]},
-                {"!": {"exists": ["data", "ISO20022_MX", "document", "Chrgs", "PerTx", "Rcrd", "DbtrAgtAcct"]}}
+                {"!": {"exists": ["data", "ISO20022_MX", "Document", "ChrgsPmtReq", "GrpHdr", "ChrgsAcctAgt"]}},
+                {"exists": ["data", "ISO20022_MX", "Document", "ChrgsPmtReq", "Chrgs", "PerTx", "Rcrd", "DbtrAgt", "FinInstnId", "BICFI"]},
+                {"!": {"exists": ["data", "ISO20022_MX", "Document", "ChrgsPmtReq", "Chrgs", "PerTx", "Rcrd", "DbtrAgtAcct"]}}
             ]},
             "function": {
                 "name": "map",
@@ -86,7 +92,7 @@
                     "mappings": [
                         {
                             "path": "data.SwiftMT.fields.52A",
-                            "logic": {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.DbtrAgt.FinInstnId.BICFI"}
+                            "logic": {"var": "data.ISO20022_MX.Document.ChrgsPmtReq.Chrgs.PerTx.Rcrd.DbtrAgt.FinInstnId.BICFI"}
                         }
                     ]
                 }

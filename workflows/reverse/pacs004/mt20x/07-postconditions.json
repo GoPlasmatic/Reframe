@@ -4,7 +4,7 @@
     "description": "Validates and publishes MT202/205 RETN message",
     "priority": 9,
     "condition": { "and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pacs.004"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "pacs004-mt20x-field72-mapping"]},
         {"==": [{"var": "metadata.progress.task_id"}, "map_field_72"]},
@@ -37,7 +37,10 @@
                         },
                         {
                             "path": "data.SwiftMT.fields.#58",
-                            "logic": {"exists": ["data", "SwiftMT", "fields", "58"]},
+                            "logic": {"or": [
+                                {"exists": ["data", "SwiftMT", "fields", "58A"]},
+                                {"exists": ["data", "SwiftMT", "fields", "58D"]}
+                            ]},
                             "message": "Field 58 (Beneficiary Institution) is required"
                         },
                         {
@@ -57,11 +60,10 @@
             "name": "Publish MT202/205 RETN",
             "description": "Generate and publish the final MT message",
             "function": {
-                "name": "PublishMT",
+                "name": "publish_mt",
                 "input": {
-                    "input_field_name": "SwiftMT",
-                    "output_field_name": "result",
-                    "source_format": "pacs.004.001.09"
+                    "source": "SwiftMT",
+                    "target": "result"
                 }
             }
         }

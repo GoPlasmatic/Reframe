@@ -4,10 +4,10 @@
     "description": "Maps remittance information, ultimate parties, purpose and regulatory reporting to field 70 and 77B",
     "priority": 9,
     "condition": { "and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pain.001.001.09"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pain.001"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "pain001-to-mt101-agent-fields"]},
-        {"==": [{"var": "metadata.progress.task_id"}, "map_creditor_agent"]},
+        {"==": [{"var": "metadata.progress.task_id"}, "map_creditor_agent_57D"]},
         {"==": [{"var": "metadata.progress.status_code"}, 200]}
     ]},
     "tasks": [
@@ -24,17 +24,25 @@
                             "logic": {
                                 "narrative": [
                                     { "if": [
-                                        {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.RmtInf.Ustrd"},
+                                        {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.RmtInf.Ustrd"},
                                         {
-                                            "substr": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.RmtInf.Ustrd"}, 0, 35]
+                                            "substr": [
+                                                {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.RmtInf.Ustrd"},
+                                                0,
+                                                35
+                                            ]
                                         },
                                         { "if": [
-                                            {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtId.EndToEndId"},
+                                            {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.PmtId.EndToEndId"},
                                             {
                                                 "cat": [
                                                     "/ROC/",
                                                     {
-                                                        "substr": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtId.EndToEndId"}, 0, 30]
+                                                        "substr": [
+                                                            {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.PmtId.EndToEndId"},
+                                                            0,
+                                                            30
+                                                        ]
                                                     }
                                                 ]
                                             },
@@ -52,7 +60,7 @@
             "id": "map_regulatory_reporting",
             "name": "Map Regulatory Reporting Field 77B",
             "description": "Maps RegulatoryReporting information to field 77B",
-            "condition": {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.RgltryRptg"},
+            "condition": {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.RgltryRptg"},
             "function": {
                 "name": "map",
                 "input": {
@@ -62,7 +70,13 @@
                             "logic": {
                                 "regulatory_reporting": {
                                     "map": [
-                                        {"slice": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.RgltryRptg"}, 0, 3]},
+                                        {
+                                            "slice": [
+                                                {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.RgltryRptg"},
+                                                0,
+                                                3
+                                            ]
+                                        },
                                         { "if": [
                                             { "and": [
                                                 {"var": "Dtls.0.Tp"},

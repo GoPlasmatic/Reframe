@@ -3,8 +3,8 @@
     "name": "admi.024 to MT199 Initialization",
     "description": "Validates preconditions and maps SWIFT headers for MT199",
     "priority": 3,
-    "condition": {"and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "admi.024.001.01"]},
+    "condition": { "and": [
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "admi.024"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "admi024-variant-detection"]},
         {"==": [{"var": "metadata.progress.task_id"}, "set_target_message"]},
@@ -20,15 +20,15 @@
                 "input": {
                     "rules": [
                         {
-                            "logic": {"exists": ["data", "ISO20022_MX", "document", "NtfctnData"]},
+                            "logic": {"exists": ["data", "ISO20022_MX", "Document", "NtfctnOfCrspdc", "NtfctnData"]},
                             "message": "T20000: NotificationData is required for MT199 transformation"
                         },
                         {
-                            "logic": {"exists": ["data", "ISO20022_MX", "document", "NtfctnData", "SndrNtfctnId"]},
+                            "logic": {"exists": ["data", "ISO20022_MX", "Document", "NtfctnOfCrspdc", "NtfctnData", "SndrNtfctnId"]},
                             "message": "T20001: SenderNotificationIdentification is required for field 20"
                         },
                         {
-                            "logic": {"exists": ["data", "ISO20022_MX", "document", "NtfctnData", "NtfctnTp", "Cd"]},
+                            "logic": {"exists": ["data", "ISO20022_MX", "Document", "NtfctnOfCrspdc", "NtfctnData", "NtfctnTp", "Cd"]},
                             "message": "T20002: NotificationType Code is required for field 79"
                         }
                     ]
@@ -48,8 +48,8 @@
                             "logic": {
                                 "application_id": "F",
                                 "service_id": "01",
-                                "sender_bic": {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"},
-                                "logical_terminal": {"cat": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, "AXXX"]},
+                                "sender_bic": {"var": "data.ISO20022_MX.AppHdr.Fr.FIId.FinInstnId.BICFI"},
+                                "logical_terminal": {"cat": [{"var": "data.ISO20022_MX.AppHdr.Fr.FIId.FinInstnId.BICFI"}, "AXXX"]},
                                 "session_number": "0000",
                                 "sequence_number": "000000"
                             }
@@ -59,8 +59,8 @@
                             "logic": {
                                 "direction": "I",
                                 "message_type": "199",
-                                "destination_address": {"cat": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, "AXXX"]},
-                                "receiver_bic": {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"},
+                                "destination_address": {"cat": [{"var": "data.ISO20022_MX.AppHdr.To.FIId.FinInstnId.BICFI"}, "AXXX"]},
+                                "receiver_bic": {"var": "data.ISO20022_MX.AppHdr.To.FIId.FinInstnId.BICFI"},
                                 "priority": "N"
                             }
                         },
@@ -68,7 +68,7 @@
                             "path": "data.SwiftMT.user_header",
                             "logic": {
                                 "validation_flag": "STP",
-                                "uetr": {"var": "data.ISO20022_MX.document.GrpHdr.MsgId"}
+                                "uetr": {"var": "data.ISO20022_MX.Document.NtfctnOfCrspdc.GrpHdr.MsgId"}
                             }
                         }
                     ]

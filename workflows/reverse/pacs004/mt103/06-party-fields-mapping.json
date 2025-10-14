@@ -4,7 +4,7 @@
     "description": "Maps party fields for MT103 RETN (Fields 50, 59)",
     "priority": 8,
     "condition": { "and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pacs.004"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "pacs004-mt103-charge-fields-mapping"]},
         {"==": [{"var": "metadata.progress.task_id"}, "map_field_71f_71g"]},
@@ -21,45 +21,55 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#50",
+                            "path": "data.SwiftMT.fields.50A",
                             "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt"},
-                                { "if": [
-                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"},
-                                    {"A": {"identifier_code": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"}}},
-                                    { "if": [
-                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.ClrSysMmbId.MmbId"},
-                                        {"F": {
-                                            "party_identifier": {"cat": [
-                                                "/",
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.ClrSysMmbId.MmbId"}
-                                            ]},
-                                            "name_and_address": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Agt.FinInstnId.Nm"}]
-                                        }},
-                                        null
-                                    ]}
+                                { "and": [
+                                    {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Dbtr.Agt"},
+                                    {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"}
                                 ]},
+                                {
+                                    "identifier_code": {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"}
+                                },
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.50F",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Dbtr.Agt"},
+                                    {"!": {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Dbtr.Agt.FinInstnId.BICFI"}},
+                                    {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Dbtr.Agt.FinInstnId.ClrSysMmbId.MmbId"}
+                                ]},
+                                {
+                                    "party_identifier": {"cat": ["/", {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Dbtr.Agt.FinInstnId.ClrSysMmbId.MmbId"}]},
+                                    "name_and_address": [{"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Dbtr.Agt.FinInstnId.Nm"}]
+                                },
                                 { "if": [
-                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty"},
-                                    { "if": [
-                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.LEI"},
-                                        {"F": {
-                                            "party_identifier": {"cat": [
-                                                "/",
-                                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.LEI"}
-                                            ]},
-                                            "name_and_address": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"}]
-                                        }},
-                                        { "if": [
-                                            {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"},
-                                            {"K": {
-                                                "name_and_address": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Dbtr.Pty.Nm"}]
-                                            }},
-                                            null
-                                        ]}
+                                    { "and": [
+                                        {"!": {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Dbtr.Agt"}},
+                                        {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.LEI"}
                                     ]},
+                                    {
+                                        "party_identifier": {"cat": ["/", {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.LEI"}]},
+                                        "name_and_address": [{"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Dbtr.Pty.Nm"}]
+                                    },
                                     null
                                 ]}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.50K",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"!": {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Dbtr.Agt"}},
+                                    {"!": {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Dbtr.Pty.Id.OrgId.LEI"}},
+                                    {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Dbtr.Pty.Nm"}
+                                ]},
+                                {
+                                    "name_and_address": [{"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Dbtr.Pty.Nm"}]
+                                },
+                                null
                             ]}
                         }
                     ]
@@ -75,29 +85,39 @@
                 "input": {
                     "mappings": [
                         {
+                            "path": "data.SwiftMT.fields.59A",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Cdtr.Agt"},
+                                    {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"}
+                                ]},
+                                {
+                                    "identifier_code": {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"},
+                                    "name_and_address": [{"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Cdtr.Agt.FinInstnId.Nm"}]
+                                },
+                                null
+                            ]}
+                        },
+                        {
                             "path": "data.SwiftMT.fields.#59",
                             "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt"},
-                                { "if": [
-                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"},
-                                    {"A": {
-                                        "identifier_code": {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"},
-                                        "name_and_address": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.Nm"}]
-                                    }},
-                                    { "if": [
-                                        {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.ClrSysMmbId.MmbId"},
-                                        {"NoOption": {
-                                            "account": {"cat": ["/", {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.ClrSysMmbId.MmbId"}]},
-                                            "name_and_address": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Agt.FinInstnId.Nm"}]
-                                        }},
-                                        null
-                                    ]}
+                                { "and": [
+                                    {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Cdtr.Agt"},
+                                    {"!": {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Cdtr.Agt.FinInstnId.BICFI"}},
+                                    {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Cdtr.Agt.FinInstnId.ClrSysMmbId.MmbId"}
                                 ]},
+                                {
+                                    "account": {"cat": ["/", {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Cdtr.Agt.FinInstnId.ClrSysMmbId.MmbId"}]},
+                                    "name_and_address": [{"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Cdtr.Agt.FinInstnId.Nm"}]
+                                },
                                 { "if": [
-                                    {"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"},
-                                    {"NoOption": {
-                                        "name_and_address": [{"var": "data.ISO20022_MX.document.TxInf.RtrChain.Cdtr.Pty.Nm"}]
-                                    }},
+                                    { "and": [
+                                        {"!": {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Cdtr.Agt"}},
+                                        {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Cdtr.Pty.Nm"}
+                                    ]},
+                                    {
+                                        "name_and_address": [{"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.RtrChain.Cdtr.Pty.Nm"}]
+                                    },
                                     null
                                 ]}
                             ]}

@@ -7,7 +7,7 @@
         {"==": [{"var": "metadata.SwiftMT.message_type"}, "202"]},
         {"==": [{"var": "metadata.SwiftMT.method"}, "reject"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "mt202-rejt-document-mapper"]},
-        {"==": [{"var": "metadata.progress.task_id"}, "publish_rejection_document_xml"]},
+        {"==": [{"var": "metadata.progress.task_id"}, "publish_mx_message"]},
         {"==": [{"var": "metadata.progress.status_code"}, 200]}
     ]},
     "tasks": [
@@ -30,10 +30,12 @@
                         {
                             "path": "temp_data.postc002_original_instruction_error",
                             "logic": { "if": [
-                                {"!": { "and": [
-                                    {"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlInstrId"},
-                                    {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlInstrId"}, ""]}
-                                ]}},
+                                {
+                                    "!": { "and": [
+                                        {"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlInstrId"},
+                                        {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlInstrId"}, ""]}
+                                    ]}
+                                },
                                 "Original Instruction ID must be present (extracted from MREF or NOTPROVIDED)",
                                 null
                             ]}
@@ -41,10 +43,14 @@
                         {
                             "path": "temp_data.postc003_message_name_error",
                             "logic": { "if": [
-                                {"!": {"in": [
-                                    {"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
-                                    ["MT202", "MT205", "MT202 COVE", "MT205 COVE"]
-                                ]}},
+                                {
+                                    "!": {
+                                        "in": [
+                                            {"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
+                                            ["MT202", "MT205", "MT202 COVE", "MT205 COVE"]
+                                        ]
+                                    }
+                                },
                                 "Original Message Name ID must be MT202, MT205, MT202 COVE, or MT205 COVE",
                                 null
                             ]}
@@ -67,10 +73,12 @@
                             "logic": { "if": [
                                 {"var": "temp_data.rejection_code"},
                                 { "if": [
-                                    {"!": { "or": [
-                                        {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.Rsn.Cd"}, null]},
-                                        {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.Rsn.Prtry"}, null]}
-                                    ]}},
+                                    {
+                                        "!": { "or": [
+                                            {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.Rsn.Cd"}, null]},
+                                            {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.Rsn.Prtry"}, null]}
+                                        ]}
+                                    },
                                     "Rejection reason code must be mapped to either Cd (standard) or Prtry (proprietary)",
                                     null
                                 ]},
@@ -85,10 +93,7 @@
                                     {"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.AddtlInf.0"}
                                 ]},
                                 { "if": [
-                                    {"!=": [
-                                        {"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.AddtlInf.0"},
-                                        {"cat": ["/", {"var": "temp_data.rejection_code"}, "/"]}
-                                    ]},
+                                    {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.StsRsnInf.AddtlInf.0"}, {"cat": ["/", {"var": "temp_data.rejection_code"}, "/"]}]},
                                     "Additional information should include rejection code in /CODE/ format",
                                     null
                                 ]},
@@ -111,12 +116,14 @@
                         {
                             "path": "temp_data.postc005_agents_error",
                             "logic": { "if": [
-                                {"!": { "and": [
-                                    {"var": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstgAgt.FinInstnId.BICFI"},
-                                    {"var": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstdAgt.FinInstnId.BICFI"},
-                                    {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstgAgt.FinInstnId.BICFI"}, "NOTPROVIDED"]},
-                                    {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstdAgt.FinInstnId.BICFI"}, "NOTPROVIDED"]}
-                                ]}},
+                                {
+                                    "!": { "and": [
+                                        {"var": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstgAgt.FinInstnId.BICFI"},
+                                        {"var": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstdAgt.FinInstnId.BICFI"},
+                                        {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstgAgt.FinInstnId.BICFI"}, "NOTPROVIDED"]},
+                                        {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.GrpHdr.InstdAgt.FinInstnId.BICFI"}, "NOTPROVIDED"]}
+                                    ]}
+                                },
                                 "Instructing and Instructed agents must be properly set from BAH translation",
                                 null
                             ]}
@@ -126,10 +133,7 @@
                             "logic": { "if": [
                                 {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
                                 { "if": [
-                                    {"!=": [
-                                        {"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlUETR"},
-                                        {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}
-                                    ]},
+                                    {"!=": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlUETR"}, {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}]},
                                     "UETR must be properly mapped to OriginalUETR field",
                                     null
                                 ]},
@@ -154,10 +158,12 @@
                             "logic": { "if": [
                                 {"var": "data.SwiftMT.fields.32A"},
                                 { "if": [
-                                    {"!": { "and": [
-                                        {"==": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlIntrBkSttlmAmt.@Ccy"}, {"var": "data.SwiftMT.fields.32A.currency"}]},
-                                        {"==": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlIntrBkSttlmAmt.$value"}, {"var": "data.SwiftMT.fields.32A.amount"}]}
-                                    ]}},
+                                    {
+                                        "!": { "and": [
+                                            {"==": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlIntrBkSttlmAmt.@Ccy"}, {"var": "data.SwiftMT.fields.32A.currency"}]},
+                                            {"==": [{"var": "data.Document.FIToFIPmtStsRpt.TxInfAndSts.OrgnlIntrBkSttlmAmt.$value"}, {"var": "data.SwiftMT.fields.32A.amount"}]}
+                                        ]}
+                                    },
                                     "Original amount and currency must match Field 32A values",
                                     null
                                 ]},

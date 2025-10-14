@@ -4,7 +4,7 @@
     "description": "Maps additional optional MT103 fields including Field 21, 26T, 13C, and settlement fields 53A/B per CBPR+ specification",
     "priority": 13,
     "condition": { "and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pacs.008.001.08"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pacs.008"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "pacs008-to-mt103-optional-fields"]},
         {"==": [{"var": "metadata.progress.task_id"}, "map_regulatory_reporting"]},
@@ -24,10 +24,10 @@
                             "logic": {
                                 "type_code": { "if": [
                                     { "and": [
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Purp.Cd"},
-                                        {"==": [{"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.Purp.Cd"}, 0, 1]}, "T"]}
+                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Purp.Cd"},
+                                        {"==": [{"substr": [{"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Purp.Cd"}, 0, 1]}, "T"]}
                                     ]},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Purp.Cd"},
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Purp.Cd"},
                                     null
                                 ]}
                             }
@@ -48,8 +48,8 @@
                             "path": "data.SwiftMT.fields.#21",
                             "logic": {
                                 "related_reference": { "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.TxId"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtId.TxId"},
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.PmtId.TxId"},
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.PmtId.TxId"},
                                     null
                                 ]}
                             }
@@ -70,30 +70,35 @@
                             "path": "data.SwiftMT.fields.#53",
                             "logic": { "if": [
                                 { "and": [
-                                    {"in": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"}, ["INDA", "INGA"]]},
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt"}
+                                    {
+                                        "in": [
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.SttlmMtd"},
+                                            ["INDA", "INGA"]
+                                        ]
+                                    },
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgt"}
                                 ]},
                                 { "if": [
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"},
                                     { "if": [
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct"},
+                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct"},
                                         {
                                             "A": {
-                                                "bic": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"},
+                                                "bic": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"},
                                                 "party_identifier": { "if": [
-                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.IBAN"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.IBAN"},
                                                     {
                                                         "cat": [
                                                             "/",
-                                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.IBAN"}
+                                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.IBAN"}
                                                         ]
                                                     },
                                                     { "if": [
-                                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"},
+                                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"},
                                                         {
                                                             "cat": [
                                                                 "/",
-                                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"}
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"}
                                                             ]
                                                         },
                                                         null
@@ -101,37 +106,37 @@
                                                 ]}
                                             }
                                         },
-                                        {"A": {"bic": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"}}}
+                                        {"A": {"bic": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"}}}
                                     ]},
                                     { "if": [
                                         { "or": [
-                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct"},
-                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct"},
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
                                         ]},
                                         {
                                             "B": {
                                                 "party_identifier": { "if": [
-                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.IBAN"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.IBAN"},
                                                     {
                                                         "cat": [
                                                             "/",
-                                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.IBAN"}
+                                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.IBAN"}
                                                         ]
                                                     },
                                                     { "if": [
-                                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"},
+                                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"},
                                                         {
                                                             "cat": [
                                                                 "/",
-                                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"}
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"}
                                                             ]
                                                         },
                                                         { "if": [
-                                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"},
                                                             {
                                                                 "cat": [
                                                                     "/",
-                                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
                                                                 ]
                                                             },
                                                             null
@@ -139,9 +144,9 @@
                                                     ]}
                                                 ]},
                                                 "location": { "if": [
-                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Nm"}
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Nm"}
                                                 ]}
                                             }
                                         },
@@ -150,21 +155,36 @@
                                 ]},
                                 { "if": [
                                     { "and": [
-                                        {"in": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"}, ["INDA", "INGA"]]},
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct"}
+                                        {
+                                            "in": [
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.SttlmMtd"},
+                                                ["INDA", "INGA"]
+                                            ]
+                                        },
+                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.SttlmAcct"}
                                     ]},
                                     {
                                         "B": {
                                             "party_identifier": { "if": [
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"},
-                                                {"cat": ["/", {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"}]},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"},
+                                                {
+                                                    "cat": [
+                                                        "/",
+                                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"}
+                                                    ]
+                                                },
                                                 { "if": [
-                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"},
-                                                    {"cat": ["/", {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}]},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"},
+                                                    {
+                                                        "cat": [
+                                                            "/",
+                                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}
+                                                        ]
+                                                    },
                                                     null
                                                 ]}
                                             ]},
-                                            "location": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Nm"}
+                                            "location": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.SttlmAcct.Nm"}
                                         }
                                     },
                                     null
@@ -190,50 +210,70 @@
                                     [
                                         { "if": [
                                             { "and": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"},
-                                                {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}}, 16]}
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"},
+                                                {">=": [{"length": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}}, 16]}
                                             ]},
                                             {
                                                 "code": "/SNDTIME/",
                                                 "time": {
                                                     "cat": [
                                                         {
-                                                            "substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, 11, 2]
+                                                            "substr": [
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"},
+                                                                11,
+                                                                2
+                                                            ]
                                                         },
                                                         {
-                                                            "substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, 14, 2]
+                                                            "substr": [
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"},
+                                                                14,
+                                                                2
+                                                            ]
                                                         }
                                                     ]
                                                 },
                                                 "sign": { "if": [
                                                     { "and": [
-                                                        {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}}, 20]},
-                                                        {"==": [{"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -1, 1]}, "Z"]}
+                                                        {">=": [{"length": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}}, 20]},
+                                                        {"==": [{"substr": [{"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -1, 1]}, "Z"]}
                                                     ]},
                                                     "+",
                                                     { "if": [
-                                                        {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}}, 25]},
+                                                        {">=": [{"length": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}}, 25]},
                                                         {
-                                                            "substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -6, 1]
+                                                            "substr": [
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"},
+                                                                -6,
+                                                                1
+                                                            ]
                                                         },
                                                         "+"
                                                     ]}
                                                 ]},
                                                 "offset": { "if": [
                                                     { "and": [
-                                                        {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}}, 20]},
-                                                        {"==": [{"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -1, 1]}, "Z"]}
+                                                        {">=": [{"length": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}}, 20]},
+                                                        {"==": [{"substr": [{"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -1, 1]}, "Z"]}
                                                     ]},
                                                     "0000",
                                                     { "if": [
-                                                        {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}}, 25]},
+                                                        {">=": [{"length": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}}, 25]},
                                                         {
                                                             "cat": [
                                                                 {
-                                                                    "substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -5, 2]
+                                                                    "substr": [
+                                                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"},
+                                                                        -5,
+                                                                        2
+                                                                    ]
                                                                 },
                                                                 {
-                                                                    "substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"}, -2, 2]
+                                                                    "substr": [
+                                                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.DbtDtTm"},
+                                                                        -2,
+                                                                        2
+                                                                    ]
                                                                 }
                                                             ]
                                                         },
@@ -245,50 +285,70 @@
                                         ]},
                                         { "if": [
                                             { "and": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"},
-                                                {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}}, 16]}
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"},
+                                                {">=": [{"length": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}}, 16]}
                                             ]},
                                             {
                                                 "code": "/RNCTIME/",
                                                 "time": {
                                                     "cat": [
                                                         {
-                                                            "substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, 11, 2]
+                                                            "substr": [
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"},
+                                                                11,
+                                                                2
+                                                            ]
                                                         },
                                                         {
-                                                            "substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, 14, 2]
+                                                            "substr": [
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"},
+                                                                14,
+                                                                2
+                                                            ]
                                                         }
                                                     ]
                                                 },
                                                 "sign": { "if": [
                                                     { "and": [
-                                                        {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}}, 20]},
-                                                        {"==": [{"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -1, 1]}, "Z"]}
+                                                        {">=": [{"length": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}}, 20]},
+                                                        {"==": [{"substr": [{"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -1, 1]}, "Z"]}
                                                     ]},
                                                     "+",
                                                     { "if": [
-                                                        {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}}, 25]},
+                                                        {">=": [{"length": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}}, 25]},
                                                         {
-                                                            "substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -6, 1]
+                                                            "substr": [
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"},
+                                                                -6,
+                                                                1
+                                                            ]
                                                         },
                                                         "+"
                                                     ]}
                                                 ]},
                                                 "offset": { "if": [
                                                     { "and": [
-                                                        {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}}, 20]},
-                                                        {"==": [{"substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -1, 1]}, "Z"]}
+                                                        {">=": [{"length": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}}, 20]},
+                                                        {"==": [{"substr": [{"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -1, 1]}, "Z"]}
                                                     ]},
                                                     "0000",
                                                     { "if": [
-                                                        {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}}, 25]},
+                                                        {">=": [{"length": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}}, 25]},
                                                         {
                                                             "cat": [
                                                                 {
-                                                                    "substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -5, 2]
+                                                                    "substr": [
+                                                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"},
+                                                                        -5,
+                                                                        2
+                                                                    ]
                                                                 },
                                                                 {
-                                                                    "substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"}, -2, 2]
+                                                                    "substr": [
+                                                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmIndctn.CdtDtTm"},
+                                                                        -2,
+                                                                        2
+                                                                    ]
                                                                 }
                                                             ]
                                                         },
@@ -300,18 +360,26 @@
                                         ]},
                                         { "if": [
                                             { "and": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.CLSTm"},
-                                                {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.CLSTm"}}, 5]}
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmReq.CLSTm"},
+                                                {">=": [{"length": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmReq.CLSTm"}}, 5]}
                                             ]},
                                             {
                                                 "code": "/CLSTIME/",
                                                 "time": {
                                                     "cat": [
                                                         {
-                                                            "substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.CLSTm"}, 0, 2]
+                                                            "substr": [
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmReq.CLSTm"},
+                                                                0,
+                                                                2
+                                                            ]
                                                         },
                                                         {
-                                                            "substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.CLSTm"}, 3, 2]
+                                                            "substr": [
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmReq.CLSTm"},
+                                                                3,
+                                                                2
+                                                            ]
                                                         }
                                                     ]
                                                 },
@@ -322,18 +390,26 @@
                                         ]},
                                         { "if": [
                                             { "and": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.TillTm"},
-                                                {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.TillTm"}}, 5]}
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmReq.TillTm"},
+                                                {">=": [{"length": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmReq.TillTm"}}, 5]}
                                             ]},
                                             {
                                                 "code": "/TILTIME/",
                                                 "time": {
                                                     "cat": [
                                                         {
-                                                            "substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.TillTm"}, 0, 2]
+                                                            "substr": [
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmReq.TillTm"},
+                                                                0,
+                                                                2
+                                                            ]
                                                         },
                                                         {
-                                                            "substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.TillTm"}, 3, 2]
+                                                            "substr": [
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmReq.TillTm"},
+                                                                3,
+                                                                2
+                                                            ]
                                                         }
                                                     ]
                                                 },
@@ -344,18 +420,26 @@
                                         ]},
                                         { "if": [
                                             { "and": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.FrTm"},
-                                                {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.FrTm"}}, 5]}
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmReq.FrTm"},
+                                                {">=": [{"length": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmReq.FrTm"}}, 5]}
                                             ]},
                                             {
                                                 "code": "/FROTIME/",
                                                 "time": {
                                                     "cat": [
                                                         {
-                                                            "substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.FrTm"}, 0, 2]
+                                                            "substr": [
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmReq.FrTm"},
+                                                                0,
+                                                                2
+                                                            ]
                                                         },
                                                         {
-                                                            "substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.FrTm"}, 3, 2]
+                                                            "substr": [
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmReq.FrTm"},
+                                                                3,
+                                                                2
+                                                            ]
                                                         }
                                                     ]
                                                 },
@@ -366,18 +450,26 @@
                                         ]},
                                         { "if": [
                                             { "and": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.RjctTm"},
-                                                {">=": [{"length": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.RjctTm"}}, 5]}
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmReq.RjctTm"},
+                                                {">=": [{"length": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmReq.RjctTm"}}, 5]}
                                             ]},
                                             {
                                                 "code": "/REJTIME/",
                                                 "time": {
                                                     "cat": [
                                                         {
-                                                            "substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.RjctTm"}, 0, 2]
+                                                            "substr": [
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmReq.RjctTm"},
+                                                                0,
+                                                                2
+                                                            ]
                                                         },
                                                         {
-                                                            "substr": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.SttlmTmReq.RjctTm"}, 3, 2]
+                                                            "substr": [
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.SttlmTmReq.RjctTm"},
+                                                                3,
+                                                                2
+                                                            ]
                                                         }
                                                     ]
                                                 },

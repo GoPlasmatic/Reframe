@@ -4,7 +4,7 @@
     "description": "Validates preconditions for camt.106 to MT191/MT291 transformation per CBPR+ specification",
     "priority": 3,
     "condition": { "and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "camt.106.001.02"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "camt.106"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "camt106-variant-detection"]},
         {"==": [{"var": "metadata.progress.task_id"}, "detect_target_message"]},
@@ -21,14 +21,14 @@
                     "rules": [
                         {
                             "path": "data",
-                            "logic": {"!=": [{"var": "data.ISO20022_MX.header.BizSvc"}, "swift.cbprplus.mlp.01"]},
+                            "logic": {"!=": [{"var": "data.ISO20022_MX.AppHdr.BizSvc"}, "swift.cbprplus.mlp.01"]},
                             "message": "T20287: PREC001: Multiple records not supported - 1 Record => 1 MT n91"
                         },
                         {
                             "path": "data",
                             "logic": { "and": [
-                                {"==": [{"type": {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.ChrgsBrkdwn"}}, "array"]},
-                                {"<=": [{"length": {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.ChrgsBrkdwn"}}, 6]}
+                                {"==": [{"type": {"var": "data.ISO20022_MX.Document.ChrgsPmtReq.Chrgs.PerTx.Rcrd.ChrgsBrkdwn"}}, "array"]},
+                                {"<=": [{"length": {"var": "data.ISO20022_MX.Document.ChrgsPmtReq.Chrgs.PerTx.Rcrd.ChrgsBrkdwn"}}, 6]}
                             ]},
                             "message": "T20288: PREC002: Max 6 amounts can be translated in Field 71B"
                         },
@@ -36,8 +36,8 @@
                             "path": "data",
                             "logic": {
                                 "some": [
-                                    {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.ChrgsBrkdwn"},
-                                    {"<=": [{"length": [{"cat": ["", {"var": "data.ISO20022_MX.document.Chrgs.PerTx.Rcrd.ChrgsBrkdwn.Amt.$value"}]}]}, 13]}
+                                    {"var": "data.ISO20022_MX.Document.ChrgsPmtReq.Chrgs.PerTx.Rcrd.ChrgsBrkdwn"},
+                                    {"<=": [{"length": [{"cat": ["", {"var": "data.ISO20022_MX.Document.ChrgsPmtReq.Chrgs.PerTx.Rcrd.ChrgsBrkdwn.Amt.$value"}]}]}, 13]}
                                 ]
                             },
                             "message": "T20289: PREC003: Amount exceeds max 13 digits in MT, decimal included"

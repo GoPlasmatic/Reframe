@@ -4,7 +4,7 @@
     "description": "Maps balance fields per specification (TR004, TR008-011)",
     "priority": 6,
     "condition": { "and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "camt.053.001.08"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "camt.053"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "camt053-mandatory-fields-mapping"]},
         {"==": [{"var": "metadata.progress.task_id"}, "map_field_28C"]},
@@ -23,42 +23,49 @@
                             "path": "temp_data.opening_balance",
                             "logic": {
                                 "filter": [
-                                    {"var": "data.ISO20022_MX.document.Stmt.Bal"},
+                                    {"var": "data.ISO20022_MX.Document.BkToCstmrStmt.Stmt.Bal"},
                                     {"==": [{"var": "Tp.CdOrPrtry.Cd"}, "OPBD"]}
                                 ]
                             }
                         },
                         {
-                            "path": "data.SwiftMT.fields.#60",
+                            "path": "data.SwiftMT.fields.60F",
                             "logic": { "if": [
                                 { "and": [
-                                    {"==": [{"var": "data.ISO20022_MX.document.Stmt.StmtPgntn.PgNb"}, "1"]},
+                                    {"==": [{"var": "data.ISO20022_MX.Document.BkToCstmrStmt.Stmt.StmtPgntn.PgNb"}, "1"]},
                                     {"exists": ["temp_data", "opening_balance"]}
                                 ]},
                                 {
-                                    "F": {
-                                        "debit_credit_mark": { "if": [
-                                            {"==": [{"var": "temp_data.opening_balance.0.CdtDbtInd"}, "CRDT"]},
-                                            "C",
-                                            "D"
-                                        ]},
-                                        "value_date": {"var": "temp_data.opening_balance.0.Dt.Dt"},
-                                        "currency": {"var": "temp_data.opening_balance.0.Amt.@Ccy"},
-                                        "amount": {"var": "temp_data.opening_balance.0.Amt.$value"}
-                                    }
+                                    "debit_credit_mark": { "if": [
+                                        {"==": [{"var": "temp_data.opening_balance.0.CdtDbtInd"}, "CRDT"]},
+                                        "C",
+                                        "D"
+                                    ]},
+                                    "value_date": {"var": "temp_data.opening_balance.0.Dt.Dt"},
+                                    "currency": {"var": "temp_data.opening_balance.0.Amt.@Ccy"},
+                                    "amount": {"var": "temp_data.opening_balance.0.Amt.$value"}
                                 },
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.60M",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"!=": [{"var": "data.ISO20022_MX.Document.BkToCstmrStmt.Stmt.StmtPgntn.PgNb"}, "1"]},
+                                    {"exists": ["temp_data", "opening_balance"]}
+                                ]},
                                 {
-                                    "M": {
-                                        "debit_credit_mark": { "if": [
-                                            {"==": [{"var": "temp_data.opening_balance.0.CdtDbtInd"}, "CRDT"]},
-                                            "C",
-                                            "D"
-                                        ]},
-                                        "value_date": {"var": "temp_data.opening_balance.0.Dt.Dt"},
-                                        "currency": {"var": "temp_data.opening_balance.0.Amt.@Ccy"},
-                                        "amount": {"var": "temp_data.opening_balance.0.Amt.$value"}
-                                    }
-                                }
+                                    "debit_credit_mark": { "if": [
+                                        {"==": [{"var": "temp_data.opening_balance.0.CdtDbtInd"}, "CRDT"]},
+                                        "C",
+                                        "D"
+                                    ]},
+                                    "value_date": {"var": "temp_data.opening_balance.0.Dt.Dt"},
+                                    "currency": {"var": "temp_data.opening_balance.0.Amt.@Ccy"},
+                                    "amount": {"var": "temp_data.opening_balance.0.Amt.$value"}
+                                },
+                                null
                             ]}
                         }
                     ]
@@ -77,42 +84,49 @@
                             "path": "temp_data.closing_balance",
                             "logic": {
                                 "filter": [
-                                    {"var": "data.ISO20022_MX.document.Stmt.Bal"},
+                                    {"var": "data.ISO20022_MX.Document.BkToCstmrStmt.Stmt.Bal"},
                                     {"==": [{"var": "Tp.CdOrPrtry.Cd"}, "CLBD"]}
                                 ]
                             }
                         },
                         {
-                            "path": "data.SwiftMT.fields.#62",
+                            "path": "data.SwiftMT.fields.62F",
                             "logic": { "if": [
                                 { "and": [
-                                    {"==": [{"var": "data.ISO20022_MX.document.Stmt.StmtPgntn.LastPgInd"}, true]},
+                                    {"==": [{"var": "data.ISO20022_MX.Document.BkToCstmrStmt.Stmt.StmtPgntn.LastPgInd"}, true]},
                                     {"exists": ["temp_data", "closing_balance"]}
                                 ]},
                                 {
-                                    "F": {
-                                        "debit_credit_mark": { "if": [
-                                            {"==": [{"var": "temp_data.closing_balance.0.CdtDbtInd"}, "CRDT"]},
-                                            "C",
-                                            "D"
-                                        ]},
-                                        "value_date": {"var": "temp_data.closing_balance.0.Dt.Dt"},
-                                        "currency": {"var": "temp_data.closing_balance.0.Amt.@Ccy"},
-                                        "amount": {"var": "temp_data.closing_balance.0.Amt.$value"}
-                                    }
+                                    "debit_credit_mark": { "if": [
+                                        {"==": [{"var": "temp_data.closing_balance.0.CdtDbtInd"}, "CRDT"]},
+                                        "C",
+                                        "D"
+                                    ]},
+                                    "value_date": {"var": "temp_data.closing_balance.0.Dt.Dt"},
+                                    "currency": {"var": "temp_data.closing_balance.0.Amt.@Ccy"},
+                                    "amount": {"var": "temp_data.closing_balance.0.Amt.$value"}
                                 },
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.62M",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"!=": [{"var": "data.ISO20022_MX.Document.BkToCstmrStmt.Stmt.StmtPgntn.LastPgInd"}, true]},
+                                    {"exists": ["temp_data", "closing_balance"]}
+                                ]},
                                 {
-                                    "M": {
-                                        "debit_credit_mark": { "if": [
-                                            {"==": [{"var": "temp_data.closing_balance.0.CdtDbtInd"}, "CRDT"]},
-                                            "C",
-                                            "D"
-                                        ]},
-                                        "value_date": {"var": "temp_data.closing_balance.0.Dt.Dt"},
-                                        "currency": {"var": "temp_data.closing_balance.0.Amt.@Ccy"},
-                                        "amount": {"var": "temp_data.closing_balance.0.Amt.$value"}
-                                    }
-                                }
+                                    "debit_credit_mark": { "if": [
+                                        {"==": [{"var": "temp_data.closing_balance.0.CdtDbtInd"}, "CRDT"]},
+                                        "C",
+                                        "D"
+                                    ]},
+                                    "value_date": {"var": "temp_data.closing_balance.0.Dt.Dt"},
+                                    "currency": {"var": "temp_data.closing_balance.0.Amt.@Ccy"},
+                                    "amount": {"var": "temp_data.closing_balance.0.Amt.$value"}
+                                },
+                                null
                             ]}
                         }
                     ]
@@ -131,13 +145,13 @@
                             "path": "temp_data.available_balance",
                             "logic": {
                                 "filter": [
-                                    {"var": "data.ISO20022_MX.document.Stmt.Bal"},
+                                    {"var": "data.ISO20022_MX.Document.BkToCstmrStmt.Stmt.Bal"},
                                     {"==": [{"var": "Tp.CdOrPrtry.Cd"}, "CLAV"]}
                                 ]
                             }
                         },
                         {
-                            "path": "data.SwiftMT.fields.#64",
+                            "path": "data.SwiftMT.fields.64",
                             "logic": { "if": [
                                 {"exists": ["temp_data", "available_balance", "0"]},
                                 {

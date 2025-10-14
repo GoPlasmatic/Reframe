@@ -4,7 +4,7 @@
     "description": "Validates postconditions and generates MT110 message",
     "priority": 5,
     "condition": { "and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "camt.107.001.01"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "camt.107"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "camt107-to-mt110-mapping"]},
         {"==": [{"var": "metadata.progress.task_id"}, "map_mt110_structure"]},
@@ -43,16 +43,16 @@
                             "path": "data",
                             "message": "Either Field 32A or 32B must be present in first cheque",
                             "logic": { "or": [
-                                {"!!": {"var": "data.SwiftMT.fields.#.0.32.A"}},
-                                {"!!": {"var": "data.SwiftMT.fields.#.0.32.B"}}
+                                {"!!": {"var": "data.SwiftMT.fields.#.0.32A"}},
+                                {"!!": {"var": "data.SwiftMT.fields.#.0.32B"}}
                             ]}
                         },
                         {
                             "path": "data",
                             "message": "Field 59 (Payee) must be present in first cheque",
                             "logic": { "or": [
-                                {"!!": {"var": "data.SwiftMT.fields.#.0.59.NoOption"}},
-                                {"!!": {"var": "data.SwiftMT.fields.#.0.59.F"}}
+                                {"!!": {"var": "data.SwiftMT.fields.#.0.59"}},
+                                {"!!": {"var": "data.SwiftMT.fields.#.0.59F"}}
                             ]}
                         }
                     ]
@@ -68,14 +68,7 @@
                 {"==": [{"var": "metadata.progress.task_id"}, "validate_postconditions"]},
                 {"==": [{"var": "metadata.progress.status_code"}, 200]}
             ]},
-            "function": {
-                "name": "PublishMT",
-                "input": {
-                    "input_field_name": "SwiftMT",
-                    "output_field_name": "result",
-                    "source_format": "camt.107.001.01"
-                }
-            }
+            "function": {"name": "publish_mt", "input": {"source": "SwiftMT", "target": "result"}}
         }
     ]
 }

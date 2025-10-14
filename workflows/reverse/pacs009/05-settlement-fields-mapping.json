@@ -4,7 +4,7 @@
     "description": "Maps settlement fields from pacs.009 to MT202 according to CBPR+ specification (Fields 53 and 54) for CORE/COVE/ADV variants - TR003, TR015",
     "priority": 6,
     "condition": { "and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pacs.009.001.08"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pacs.009"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "pacs009-to-mt202-mandatory-fields"]},
         {"==": [{"var": "metadata.progress.task_id"}, "map_field_32a"]},
@@ -22,8 +22,8 @@
                         {
                             "path": "temp_data.use_clearing_codes",
                             "logic": { "or": [
-                                {"==": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"}, "INGA"]},
-                                {"==": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"}, "INDA"]}
+                                {"==": [{"var": "data.ISO20022_MX.Document.FICdtTrf.GrpHdr.SttlmInf.SttlmMtd"}, "INGA"]},
+                                {"==": [{"var": "data.ISO20022_MX.Document.FICdtTrf.GrpHdr.SttlmInf.SttlmMtd"}, "INDA"]}
                             ]}
                         }
                     ]
@@ -39,38 +39,31 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#53.A.bic",
-                            "logic": { "if": [
-                                { "and": [
-                                    {"var": "temp_data.use_clearing_codes"},
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct"}
-                                ]},
-                                { "if": [
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"},
-                                    null
-                                ]},
-                                { "if": [
-                                    { "and": [
-                                        {"==": [{"var": "temp_data.pacs009_variant"}, "ADV"]},
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"}
-                                    ]},
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"},
-                                    null
-                                ]}
-                            ]}
+                            "path": "data.SwiftMT.fields.53A",
+                            "condition": { "and": [
+                                {"var": "temp_data.use_clearing_codes"},
+                                {"var": "data.ISO20022_MX.Document.FICdtTrf.GrpHdr.SttlmInf.SttlmAcct"},
+                                {"var": "data.ISO20022_MX.Document.FICdtTrf.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"}
+                            ]},
+                            "logic": {"bic": {"var": "data.ISO20022_MX.Document.FICdtTrf.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"}}
                         },
                         {
-                            "path": "data.SwiftMT.fields.#53.B.party_identifier",
-                            "logic": { "if": [
-                                { "and": [
-                                    {"var": "temp_data.use_clearing_codes"},
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct"},
-                                    {"!": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"}}
-                                ]},
-                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"},
-                                null
-                            ]}
+                            "path": "data.SwiftMT.fields.53A",
+                            "condition": { "and": [
+                                {"==": [{"var": "temp_data.pacs009_variant"}, "ADV"]},
+                                {"var": "data.ISO20022_MX.Document.FICdtTrf.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"}
+                            ]},
+                            "logic": {"bic": {"var": "data.ISO20022_MX.Document.FICdtTrf.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"}}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.53B",
+                            "condition": { "and": [
+                                {"var": "temp_data.use_clearing_codes"},
+                                {"var": "data.ISO20022_MX.Document.FICdtTrf.GrpHdr.SttlmInf.SttlmAcct"},
+                                {"!": {"var": "data.ISO20022_MX.Document.FICdtTrf.GrpHdr.SttlmInf.InstrgRmbrsmntAgt.FinInstnId.BICFI"}},
+                                {"var": "data.ISO20022_MX.Document.FICdtTrf.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"}
+                            ]},
+                            "logic": {"party_identifier": {"var": "data.ISO20022_MX.Document.FICdtTrf.GrpHdr.SttlmInf.SttlmAcct.Id.IBAN"}}
                         }
                     ]
                 }
@@ -85,15 +78,12 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#54.A.bic",
-                            "logic": { "if": [
-                                { "and": [
-                                    {"==": [{"var": "temp_data.pacs009_variant"}, "ADV"]},
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"}
-                                ]},
-                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"},
-                                null
-                            ]}
+                            "path": "data.SwiftMT.fields.54A",
+                            "condition": { "and": [
+                                {"==": [{"var": "temp_data.pacs009_variant"}, "ADV"]},
+                                {"var": "data.ISO20022_MX.Document.FICdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"}
+                            ]},
+                            "logic": {"bic": {"var": "data.ISO20022_MX.Document.FICdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"}}
                         }
                     ]
                 }

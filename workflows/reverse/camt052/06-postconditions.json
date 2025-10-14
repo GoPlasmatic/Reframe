@@ -4,7 +4,7 @@
     "description": "Applies postconditions per specification (POSTC001-003) and generates MT942",
     "priority": 7,
     "condition": { "and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "camt.052.001.08"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "camt.052"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "camt052-transaction-fields-mapping"]},
         {"==": [{"var": "metadata.progress.status_code"}, 200]}
@@ -34,8 +34,8 @@
                             "message": "T20117: Field 28C is mandatory for MT942"
                         },
                         {
-                            "path": "data.SwiftMT.fields.34F#1",
-                            "logic": {"exists": ["data", "SwiftMT", "fields", "34F#1"]},
+                            "path": "data.SwiftMT.fields.34F_debit",
+                            "logic": {"exists": ["data", "SwiftMT", "fields", "34F_debit"]},
                             "message": "T20123: Field 34F (debit floor limit) is mandatory for MT942"
                         },
                         {
@@ -51,14 +51,7 @@
             "id": "generate_mt942",
             "name": "Generate MT942",
             "description": "Generate the final MT942 message",
-            "function": {
-                "name": "PublishMT",
-                "input": {
-                    "input_field_name": "SwiftMT",
-                    "output_field_name": "result",
-                    "source_format": "camt.052.001.08"
-                }
-            }
+            "function": {"name": "publish_mt", "input": {"source": "SwiftMT", "target": "result"}}
         }
     ]
 }

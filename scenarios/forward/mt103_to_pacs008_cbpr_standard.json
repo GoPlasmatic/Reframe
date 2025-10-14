@@ -8,9 +8,11 @@
         "receiver_bic": {"fake": ["bic"]},
         "intermediary_bic": {"fake": ["bic"]},
         "account_with_bank_bic": {"fake": ["bic"]},
-        "transaction_ref": {"cat": ["CBP", {"fake": ["i64", 1000000000, 9999999999]}]},
-        "currency": {"fake": ["currency_code"]},
-        "amount": {"fake": ["f64", 50000.0, 5000000.0]},
+        "transaction_ref": {"cat": ["CBP", {"fake": ["u64", 1000000000, 9999999999]}]},
+        "currency": {
+            "fake": ["enum", "USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD", "SEK", "NOK"]
+        },
+        "amount": {"fake": ["u64", 5000000, 500000000]},
         "value_date": {
             "fake": ["date", "%y-%m-%d", "+1d", "+5d"]
         },
@@ -28,7 +30,7 @@
         "beneficiary_country": {"fake": ["country_code"]},
         "remit_info": {"fake": ["words", 3, 5]},
         "instruction_code": "URGP",
-        "regulatory_ref": {"cat": ["REG", {"fake": ["i64", 100000, 999999]}]}
+        "regulatory_ref": {"cat": ["REG", {"fake": ["u64", 100000, 999999]}]}
     },
     "schema": {
         "basic_header": {
@@ -37,7 +39,7 @@
             "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
             "sender_bic": {"var": "sender_bic"},
             "session_number": "0001",
-            "sequence_number": {"cat": ["", {"fake": ["i64", 100000, 999999]}]}
+            "sequence_number": {"cat": ["", {"fake": ["u64", 100000, 999999]}]}
         },
         "application_header": {
             "direction": "I",
@@ -59,10 +61,16 @@
             "13C": [
                 {
                     "code": "SNDTIME",
-                    "time": {"cat": [
-                        {"substr" : [{"fake": ["time"]}, 0, 2]},
-                        {"substr": [{"fake": ["time"]}, 3, 2]}
-                    ]},
+                    "time": {
+                        "cat": [
+                            {
+                                "substr": [{"fake": ["time"]}, 0, 2]
+                            },
+                            {
+                                "substr": [{"fake": ["time"]}, 3, 2]
+                            }
+                        ]
+                    },
                     "sign": "+",
                     "offset": "0100"
                 }
@@ -73,37 +81,41 @@
                 "currency": {"var": "currency"},
                 "amount": {"var": "amount"}
             },
-            "50": {
-                "K": {
-                    "account": {"cat": ["/", {"fake": ["iban"]}]},
-                    "name_and_address": [
-                        {"var": "ordering_customer_name"},
-                        {"cat": ["/LEI/", {"var": "ordering_customer_lei"}]},
-                        {"var": "ordering_customer_address"},
-                        {"var": "ordering_customer_country"}
-                    ]
-                }
+            "50K": {
+                "account": {"cat": ["/", {"fake": ["iban"]}]},
+                "name_and_address": [
+                    {"var": "ordering_customer_name"},
+                    {"cat": ["/LEI/", {"var": "ordering_customer_lei"}]},
+                    {"var": "ordering_customer_address"},
+                    {"var": "ordering_customer_country"}
+                ]
             },
-            "52": {"A": {"bic": {"var": "sender_bic"}}},
-            "56": {"A": {"bic": {"var": "intermediary_bic"}}},
-            "57": {"A": {"bic": {"var": "account_with_bank_bic"}}},
+            "52A": {"bic": {"var": "sender_bic"}},
+            "56A": {"bic": {"var": "intermediary_bic"}},
+            "57A": {"bic": {"var": "account_with_bank_bic"}},
             "59": {
-                "NoOption": {
-                    "account": {"cat": ["/", {"fake": ["iban"]}]},
-                    "name_and_address": [
-                        {"var": "beneficiary_name"},
-                        {"cat": ["/LEI/", {"var": "beneficiary_lei"}]},
-                        {"var": "beneficiary_address"},
-                        {"var": "beneficiary_country"}
-                    ]
-                }
+                "account": {"cat": ["/", {"fake": ["iban"]}]},
+                "name_and_address": [
+                    {"var": "beneficiary_name"},
+                    {"cat": ["/LEI/", {"var": "beneficiary_lei"}]},
+                    {"var": "beneficiary_address"},
+                    {"var": "beneficiary_country"}
+                ]
             },
             "70": {
                 "narrative": [
-                    {"substr": [{"cat": ["/RFB/", {"var": "remit_info"}]}, 0, 35]},
-                    {"substr": [{"cat": ["/PURP/", {"var": "purpose_code"}]}, 0, 35]},
-                    {"substr": [{"cat": ["/ULTD/", {"var": "ordering_customer_lei"}]}, 0, 35]},
-                    {"substr": [{"cat": ["/ULTB/", {"var": "beneficiary_lei"}]}, 0, 35]}
+                    {
+                        "substr": [{"cat": ["/RFB/", {"var": "remit_info"}]}, 0, 35]
+                    },
+                    {
+                        "substr": [{"cat": ["/PURP/", {"var": "purpose_code"}]}, 0, 35]
+                    },
+                    {
+                        "substr": [{"cat": ["/ULTD/", {"var": "ordering_customer_lei"}]}, 0, 35]
+                    },
+                    {
+                        "substr": [{"cat": ["/ULTB/", {"var": "beneficiary_lei"}]}, 0, 35]
+                    }
                 ]
             },
             "71A": {"code": {"var": "charges"}},

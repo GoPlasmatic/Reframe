@@ -7,7 +7,7 @@
         {"==": [{"var": "metadata.SwiftMT.message_type"}, "202"]},
         {"==": [{"var": "metadata.SwiftMT.method"}, "return"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "mt202-retn-bah-mapper"]},
-        {"==": [{"var": "metadata.progress.task_id"}, "publish_retn_header_xml"]},
+        {"==": [{"var": "metadata.progress.task_id"}, "construct_business_application_header"]},
         {"==": [{"var": "metadata.progress.status_code"}, 200]}
     ]},
     "tasks": [
@@ -22,29 +22,35 @@
                         {
                             "path": "temp_data.validation_error",
                             "logic": { "if": [
-                                { "!": { "and": [
-                                    {"var": "temp_data.Sender"},
-                                    {"var": "temp_data.Receiver"},
-                                    {"!=": [{"var": "temp_data.Sender"}, "NOTPROVIDED"]},
-                                    {"!=": [{"var": "temp_data.Receiver"}, "NOTPROVIDED"]}
-                                ]}},
+                                {
+                                    "!": { "and": [
+                                        {"var": "temp_data.Sender"},
+                                        {"var": "temp_data.Receiver"},
+                                        {"!=": [{"var": "temp_data.Sender"}, "NOTPROVIDED"]},
+                                        {"!=": [{"var": "temp_data.Receiver"}, "NOTPROVIDED"]}
+                                    ]}
+                                },
                                 "Translation stopped: TempSender or TempReceiver is not properly provided from TR001",
                                 { "if": [
-                                    { "!": { "if": [
-                                        {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
-                                        {">=": [{"length": {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}}, 36]},
-                                        false
-                                    ]}},
+                                    {
+                                        "!": { "if": [
+                                            {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"},
+                                            {">=": [{"length": {"var": "data.SwiftMT.user_header.unique_end_to_end_reference"}}, 36]},
+                                            false
+                                        ]}
+                                    },
                                     "T20087: UETR is required and must be properly formatted for MT202 RETN messages",
                                     { "if": [
-                                        { "!": { "and": [
-                                            {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 0]},
-                                            {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]},
-                                            {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 1]},
-                                            {"match": [{"var": "data.SwiftMT.fields.72.information.1"}, "^/[A-Z]{2}[0-9]{2}/$"]},
-                                            {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 2]},
-                                            {"starts_with": [{"var": "data.SwiftMT.fields.72.information.2"}, "/MREF/"]}
-                                        ]}},
+                                        {
+                                            "!": { "and": [
+                                                {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 0]},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.72.information.0"}, "/RETN/"]},
+                                                {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 1]},
+                                                {"match": [{"var": "data.SwiftMT.fields.72.information.1"}, "^/[A-Z]{2}[0-9]{2}/$"]},
+                                                {">": [{"length": {"var": "data.SwiftMT.fields.72.information"}}, 2]},
+                                                {"starts_with": [{"var": "data.SwiftMT.fields.72.information.2"}, "/MREF/"]}
+                                            ]}
+                                        },
                                         "T20314: Field 72 format invalid - Line 1 must be /RETN/, Line 2 must follow /[A-Z]{2}[0-9]{2}/ pattern, Line 3 must start with /MREF/",
                                         null
                                     ]}
@@ -188,36 +194,40 @@
                                 {"var": "temp_data.validation_error"},
                                 {"var": "temp_data.validation_error"},
                                 { "if": [
-                                    { "!": { "and": [
-                                        {"var": "data.SwiftMT.fields.20.reference"},
-                                        {"var": "data.SwiftMT.fields.21.reference"},
-                                        {"var": "data.SwiftMT.fields.32A"},
-                                        {"var": "data.SwiftMT.fields.32A.value_date"},
-                                        {"var": "data.SwiftMT.fields.32A.currency"},
-                                        {"var": "data.SwiftMT.fields.32A.amount"},
-                                        {"!=": [{"var": "data.SwiftMT.fields.20.reference"}, ""]},
-                                        {"!=": [{"var": "data.SwiftMT.fields.21.reference"}, ""]},
-                                        {"!=": [{"var": "data.SwiftMT.fields.32A.currency"}, ""]},
-                                        {"!=": [{"var": "data.SwiftMT.fields.32A.value_date"}, ""]},
-                                        {">=": [{"var": "data.SwiftMT.fields.32A.amount"}, 0]}
-                                    ]}},
+                                    {
+                                        "!": { "and": [
+                                            {"var": "data.SwiftMT.fields.20.reference"},
+                                            {"var": "data.SwiftMT.fields.21.reference"},
+                                            {"var": "data.SwiftMT.fields.32A"},
+                                            {"var": "data.SwiftMT.fields.32A.value_date"},
+                                            {"var": "data.SwiftMT.fields.32A.currency"},
+                                            {"var": "data.SwiftMT.fields.32A.amount"},
+                                            {"!=": [{"var": "data.SwiftMT.fields.20.reference"}, ""]},
+                                            {"!=": [{"var": "data.SwiftMT.fields.21.reference"}, ""]},
+                                            {"!=": [{"var": "data.SwiftMT.fields.32A.currency"}, ""]},
+                                            {"!=": [{"var": "data.SwiftMT.fields.32A.value_date"}, ""]},
+                                            {">=": [{"var": "data.SwiftMT.fields.32A.amount"}, 0]}
+                                        ]}
+                                    },
                                     "T20070: Mandatory MT202 RETN fields (20, 21, 32A) are missing or invalid",
                                     { "if": [
-                                        { "!": { "and": [
-                                            { "or": [
-                                                {"var": "data.SwiftMT.fields.52.A"},
-                                                {"var": "data.SwiftMT.fields.52.D"}
-                                            ]},
-                                            { "or": [
-                                                {"var": "data.SwiftMT.fields.57.A"},
-                                                {"var": "data.SwiftMT.fields.57.B"},
-                                                {"var": "data.SwiftMT.fields.57.D"}
-                                            ]},
-                                            { "or": [
-                                                {"var": "data.SwiftMT.fields.58.A"},
-                                                {"var": "data.SwiftMT.fields.58.D"}
+                                        {
+                                            "!": { "and": [
+                                                { "or": [
+                                                    {"var": "data.SwiftMT.fields.52.A"},
+                                                    {"var": "data.SwiftMT.fields.52.D"}
+                                                ]},
+                                                { "or": [
+                                                    {"var": "data.SwiftMT.fields.57.A"},
+                                                    {"var": "data.SwiftMT.fields.57.B"},
+                                                    {"var": "data.SwiftMT.fields.57.D"}
+                                                ]},
+                                                { "or": [
+                                                    {"var": "data.SwiftMT.fields.58.A"},
+                                                    {"var": "data.SwiftMT.fields.58.D"}
+                                                ]}
                                             ]}
-                                        ]}},
+                                        },
                                         "T20071: Fields 52a, 57a, and 58a are mandatory for MT202 RETN",
                                         null
                                     ]}

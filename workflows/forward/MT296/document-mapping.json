@@ -20,7 +20,7 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.Document.RsltnOfInvstgtn",
+                            "path": "data.MxEnvelope.Document.RsltnOfInvstgtn",
                             "logic": {
                                 "Assgnmt": {
                                     "Id": { "if": [
@@ -47,7 +47,7 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.Document.RsltnOfInvstgtn.Sts",
+                            "path": "data.MxEnvelope.Document.RsltnOfInvstgtn.Sts",
                             "logic": {
                                 "Conf": { "if": [
                                     {"var": "temp_data.field76_status_code"},
@@ -81,7 +81,7 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.Document.RsltnOfInvstgtn.CxlDtls",
+                            "path": "data.MxEnvelope.Document.RsltnOfInvstgtn.CxlDtls",
                             "logic": {
                                 "TxInfAndSts": {
                                     "CxlStsId": { "if": [
@@ -169,18 +169,22 @@
                                         },
                                         "AddtlInf": { "if": [
                                             {"var": "temp_data.field76_additional_info"},
-                                            [
-                                                {
-                                                    "substr": [{"var": "temp_data.field76_additional_info"}, 0, 105]
-                                                },
-                                                { "if": [
-                                                    {">": [{"length": {"var": "temp_data.field76_additional_info"}}, 105]},
+                                            { "if": [
+                                                {">": [{"length": {"var": "temp_data.field76_additional_info"}}, 105]},
+                                                [
+                                                    {
+                                                        "substr": [{"var": "temp_data.field76_additional_info"}, 0, 105]
+                                                    },
                                                     {
                                                         "substr": [{"var": "temp_data.field76_additional_info"}, 105, 105]
-                                                    },
-                                                    null
-                                                ]}
-                                            ],
+                                                    }
+                                                ],
+                                                [
+                                                    {
+                                                        "substr": [{"var": "temp_data.field76_additional_info"}, 0, 105]
+                                                    }
+                                                ]
+                                            ]},
                                             { "if": [
                                                 {"var": "temp_data.field76_processed_lines"},
                                                 {"var": "temp_data.field76_processed_lines"},
@@ -196,17 +200,10 @@
             }
         },
         {
-            "id": "publish_document_xml",
-            "name": "Publish Document XML",
-            "description": "Publish the Document XML to the output field",
-            "function": {
-                "name": "PublishMX",
-                "input": {
-                    "input_field_name": "Document",
-                    "output_field_name": "document_xml",
-                    "source_format": "MT296.Document"
-                }
-            }
+            "id": "publish_mx_message",
+            "name": "Publish MX Message",
+            "description": "Publish the complete MX message with AppHdr and Document",
+            "function": {"name": "publish_mx", "input": {"source": "MxEnvelope", "target": "result"}}
         }
     ]
 }

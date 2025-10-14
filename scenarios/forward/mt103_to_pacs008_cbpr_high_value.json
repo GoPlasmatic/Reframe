@@ -8,9 +8,11 @@
         "receiver_bic": {"fake": ["bic"]},
         "correspondent_bic": {"fake": ["bic"]},
         "beneficiary_bank_bic": {"fake": ["bic"]},
-        "transaction_ref": {"cat": ["HVP", {"fake": ["i64", 1000000000, 9999999999]}]},
-        "currency": {"fake": ["currency_code"]},
-        "amount": {"fake": ["f64", 10000000.0, 999999999.99]},
+        "transaction_ref": {"cat": ["HVP", {"fake": ["u64", 1000000000, 9999999999]}]},
+        "currency": {
+            "fake": ["enum", "USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD", "SEK", "NOK"]
+        },
+        "amount": {"fake": ["u64", 10000000, 999999999]},
         "value_date": {
             "fake": ["date", "%y-%m-%d", "+0d", "+1d"]
         },
@@ -19,8 +21,8 @@
         "ordering_lei": {"fake": ["lei"]},
         "beneficiary_lei": {"fake": ["lei"]},
         "uetr": {"fake": ["uuid"]},
-        "contract_num": {"cat": ["CNT", {"fake": ["i64", 2024000000, 2024999999]}]},
-        "invoice_num": {"cat": ["INV", {"fake": ["i64", 100000, 999999]}]},
+        "contract_num": {"cat": ["CNT", {"fake": ["u64", 2024000000, 2024999999]}]},
+        "invoice_num": {"cat": ["INV", {"fake": ["u64", 100000, 999999]}]},
         "ordering_name": {"fake": ["company_name"]},
         "beneficiary_name": {"fake": ["company_name"]}
     },
@@ -30,8 +32,8 @@
             "service_id": "01",
             "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
             "sender_bic": {"var": "sender_bic"},
-            "session_number": {"cat": ["", {"fake": ["i64", 1, 9999]}]},
-            "sequence_number": {"cat": ["", {"fake": ["i64", 100000, 999999]}]}
+            "session_number": {"cat": ["", {"fake": ["u64", 1, 9999]}]},
+            "sequence_number": {"cat": ["", {"fake": ["u64", 100000, 999999]}]}
         },
         "application_header": {
             "direction": "I",
@@ -54,19 +56,31 @@
             "13C": [
                 {
                     "code": "SNDTIME",
-                    "time": {"cat": [
-                        {"substr" : [{"fake": ["time"]}, 0, 2]},
-                        {"substr": [{"fake": ["time"]}, 3, 2]}
-                    ]},
+                    "time": {
+                        "cat": [
+                            {
+                                "substr": [{"fake": ["time"]}, 0, 2]
+                            },
+                            {
+                                "substr": [{"fake": ["time"]}, 3, 2]
+                            }
+                        ]
+                    },
                     "sign": "+",
                     "offset": "0000"
                 },
                 {
                     "code": "RNCTIME",
-                    "time": {"cat": [
-                        {"substr" : [{"fake": ["time"]}, 0, 2]},
-                        {"substr": [{"fake": ["time"]}, 3, 2]}
-                    ]},
+                    "time": {
+                        "cat": [
+                            {
+                                "substr": [{"fake": ["time"]}, 0, 2]
+                            },
+                            {
+                                "substr": [{"fake": ["time"]}, 3, 2]
+                            }
+                        ]
+                    },
                     "sign": "+",
                     "offset": "0100"
                 }
@@ -79,33 +93,34 @@
                 "amount": {"var": "amount"}
             },
             "33B": {"currency": {"var": "currency"}, "amount": {"var": "amount"}},
-            "50": {
-                "K": {
-                    "account": {"cat": ["/", {"var": "ordering_account"}]},
-                    "name_and_address": [
-                        {"var": "ordering_name"},
-                        {"cat": ["/LEI/", {"var": "ordering_lei"}]},
-                        {"fake": ["street_address"]},
-                        {
-                            "cat": [{"fake": ["city_name"]}, " ", {"fake": ["country_code"]}]
-                        }
-                    ]
-                }
+            "50K": {
+                "account": {"cat": ["/", {"var": "ordering_account"}]},
+                "name_and_address": [
+                    {"var": "ordering_name"},
+                    {"cat": ["/LEI/", {"var": "ordering_lei"}]},
+                    {"fake": ["street_address"]},
+                    {
+                        "cat": [{"fake": ["city_name"]}, " ", {"fake": ["country_code"]}]
+                    }
+                ]
             },
-            "52": {"A": {"bic": {"var": "sender_bic"}}},
-            "53": {"A": {"bic": {"var": "correspondent_bic"}}},
-            "59": {
-                "A": {
-                    "account": {"var": "beneficiary_account"},
-                    "bic": {"fake": ["bic"]}
-                }
-            },
+            "52A": {"bic": {"var": "sender_bic"}},
+            "53A": {"bic": {"var": "correspondent_bic"}},
+            "59A": {"account": {"var": "beneficiary_account"}, "bic": {"fake": ["bic"]}},
             "70": {
                 "narrative": [
-                    {"substr": [{"cat": ["/ROC/", {"var": "contract_num"}]}, 0, 30]},
-                    {"substr": [{"cat": ["/RFB/", {"var": "invoice_num"}]}, 0, 30]},
-                    {"substr": [{"cat": ["/ULTD/", {"var": "ordering_lei"}]}, 0, 30]},
-                    {"substr": [{"cat": ["/ULTB/", {"var": "beneficiary_lei"}]}, 0, 30]}
+                    {
+                        "substr": [{"cat": ["/ROC/", {"var": "contract_num"}]}, 0, 30]
+                    },
+                    {
+                        "substr": [{"cat": ["/RFB/", {"var": "invoice_num"}]}, 0, 30]
+                    },
+                    {
+                        "substr": [{"cat": ["/ULTD/", {"var": "ordering_lei"}]}, 0, 30]
+                    },
+                    {
+                        "substr": [{"cat": ["/ULTB/", {"var": "beneficiary_lei"}]}, 0, 30]
+                    }
                 ]
             },
             "71A": {"code": "OUR"},

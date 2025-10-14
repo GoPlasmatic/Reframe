@@ -5,7 +5,7 @@
     "priority": 5,
     "condition": { "and": [
         {"==": [{"var": "metadata.SwiftMT.variant"}, "MT103_ADVICE"]},
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "camt.054.001.08"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "camt.054"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "camt054-headers-mapping"]},
         {"==": [{"var": "metadata.progress.status_code"}, 200]}
@@ -21,7 +21,7 @@
                     "mappings": [
                         {
                             "path": "temp_data.txn_path",
-                            "logic": {"var": "data.ISO20022_MX.document.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls.0"}
+                            "logic": {"var": "data.ISO20022_MX.Document.BkToCstmrDbtCdtNtfctn.Ntfctn.0.Ntry.0.NtryDtls.0.TxDtls.0"}
                         }
                     ]
                 }
@@ -109,11 +109,14 @@
                         },
                         {
                             "path": "data.SwiftMT.fields.71F",
-                            "condition": {"!!": {"var": "temp_data.txn_path.Chrgs.0.Amt"}},
-                            "logic": {
-                                "currency": {"var": "temp_data.txn_path.Chrgs.0.Amt.@Ccy"},
-                                "amount": {"var": "temp_data.txn_path.Chrgs.0.Amt.$value"}
-                            }
+                            "logic": { "if": [
+                                {"var": "temp_data.txn_path.Chrgs.0.Amt"},
+                                {
+                                    "currency": {"var": "temp_data.txn_path.Chrgs.0.Amt.@Ccy"},
+                                    "amount": {"var": "temp_data.txn_path.Chrgs.0.Amt.$value"}
+                                },
+                                null
+                            ]}
                         }
                     ]
                 }
@@ -122,40 +125,76 @@
         {
             "id": "map_ordering_customer",
             "name": "Map Ordering Customer (Field 50)",
-            "description": "Maps debtor to Field 50",
+            "description": "Maps debtor to Field 50 (A/F/K variants)",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#50",
+                            "path": "data.SwiftMT.fields.50A",
                             "logic": { "if": [
-                                {"!!": {"var": "temp_data.txn_path.RltdPties.Dbtr.Pty.Nm"}},
-                                {
-                                    "K": {
+                                { "and": [
+                                    {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt"},
+                                    {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt.FinInstnId.BICFI"}
+                                ]},
+                                { "if": [
+                                    {"var": "temp_data.txn_path.RltdPties.Dbtr.Pty.Id.OrgId.Othr.0.Id"},
+                                    {
                                         "account": {"var": "temp_data.txn_path.RltdPties.Dbtr.Pty.Id.OrgId.Othr.0.Id"},
-                                        "name_and_address": { "if": [
-                                            {"var": "temp_data.txn_path.RltdPties.Dbtr.Pty.Nm"},
-                                            [{"var": "temp_data.txn_path.RltdPties.Dbtr.Pty.Nm"}],
-                                            ["NOTPROVIDED"]
-                                        ]}
-                                    }
+                                        "identifier_code": {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt.FinInstnId.BICFI"}
+                                    },
+                                    {"identifier_code": {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt.FinInstnId.BICFI"}}
+                                ]},
+                                null
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.50F",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt"},
+                                    {"!": {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt.FinInstnId.BICFI"}},
+                                    {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt.FinInstnId.ClrSysMmbId.MmbId"}
+                                ]},
+                                {
+                                    "party_identifier": {
+                                        "cat": [
+                                            "/",
+                                            {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt.FinInstnId.ClrSysMmbId.MmbId"}
+                                        ]
+                                    },
+                                    "name_and_address": [{"var": "temp_data.txn_path.RltdPties.Dbtr.Agt.FinInstnId.Nm"}]
                                 },
                                 { "if": [
-                                    {"!!": {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt"}},
+                                    { "and": [
+                                        {"!": {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt"}},
+                                        {"var": "temp_data.txn_path.RltdPties.Dbtr.Pty.Id.OrgId.LEI"}
+                                    ]},
                                     {
-                                        "A": {
-                                            "account": {"var": "temp_data.txn_path.RltdPties.Dbtr.Pty.Id.OrgId.Othr.0.Id"},
-                                            "bic": { "if": [
-                                                {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt.FinInstnId.BICFI"},
-                                                {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt.FinInstnId.BICFI"},
-                                                "NOTPROVIDED"
-                                            ]},
-                                            "name_and_address": []
-                                        }
+                                        "party_identifier": {"cat": ["/", {"var": "temp_data.txn_path.RltdPties.Dbtr.Pty.Id.OrgId.LEI"}]},
+                                        "name_and_address": [{"var": "temp_data.txn_path.RltdPties.Dbtr.Pty.Nm"}]
                                     },
                                     null
                                 ]}
+                            ]}
+                        },
+                        {
+                            "path": "data.SwiftMT.fields.50K",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"!": {"var": "temp_data.txn_path.RltdPties.Dbtr.Agt"}},
+                                    {"!": {"var": "temp_data.txn_path.RltdPties.Dbtr.Pty.Id.OrgId.LEI"}},
+                                    {"var": "temp_data.txn_path.RltdPties.Dbtr.Pty.Nm"}
+                                ]},
+                                { "if": [
+                                    {"var": "temp_data.txn_path.RltdPties.Dbtr.Pty.Id.OrgId.Othr.0.Id"},
+                                    {
+                                        "account": {"var": "temp_data.txn_path.RltdPties.Dbtr.Pty.Id.OrgId.Othr.0.Id"},
+                                        "name_and_address": [{"var": "temp_data.txn_path.RltdPties.Dbtr.Pty.Nm"}]
+                                    },
+                                    {"name_and_address": [{"var": "temp_data.txn_path.RltdPties.Dbtr.Pty.Nm"}]}
+                                ]},
+                                null
                             ]}
                         }
                     ]
@@ -165,23 +204,58 @@
         {
             "id": "map_beneficiary",
             "name": "Map Beneficiary (Field 59)",
-            "description": "Maps creditor to Field 59",
+            "description": "Maps creditor to Field 59 (A/no-letter variants)",
             "function": {
                 "name": "map",
                 "input": {
                     "mappings": [
                         {
+                            "path": "data.SwiftMT.fields.59A",
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "temp_data.txn_path.RltdPties.Cdtr.Agt"},
+                                    {"var": "temp_data.txn_path.RltdPties.Cdtr.Agt.FinInstnId.BICFI"}
+                                ]},
+                                {
+                                    "identifier_code": {"var": "temp_data.txn_path.RltdPties.Cdtr.Agt.FinInstnId.BICFI"},
+                                    "name_and_address": [{"var": "temp_data.txn_path.RltdPties.Cdtr.Agt.FinInstnId.Nm"}]
+                                },
+                                null
+                            ]}
+                        },
+                        {
                             "path": "data.SwiftMT.fields.#59",
-                            "logic": {
-                                "NoOption": {
-                                    "account": {"var": "temp_data.txn_path.RltdPties.Cdtr.Pty.Id.OrgId.Othr.0.Id"},
-                                    "name_and_address": { "if": [
-                                        {"var": "temp_data.txn_path.RltdPties.Cdtr.Pty.Nm"},
-                                        [{"var": "temp_data.txn_path.RltdPties.Cdtr.Pty.Nm"}],
-                                        ["NOTPROVIDED"]
-                                    ]}
-                                }
-                            }
+                            "logic": { "if": [
+                                { "and": [
+                                    {"var": "temp_data.txn_path.RltdPties.Cdtr.Agt"},
+                                    {"!": {"var": "temp_data.txn_path.RltdPties.Cdtr.Agt.FinInstnId.BICFI"}},
+                                    {"var": "temp_data.txn_path.RltdPties.Cdtr.Agt.FinInstnId.ClrSysMmbId.MmbId"}
+                                ]},
+                                {
+                                    "account": {
+                                        "cat": [
+                                            "/",
+                                            {"var": "temp_data.txn_path.RltdPties.Cdtr.Agt.FinInstnId.ClrSysMmbId.MmbId"}
+                                        ]
+                                    },
+                                    "name_and_address": [{"var": "temp_data.txn_path.RltdPties.Cdtr.Agt.FinInstnId.Nm"}]
+                                },
+                                { "if": [
+                                    { "and": [
+                                        {"!": {"var": "temp_data.txn_path.RltdPties.Cdtr.Agt"}},
+                                        {"var": "temp_data.txn_path.RltdPties.Cdtr.Pty.Nm"}
+                                    ]},
+                                    { "if": [
+                                        {"var": "temp_data.txn_path.RltdPties.Cdtr.Pty.Id.OrgId.Othr.0.Id"},
+                                        {
+                                            "account": {"var": "temp_data.txn_path.RltdPties.Cdtr.Pty.Id.OrgId.Othr.0.Id"},
+                                            "name_and_address": [{"var": "temp_data.txn_path.RltdPties.Cdtr.Pty.Nm"}]
+                                        },
+                                        {"name_and_address": [{"var": "temp_data.txn_path.RltdPties.Cdtr.Pty.Nm"}]}
+                                    ]},
+                                    null
+                                ]}
+                            ]}
                         }
                     ]
                 }
@@ -197,62 +271,47 @@
                     "mappings": [
                         {
                             "path": "data.SwiftMT.fields.52A",
-                            "condition": {"!!": {"var": "temp_data.txn_path.RltdAgts.DbtrAgt"}},
-                            "logic": {
-                                "bic": { "if": [
-                                    {"var": "temp_data.txn_path.RltdAgts.DbtrAgt.FinInstnId.BICFI"},
-                                    {"var": "temp_data.txn_path.RltdAgts.DbtrAgt.FinInstnId.BICFI"},
-                                    "NOTPROVIDED"
-                                ]}
-                            }
+                            "logic": { "if": [
+                                {"var": "temp_data.txn_path.RltdAgts.DbtrAgt.FinInstnId.BICFI"},
+                                {"bic": {"var": "temp_data.txn_path.RltdAgts.DbtrAgt.FinInstnId.BICFI"}},
+                                null
+                            ]}
                         },
                         {
                             "path": "data.SwiftMT.fields.53A",
-                            "condition": {"!!": {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt1"}},
-                            "logic": {
-                                "bic": { "if": [
-                                    {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt1.FinInstnId.BICFI"},
-                                    {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt1.FinInstnId.BICFI"},
-                                    "NOTPROVIDED"
-                                ]}
-                            }
+                            "logic": { "if": [
+                                {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt1.FinInstnId.BICFI"},
+                                {"bic": {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt1.FinInstnId.BICFI"}},
+                                null
+                            ]}
                         },
                         {
                             "path": "data.SwiftMT.fields.54A",
-                            "condition": {"!!": {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt2"}},
-                            "logic": {
-                                "bic": { "if": [
-                                    {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt2.FinInstnId.BICFI"},
-                                    {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt2.FinInstnId.BICFI"},
-                                    "NOTPROVIDED"
-                                ]}
-                            }
+                            "logic": { "if": [
+                                {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt2.FinInstnId.BICFI"},
+                                {"bic": {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt2.FinInstnId.BICFI"}},
+                                null
+                            ]}
                         },
                         {
                             "path": "data.SwiftMT.fields.55A",
-                            "condition": {"!!": {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt3"}},
-                            "logic": {
-                                "bic": { "if": [
-                                    {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt3.FinInstnId.BICFI"},
-                                    {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt3.FinInstnId.BICFI"},
-                                    "NOTPROVIDED"
-                                ]}
-                            }
+                            "logic": { "if": [
+                                {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt3.FinInstnId.BICFI"},
+                                {"bic": {"var": "temp_data.txn_path.RltdAgts.IntrmyAgt3.FinInstnId.BICFI"}},
+                                null
+                            ]}
                         },
                         {
                             "path": "data.SwiftMT.fields.57A",
-                            "condition": {"!!": {"var": "temp_data.txn_path.RltdAgts.CdtrAgt"}},
-                            "logic": {
-                                "bic": { "if": [
-                                    {"var": "temp_data.txn_path.RltdAgts.CdtrAgt.FinInstnId.BICFI"},
-                                    {"var": "temp_data.txn_path.RltdAgts.CdtrAgt.FinInstnId.BICFI"},
-                                    { "if": [
-                                        {"var": "temp_data.txn_path.RltdPties.Cdtr.Agt.FinInstnId.BICFI"},
-                                        {"var": "temp_data.txn_path.RltdPties.Cdtr.Agt.FinInstnId.BICFI"},
-                                        "NOTPROVIDED"
-                                    ]}
+                            "logic": { "if": [
+                                {"var": "temp_data.txn_path.RltdAgts.CdtrAgt.FinInstnId.BICFI"},
+                                {"bic": {"var": "temp_data.txn_path.RltdAgts.CdtrAgt.FinInstnId.BICFI"}},
+                                { "if": [
+                                    {"var": "temp_data.txn_path.RltdPties.Cdtr.Agt.FinInstnId.BICFI"},
+                                    {"bic": {"var": "temp_data.txn_path.RltdPties.Cdtr.Agt.FinInstnId.BICFI"}},
+                                    null
                                 ]}
-                            }
+                            ]}
                         }
                     ]
                 }

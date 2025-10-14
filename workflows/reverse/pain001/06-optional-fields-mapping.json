@@ -4,7 +4,7 @@
     "description": "Maps optional fields including charges, authorisation, instruction codes, and remittance information",
     "priority": 7,
     "condition": { "and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pain.001.001.09"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pain.001"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "pain001-to-mt101-party-fields"]},
         {"==": [{"var": "metadata.progress.task_id"}, "map_creditor_field_59"]},
@@ -15,7 +15,7 @@
             "id": "map_authorisation",
             "name": "Map Authorisation Field 25",
             "description": "Maps GroupHeader Authorisation to field 25",
-            "condition": {"var": "data.ISO20022_MX.document.GrpHdr.Authstn"},
+            "condition": {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.GrpHdr.Authstn"},
             "function": {
                 "name": "map",
                 "input": {
@@ -24,14 +24,18 @@
                             "path": "data.SwiftMT.fields.#25",
                             "logic": {
                                 "authorisation": { "if": [
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.Authstn.0.Cd"},
+                                    {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.GrpHdr.Authstn.0.Cd"},
                                     {
-                                        "substr": [{"var": "data.ISO20022_MX.document.GrpHdr.Authstn.0.Cd"}, 0, 35]
+                                        "substr": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.GrpHdr.Authstn.0.Cd"}, 0, 35]
                                     },
                                     { "if": [
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.Authstn.0.Prtry"},
+                                        {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.GrpHdr.Authstn.0.Prtry"},
                                         {
-                                            "substr": [{"var": "data.ISO20022_MX.document.GrpHdr.Authstn.0.Prtry"}, 0, 35]
+                                            "substr": [
+                                                {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.GrpHdr.Authstn.0.Prtry"},
+                                                0,
+                                                35
+                                            ]
                                         },
                                         null
                                     ]}
@@ -54,23 +58,23 @@
                             "path": "data.SwiftMT.fields.##.0.#71A",
                             "logic": {
                                 "code": { "if": [
-                                    {"var": "data.ISO20022_MX.document.PmtInf.ChrgBr"},
+                                    {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.ChrgBr"},
                                     { "if": [
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.ChrgBr"}, "CRED"]},
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.ChrgBr"}, "CRED"]},
                                         "BEN",
                                         { "if": [
-                                            {"==": [{"var": "data.ISO20022_MX.document.PmtInf.ChrgBr"}, "DEBT"]},
+                                            {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.ChrgBr"}, "DEBT"]},
                                             "OUR",
                                             "SHA"
                                         ]}
                                     ]},
                                     { "if": [
-                                        {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.ChrgBr"},
+                                        {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.ChrgBr"},
                                         { "if": [
-                                            {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.ChrgBr"}, "CRED"]},
+                                            {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.ChrgBr"}, "CRED"]},
                                             "BEN",
                                             { "if": [
-                                                {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.ChrgBr"}, "DEBT"]},
+                                                {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.ChrgBr"}, "DEBT"]},
                                                 "OUR",
                                                 "SHA"
                                             ]}
@@ -88,7 +92,7 @@
             "id": "map_charges_account",
             "name": "Map Charges Account Field 25A",
             "description": "Maps ChargesAccount to field 25A",
-            "condition": {"var": "data.ISO20022_MX.document.PmtInf.ChrgsAcct.Id"},
+            "condition": {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.ChrgsAcct.Id"},
             "function": {
                 "name": "map",
                 "input": {
@@ -97,15 +101,24 @@
                             "path": "data.SwiftMT.fields.##.0.#25A",
                             "logic": {
                                 "account": { "if": [
-                                    {"var": "data.ISO20022_MX.document.PmtInf.ChrgsAcct.Id.IBAN"},
-                                    {"cat": ["/", {"var": "data.ISO20022_MX.document.PmtInf.ChrgsAcct.Id.IBAN"}]},
+                                    {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.ChrgsAcct.Id.IBAN"},
+                                    {
+                                        "cat": [
+                                            "/",
+                                            {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.ChrgsAcct.Id.IBAN"}
+                                        ]
+                                    },
                                     { "if": [
-                                        {"var": "data.ISO20022_MX.document.PmtInf.ChrgsAcct.Id.Othr.Id"},
+                                        {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.ChrgsAcct.Id.Othr.Id"},
                                         {
                                             "cat": [
                                                 "/",
                                                 {
-                                                    "substr": [{"var": "data.ISO20022_MX.document.PmtInf.ChrgsAcct.Id.Othr.Id"}, 0, 33]
+                                                    "substr": [
+                                                        {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.ChrgsAcct.Id.Othr.Id"},
+                                                        0,
+                                                        33
+                                                    ]
                                                 }
                                             ]
                                         },
@@ -130,103 +143,103 @@
                             "path": "temp_data.instruction_codes_raw",
                             "logic": [
                                 { "if": [
-                                    {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.Amt.EqvtAmt"},
+                                    {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.Amt.EqvtAmt"},
                                     {"instruction_code": "EQUI"},
                                     null
                                 ]},
                                 { "if": [
                                     { "or": [
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtTpInf.CtgyPurp.Cd"}, "CMSW"]},
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, "CMSW"]}
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.PmtTpInf.CtgyPurp.Cd"}, "CMSW"]},
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, "CMSW"]}
                                     ]},
                                     {"instruction_code": "CMSW"},
                                     null
                                 ]},
                                 { "if": [
                                     { "or": [
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtTpInf.CtgyPurp.Cd"}, "CMTO"]},
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, "CMTO"]}
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.PmtTpInf.CtgyPurp.Cd"}, "CMTO"]},
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, "CMTO"]}
                                     ]},
                                     {"instruction_code": "CMTO"},
                                     null
                                 ]},
                                 { "if": [
                                     { "or": [
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtTpInf.CtgyPurp.Cd"}, "CMZB"]},
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, "CMZB"]}
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.PmtTpInf.CtgyPurp.Cd"}, "CMZB"]},
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, "CMZB"]}
                                     ]},
                                     {"instruction_code": "CMZB"},
                                     null
                                 ]},
                                 { "if": [
                                     { "or": [
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtTpInf.CtgyPurp.Cd"}, "INTC"]},
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, "INTC"]}
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.PmtTpInf.CtgyPurp.Cd"}, "INTC"]},
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, "INTC"]}
                                     ]},
                                     {"instruction_code": "INTC"},
                                     null
                                 ]},
                                 { "if": [
                                     { "or": [
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtTpInf.CtgyPurp.Cd"}, "REPA"]},
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, "REPA"]}
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.PmtTpInf.CtgyPurp.Cd"}, "REPA"]},
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, "REPA"]}
                                     ]},
                                     {"instruction_code": "REPA"},
                                     null
                                 ]},
                                 { "if": [
                                     { "or": [
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtTpInf.CtgyPurp.Cd"}, "CORT"]},
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, "CORT"]}
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.PmtTpInf.CtgyPurp.Cd"}, "CORT"]},
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.PmtTpInf.CtgyPurp.Cd"}, "CORT"]}
                                     ]},
                                     {"instruction_code": "CORT"},
                                     null
                                 ]},
                                 { "if": [
                                     { "or": [
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtTpInf.SvcLvl.Cd"}, "URGP"]},
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"}, "URGP"]}
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.PmtTpInf.SvcLvl.Cd"}, "URGP"]},
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"}, "URGP"]}
                                     ]},
                                     {"instruction_code": "URGP"},
                                     null
                                 ]},
                                 { "if": [
                                     { "or": [
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtTpInf.SvcLvl.Cd"}, "NETS"]},
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"}, "NETS"]}
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.PmtTpInf.SvcLvl.Cd"}, "NETS"]},
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"}, "NETS"]}
                                     ]},
                                     {"instruction_code": "NETS"},
                                     null
                                 ]},
                                 { "if": [
                                     { "or": [
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtTpInf.SvcLvl.Cd"}, "RTGS"]},
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"}, "RTGS"]}
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.PmtTpInf.SvcLvl.Cd"}, "RTGS"]},
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.PmtTpInf.SvcLvl.Cd"}, "RTGS"]}
                                     ]},
                                     {"instruction_code": "RTGS"},
                                     null
                                 ]},
                                 { "if": [
                                     { "or": [
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.PmtMtd"}, "CHK"]},
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.InstrForCdtrAgt.0.Cd"}, "CHQB"]},
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.InstrForCdtrAgt.1.Cd"}, "CHQB"]}
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.PmtMtd"}, "CHK"]},
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.InstrForCdtrAgt.0.Cd"}, "CHQB"]},
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.InstrForCdtrAgt.1.Cd"}, "CHQB"]}
                                     ]},
                                     {"instruction_code": "CHQB"},
                                     null
                                 ]},
                                 { "if": [
                                     { "or": [
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.InstrForCdtrAgt.0.Cd"}, "PHOB"]},
-                                        {"==": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.InstrForCdtrAgt.1.Cd"}, "PHOB"]}
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.InstrForCdtrAgt.0.Cd"}, "PHOB"]},
+                                        {"==": [{"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.InstrForCdtrAgt.1.Cd"}, "PHOB"]}
                                     ]},
                                     {
                                         "instruction_code": "PHON",
                                         "additional_info": { "if": [
-                                            {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.InstrForCdtrAgt.0.InstrInf"},
+                                            {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.InstrForCdtrAgt.0.InstrInf"},
                                             {
                                                 "substr": [
-                                                    {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.InstrForCdtrAgt.0.InstrInf"},
+                                                    {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.InstrForCdtrAgt.0.InstrInf"},
                                                     0,
                                                     30
                                                 ]
@@ -238,20 +251,28 @@
                                 ]},
                                 { "if": [
                                     { "or": [
-                                        {"var": "data.ISO20022_MX.document.PmtInf.InstrForDbtrAgt"},
-                                        {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.InstrForDbtrAgt"}
+                                        {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.InstrForDbtrAgt"},
+                                        {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.InstrForDbtrAgt"}
                                     ]},
                                     {
                                         "instruction_code": "OTHR",
                                         "additional_info": { "if": [
-                                            {"var": "data.ISO20022_MX.document.PmtInf.InstrForDbtrAgt"},
+                                            {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.InstrForDbtrAgt"},
                                             {
-                                                "substr": [{"var": "data.ISO20022_MX.document.PmtInf.InstrForDbtrAgt"}, 0, 30]
+                                                "substr": [
+                                                    {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.InstrForDbtrAgt"},
+                                                    0,
+                                                    30
+                                                ]
                                             },
                                             { "if": [
-                                                {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.InstrForDbtrAgt"},
+                                                {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.InstrForDbtrAgt"},
                                                 {
-                                                    "substr": [{"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.InstrForDbtrAgt"}, 0, 30]
+                                                    "substr": [
+                                                        {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.InstrForDbtrAgt"},
+                                                        0,
+                                                        30
+                                                    ]
                                                 },
                                                 null
                                             ]}
@@ -273,7 +294,7 @@
             "id": "map_fx_reference",
             "name": "Map FX Deal Reference Field 21F",
             "description": "Maps ExchangeRateInformation ContractIdentification to field 21F with TR009 validation",
-            "condition": {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.XchgRateInf.CtrctId"},
+            "condition": {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.XchgRateInf.CtrctId"},
             "function": {
                 "name": "map",
                 "input": {
@@ -283,7 +304,7 @@
                             "logic": {
                                 "reference": {
                                     "substr": [
-                                        {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.XchgRateInf.CtrctId"},
+                                        {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.XchgRateInf.CtrctId"},
                                         0,
                                         16
                                     ]

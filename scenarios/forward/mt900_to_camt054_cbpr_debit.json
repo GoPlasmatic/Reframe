@@ -6,18 +6,22 @@
     "variables": {
         "sender_bic": {"fake": ["bic"]},
         "receiver_bic": {"fake": ["bic"]},
-        "transaction_ref": {"cat": ["DEB", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "transaction_ref": {"cat": ["DEB", {"fake": ["u64", 1000000000, 9999999999]}]},
         "account_id": {"fake": ["iban"]},
-        "currency": {"fake": ["currency_code"]},
-        "amount": {"fake": ["f64", 1000.0, 100000.0]},
+        "currency": {
+            "fake": ["enum", "USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD", "SEK", "NOK"]
+        },
+        "amount": {"fake": ["u64", 1000, 100000]},
         "value_date": {
             "fake": ["date", "%y-%m-%d", "+0d", "+0d"]
         },
         "entry_date": {
             "fake": ["date", "%m%d", "+0d", "+0d"]
         },
-        "account_owner_ref": {"cat": ["REF", {"fake": ["i64", 100000, 999999]}]},
-        "supplementary_details": {"substr": [{"fake": ["words", 3, 7]}, 0, 30]},
+        "account_owner_ref": {"cat": ["REF", {"fake": ["u64", 100000, 999999]}]},
+        "supplementary_details": {
+            "substr": [{"fake": ["words", 3, 7]}, 0, 30]
+        },
         "time_indication": {"fake": ["time", "%H%M"]}
     },
     "schema": {
@@ -25,8 +29,8 @@
             "application_id": "F",
             "service_id": "01",
             "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
-            "session_number": {"cat": ["", {"fake": ["i64", 1, 9999]}]},
-            "sequence_number": {"cat": ["", {"fake": ["i64", 100000, 999999]}]},
+            "session_number": {"cat": ["", {"fake": ["u64", 1, 9999]}]},
+            "sequence_number": {"cat": ["", {"fake": ["u64", 100000, 999999]}]},
             "sender_bic": {"var": "sender_bic"}
         },
         "application_header": {
@@ -39,14 +43,14 @@
         "message_type": "900",
         "fields": {
             "20": {"reference": {"var": "transaction_ref"}},
-            "21": {"reference": {"cat": ["REL", {"fake": ["i64", 100000, 999999]}]}},
-            "25": {"NoOption": {"authorisation": {"var": "account_id"}}},
+            "21": {"reference": {"cat": ["REL", {"fake": ["u64", 100000, 999999]}]}},
+            "25": {"authorisation": {"var": "account_id"}},
             "32A": {
                 "value_date": {"var": "value_date"},
                 "currency": {"var": "currency"},
                 "amount": {"var": "amount"}
             },
-            "52": {"A": {"bic": {"var": "sender_bic"}}},
+            "52A": {"bic": {"var": "sender_bic"}},
             "72": {
                 "information": [
                     "/ACC/DEBIT CONFIRMATION",

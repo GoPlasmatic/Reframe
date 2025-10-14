@@ -1,7 +1,7 @@
+use arc_swap::ArcSwap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
-use arc_swap::ArcSwap;
 use utoipa::ToSchema;
 
 #[derive(Debug, Serialize, Clone, ToSchema)]
@@ -14,14 +14,6 @@ pub struct ResponseMetadata {
     pub timestamp: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub debug_info: Option<Value>,
-}
-
-// Message category enum for routing
-#[derive(Debug, Clone, PartialEq, Serialize, ToSchema)]
-pub enum MessageCategory {
-    MT,
-    MX,
-    Unknown,
 }
 
 // Request/Response structures for transformation API
@@ -40,18 +32,16 @@ pub struct SampleGenerationRequest {
     /// Message type to generate (e.g., MT103, pacs.008)
     #[schema(example = "MT103")]
     pub message_type: String,
-    /// Configuration for sample generation including scenario selection
-    pub config: Value,
+    /// scenario selection
+    #[schema(example = "standard")]
+    pub scenario: String,
+
     #[serde(default)]
     pub options: SampleGenerationOptions,
 }
 
 #[derive(Debug, Deserialize, Default, ToSchema)]
 pub struct SampleGenerationOptions {
-    /// Enable validation of generated message
-    #[schema(default = true)]
-    #[serde(default = "default_true")]
-    pub validation: bool,
     /// Include debug information in response
     #[schema(default = false)]
     #[serde(default)]
@@ -122,6 +112,8 @@ pub struct DebugInfo {
 pub struct AppState {
     pub forward_engine: Arc<ArcSwap<dataflow_rs::Engine>>,
     pub reverse_engine: Arc<ArcSwap<dataflow_rs::Engine>>,
+    pub generation_engine: Arc<ArcSwap<dataflow_rs::Engine>>,
+    pub validation_engine: Arc<ArcSwap<dataflow_rs::Engine>>,
 }
 
 // Health check response
@@ -174,10 +166,6 @@ pub struct ValidationOptions {
     #[schema(default = false)]
     #[serde(default)]
     pub business_validation: bool,
-    /// Stop validation on first error
-    #[schema(default = false)]
-    #[serde(default)]
-    pub fail_fast: bool,
 }
 
 #[derive(Debug, Serialize, ToSchema)]

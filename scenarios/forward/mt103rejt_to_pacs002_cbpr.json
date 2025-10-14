@@ -6,19 +6,23 @@
     "variables": {
         "sender_bic": {"fake": ["bic"]},
         "receiver_bic": {"fake": ["bic"]},
-        "rejection_ref": {"cat": ["REJ", {"fake": ["i64", 1000000000, 9999999999]}]},
-        "original_ref": {"cat": ["ORIG", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "rejection_ref": {"cat": ["REJ", {"fake": ["u64", 1000000000, 9999999999]}]},
+        "original_ref": {"cat": ["ORIG", {"fake": ["u64", 1000000000, 9999999999]}]},
         "rejection_reason": "AC01",
         "uetr": {"fake": ["uuid"]},
         "rejection_time": {"fake": ["time", "%H%M"]},
-        "additional_info": {"substr": [{"fake": ["words", 3, 5]}, 0, 29]},
+        "additional_info": {
+            "substr": [{"fake": ["words", 3, 5]}, 0, 29]
+        },
         "ordering_bank_bic": {"fake": ["bic"]},
         "beneficiary_bank_bic": {"fake": ["bic"]},
         "value_date": {
             "fake": ["date", "%y-%m-%d", "+0d", "+2d"]
         },
-        "currency": {"fake": ["currency_code"]},
-        "amount": {"fake": ["f64", 1000.0, 100000.0]}
+        "currency": {
+            "fake": ["enum", "USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD", "SEK", "NOK"]
+        },
+        "amount": {"fake": ["u64", 1000, 100000]}
     },
     "schema": {
         "basic_header": {
@@ -26,8 +30,8 @@
             "service_id": "01",
             "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
             "sender_bic": {"var": "sender_bic"},
-            "session_number": {"cat": ["", {"fake": ["i64", 1, 9999]}]},
-            "sequence_number": {"cat": ["", {"fake": ["i64", 100000, 999999]}]}
+            "session_number": {"cat": ["", {"fake": ["u64", 1, 9999]}]},
+            "sequence_number": {"cat": ["", {"fake": ["u64", 100000, 999999]}]}
         },
         "application_header": {
             "direction": "I",
@@ -48,27 +52,25 @@
                     "fake": ["date", "%y-%m-%d", "+0d", "+2d"]
                 },
                 "currency": "EUR",
-                "amount": {"fake": ["f64", 1000.0, 100000.0]}
+                "amount": {"fake": ["u64", 1000, 100000]}
             },
-            "50": {
-                "K": {
-                    "account": {"cat": ["/", {"fake": ["iban"]}]},
-                    "name_and_address": [{"fake": ["company_name"]}, {"fake": ["street_address"]}, {"fake": ["city_name"]}]
-                }
+            "50K": {
+                "account": {"cat": ["/", {"fake": ["iban"]}]},
+                "name_and_address": [{"fake": ["company_name"]}, {"fake": ["street_address"]}, {"fake": ["city_name"]}]
             },
             "59": {
-                "NoOption": {
-                    "account": {"cat": ["/", {"fake": ["iban"]}]},
-                    "name_and_address": [{"fake": ["company_name"]}, {"fake": ["street_address"]}, {"fake": ["city_name"]}]
-                }
+                "account": {"cat": ["/", {"fake": ["iban"]}]},
+                "name_and_address": [{"fake": ["company_name"]}, {"fake": ["street_address"]}, {"fake": ["city_name"]}]
             },
             "71A": {"code": "SHA"},
-            "52": {"A": {"bic": {"var": "ordering_bank_bic"}}},
-            "57": {"A": {"bic": {"var": "beneficiary_bank_bic"}}},
+            "52A": {"bic": {"var": "ordering_bank_bic"}},
+            "57A": {"bic": {"var": "beneficiary_bank_bic"}},
             "72": {
                 "information": [
                     "/REJT/",
-                    {"cat": ["/", {"var": "rejection_reason"}, "/"]},
+                    {
+                        "cat": ["/", {"var": "rejection_reason"}, "/"]
+                    },
                     {"cat": ["/MREF/", {"var": "original_ref"}]},
                     {"cat": ["/TREF/", {"var": "rejection_ref"}]},
                     {"cat": ["/TEXT/", {"var": "additional_info"}]}

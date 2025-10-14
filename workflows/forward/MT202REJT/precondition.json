@@ -7,7 +7,7 @@
         {"==": [{"var": "metadata.SwiftMT.message_type"}, "202"]},
         {"==": [{"var": "metadata.SwiftMT.method"}, "reject"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "mt202-rejt-bah-mapper"]},
-        {"==": [{"var": "metadata.progress.task_id"}, "publish_header_xml"]},
+        {"==": [{"var": "metadata.progress.task_id"}, "construct_business_application_header"]},
         {"==": [{"var": "metadata.progress.status_code"}, 200]}
     ]},
     "tasks": [
@@ -76,11 +76,13 @@
                                 {"var": "temp_data.original_instruction_id_raw"},
                                 { "if": [
                                     {"ends_with": [{"var": "temp_data.original_instruction_id_raw"}, "/"]},
-                                    {"substr": [
-                                        {"var": "temp_data.original_instruction_id_raw"},
-                                        0,
-                                        {"subtract": [{"length": {"var": "temp_data.original_instruction_id_raw"}}, 1]}
-                                    ]},
+                                    {
+                                        "substr": [
+                                            {"var": "temp_data.original_instruction_id_raw"},
+                                            0,
+                                            {"subtract": [{"length": {"var": "temp_data.original_instruction_id_raw"}}, 1]}
+                                        ]
+                                    },
                                     {"var": "temp_data.original_instruction_id_raw"}
                                 ]},
                                 "NOTPROVIDED"
@@ -94,11 +96,13 @@
                                     {"!=": [{"var": "temp_data.original_instruction_id"}, "NOTPROVIDED"]},
                                     {">": [{"length": {"var": "temp_data.original_instruction_id"}}, 0]}
                                 ]},
-                                {"!": { "or": [
-                                    {"starts_with": [{"var": "temp_data.original_instruction_id"}, "/"]},
-                                    {"ends_with": [{"var": "temp_data.original_instruction_id"}, "/"]},
-                                    {"in": ["//", {"var": "temp_data.original_instruction_id"}]}
-                                ]}},
+                                {
+                                    "!": { "or": [
+                                        {"starts_with": [{"var": "temp_data.original_instruction_id"}, "/"]},
+                                        {"ends_with": [{"var": "temp_data.original_instruction_id"}, "/"]},
+                                        {"in": ["//", {"var": "temp_data.original_instruction_id"}]}
+                                    ]}
+                                },
                                 true
                             ]}
                         },
@@ -106,28 +110,38 @@
                             "path": "temp_data.rejection_code",
                             "logic": { "if": [
                                 {"var": "data.SwiftMT.fields.72.information.1"},
-                                {"substr": [{"var": "data.SwiftMT.fields.72.information.1"}, 1, 4]},
+                                {
+                                    "substr": [{"var": "data.SwiftMT.fields.72.information.1"}, 1, 4]
+                                },
                                 ""
                             ]}
                         },
                         {
                             "path": "temp_data.text_lines",
-                            "logic": {"filter": [
-                                {"var": "data.SwiftMT.fields.72.information"},
-                                {"starts_with": [{"var": ""}, "/TEXT/"]}
-                            ]}
+                            "logic": {
+                                "filter": [
+                                    {"var": "data.SwiftMT.fields.72.information"},
+                                    {"starts_with": [{"var": ""}, "/TEXT/"]}
+                                ]
+                            }
                         },
                         {
                             "path": "temp_data.additional_information",
                             "logic": { "if": [
                                 {">": [{"length": {"var": "temp_data.text_lines"}}, 0]},
-                                {"reduce": [
+                                { "reduce": [
                                     {"var": "temp_data.text_lines"},
-                                    {"cat": [
-                                        {"var": "accumulator"},
-                                        {"if": [{"var": "accumulator"}, " ", ""]},
-                                        {"substr": [{"var": "current"}, 6]}
-                                    ]},
+                                    {
+                                        "cat": [
+                                            {"var": "accumulator"},
+                                            { "if": [
+                                                {"var": "accumulator"},
+                                                " ",
+                                                ""
+                                            ]},
+                                            {"substr": [{"var": "current"}, 6]}
+                                        ]
+                                    },
                                     ""
                                 ]},
                                 ""
@@ -138,29 +152,41 @@
                             "logic": { "if": [
                                 {"var": "temp_data.rejection_code"},
                                 { "if": [
-                                    {"==": [{"var": "temp_data.rejection_code"}, "AC01"]}, "Incorrect Account Number",
+                                    {"==": [{"var": "temp_data.rejection_code"}, "AC01"]},
+                                    "Incorrect Account Number",
                                     { "if": [
-                                        {"==": [{"var": "temp_data.rejection_code"}, "AC04"]}, "Closed Account Number",
+                                        {"==": [{"var": "temp_data.rejection_code"}, "AC04"]},
+                                        "Closed Account Number",
                                         { "if": [
-                                            {"==": [{"var": "temp_data.rejection_code"}, "AC06"]}, "Blocked Account",
+                                            {"==": [{"var": "temp_data.rejection_code"}, "AC06"]},
+                                            "Blocked Account",
                                             { "if": [
-                                                {"==": [{"var": "temp_data.rejection_code"}, "AG01"]}, "Transaction Forbidden",
+                                                {"==": [{"var": "temp_data.rejection_code"}, "AG01"]},
+                                                "Transaction Forbidden",
                                                 { "if": [
-                                                    {"==": [{"var": "temp_data.rejection_code"}, "AG02"]}, "Invalid Bank Operation Code",
+                                                    {"==": [{"var": "temp_data.rejection_code"}, "AG02"]},
+                                                    "Invalid Bank Operation Code",
                                                     { "if": [
-                                                        {"==": [{"var": "temp_data.rejection_code"}, "AM05"]}, "Duplication",
+                                                        {"==": [{"var": "temp_data.rejection_code"}, "AM05"]},
+                                                        "Duplication",
                                                         { "if": [
-                                                            {"==": [{"var": "temp_data.rejection_code"}, "BE05"]}, "Unrecognised Initiator",
+                                                            {"==": [{"var": "temp_data.rejection_code"}, "BE05"]},
+                                                            "Unrecognised Initiator",
                                                             { "if": [
-                                                                {"==": [{"var": "temp_data.rejection_code"}, "MS03"]}, "Reason Not Specified",
+                                                                {"==": [{"var": "temp_data.rejection_code"}, "MS03"]},
+                                                                "Reason Not Specified",
                                                                 { "if": [
-                                                                    {"==": [{"var": "temp_data.rejection_code"}, "RR01"]}, "Regulatory Reason",
+                                                                    {"==": [{"var": "temp_data.rejection_code"}, "RR01"]},
+                                                                    "Regulatory Reason",
                                                                     { "if": [
-                                                                        {"==": [{"var": "temp_data.rejection_code"}, "RR02"]}, "Regulatory Information Invalid",
+                                                                        {"==": [{"var": "temp_data.rejection_code"}, "RR02"]},
+                                                                        "Regulatory Information Invalid",
                                                                         { "if": [
-                                                                            {"==": [{"var": "temp_data.rejection_code"}, "RR03"]}, "Regulatory Information Missing",
+                                                                            {"==": [{"var": "temp_data.rejection_code"}, "RR03"]},
+                                                                            "Regulatory Information Missing",
                                                                             { "if": [
-                                                                                {"==": [{"var": "temp_data.rejection_code"}, "RR04"]}, "Regulatory Approval Rejected",
+                                                                                {"==": [{"var": "temp_data.rejection_code"}, "RR04"]},
+                                                                                "Regulatory Approval Rejected",
                                                                                 "Other Reason"
                                                                             ]}
                                                                         ]}
@@ -200,13 +226,12 @@
                     "mappings": [
                         {
                             "path": "temp_data.all_errors",
-                            "logic": { "filter": [
-                                [
-                                    {"var": "temp_data.validation_errors"},
-                                    {"var": "temp_data.mref_error"}
-                                ],
-                                {"var": ""}
-                            ]}
+                            "logic": {
+                                "filter": [
+                                    [{"var": "temp_data.validation_errors"}, {"var": "temp_data.mref_error"}],
+                                    {"var": ""}
+                                ]
+                            }
                         },
                         {
                             "path": "temp_data.precondition_valid",

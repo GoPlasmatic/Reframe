@@ -21,7 +21,20 @@
                     "mappings": [
                         {
                             "path": "temp_data.standard_reason_codes",
-                            "logic": ["AC01", "AC04", "AC06", "AG01", "AG02", "AM05", "BE05", "MS03", "RR01", "RR02", "RR03", "RR04"]
+                            "logic": [
+                                "AC01",
+                                "AC04",
+                                "AC06",
+                                "AG01",
+                                "AG02",
+                                "AM05",
+                                "BE05",
+                                "MS03",
+                                "RR01",
+                                "RR02",
+                                "RR03",
+                                "RR04"
+                            ]
                         },
                         {
                             "path": "temp_data.is_standard_code",
@@ -35,12 +48,20 @@
                             "path": "temp_data.message_type_variant",
                             "logic": { "if": [
                                 {"==": [{"var": "data.SwiftMT.user_header.validation_flag"}, "COV"]},
-                                {"if": [{"==": [{"var": "data.SwiftMT.message_type"}, "202"]}, "MT202 COVE", "MT205 COVE"]},
-                                {"if": [{"==": [{"var": "data.SwiftMT.message_type"}, "202"]}, "MT202", "MT205"]}
+                                { "if": [
+                                    {"==": [{"var": "data.SwiftMT.message_type"}, "202"]},
+                                    "MT202 COVE",
+                                    "MT205 COVE"
+                                ]},
+                                { "if": [
+                                    {"==": [{"var": "data.SwiftMT.message_type"}, "202"]},
+                                    "MT202",
+                                    "MT205"
+                                ]}
                             ]}
                         },
                         {
-                            "path": "data.Document.FIToFIPmtStsRpt",
+                            "path": "data.MxEnvelope.Document.FIToFIPmtStsRpt",
                             "logic": {
                                 "GrpHdr": {
                                     "MsgId": { "if": [
@@ -126,22 +147,38 @@
                                         "DbtrAgt": { "if": [
                                             {"var": "data.SwiftMT.fields.52.A.bic"},
                                             {"FinInstnId": {"BICFI": {"var": "data.SwiftMT.fields.52.A.bic"}}},
-                                            {"if": [{"var": "data.SwiftMT.fields.52.D"}, {"FinInstnId": {"BICFI": "NOTPROVIDED"}}, null]}
+                                            { "if": [
+                                                {"var": "data.SwiftMT.fields.52.D"},
+                                                {"FinInstnId": {"BICFI": "NOTPROVIDED"}},
+                                                null
+                                            ]}
                                         ]},
                                         "IntrmyAgt1": { "if": [
                                             {"var": "data.SwiftMT.fields.56.A.bic"},
                                             {"FinInstnId": {"BICFI": {"var": "data.SwiftMT.fields.56.A.bic"}}},
-                                            {"if": [{"var": "data.SwiftMT.fields.56.D"}, {"FinInstnId": {"BICFI": "NOTPROVIDED"}}, null]}
+                                            { "if": [
+                                                {"var": "data.SwiftMT.fields.56.D"},
+                                                {"FinInstnId": {"BICFI": "NOTPROVIDED"}},
+                                                null
+                                            ]}
                                         ]},
                                         "CdtrAgt": { "if": [
                                             {"var": "data.SwiftMT.fields.57.A.bic"},
                                             {"FinInstnId": {"BICFI": {"var": "data.SwiftMT.fields.57.A.bic"}}},
-                                            {"if": [{"var": "data.SwiftMT.fields.57.D"}, {"FinInstnId": {"BICFI": "NOTPROVIDED"}}, null]}
+                                            { "if": [
+                                                {"var": "data.SwiftMT.fields.57.D"},
+                                                {"FinInstnId": {"BICFI": "NOTPROVIDED"}},
+                                                null
+                                            ]}
                                         ]},
                                         "Cdtr": { "if": [
                                             {"var": "data.SwiftMT.fields.58.A.bic"},
                                             {"FinInstnId": {"BICFI": {"var": "data.SwiftMT.fields.58.A.bic"}}},
-                                            {"if": [{"var": "data.SwiftMT.fields.58.D"}, {"FinInstnId": {"BICFI": "NOTPROVIDED"}}, null]}
+                                            { "if": [
+                                                {"var": "data.SwiftMT.fields.58.D"},
+                                                {"FinInstnId": {"BICFI": "NOTPROVIDED"}},
+                                                null
+                                            ]}
                                         ]}
                                     },
                                     "TxSts": "RJCT",
@@ -214,17 +251,10 @@
             }
         },
         {
-            "id": "publish_rejection_document_xml",
-            "name": "Publish Rejection Document XML",
-            "description": "Generates the pacs.002 document XML output for MT202 rejection processing using the PublishMX function",
-            "function": {
-                "name": "PublishMX",
-                "input": {
-                    "input_field_name": "Document",
-                    "output_field_name": "document_xml",
-                    "source_format": "MT202_REJT.Document"
-                }
-            }
+            "id": "publish_mx_message",
+            "name": "Publish MX Message",
+            "description": "Publish the complete MX message with AppHdr and Document",
+            "function": {"name": "publish_mx", "input": {"source": "MxEnvelope", "target": "result"}}
         }
     ]
 }

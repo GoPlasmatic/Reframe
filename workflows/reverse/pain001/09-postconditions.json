@@ -4,7 +4,7 @@
     "description": "Validates post-conditions and assembles final MT101 message",
     "priority": 10,
     "condition": { "and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pain.001.001.09"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pain.001"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "pain001-to-mt101-remittance-fields"]},
         {"==": [{"var": "metadata.progress.task_id"}, "map_field_70"]},
@@ -20,33 +20,33 @@
                 "input": {
                     "rules": [
                         {
-                            "path": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.IntrmyAgt2",
+                            "path": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.IntrmyAgt2",
                             "logic": {
                                 "!": { "or": [
-                                    {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.IntrmyAgt2"},
-                                    {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.IntrmyAgt3"}
+                                    {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.IntrmyAgt2"},
+                                    {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.IntrmyAgt3"}
                                 ]}
                             },
                             "message": "T11002: IntermediaryAgent2 and IntermediaryAgent3 cannot be translated to MT101 (no field 72)"
                         },
                         {
-                            "path": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.XchgRateInf",
-                            "logic": {"!": {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.XchgRateInf.XchgRate"}},
+                            "path": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.XchgRateInf",
+                            "logic": {"!": {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.XchgRateInf.XchgRate"}},
                             "message": "T11003: ExchangeRate (field 36) not translated to avoid miscalculation risks"
                         },
                         {
-                            "path": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.Tax",
-                            "logic": {"!": {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.Tax"}},
+                            "path": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.Tax",
+                            "logic": {"!": {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.Tax"}},
                             "message": "T11004: Tax information not translated to MT101"
                         },
                         {
-                            "path": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.RltdRmtInf",
-                            "logic": {"!": {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.RltdRmtInf"}},
+                            "path": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.RltdRmtInf",
+                            "logic": {"!": {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.RltdRmtInf"}},
                             "message": "T11005: RelatedRemittanceInformation not translated to MT101"
                         },
                         {
-                            "path": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.ChqInstr",
-                            "logic": {"!": {"var": "data.ISO20022_MX.document.PmtInf.CdtTrfTxInf.ChqInstr"}},
+                            "path": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.ChqInstr",
+                            "logic": {"!": {"var": "data.ISO20022_MX.Document.CstmrCdtTrfInitn.PmtInf.CdtTrfTxInf.ChqInstr"}},
                             "message": "T11006: ChequeInstruction details not fully translated to MT101"
                         }
                     ]
@@ -57,14 +57,7 @@
             "id": "publish_mt101",
             "name": "Publish MT101 Message",
             "description": "Publishes the complete MT101 message",
-            "function": {
-                "name": "PublishMT",
-                "input": {
-                    "input_field_name": "SwiftMT",
-                    "output_field_name": "result",
-                    "source_format": "pain.001.001.09"
-                }
-            }
+            "function": {"name": "publish_mt", "input": {"source": "SwiftMT", "target": "result"}}
         }
     ]
 }

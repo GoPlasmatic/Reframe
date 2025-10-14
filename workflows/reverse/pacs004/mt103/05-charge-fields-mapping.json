@@ -4,7 +4,7 @@
     "description": "Maps charge-related fields for MT103 RETN (Fields 71A, 71F, 71G)",
     "priority": 7,
     "condition": { "and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pacs.004"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "pacs004-mt103-amount-fields-mapping"]},
         {"==": [{"var": "metadata.progress.task_id"}, "map_field_53b"]},
@@ -39,9 +39,9 @@
                         {
                             "path": "temp_data.charges_array",
                             "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.TxInf.ChrgBr"},
+                                {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.ChrgBr"},
                                 {"map": [
-                                    {"var": "data.ISO20022_MX.document.TxInf.ChrgsInf"},
+                                    {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.ChrgsInf"},
                                     {"cat": [
                                         {"var": "Amt.Ccy"},
                                         {"replace": [
@@ -59,10 +59,10 @@
                             "logic": { "if": [
                                 {"or": [
                                     {"!": {"exists": ["data", "ISO20022_MX", "document", "TxInf", "ChrgBr"]}},
-                                    {"in": [{"var": "data.ISO20022_MX.document.TxInf.ChrgBr"}, ["SHAR", "CRED"]]}
+                                    {"in": [{"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.ChrgBr"}, ["SHAR", "CRED"]]}
                                 ]},
                                 {"map": [
-                                    {"var": "data.ISO20022_MX.document.TxInf.ChrgsInf"},
+                                    {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.ChrgsInf"},
                                     {
                                         "currency": {"var": "Amt.@Ccy"},
                                         "amount": {"+": [{"var": "Amt.$value"}]}
@@ -75,11 +75,11 @@
                             "path": "data.SwiftMT.fields.71G",
                             "logic": { "if": [
                                 {"and" : [
-                                    {"==": [{"var": "data.ISO20022_MX.document.TxInf.ChrgBr"}, "DEBT"]},
-                                    {"var": "data.ISO20022_MX.document.TxInf.ChrgsInf"}
+                                    {"==": [{"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.ChrgBr"}, "DEBT"]},
+                                    {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.ChrgsInf"}
                                 ]},
                                 {
-                                    "currency": {"var": "data.ISO20022_MX.document.TxInf.ChrgsInf.0.Amt.@Ccy"},
+                                    "currency": {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.ChrgsInf.0.Amt.@Ccy"},
                                     "amount": {"reduce": [
                                         {"var": "temp_data.charges_array"}, 
                                         {"+": [{"var": "accumulator"}, {"var": "current.Amt.$value"}]}

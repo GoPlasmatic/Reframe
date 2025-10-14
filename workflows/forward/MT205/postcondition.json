@@ -7,7 +7,7 @@
         {"==": [{"var": "metadata.SwiftMT.message_type"}, "205"]},
         {"==": [{"var": "metadata.SwiftMT.method"}, "normal"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "mt205-document-mapper"]},
-        {"==": [{"var": "metadata.progress.task_id"}, "publish_document_xml"]},
+        {"==": [{"var": "metadata.progress.task_id"}, "publish_mx_message"]},
         {"==": [{"var": "metadata.progress.status_code"}, 200]}
     ]},
     "tasks": [
@@ -20,10 +20,15 @@
                 "input": {
                     "rules": [
                         {
-                            "path": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf",
+                            "path": "data.MxEnvelope.Document.FICdtTrf.GrpHdr.SttlmInf",
                             "logic": { "and": [
-                                {"var": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmMtd"},
-                                {"in": [{"var": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmMtd"}, ["INDA", "INGA"]]}
+                                {"var": "data.MxEnvelope.Document.FICdtTrf.GrpHdr.SttlmInf.SttlmMtd"},
+                                {
+                                    "in": [
+                                        {"var": "data.MxEnvelope.Document.FICdtTrf.GrpHdr.SttlmInf.SttlmMtd"},
+                                        ["INDA", "INGA"]
+                                    ]
+                                }
                             ]},
                             "message": "T20065: Settlement method must be either INDA or INGA"
                         }
@@ -40,18 +45,20 @@
                 "input": {
                     "rules": [
                         {
-                            "path": "data.Document.FIToFICdtTrf",
-                            "logic": { "and": [
-                                {"exists": ["data", "Document", "FIToFICdtTrf", "GrpHdr", "MsgId"]},
-                                {"exists": ["data", "Document", "FIToFICdtTrf", "GrpHdr", "CreDtTm"]},
-                                {"exists": ["data", "Document", "FIToFICdtTrf", "GrpHdr", "NbOfTxs"]},
-                                {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "PmtId", "InstrId"]},
-                                {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "IntrBkSttlmAmt"]},
-                                {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "InstgAgt"]},
-                                {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "InstdAgt"]},
-                                {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "Dbtr"]},
-                                {"exists": ["data", "Document", "FIToFICdtTrf", "CdtTrfTxInf", "Cdtr"]}
-                            ]},
+                            "path": "data.MxEnvelope.Document.FICdtTrf",
+                            "logic": {
+                                "!!": { "and": [
+                                    {"var": "data.MxEnvelope.Document.FICdtTrf.GrpHdr.MsgId"},
+                                    {"var": "data.MxEnvelope.Document.FICdtTrf.GrpHdr.CreDtTm"},
+                                    {"var": "data.MxEnvelope.Document.FICdtTrf.GrpHdr.NbOfTxs"},
+                                    {"var": "data.MxEnvelope.Document.FICdtTrf.CdtTrfTxInf.PmtId.InstrId"},
+                                    {"var": "data.MxEnvelope.Document.FICdtTrf.CdtTrfTxInf.IntrBkSttlmAmt"},
+                                    {"var": "data.MxEnvelope.Document.FICdtTrf.CdtTrfTxInf.InstgAgt"},
+                                    {"var": "data.MxEnvelope.Document.FICdtTrf.CdtTrfTxInf.InstdAgt"},
+                                    {"var": "data.MxEnvelope.Document.FICdtTrf.CdtTrfTxInf.Dbtr"},
+                                    {"var": "data.MxEnvelope.Document.FICdtTrf.CdtTrfTxInf.Cdtr"}
+                                ]}
+                            },
                             "message": "T20066: Required fields are missing in the pacs.009 output"
                         }
                     ]
@@ -67,11 +74,11 @@
                 "input": {
                     "rules": [
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf",
+                            "path": "data.MxEnvelope.Document.FICdtTrf.CdtTrfTxInf",
                             "logic": { "if": [
                                 {"==": [{"var": "temp_data.settlement_method"}, "INGA"]},
                                 { "and": [
-                                    {"var": "data.Document.FIToFICdtTrf.GrpHdr.SttlmInf.SttlmAcct"},
+                                    {"var": "data.MxEnvelope.Document.FICdtTrf.GrpHdr.SttlmInf.SttlmAcct"},
                                     {"var": "temp_data.instructing_reimbursement_agent_bic"}
                                 ]},
                                 true
@@ -91,7 +98,7 @@
                 "input": {
                     "rules": [
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf",
+                            "path": "data.MxEnvelope.Document.FICdtTrf.CdtTrfTxInf.PmtTpInf",
                             "logic": { "if": [
                                 { "or": [
                                     { "and": [
@@ -139,7 +146,7 @@
                                         }
                                     ]}
                                 ]},
-                                {"==": [{"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
+                                {"==": [{"var": "data.MxEnvelope.Document.FICdtTrf.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
                                 true
                             ]},
                             "message": "T20068: Clearing channel should be RTGS when RT or FW identifiers are present"
@@ -157,13 +164,13 @@
                 "input": {
                     "rules": [
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf",
+                            "path": "data.MxEnvelope.Document.FICdtTrf.CdtTrfTxInf.PmtTpInf",
                             "logic": { "if": [
                                 {"var": "data.SwiftMT.user_header.service_type_identifier"},
                                 { "and": [
-                                    {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl"},
-                                    {">": [{"length": {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl"}}, 0]},
-                                    {"==": [{"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl.0.Cd"}, {"cat": ["G", {"var": "data.SwiftMT.user_header.service_type_identifier"}]}]}
+                                    {"var": "data.MxEnvelope.Document.FICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl"},
+                                    {">": [{"length": {"var": "data.MxEnvelope.Document.FICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl"}}, 0]},
+                                    {"==": [{"var": "data.MxEnvelope.Document.FICdtTrf.CdtTrfTxInf.PmtTpInf.SvcLvl.0.Cd"}, {"cat": ["G", {"var": "data.SwiftMT.user_header.service_type_identifier"}]}]}
                                 ]},
                                 true
                             ]},
@@ -182,13 +189,13 @@
                 "input": {
                     "rules": [
                         {
-                            "path": "data.Document.FIToFICdtTrf.CdtTrfTxInf",
+                            "path": "data.MxEnvelope.Document.FICdtTrf.CdtTrfTxInf",
                             "logic": { "if": [
                                 {"var": "temp_data.field_72_ins_lines"},
                                 { "or": [
                                     { "and": [
                                         {">": [{"length": {"var": "temp_data.field_72_ins_lines"}}, 0]},
-                                        {"var": "data.Document.FIToFICdtTrf.CdtTrfTxInf.PrvsInstgAgt1"}
+                                        {"var": "data.MxEnvelope.Document.FICdtTrf.CdtTrfTxInf.PrvsInstgAgt1"}
                                     ]},
                                     {"==": [{"length": {"var": "temp_data.field_72_ins_lines"}}, 0]}
                                 ]},

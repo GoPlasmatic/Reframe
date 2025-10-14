@@ -4,7 +4,7 @@
     "description": "Maps SWIFT message headers (blocks 1, 2, 3) for MT202/205 RETN",
     "priority": 4,
     "condition": { "and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pacs.004.001.09"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pacs.004"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "pacs004-mt20x-preconditions"]},
         {"==": [{"var": "metadata.progress.task_id"}, "validate_transaction_count"]},
@@ -25,10 +25,10 @@
                             "logic": {
                                 "application_id": "F",
                                 "service_id": "01",
-                                "logical_terminal": {"cat": [{"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}, "AXXX"]},
+                                "logical_terminal": {"cat": [{"var": "data.ISO20022_MX.AppHdr.Fr.FIId.FinInstnId.BICFI"}, "AXXX"]},
                                 "session_number": "0000",
                                 "sequence_number": "000000",
-                                "sender_bic": {"var": "data.ISO20022_MX.header.Fr.FIId.FinInstnId.BICFI"}
+                                "sender_bic": {"var": "data.ISO20022_MX.AppHdr.Fr.FIId.FinInstnId.BICFI"}
                             }
                         },
                         {
@@ -37,19 +37,19 @@
                                 "direction": "I",
                                 "message_type": {"var": "data.SwiftMT.message_type"},
                                 "priority": "N",
-                                "destination_address": {"cat": [{"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}, "AXXX"]},
-                                "receiver_bic": {"var": "data.ISO20022_MX.header.To.FIId.FinInstnId.BICFI"}
+                                "destination_address": {"cat": [{"var": "data.ISO20022_MX.AppHdr.To.FIId.FinInstnId.BICFI"}, "AXXX"]},
+                                "receiver_bic": {"var": "data.ISO20022_MX.AppHdr.To.FIId.FinInstnId.BICFI"}
                             }
                         },
                         {
                             "path": "data.SwiftMT.user_header",
                             "logic": {
-                                "unique_end_to_end_reference": {"var": "data.ISO20022_MX.document.TxInf.OrgnlUETR"},
+                                "unique_end_to_end_reference": {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.OrgnlUETR"},
                                 "service_type_identifier": { "if": [
-                                    {"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"},
+                                    {"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"},
                                     { "if": [
-                                        {"in": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"}, ["G001", "G002", "G003", "G004"]]},
-                                        {"substr": [{"var": "data.ISO20022_MX.document.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"}, 2, 3]},
+                                        {"in": [{"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"}, ["G001", "G002", "G003", "G004"]]},
+                                        {"substr": [{"var": "data.ISO20022_MX.Document.PmtRtr.TxInf.OrgnlTxRef.PmtTpInf.SvcLvl.Cd"}, 2, 3]},
                                         null
                                     ]},
                                     null

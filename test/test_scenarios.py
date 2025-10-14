@@ -133,14 +133,19 @@ class ReframeAPIClient:
             self._log_debug(f"Request failed: {str(e)}")
             raise
     
-    def generate_sample(self, message_type: str, config: Dict[str, Any]) -> Optional[Any]:
+    def generate_sample(self, message_type: str, scenario: str, options: Optional[Dict[str, Any]] = None) -> Optional[Any]:
         """Generate a sample message"""
+        payload = {
+            "message_type": message_type,
+            "scenario": scenario,
+            "options": options or {"debug": False}
+        }
         response = self._make_request(
             "POST",
             self.endpoints.generate_sample,
-            json={"message_type": message_type, "config": config}
+            json=payload
         )
-        
+
         if response.status_code == 200:
             result = response.json()
             if result.get("success"):
@@ -332,7 +337,7 @@ class ScenarioTester:
         # Step 1: Generate sample message using Sample Generator API with message type and scenario
         scenario_id = scenario_info["id"]
         format_type = "MT" if message_type.upper().startswith("MT") else "MX"
-        message = self.api.generate_sample(message_type, {"scenario": scenario_id})
+        message = self.api.generate_sample(message_type, scenario_id)
         
         if not message:
             result.errors.append("Generation failed")

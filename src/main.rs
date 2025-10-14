@@ -8,19 +8,9 @@ use tracing::info;
 mod ascii_art;
 mod engine;
 mod handlers;
-mod helper;
 mod logging;
-mod mt_generator;
-mod mx_generator;
 mod openapi;
-mod parse_mt;
-mod parse_mx;
-mod publish_mt;
-mod publish_mx;
-mod sample_generator;
-mod scenario_loader;
 mod types;
-mod validation_helpers;
 
 // Import public items from modules
 use ascii_art::display_ascii_art;

@@ -3,8 +3,8 @@
     "name": "camt.029 Initialization and Validation",
     "description": "Detects target message type and validates preconditions",
     "priority": 2,
-    "condition": {"and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "camt.029.001.09"]},
+    "condition": { "and": [
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "camt.029"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "mx-parser"]},
         {"==": [{"var": "metadata.progress.task_id"}, "parse_mx_message"]},
@@ -21,20 +21,26 @@
                     "mappings": [
                         {
                             "path": "data.SwiftMT.message_type",
-                            "logic": {"if": [
-                                {"or": [
-                                    {"starts_with": [
-                                        {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
-                                        "pacs.008"
-                                    ]},
-                                    {"starts_with": [
-                                        {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
-                                        "pacs.003"
-                                    ]},
-                                    {"starts_with": [
-                                        {"var": "data.ISO20022_MX.document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
-                                        "MT10"
-                                    ]}
+                            "logic": { "if": [
+                                { "or": [
+                                    {
+                                        "starts_with": [
+                                            {"var": "data.ISO20022_MX.Document.RsltnOfInvstgtn.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
+                                            "pacs.008"
+                                        ]
+                                    },
+                                    {
+                                        "starts_with": [
+                                            {"var": "data.ISO20022_MX.Document.RsltnOfInvstgtn.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
+                                            "pacs.003"
+                                        ]
+                                    },
+                                    {
+                                        "starts_with": [
+                                            {"var": "data.ISO20022_MX.Document.RsltnOfInvstgtn.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlGrpInf.OrgnlMsgNmId"},
+                                            "MT10"
+                                        ]
+                                    }
                                 ]},
                                 "196",
                                 "296"
@@ -53,17 +59,34 @@
                 "input": {
                     "rules": [
                         {
-                            "logic": {"and": [
-                                {"!!": [{"var": "data.ISO20022_MX.document.Assgnmt.Id"}]},
-                                {"!!": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.CxlStsId"}]},
-                                {"!!": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.RslvdCase.Id"}]},
-                                {"!!": [{"var": "data.ISO20022_MX.document.Sts.Conf"}]},
-                                {"!!": [{"var": "data.ISO20022_MX.document.CxlDtls.TxInfAndSts.OrgnlUETR"}]}
+                            "logic": { "and": [
+                                {"!!": [{"var": "data.ISO20022_MX.Document.RsltnOfInvstgtn.Assgnmt.Id"}]},
+                                {
+                                    "!!": [
+                                        {"var": "data.ISO20022_MX.Document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.CxlStsId"}
+                                    ]
+                                },
+                                {
+                                    "!!": [
+                                        {"var": "data.ISO20022_MX.Document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.RslvdCase.Id"}
+                                    ]
+                                },
+                                {"!!": [{"var": "data.ISO20022_MX.Document.RsltnOfInvstgtn.Sts.Conf"}]},
+                                {
+                                    "!!": [
+                                        {"var": "data.ISO20022_MX.Document.RsltnOfInvstgtn.CxlDtls.TxInfAndSts.OrgnlUETR"}
+                                    ]
+                                }
                             ]},
                             "message": "Required fields missing: Assignment Id, Cancellation Status Id, Resolved Case Id, Status Confirmation, or Original UETR"
                         },
                         {
-                            "logic": {"in": [{"var": "data.ISO20022_MX.document.Sts.Conf"}, ["CNCL", "PDCR", "RJCR"]]},
+                            "logic": {
+                                "in": [
+                                    {"var": "data.ISO20022_MX.Document.RsltnOfInvstgtn.Sts.Conf"},
+                                    ["CNCL", "PDCR", "RJCR"]
+                                ]
+                            },
                             "message": "Status Confirmation must be CNCL, PDCR, or RJCR"
                         }
                     ]

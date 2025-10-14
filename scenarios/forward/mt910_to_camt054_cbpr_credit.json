@@ -6,24 +6,28 @@
     "variables": {
         "sender_bic": {"fake": ["bic"]},
         "receiver_bic": {"fake": ["bic"]},
-        "transaction_ref": {"cat": ["CRD", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "transaction_ref": {"cat": ["CRD", {"fake": ["u64", 1000000000, 9999999999]}]},
         "account_id": {"fake": ["iban"]},
-        "currency": {"fake": ["currency_code"]},
-        "amount": {"fake": ["f64", 1000.0, 500000.0]},
+        "currency": {
+            "fake": ["enum", "USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD", "SEK", "NOK"]
+        },
+        "amount": {"fake": ["u64", 1000, 500000]},
         "value_date": {
             "fake": ["date", "%y-%m-%d", "+0d", "+0d"]
         },
         "ordering_customer": {"fake": ["company_name"]},
         "intermediary_bic": {"fake": ["bic"]},
-        "supplementary_details": {"substr": [{"fake": ["words", 3, 7]}, 0, 30]}
+        "supplementary_details": {
+            "substr": [{"fake": ["words", 3, 7]}, 0, 30]
+        }
     },
     "schema": {
         "basic_header": {
             "application_id": "F",
             "service_id": "01",
             "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
-            "session_number": {"cat": ["", {"fake": ["i64", 1, 9999]}]},
-            "sequence_number": {"cat": ["", {"fake": ["i64", 100000, 999999]}]},
+            "session_number": {"cat": ["", {"fake": ["u64", 1, 9999]}]},
+            "sequence_number": {"cat": ["", {"fake": ["u64", 100000, 999999]}]},
             "sender_bic": {"var": "sender_bic"}
         },
         "application_header": {
@@ -36,26 +40,24 @@
         "message_type": "910",
         "fields": {
             "20": {"reference": {"var": "transaction_ref"}},
-            "21": {"reference": {"cat": ["REL", {"fake": ["i64", 100000, 999999]}]}},
-            "25": {"NoOption": {"authorisation": {"var": "account_id"}}},
+            "21": {"reference": {"cat": ["REL", {"fake": ["u64", 100000, 999999]}]}},
+            "25": {"authorisation": {"var": "account_id"}},
             "32A": {
                 "value_date": {"var": "value_date"},
                 "currency": {"var": "currency"},
                 "amount": {"var": "amount"}
             },
-            "50": {
-                "K": {
-                    "account": {"cat": ["/", {"fake": ["iban"]}]},
-                    "name_and_address": [
-                        {"var": "ordering_customer"},
-                        {"fake": ["street_address"]},
-                        {"fake": ["city_name"]},
-                        {"fake": ["country_code"]}
-                    ]
-                }
+            "50K": {
+                "account": {"cat": ["/", {"fake": ["iban"]}]},
+                "name_and_address": [
+                    {"var": "ordering_customer"},
+                    {"fake": ["street_address"]},
+                    {"fake": ["city_name"]},
+                    {"fake": ["country_code"]}
+                ]
             },
-            "52": {"A": {"bic": {"var": "sender_bic"}}},
-            "56": {"A": {"bic": {"var": "intermediary_bic"}}},
+            "52A": {"bic": {"var": "sender_bic"}},
+            "56A": {"bic": {"var": "intermediary_bic"}},
             "72": {
                 "information": [
                     "/ACC/CREDIT CONFIRMATION",

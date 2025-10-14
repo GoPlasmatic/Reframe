@@ -4,7 +4,7 @@
     "description": "Maps charge-related fields including Field 71A (Details of Charges - TR016), Field 71F (Sender's Charges - TR017), and Field 71G (Receiver's Charges - TR018)",
     "priority": 7,
     "condition": { "and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pacs.008.001.08"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pacs.008"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "pacs008-to-mt103-amount-fields"]},
         {"==": [{"var": "metadata.progress.task_id"}, "map_exchange_rate"]},
@@ -22,13 +22,13 @@
                         {
                             "path": "data.SwiftMT.fields.#71A",
                             "logic": { "if": [
-                                {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgBr"}, "CRED"]},
+                                {"==": [{"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.ChrgBr"}, "CRED"]},
                                 {"code": "BEN"},
                                 { "if": [
-                                    {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgBr"}, "DEBT"]},
+                                    {"==": [{"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.ChrgBr"}, "DEBT"]},
                                     {"code": "OUR"},
                                     { "if": [
-                                        {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgBr"}, "SHAR"]},
+                                        {"==": [{"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.ChrgBr"}, "SHAR"]},
                                         {"code": "SHA"},
                                         null
                                     ]}
@@ -52,14 +52,14 @@
                             "logic": { "if": [
                                 { "and": [
                                     { "or": [
-                                        {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgBr"}, "CRED"]},
-                                        {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgBr"}, "SHAR"]}
+                                        {"==": [{"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.ChrgBr"}, "CRED"]},
+                                        {"==": [{"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.ChrgBr"}, "SHAR"]}
                                     ]},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgsInf"}
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.ChrgsInf"}
                                 ]},
                                 {
                                     "map": [
-                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgsInf"},
+                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.ChrgsInf"},
                                         {"currency": {"var": "Amt.@Ccy"}, "amount": {"var": "Amt.$value"}}
                                     ]
                                 },
@@ -82,11 +82,11 @@
                             "path": "temp_data.total_charges",
                             "logic": { "if": [
                                 { "and": [
-                                    {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgBr"}, "DEBT"]},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgsInf"}
+                                    {"==": [{"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.ChrgBr"}, "DEBT"]},
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.ChrgsInf"}
                                 ]},
                                 { "reduce": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgsInf"},
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.ChrgsInf"},
                                     {"+": [{"var": "accumulator"}, {"var": "current.Amt.$value"}]},
                                     0
                                 ]},
@@ -97,10 +97,10 @@
                             "path": "temp_data.charges_currency",
                             "logic": { "if": [
                                 { "and": [
-                                    {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgBr"}, "DEBT"]},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgsInf.0.Amt.@Ccy"}
+                                    {"==": [{"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.ChrgBr"}, "DEBT"]},
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.ChrgsInf.0.Amt.@Ccy"}
                                 ]},
-                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.ChrgsInf.0.Amt.@Ccy"},
+                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.ChrgsInf.0.Amt.@Ccy"},
                                 null
                             ]}
                         },

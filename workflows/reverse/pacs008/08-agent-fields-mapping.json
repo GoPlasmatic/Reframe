@@ -4,7 +4,7 @@
     "description": "Mapping for agent fields (52-57) implementing full CBPR+ specification with proper clearing system logic, option prioritization, and //RT//FW handling per TR003, TR005, TR007, TR019, TR021, TR023",
     "priority": 9,
     "condition": { "and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pacs.008.001.08"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pacs.008"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "pacs008-to-mt103-party-fields"]},
         {"==": [{"var": "metadata.progress.task_id"}, "map_beneficiary_customer"]},
@@ -20,76 +20,83 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#52",
-                            "logic": {
-                                "A": { "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"},
-                                    {
-                                        "bic": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"},
-                                        "party_identifier": { "if": [
+                            "path": "data.SwiftMT.fields.52A",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"},
+                                {
+                                    "bic": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"},
+                                    "party_identifier": { "if": [
+                                        { "and": [
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgtAcct.Id.Othr.Id"},
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"}
+                                        ]},
+                                        {
+                                            "cat": [
+                                                "/",
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgtAcct.Id.Othr.Id"}
+                                            ]
+                                        },
+                                        { "if": [
                                             { "and": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgtAcct.Id.Othr.Id"},
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"}
-                                            ]},
-                                            {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgtAcct.Id.Othr.Id"}]},
-                                            { "if": [
-                                                { "and": [
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
-                                                    {
-                                                        "in": [
-                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                            [
-                                                                "ATBLZ",
-                                                                "AUBSB",
-                                                                "CNAPS",
-                                                                "DEBLZ",
-                                                                "CACPA",
-                                                                "GRBIC",
-                                                                "HKNCC",
-                                                                "IENCC",
-                                                                "INFSC",
-                                                                "ITNCC",
-                                                                "PLKNR",
-                                                                "PTNCC",
-                                                                "ZANCC",
-                                                                "ESNCC",
-                                                                "GBDSC",
-                                                                "USABA"
-                                                            ]
-                                                        ]
-                                                    }
-                                                ]},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
                                                 {
-                                                    "cat": [
-                                                        "//",
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                                    "in": [
+                                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                        [
+                                                            "ATBLZ",
+                                                            "AUBSB",
+                                                            "CNAPS",
+                                                            "DEBLZ",
+                                                            "CACPA",
+                                                            "GRBIC",
+                                                            "HKNCC",
+                                                            "IENCC",
+                                                            "INFSC",
+                                                            "ITNCC",
+                                                            "PLKNR",
+                                                            "PTNCC",
+                                                            "ZANCC",
+                                                            "ESNCC",
+                                                            "GBDSC",
+                                                            "USABA"
+                                                        ]
                                                     ]
-                                                },
-                                                null
-                                            ]}
+                                                }
+                                            ]},
+                                            {
+                                                "cat": [
+                                                    "//",
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                                ]
+                                            },
+                                            null
                                         ]}
-                                    },
-                                    null
-                                ]}
-                            }
+                                    ]}
+                                },
+                                null
+                            ]}
                         },
                         {
                             "path": "data.SwiftMT.fields.52D",
                             "logic": { "if": [
                                 { "and": [
-                                    {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"}]},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.Nm"}
+                                    {
+                                        "!": [
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.BICFI"}
+                                        ]
+                                    },
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.Nm"}
                                 ]},
                                 {
                                     "party_identifier": { "if": [
                                         { "and": [
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
                                             {
                                                 "in": [
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
                                                     [
                                                         "ATBLZ",
                                                         "AUBSB",
@@ -117,31 +124,33 @@
                                         {
                                             "cat": [
                                                 "//",
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
                                             ]
                                         },
                                         ""
                                     ]},
                                     "name_and_address": {
                                         "merge": [
-                                            [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.Nm"}],
+                                            [
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.Nm"}
+                                            ],
                                             { "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.AdrLine"},
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.AdrLine"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.AdrLine"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.AdrLine"},
                                                 { "if": [
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.StrtNm"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.StrtNm"},
                                                     [
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.StrtNm"},
+                                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.StrtNm"},
                                                         {
                                                             "cat": [
-                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.TwnNm"},
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.TwnNm"},
                                                                 { "if": [
-                                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.Ctry"},
+                                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.Ctry"},
                                                                     {
                                                                         "cat": [
                                                                             ", ",
-                                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.Ctry"}
+                                                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAgt.FinInstnId.PstlAdr.Ctry"}
                                                                         ]
                                                                     },
                                                                     ""
@@ -174,29 +183,29 @@
                             "path": "data.SwiftMT.fields.53A",
                             "logic": { "if": [
                                 { "and": [
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"},
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"},
-                                    {"==": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"}, "COVE"]}
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"},
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.SttlmMtd"},
+                                    {"==": [{"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.SttlmMtd"}, "COVE"]}
                                 ]},
                                 {
-                                    "bic": {"raw": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"}},
+                                    "bic": {"raw": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.BICFI"}},
                                     "party_identifier": { "if": [
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"},
+                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"},
                                         {
                                             "cat": [
                                                 "/",
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"}
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgtAcct.Id.Othr.Id"}
                                             ]
                                         },
                                         { "if": [
                                             { "and": [
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"},
                                                 {
                                                     "!": [
                                                         {
                                                             "in": [
-                                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
                                                                 ["USPID", "RUCBC", "CHBCC", "CHSIC"]
                                                             ]
                                                         }
@@ -206,8 +215,8 @@
                                             {
                                                 "cat": [
                                                     "//",
-                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstgRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
                                                 ]
                                             },
                                             ""
@@ -221,11 +230,16 @@
                             "path": "data.SwiftMT.fields.53B",
                             "logic": { "if": [
                                 { "and": [
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"},
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"},
-                                    {"in": [{"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmMtd"}, ["INGA", "INDA"]]}
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"},
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.SttlmMtd"},
+                                    {
+                                        "in": [
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.SttlmMtd"},
+                                            ["INGA", "INDA"]
+                                        ]
+                                    }
                                 ]},
-                                {"party_identifier": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}},
+                                {"party_identifier": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.SttlmAcct.Id.Othr.Id"}},
                                 null
                             ]}
                         }
@@ -244,26 +258,26 @@
                         {
                             "path": "data.SwiftMT.fields.54A",
                             "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"},
+                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"},
                                 {
-                                    "bic": {"raw": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"}},
+                                    "bic": {"raw": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"}},
                                     "party_identifier": { "if": [
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgtAcct.Id.Othr.Id"},
+                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgtAcct.Id.Othr.Id"},
                                         {
                                             "cat": [
                                                 "/",
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgtAcct.Id.Othr.Id"}
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgtAcct.Id.Othr.Id"}
                                             ]
                                         },
                                         { "if": [
                                             { "and": [
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"},
                                                 {
                                                     "!": [
                                                         {
                                                             "in": [
-                                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
                                                                 ["USPID", "RUCBC", "CHBCC", "CHSIC"]
                                                             ]
                                                         }
@@ -273,8 +287,8 @@
                                             {
                                                 "cat": [
                                                     "//",
-                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
                                                 ]
                                             },
                                             ""
@@ -290,22 +304,22 @@
                                 { "and": [
                                     {
                                         "!": [
-                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"}
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.BICFI"}
                                         ]
                                     },
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.Nm"}
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.Nm"}
                                 ]},
                                 {
                                     "party_identifier": { "if": [
                                         { "and": [
-                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
                                         ]},
                                         {
                                             "cat": [
                                                 "//",
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
                                             ]
                                         },
                                         ""
@@ -313,11 +327,11 @@
                                     "name_and_address": {
                                         "merge": [
                                             [
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.Nm"}
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.Nm"}
                                             ],
                                             { "if": [
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.PstlAdr.AdrLine"},
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.PstlAdr.AdrLine"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.PstlAdr.AdrLine"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.InstdRmbrsmntAgt.FinInstnId.PstlAdr.AdrLine"},
                                                 ["NOTPROVIDED"]
                                             ]}
                                         ]
@@ -341,26 +355,26 @@
                         {
                             "path": "data.SwiftMT.fields.55A",
                             "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.BICFI"},
+                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.BICFI"},
                                 {
-                                    "bic": {"raw": {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.BICFI"}},
+                                    "bic": {"raw": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.BICFI"}},
                                     "party_identifier": { "if": [
-                                        {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgtAcct.Id.Othr.Id"},
+                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.ThrdRmbrsmntAgtAcct.Id.Othr.Id"},
                                         {
                                             "cat": [
                                                 "/",
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgtAcct.Id.Othr.Id"}
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.ThrdRmbrsmntAgtAcct.Id.Othr.Id"}
                                             ]
                                         },
                                         { "if": [
                                             { "and": [
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"},
                                                 {
                                                     "!": [
                                                         {
                                                             "in": [
-                                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
                                                                 ["USPID", "RUCBC", "CHBCC", "CHSIC"]
                                                             ]
                                                         }
@@ -370,8 +384,8 @@
                                             {
                                                 "cat": [
                                                     "//",
-                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
                                                 ]
                                             },
                                             ""
@@ -387,22 +401,22 @@
                                 { "and": [
                                     {
                                         "!": [
-                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.BICFI"}
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.BICFI"}
                                         ]
                                     },
-                                    {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.Nm"}
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.Nm"}
                                 ]},
                                 {
                                     "party_identifier": { "if": [
                                         { "and": [
-                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                            {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
                                         ]},
                                         {
                                             "cat": [
                                                 "//",
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.ClrSysMmbId.MmbId"}
                                             ]
                                         },
                                         ""
@@ -410,11 +424,11 @@
                                     "name_and_address": {
                                         "merge": [
                                             [
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.Nm"}
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.Nm"}
                                             ],
                                             { "if": [
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.PstlAdr.AdrLine"},
-                                                {"var": "data.ISO20022_MX.document.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.PstlAdr.AdrLine"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.PstlAdr.AdrLine"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.GrpHdr.SttlmInf.ThrdRmbrsmntAgt.FinInstnId.PstlAdr.AdrLine"},
                                                 ["NOTPROVIDED"]
                                             ]}
                                         ]
@@ -436,40 +450,43 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#56",
+                            "path": "data.SwiftMT.fields.56A",
                             "logic": { "if": [
-                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"},
+                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"},
                                 {
-                                    "A": {
-                                        "bic": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"},
-                                        "party_identifier": { "if": [
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1Acct.Id.Othr.Id"},
-                                            {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1Acct.Id.Othr.Id"}]},
+                                    "bic": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"},
+                                    "party_identifier": { "if": [
+                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1Acct.Id.Othr.Id"},
+                                        {
+                                            "cat": [
+                                                "/",
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1Acct.Id.Othr.Id"}
+                                            ]
+                                        },
+                                        { "if": [
+                                            { "and": [
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}
+                                            ]},
                                             { "if": [
-                                                { "and": [
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}
-                                                ]},
-                                                { "if": [
-                                                    {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
-                                                    {
-                                                        "cat": [
-                                                            "//RT",
-                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}
-                                                        ]
-                                                    },
-                                                    {
-                                                        "cat": [
-                                                            "//",
-                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}
-                                                        ]
-                                                    }
-                                                ]},
-                                                null
-                                            ]}
+                                                {"==": [{"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
+                                                {
+                                                    "cat": [
+                                                        "//RT",
+                                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}
+                                                    ]
+                                                },
+                                                {
+                                                    "cat": [
+                                                        "//",
+                                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}
+                                                    ]
+                                                }
+                                            ]},
+                                            null
                                         ]}
-                                    }
+                                    ]}
                                 },
                                 null
                             ]}
@@ -478,24 +495,28 @@
                             "path": "data.SwiftMT.fields.56C",
                             "logic": { "if": [
                                 { "and": [
-                                    {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"}]},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}
+                                    {
+                                        "!": [
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"}
+                                        ]
+                                    },
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}
                                 ]},
                                 {
                                     "account_number": { "if": [
-                                        {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
+                                        {"==": [{"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
                                         {
                                             "cat": [
                                                 "//RT",
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}
                                             ]
                                         },
                                         {
                                             "cat": [
                                                 "//",
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.MmbId"}
                                             ]
                                         }
                                     ]}
@@ -507,21 +528,27 @@
                             "path": "data.SwiftMT.fields.56D",
                             "logic": { "if": [
                                 { "and": [
-                                    {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"}]},
                                     {
                                         "!": [
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.BICFI"}
                                         ]
                                     },
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.Nm"}
+                                    {
+                                        "!": [
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}
+                                        ]
+                                    },
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.Nm"}
                                 ]},
                                 {
                                     "name_and_address": {
                                         "merge": [
-                                            [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.Nm"}],
+                                            [
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.Nm"}
+                                            ],
                                             { "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.PstlAdr.AdrLine"},
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.IntrmyAgt1.FinInstnId.PstlAdr.AdrLine"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.PstlAdr.AdrLine"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.IntrmyAgt1.FinInstnId.PstlAdr.AdrLine"},
                                                 ["NOTPROVIDED"]
                                             ]}
                                         ]
@@ -543,59 +570,66 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#57",
-                            "logic": {
-                                "A": { "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
-                                    {
-                                        "bic": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
-                                        "party_identifier": { "if": [
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgtAcct.Id.Othr.Id"},
-                                            {"cat": ["/", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgtAcct.Id.Othr.Id"}]},
+                            "path": "data.SwiftMT.fields.57A",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
+                                {
+                                    "bic": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"},
+                                    "party_identifier": { "if": [
+                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgtAcct.Id.Othr.Id"},
+                                        {
+                                            "cat": [
+                                                "/",
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgtAcct.Id.Othr.Id"}
+                                            ]
+                                        },
+                                        { "if": [
+                                            { "and": [
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                            ]},
                                             { "if": [
-                                                { "and": [
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
-                                                ]},
-                                                { "if": [
-                                                    {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
-                                                    {
-                                                        "cat": [
-                                                            "//RT",
-                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
-                                                        ]
-                                                    },
-                                                    {
-                                                        "cat": [
-                                                            "//",
-                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
-                                                        ]
-                                                    }
-                                                ]},
-                                                null
-                                            ]}
+                                                {"==": [{"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
+                                                {
+                                                    "cat": [
+                                                        "//RT",
+                                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                                    ]
+                                                },
+                                                {
+                                                    "cat": [
+                                                        "//",
+                                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                                    ]
+                                                }
+                                            ]},
+                                            null
                                         ]}
-                                    },
-                                    null
-                                ]}
-                            }
+                                    ]}
+                                },
+                                null
+                            ]}
                         },
                         {
                             "path": "data.SwiftMT.fields.57B",
                             "logic": { "if": [
                                 { "and": [
-                                    {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}]},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                    {
+                                        "!": [
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}
+                                        ]
+                                    },
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
                                     {
                                         "in": [
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
                                             ["USABA", "CACPA", "GBDSC", "AUBSB"]
                                         ]
                                     }
                                 ]},
-                                {"party_identifier": {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}},
+                                {"party_identifier": {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}},
                                 null
                             ]}
                         },
@@ -603,14 +637,18 @@
                             "path": "data.SwiftMT.fields.57C",
                             "logic": { "if": [
                                 { "and": [
-                                    {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}]},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
+                                    {
+                                        "!": [
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}
+                                        ]
+                                    },
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"},
                                     {
                                         "!": [
                                             {
                                                 "in": [
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
                                                     ["USABA", "CACPA", "GBDSC", "AUBSB"]
                                                 ]
                                             }
@@ -619,18 +657,18 @@
                                 ]},
                                 {
                                     "account_number": { "if": [
-                                        {"==": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
+                                        {"==": [{"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.PmtTpInf.ClrChanl"}, "RTGS"]},
                                         {
                                             "cat": [
                                                 "//RT",
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
                                             ]
                                         },
                                         {
                                             "cat": [
                                                 "//",
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.MmbId"}
                                             ]
                                         }
                                     ]}
@@ -642,34 +680,40 @@
                             "path": "data.SwiftMT.fields.57D",
                             "logic": { "if": [
                                 { "and": [
-                                    {"!": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}]},
                                     {
                                         "!": [
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.BICFI"}
                                         ]
                                     },
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.Nm"}
+                                    {
+                                        "!": [
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.ClrSysMmbId.ClrSysId.Cd"}
+                                        ]
+                                    },
+                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.Nm"}
                                 ]},
                                 {
                                     "name_and_address": {
                                         "merge": [
-                                            [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.Nm"}],
+                                            [
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.Nm"}
+                                            ],
                                             { "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.AdrLine"},
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.AdrLine"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.AdrLine"},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.AdrLine"},
                                                 { "if": [
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.StrtNm"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.StrtNm"},
                                                     [
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.StrtNm"},
+                                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.StrtNm"},
                                                         {
                                                             "cat": [
-                                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.TwnNm"},
+                                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.TwnNm"},
                                                                 { "if": [
-                                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.Ctry"},
+                                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.Ctry"},
                                                                     {
                                                                         "cat": [
                                                                             ", ",
-                                                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.Ctry"}
+                                                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAgt.FinInstnId.PstlAdr.Ctry"}
                                                                         ]
                                                                     },
                                                                     ""

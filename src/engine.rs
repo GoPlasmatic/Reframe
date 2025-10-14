@@ -1,17 +1,17 @@
+use arc_swap::ArcSwap;
 use dataflow_rs::{AsyncFunctionHandler, Engine, Workflow};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
-use arc_swap::ArcSwap;
 use tracing::{debug, info, warn};
 
-use crate::parse_mt::ParseMT;
-use crate::parse_mx::ParseMX;
-use crate::publish_mt::PublishMT;
-use crate::publish_mx::PublishMX;
 use crate::types::AppState;
+
+// Import plugin registration functions
+use mx_message::plugin::register_mx_functions;
+use swift_mt_message::plugin::register_swift_mt_functions;
 
 pub async fn initialize_forward_engine() -> Result<Arc<Engine>, Box<dyn std::error::Error>> {
     debug!("Setting up forward engine (MT to ISO 20022) with async Engine");
@@ -19,22 +19,34 @@ pub async fn initialize_forward_engine() -> Result<Arc<Engine>, Box<dyn std::err
     // Load forward workflows
     let workflows = load_workflows("workflows/forward").await?;
 
-    // Register MT-specific functions for forward transformation
+    // Register all functions for forward transformation
     let mut custom_functions: HashMap<String, Box<dyn AsyncFunctionHandler + Send + Sync>> =
         HashMap::new();
-    custom_functions.insert(
-        "ParseMT".to_string(),
-        Box::new(ParseMT) as Box<dyn AsyncFunctionHandler + Send + Sync>,
-    );
-    custom_functions.insert(
-        "PublishMX".to_string(),
-        Box::new(PublishMX) as Box<dyn AsyncFunctionHandler + Send + Sync>,
-    );
+
+    // Register all MT plugin functions
+    let mt_functions = register_swift_mt_functions();
+    for (name, handler) in mt_functions {
+        debug!("Registering MT function: {}", name);
+        custom_functions.insert(name.to_string(), handler);
+    }
+
+    // Register all MX plugin functions
+    let mx_functions = register_mx_functions();
+    for (name, handler) in mx_functions {
+        debug!("Registering MX function: {}", name);
+        custom_functions.insert(name.to_string(), handler);
+    }
+
+    let function_count = custom_functions.len();
 
     // Create async engine with workflows and custom functions
     let engine = Engine::new(workflows, Some(custom_functions));
 
-    debug!("Forward engine ready with async Engine");
+    info!(
+        "Forward engine initialized with {} custom functions",
+        function_count
+    );
+    debug!("Forward engine ready with async Engine and plugin functions");
     Ok(Arc::new(engine))
 }
 
@@ -44,22 +56,108 @@ pub async fn initialize_reverse_engine() -> Result<Arc<Engine>, Box<dyn std::err
     // Load reverse workflows
     let workflows = load_workflows("workflows/reverse").await?;
 
-    // Register MX-specific functions for reverse transformation
+    // Register all functions for reverse transformation
     let mut custom_functions: HashMap<String, Box<dyn AsyncFunctionHandler + Send + Sync>> =
         HashMap::new();
-    custom_functions.insert(
-        "ParseMX".to_string(),
-        Box::new(ParseMX) as Box<dyn AsyncFunctionHandler + Send + Sync>,
-    );
-    custom_functions.insert(
-        "PublishMT".to_string(),
-        Box::new(PublishMT) as Box<dyn AsyncFunctionHandler + Send + Sync>,
-    );
+
+    // Register all MT plugin functions
+    let mt_functions = register_swift_mt_functions();
+    for (name, handler) in mt_functions {
+        debug!("Registering MT function: {}", name);
+        custom_functions.insert(name.to_string(), handler);
+    }
+
+    // Register all MX plugin functions
+    let mx_functions = register_mx_functions();
+    for (name, handler) in mx_functions {
+        debug!("Registering MX function: {}", name);
+        custom_functions.insert(name.to_string(), handler);
+    }
+
+    let function_count = custom_functions.len();
 
     // Create async engine with workflows and custom functions
     let engine = Engine::new(workflows, Some(custom_functions));
 
-    debug!("Reverse engine ready with async Engine");
+    info!(
+        "Reverse engine initialized with {} custom functions",
+        function_count
+    );
+    debug!("Reverse engine ready with async Engine and plugin functions");
+    Ok(Arc::new(engine))
+}
+
+pub async fn initialize_generation_engine() -> Result<Arc<Engine>, Box<dyn std::error::Error>> {
+    debug!("Setting up generation engine with async Engine");
+
+    // Load generation workflows
+    let workflows = load_workflows("workflows/generation").await?;
+
+    // Register all functions for message generation
+    let mut custom_functions: HashMap<String, Box<dyn AsyncFunctionHandler + Send + Sync>> =
+        HashMap::new();
+
+    // Register all MT plugin functions (includes generate_mt)
+    let mt_functions = register_swift_mt_functions();
+    for (name, handler) in mt_functions {
+        debug!("Registering MT function: {}", name);
+        custom_functions.insert(name.to_string(), handler);
+    }
+
+    // Register all MX plugin functions (includes generate_mx)
+    let mx_functions = register_mx_functions();
+    for (name, handler) in mx_functions {
+        debug!("Registering MX function: {}", name);
+        custom_functions.insert(name.to_string(), handler);
+    }
+
+    let function_count = custom_functions.len();
+
+    // Create async engine with workflows and custom functions
+    let engine = Engine::new(workflows, Some(custom_functions));
+
+    info!(
+        "Generation engine initialized with {} custom functions",
+        function_count
+    );
+    debug!("Generation engine ready with async Engine and plugin functions");
+    Ok(Arc::new(engine))
+}
+
+pub async fn initialize_validation_engine() -> Result<Arc<Engine>, Box<dyn std::error::Error>> {
+    debug!("Setting up validation engine with async Engine");
+
+    // Load validation workflows
+    let workflows = load_workflows("workflows/validation").await?;
+
+    // Register all functions for message validation
+    let mut custom_functions: HashMap<String, Box<dyn AsyncFunctionHandler + Send + Sync>> =
+        HashMap::new();
+
+    // Register all MT plugin functions (includes validate_mt)
+    let mt_functions = register_swift_mt_functions();
+    for (name, handler) in mt_functions {
+        debug!("Registering MT function: {}", name);
+        custom_functions.insert(name.to_string(), handler);
+    }
+
+    // Register all MX plugin functions (includes validate_mx)
+    let mx_functions = register_mx_functions();
+    for (name, handler) in mx_functions {
+        debug!("Registering MX function: {}", name);
+        custom_functions.insert(name.to_string(), handler);
+    }
+
+    let function_count = custom_functions.len();
+
+    // Create async engine with workflows and custom functions
+    let engine = Engine::new(workflows, Some(custom_functions));
+
+    info!(
+        "Validation engine initialized with {} custom functions",
+        function_count
+    );
+    debug!("Validation engine ready with async Engine and plugin functions");
     Ok(Arc::new(engine))
 }
 
@@ -118,11 +216,23 @@ pub async fn initialize_engines() -> AppState {
         .await
         .expect("Failed to initialize reverse engine");
 
+    // Create generation engine with async support
+    let generation_engine = initialize_generation_engine()
+        .await
+        .expect("Failed to initialize generation engine");
+
+    // Create validation engine with async support
+    let validation_engine = initialize_validation_engine()
+        .await
+        .expect("Failed to initialize validation engine");
+
     info!("Async Engine instances initialized successfully");
 
     AppState {
         forward_engine: Arc::new(ArcSwap::from(forward_engine)),
         reverse_engine: Arc::new(ArcSwap::from(reverse_engine)),
+        generation_engine: Arc::new(ArcSwap::from(generation_engine)),
+        validation_engine: Arc::new(ArcSwap::from(validation_engine)),
     }
 }
 
@@ -135,9 +245,17 @@ pub async fn reload_engines(app_state: &AppState) -> Result<(), Box<dyn std::err
     // Create new reverse engine with updated workflows
     let new_reverse_engine = initialize_reverse_engine().await?;
 
+    // Create new generation engine with updated workflows
+    let new_generation_engine = initialize_generation_engine().await?;
+
+    // Create new validation engine with updated workflows
+    let new_validation_engine = initialize_validation_engine().await?;
+
     // Atomically swap the engines
     app_state.forward_engine.store(new_forward_engine);
     app_state.reverse_engine.store(new_reverse_engine);
+    app_state.generation_engine.store(new_generation_engine);
+    app_state.validation_engine.store(new_validation_engine);
 
     info!("✅ Workflow reload completed successfully");
     info!("All new requests will use the updated workflows");

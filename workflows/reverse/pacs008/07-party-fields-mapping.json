@@ -4,7 +4,7 @@
     "description": "Maps customer party information including Field 50K (Ordering Customer - TR026) and Field 59 (Beneficiary Customer - TR025)",
     "priority": 8,
     "condition": { "and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pacs.008.001.08"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "pacs.008"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "pacs008-to-mt103-charge-fields"]},
         {"==": [{"var": "metadata.progress.task_id"}, "map_receivers_charges"]},
@@ -20,48 +20,51 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#50",
-                            "logic": {
-                                "K": { "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.Nm"},
-                                    {
-                                        "account": { "if": [
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAcct.Id.IBAN"},
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAcct.Id.IBAN"},
-                                            { "if": [
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAcct.Id.Othr.Id"},
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.DbtrAcct.Id.Othr.Id"},
-                                                null
-                                            ]}
-                                        ]},
-                                        "name_and_address": {
-                                            "filter": [
-                                                [
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.Nm"},
-                                                    { "if": [
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.Id.OrgId.LEI"},
-                                                        {"cat": ["/LEI", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.Id.OrgId.LEI"}]},
-                                                        null
-                                                    ]},
-                                                    { "if": [
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.AdrLine.0"},
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.AdrLine.0"},
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.StrtNm"}
-                                                    ]},
-                                                    { "if": [
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.AdrLine.1"},
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.AdrLine.1"},
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.TwnNm"}
-                                                    ]},
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Dbtr.PstlAdr.Ctry"}
-                                                ],
-                                                {"!=": [{"var": ""}, null]}
-                                            ]
-                                        }
-                                    },
-                                    null
-                                ]}
-                            }
+                            "path": "data.SwiftMT.fields.50K",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Dbtr.Nm"},
+                                {
+                                    "account": { "if": [
+                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAcct.Id.IBAN"},
+                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAcct.Id.IBAN"},
+                                        { "if": [
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAcct.Id.Othr.Id"},
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.DbtrAcct.Id.Othr.Id"},
+                                            null
+                                        ]}
+                                    ]},
+                                    "name_and_address": {
+                                        "filter": [
+                                            [
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Dbtr.Nm"},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Dbtr.Id.OrgId.LEI"},
+                                                    {
+                                                        "cat": [
+                                                            "/LEI",
+                                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Dbtr.Id.OrgId.LEI"}
+                                                        ]
+                                                    },
+                                                    null
+                                                ]},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Dbtr.PstlAdr.AdrLine.0"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Dbtr.PstlAdr.AdrLine.0"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Dbtr.PstlAdr.StrtNm"}
+                                                ]},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Dbtr.PstlAdr.AdrLine.1"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Dbtr.PstlAdr.AdrLine.1"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Dbtr.PstlAdr.TwnNm"}
+                                                ]},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Dbtr.PstlAdr.Ctry"}
+                                            ],
+                                            {"!=": [{"var": ""}, null]}
+                                        ]
+                                    }
+                                },
+                                null
+                            ]}
                         }
                     ]
                 }
@@ -76,51 +79,54 @@
                 "input": {
                     "mappings": [
                         {
-                            "path": "data.SwiftMT.fields.#59",
-                            "logic": {
-                                "NoOption": { "if": [
-                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.Nm"},
-                                    {
-                                        "account": { "if": [
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAcct.Id.IBAN"},
-                                            {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAcct.Id.IBAN"},
-                                            { "if": [
-                                                { "and": [
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAcct.Id.Othr.Id"},
-                                                    {"!=": [{"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAcct.Id.Othr.Id"}, "NOTPROVIDED"]}
+                            "path": "data.SwiftMT.fields.59",
+                            "logic": { "if": [
+                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Cdtr.Nm"},
+                                {
+                                    "account": { "if": [
+                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAcct.Id.IBAN"},
+                                        {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAcct.Id.IBAN"},
+                                        { "if": [
+                                            { "and": [
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAcct.Id.Othr.Id"},
+                                                {"!=": [{"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAcct.Id.Othr.Id"}, "NOTPROVIDED"]}
+                                            ]},
+                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.CdtrAcct.Id.Othr.Id"},
+                                            null
+                                        ]}
+                                    ]},
+                                    "name_and_address": {
+                                        "filter": [
+                                            [
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Cdtr.Nm"},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Cdtr.Id.OrgId.LEI"},
+                                                    {
+                                                        "cat": [
+                                                            "/LEI",
+                                                            {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Cdtr.Id.OrgId.LEI"}
+                                                        ]
+                                                    },
+                                                    null
                                                 ]},
-                                                {"var": "data.ISO20022_MX.document.CdtTrfTxInf.CdtrAcct.Id.Othr.Id"},
-                                                null
-                                            ]}
-                                        ]},
-                                        "name_and_address": {
-                                            "filter": [
-                                                [
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.Nm"},
-                                                    { "if": [
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.Id.OrgId.LEI"},
-                                                        {"cat": ["/LEI", {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.Id.OrgId.LEI"}]},
-                                                        null
-                                                    ]},
-                                                    { "if": [
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.AdrLine.0"},
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.AdrLine.0"},
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.StrtNm"}
-                                                    ]},
-                                                    { "if": [
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.AdrLine.1"},
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.AdrLine.1"},
-                                                        {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.TwnNm"}
-                                                    ]},
-                                                    {"var": "data.ISO20022_MX.document.CdtTrfTxInf.Cdtr.PstlAdr.Ctry"}
-                                                ],
-                                                {"!=": [{"var": ""}, null]}
-                                            ]
-                                        }
-                                    },
-                                    null
-                                ]}
-                            }
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Cdtr.PstlAdr.AdrLine.0"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Cdtr.PstlAdr.AdrLine.0"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Cdtr.PstlAdr.StrtNm"}
+                                                ]},
+                                                { "if": [
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Cdtr.PstlAdr.AdrLine.1"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Cdtr.PstlAdr.AdrLine.1"},
+                                                    {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Cdtr.PstlAdr.TwnNm"}
+                                                ]},
+                                                {"var": "data.ISO20022_MX.Document.FIToFICstmrCdtTrf.CdtTrfTxInf.Cdtr.PstlAdr.Ctry"}
+                                            ],
+                                            {"!=": [{"var": ""}, null]}
+                                        ]
+                                    }
+                                },
+                                null
+                            ]}
                         }
                     ]
                 }

@@ -6,9 +6,11 @@
     "variables": {
         "sender_bic": {"fake": ["bic"]},
         "receiver_bic": {"fake": ["bic"]},
-        "transaction_ref": {"cat": ["REM", {"fake": ["i64", 1000000000, 9999999999]}]},
-        "currency": {"fake": ["currency_code"]},
-        "amount": {"fake": ["f64", 500.0, 50000.0]},
+        "transaction_ref": {"cat": ["REM", {"fake": ["u64", 1000000000, 9999999999]}]},
+        "currency": {
+            "fake": ["enum", "USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD", "SEK", "NOK"]
+        },
+        "amount": {"fake": ["u64", 500, 50000]},
         "value_date": {
             "fake": ["date", "%y-%m-%d", "+1d", "+3d"]
         },
@@ -19,7 +21,7 @@
         "receiver_country": {"fake": ["country_code"]},
         "purpose_code": "CASH",
         "relationship": "FAMILY",
-        "id_number": {"fake": ["i64", 100000000000, 999999999999]},
+        "id_number": {"fake": ["u64", 100000000000, 999999999999]},
         "birth_date": {
             "fake": ["date", "%Y%m%d", "-70y", "-18y"]
         },
@@ -32,8 +34,8 @@
             "service_id": "01",
             "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
             "sender_bic": {"var": "sender_bic"},
-            "session_number": {"cat": ["", {"fake": ["i64", 1, 9999]}]},
-            "sequence_number": {"cat": ["", {"fake": ["i64", 100000, 999999]}]}
+            "session_number": {"cat": ["", {"fake": ["u64", 1, 9999]}]},
+            "sequence_number": {"cat": ["", {"fake": ["u64", 100000, 999999]}]}
         },
         "application_header": {
             "direction": "I",
@@ -53,10 +55,16 @@
             "13C": [
                 {
                     "code": "SNDTIME",
-                    "time": {"cat": [
-                        {"substr" : [{"fake": ["time"]}, 0, 2]},
-                        {"substr": [{"fake": ["time"]}, 3, 2]}
-                    ]},
+                    "time": {
+                        "cat": [
+                            {
+                                "substr": [{"fake": ["time"]}, 0, 2]
+                            },
+                            {
+                                "substr": [{"fake": ["time"]}, 3, 2]
+                            }
+                        ]
+                    },
                     "sign": "+",
                     "offset": "0530"
                 }
@@ -67,50 +75,73 @@
                 "currency": {"var": "currency"},
                 "amount": {"var": "amount"}
             },
-            "50": {
-                "K": {
-                    "account": {"cat": ["/", {"fake": ["iban"]}]},
-                    "name_and_address": [
-                        {"cat": ["1/", {"var": "sender_name"}]},
-                        {"cat": ["2/", {"fake": ["street_address"]}]},
-                        {
-                            "cat": [
-                                "3/",
-                                {"var": "sender_country"},
-                                "/",
-                                {"fake": ["city_name"]}
-                            ]
-                        },
-                        {"cat": ["4/DOB/", {"var": "birth_date"}]}
-                    ]
-                }
+            "50K": {
+                "account": {"cat": ["/", {"fake": ["iban"]}]},
+                "name_and_address": [
+                    {
+                        "substr": [{"var": "sender_name"}, 0, 35]
+                    },
+                    {
+                        "substr": [{"fake": ["street_address"]}, 0, 35]
+                    },
+                    {
+                        "substr": [
+                            {
+                                "cat": [{"var": "sender_country"}, "/", {"fake": ["city_name"]}]
+                            },
+                            0,
+                            35
+                        ]
+                    },
+                    {
+                        "substr": [{"cat": ["DOB/", {"var": "birth_date"}]}, 0, 35]
+                    }
+                ]
             },
-            "52": {"A": {"bic": {"var": "sender_bic"}}},
-            "57": {"A": {"bic": {"var": "receiver_bic"}}},
-            "59": {
-                "F": {
-                    "account": {"cat": ["/", {"fake": ["i64", 100000000, 999999999]}]},
-                    "name_and_address": [
-                        {"cat": ["1/", {"var": "receiver_name"}]},
-                        {"cat": ["2/", {"fake": ["street_address"]}]},
-                        {
-                            "cat": [
-                                "3/",
-                                {"var": "receiver_country"},
-                                "/",
-                                {"fake": ["city_name"]}
-                            ]
-                        },
-                        {"cat": ["4/TEL/", {"fake": ["phone_number"]}]}
-                    ]
-                }
+            "52A": {"bic": {"var": "sender_bic"}},
+            "57A": {"bic": {"var": "receiver_bic"}},
+            "59F": {
+                "name_and_address": [
+                    {"cat": ["/", {"fake": ["u64", 100000000, 999999999]}]},
+                    {
+                        "substr": [{"cat": ["1/", {"var": "receiver_name"}]}, 0, 35]
+                    },
+                    {
+                        "substr": [{"cat": ["2/", {"fake": ["street_address"]}]}, 0, 35]
+                    },
+                    {
+                        "substr": [
+                            {
+                                "cat": [
+                                    "3/",
+                                    {"var": "receiver_country"},
+                                    "/",
+                                    {"fake": ["city_name"]}
+                                ]
+                            },
+                            0,
+                            35
+                        ]
+                    },
+                    {
+                        "substr": [{"cat": ["4/TEL/", {"fake": ["phone_number"]}]}, 0, 35]
+                    }
+                ]
             },
             "70": {
                 "narrative": [
-                    {"substr": [{"cat": ["/PURP/", {"var": "purpose_code"}]}, 0, 29]},
-                    {"substr": [{"cat": ["/REL/", {"var": "relationship"}]}, 0, 30]},
-                    {"substr": [{"cat": ["/RFB/", {"var": "reference_msg"}]}, 0, 30]},
-                    {"substr": [{"cat": ["/BENRES/", {"var": "receiver_country"}]}, 0, 27]}
+                    {
+                        "substr": [{"cat": ["/PURP/", {"var": "purpose_code"}]}, 0, 29]
+                    },
+                    {
+                        "substr": [{"cat": ["/REL/", {"var": "relationship"}]}, 0, 30]
+                    },
+                    {
+                        "substr": [{"cat": ["/RFB/", {"var": "reference_msg"}]}, 0, 30]
+                    },
+                    {
+                        "substr": [{"cat": ["/BENRES/", {"var": "receiver_country"}]}, 0, 27]
+                    }
                 ]
             },
             "71A": {"code": "SHA"},

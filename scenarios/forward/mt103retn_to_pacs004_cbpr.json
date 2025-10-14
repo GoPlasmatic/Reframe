@@ -6,18 +6,22 @@
     "variables": {
         "sender_bic": {"fake": ["bic"]},
         "receiver_bic": {"fake": ["bic"]},
-        "return_ref": {"cat": ["RTN", {"fake": ["i64", 1000000000, 9999999999]}]},
-        "original_ref": {"cat": ["ORIG", {"fake": ["i64", 1000000000, 9999999999]}]},
-        "currency": {"fake": ["currency_code"]},
+        "return_ref": {"cat": ["RTN", {"fake": ["u64", 1000000000, 9999999999]}]},
+        "original_ref": {"cat": ["ORIG", {"fake": ["u64", 1000000000, 9999999999]}]},
+        "currency": {
+            "fake": ["enum", "USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD", "SEK", "NOK"]
+        },
         "amount": {"fake": ["f64", 1000.0, 100000.0]},
         "value_date": {
             "fake": ["date", "%y-%m-%d", "+0d", "+2d"]
         },
         "return_reason": "AC01",
         "uetr": {"fake": ["uuid"]},
-        "charges_amount": {"fake": ["f64", 10.0, 100.0]},
+        "charges_amount": {"*": [{"fake": ["u64", 1000, 10000]}, 0.01]},
         "charges_bearer": "SHA",
-        "additional_info": {"substr": [{"fake": ["words", 3, 7]}, 0, 25]}
+        "additional_info": {
+            "substr": [{"fake": ["words", 3, 7]}, 0, 25]
+        }
     },
     "schema": {
         "basic_header": {
@@ -25,8 +29,8 @@
             "service_id": "01",
             "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
             "sender_bic": {"var": "sender_bic"},
-            "session_number": {"cat": ["", {"fake": ["i64", 1, 9999]}]},
-            "sequence_number": {"cat": ["", {"fake": ["i64", 100000, 999999]}]}
+            "session_number": {"cat": ["", {"fake": ["u64", 1, 9999]}]},
+            "sequence_number": {"cat": ["", {"fake": ["u64", 100000, 999999]}]}
         },
         "application_header": {
             "direction": "I",
@@ -47,35 +51,34 @@
                 "currency": {"var": "currency"},
                 "amount": {"var": "amount"}
             },
-            "33B": {
-                "currency": "USD",
-                "amount": {"var": "amount"}
+            "33B": {"currency": {"var": "currency"}, "amount": {"var": "amount"}},
+            "50K": {
+                "account": {"cat": ["/", {"fake": ["iban"]}]},
+                "name_and_address": [{"fake": ["company_name"]}, {"fake": ["street_address"]}, {"fake": ["city_name"]}]
             },
-            "36": {
-                "rate": 1.0876
-            },
-            "50": {
-                "K": {
-                    "account": {"cat": ["/", {"fake": ["iban"]}]},
-                    "name_and_address": [{"fake": ["company_name"]}, {"fake": ["street_address"]}, {"fake": ["city_name"]}]
-                }
-            },
-            "52": {"A": {"bic": {"var": "sender_bic"}}},
-            "57": {"A": {"bic": {"var": "receiver_bic"}}},
+            "52A": {"bic": {"var": "sender_bic"}},
+            "57A": {"bic": {"var": "receiver_bic"}},
             "59": {
-                "NoOption": {
-                    "account": {"cat": ["/", {"fake": ["iban"]}]},
-                    "name_and_address": [{"fake": ["company_name"]}, {"fake": ["street_address"]}, {"fake": ["city_name"]}]
-                }
+                "account": {"cat": ["/", {"fake": ["iban"]}]},
+                "name_and_address": [{"fake": ["company_name"]}, {"fake": ["street_address"]}, {"fake": ["city_name"]}]
             },
             "71A": {"code": {"var": "charges_bearer"}},
             "71F": [{"currency": {"var": "currency"}, "amount": {"var": "charges_amount"}}],
             "72": {
                 "information": [
                     "/RETN/",
-                    {"cat": ["/", {"var": "return_reason"}, "/"]},
+                    {
+                        "cat": ["/", {"var": "return_reason"}, "/"]
+                    },
                     {"cat": ["/MREF/", {"var": "original_ref"}]},
-                    {"cat": ["/TREF/", {"substr": [{"var": "uetr"}, 0, 28]}]},
+                    {
+                        "cat": [
+                            "/TREF/",
+                            {
+                                "substr": [{"var": "uetr"}, 0, 28]
+                            }
+                        ]
+                    },
                     {"cat": ["/ADDINFO/", {"var": "additional_info"}]}
                 ]
             },

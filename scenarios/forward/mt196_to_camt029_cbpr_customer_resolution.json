@@ -6,12 +6,14 @@
     "variables": {
         "sender_bic": {"fake": ["bic"]},
         "receiver_bic": {"fake": ["bic"]},
-        "case_id": {"cat": ["RES", {"fake": ["i64", 1000000000, 9999999999]}]},
-        "original_case_id": {"cat": ["CASE", {"fake": ["i64", 1000000000, 9999999999]}]},
+        "case_id": {"cat": ["RES", {"fake": ["u64", 1000000000, 9999999999]}]},
+        "original_case_id": {"cat": ["CASE", {"fake": ["u64", 1000000000, 9999999999]}]},
         "resolution_type": "ACCP",
-        "original_amount": {"fake": ["f64", 1000.0, 100000.0]},
-        "modified_amount": {"fake": ["f64", 1000.0, 100000.0]},
-        "currency": {"fake": ["currency_code"]},
+        "original_amount": {"fake": ["u64", 1000, 100000]},
+        "modified_amount": {"fake": ["u64", 1000, 100000]},
+        "currency": {
+            "fake": ["enum", "USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD", "SEK", "NOK"]
+        },
         "uetr": {"fake": ["uuid"]},
         "resolution_details": {"fake": ["words", 5, 10]},
         "action_taken": {
@@ -25,8 +27,8 @@
             "application_id": "F",
             "service_id": "01",
             "logical_terminal": {"cat": [{"var": "sender_bic"}, "AXXX"]},
-            "session_number": {"cat": ["", {"fake": ["i64", 1, 9999]}]},
-            "sequence_number": {"cat": ["", {"fake": ["i64", 100000, 999999]}]},
+            "session_number": {"cat": ["", {"fake": ["u64", 1, 9999]}]},
+            "sequence_number": {"cat": ["", {"fake": ["u64", 100000, 999999]}]},
             "sender_bic": {"var": "sender_bic"}
         },
         "application_header": {
@@ -41,19 +43,35 @@
         "fields": {
             "20": {"reference": {"var": "case_id"}},
             "21": {"reference": {"var": "original_case_id"}},
-            "76": {
-                "information": [
-                    {"cat": ["/RJCR/", {"var": "resolution_type"}]},
-                    "/CBPR/COMPLIANT"
-                ]
-            },
+            "76": {"information": [{"cat": ["/RJCR/", {"var": "resolution_type"}]}, "/CBPR/COMPLIANT"]},
             "79": {
                 "information": [
                     {"cat": ["CASE ID: ", {"var": "original_case_id"}]},
                     {"cat": ["RESOLUTION: ", {"var": "resolution_type"}]},
-                    {"cat": ["TEXT: ", {"substr": [{"var": "resolution_details"}, 0, 25]}]},
-                    {"cat": ["ACTION: ", {"substr": [{"var": "action_taken"}, 0, 20]}]},
-                    {"cat": ["UETR: ", {"substr": [{"var": "uetr"}, 0, 25]}]}
+                    {
+                        "cat": [
+                            "TEXT: ",
+                            {
+                                "substr": [{"var": "resolution_details"}, 0, 25]
+                            }
+                        ]
+                    },
+                    {
+                        "cat": [
+                            "ACTION: ",
+                            {
+                                "substr": [{"var": "action_taken"}, 0, 20]
+                            }
+                        ]
+                    },
+                    {
+                        "cat": [
+                            "UETR: ",
+                            {
+                                "substr": [{"var": "uetr"}, 0, 25]
+                            }
+                        ]
+                    }
                 ]
             }
         }

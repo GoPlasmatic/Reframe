@@ -4,7 +4,7 @@
     "description": "Maps entries (field 61/86) and summary (90C/90D) per TR005-007, TR009-010, TR012",
     "priority": 6,
     "condition": { "and": [
-        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "camt.052.001.08"]},
+        {"==": [{"var": "metadata.ISO20022_MX.message_type"}, "camt.052"]},
         {"==": [{"var": "metadata.transformation_direction"}, "mx-to-mt"]},
         {"==": [{"var": "metadata.progress.workflow_id"}, "camt052-mandatory-fields-mapping"]},
         {"==": [{"var": "metadata.progress.task_id"}, "map_field_13D"]},
@@ -23,7 +23,7 @@
                             "path": "data.SwiftMT.fields.##",
                             "logic": {
                                 "map": [
-                                    {"var": "data.ISO20022_MX.document.Rpt.Ntry"},
+                                    {"var": "data.ISO20022_MX.Document.BkToCstmrAcctRpt.Rpt.Ntry"},
                                     {
                                         "61": {
                                             "value_date": { "if": [
@@ -33,19 +33,7 @@
                                                     "substr": [{"var": "ValDt.DtTm"}, 0, 10]
                                                 }
                                             ]},
-                                            "entry_date": { "if": [
-                                                {"var": "BookgDt.Dt"},
-                                                {
-                                                    "substr": [{"replace": [{"var": "BookgDt.Dt"}, "-", ""]}, 4, 4]
-                                                },
-                                                { "if": [
-                                                    {"var": "BookgDt.DtTm"},
-                                                    {
-                                                        "substr": [{"replace": [{"var": "BookgDt.DtTm"}, "-", ""]}, 4, 4]
-                                                    },
-                                                    null
-                                                ]}
-                                            ]},
+                                            "entry_date": null,
                                             "debit_credit_mark": { "if": [
                                                 {"==": [{"var": "Sts.Cd"}, "BOOK"]},
                                                 { "if": [
@@ -68,8 +56,7 @@
                                                 ]}
                                             ]},
                                             "amount": {"var": "Amt.$value"},
-                                            "transaction_type": "N",
-                                            "identification_code": "TRF",
+                                            "transaction_type": "NTRF",
                                             "customer_reference": { "if": [
                                                 {"var": "NtryDtls.0.TxDtls.Refs.EndToEndId"},
                                                 { "if": [
@@ -132,10 +119,10 @@
             "name": "Map Transaction Summary 90D",
             "description": "Maps debit summaries per TR009-010",
             "condition": { "and": [
-                {"exists": ["data", "ISO20022_MX", "document", "Rpt", "TxsSummry", "TtlDbtNtries", "NbOfNtries"]},
-                {"exists": ["data", "ISO20022_MX", "document", "Rpt", "TxsSummry", "TtlDbtNtries", "Sum"]},
-                {"<=": [{"length": {"var": "data.ISO20022_MX.document.Rpt.TxsSummry.TtlDbtNtries.NbOfNtries"}}, 5]},
-                {"<=": [{"length": {"replace": [{"replace": [{"str": {"var": "data.ISO20022_MX.document.Rpt.TxsSummry.TtlDbtNtries.Sum.$value"}}, ".", ""]}, "-", ""]}}, 15]}
+                {"exists": ["data", "ISO20022_MX", "Document", "BkToCstmrAcctRpt", "Rpt", "TxsSummry", "TtlDbtNtries", "NbOfNtries"]},
+                {"exists": ["data", "ISO20022_MX", "Document", "BkToCstmrAcctRpt", "Rpt", "TxsSummry", "TtlDbtNtries", "Sum"]},
+                {"<=": [{"length": {"var": "data.ISO20022_MX.Document.BkToCstmrAcctRpt.Rpt.TxsSummry.TtlDbtNtries.NbOfNtries"}}, 5]},
+                {"<=": [{"length": {"replace": [{"replace": [{"str": {"var": "data.ISO20022_MX.Document.BkToCstmrAcctRpt.Rpt.TxsSummry.TtlDbtNtries.Sum.$value"}}, ".", ""]}, "-", ""]}}, 15]}
             ]},
             "function": {
                 "name": "map",
@@ -144,9 +131,9 @@
                         {
                             "path": "data.SwiftMT.fields.90D",
                             "logic": {
-                                "number": {"+": {"var": "data.ISO20022_MX.document.Rpt.TxsSummry.TtlDbtNtries.NbOfNtries"}},
-                                "currency": {"var": "data.ISO20022_MX.document.Rpt.Acct.Ccy"},
-                                "amount": {"+": {"var": "data.ISO20022_MX.document.Rpt.TxsSummry.TtlDbtNtries.Sum.$value"}}
+                                "number": {"+": {"var": "data.ISO20022_MX.Document.BkToCstmrAcctRpt.Rpt.TxsSummry.TtlDbtNtries.NbOfNtries"}},
+                                "currency": {"var": "data.ISO20022_MX.Document.BkToCstmrAcctRpt.Rpt.Acct.Ccy"},
+                                "amount": {"+": {"var": "data.ISO20022_MX.Document.BkToCstmrAcctRpt.Rpt.TxsSummry.TtlDbtNtries.Sum.$value"}}
                             }
                         }
                     ]
@@ -158,10 +145,10 @@
             "name": "Map Transaction Summary 90C",
             "description": "Maps credit summaries per TR009-010",
             "condition": { "and": [
-                {"exists": ["data", "ISO20022_MX", "document", "Rpt", "TxsSummry", "TtlCdtNtries", "NbOfNtries"]},
-                {"exists": ["data", "ISO20022_MX", "document", "Rpt", "TxsSummry", "TtlCdtNtries", "Sum"]},
-                {"<=": [{"length": {"var": "data.ISO20022_MX.document.Rpt.TxsSummry.TtlCdtNtries.NbOfNtries"}}, 5]},
-                {"<=": [{"length": {"replace": [{"replace": [{"str": {"var": "data.ISO20022_MX.document.Rpt.TxsSummry.TtlCdtNtries.Sum.$value"}}, ".", ""]}, "-", ""]}}, 15]}
+                {"exists": ["data", "ISO20022_MX", "Document", "BkToCstmrAcctRpt", "Rpt", "TxsSummry", "TtlCdtNtries", "NbOfNtries"]},
+                {"exists": ["data", "ISO20022_MX", "Document", "BkToCstmrAcctRpt", "Rpt", "TxsSummry", "TtlCdtNtries", "Sum"]},
+                {"<=": [{"length": {"var": "data.ISO20022_MX.Document.BkToCstmrAcctRpt.Rpt.TxsSummry.TtlCdtNtries.NbOfNtries"}}, 5]},
+                {"<=": [{"length": {"replace": [{"replace": [{"str": {"var": "data.ISO20022_MX.Document.BkToCstmrAcctRpt.Rpt.TxsSummry.TtlCdtNtries.Sum.$value"}}, ".", ""]}, "-", ""]}}, 15]}
             ]},
             "function": {
                 "name": "map",
@@ -170,9 +157,9 @@
                         {
                             "path": "data.SwiftMT.fields.90C",
                             "logic": {
-                                "number": {"+": {"var": "data.ISO20022_MX.document.Rpt.TxsSummry.TtlCdtNtries.NbOfNtries"}},
-                                "currency": {"var": "data.ISO20022_MX.document.Rpt.Acct.Ccy"},
-                                "amount": {"+": {"var": "data.ISO20022_MX.document.Rpt.TxsSummry.TtlCdtNtries.Sum.$value"}}
+                                "number": {"+": {"var": "data.ISO20022_MX.Document.BkToCstmrAcctRpt.Rpt.TxsSummry.TtlCdtNtries.NbOfNtries"}},
+                                "currency": {"var": "data.ISO20022_MX.Document.BkToCstmrAcctRpt.Rpt.Acct.Ccy"},
+                                "amount": {"+": {"var": "data.ISO20022_MX.Document.BkToCstmrAcctRpt.Rpt.TxsSummry.TtlCdtNtries.Sum.$value"}}
                             }
                         }
                     ]
@@ -183,7 +170,7 @@
             "id": "map_additional_information",
             "name": "Map Additional Information (Field 86)",
             "description": "Maps report additional information per TR012",
-            "condition": {"exists": ["data", "ISO20022_MX", "document", "Rpt", "AddtlRptInf"]},
+            "condition": {"exists": ["data", "ISO20022_MX", "Document", "BkToCstmrAcctRpt", "Rpt", "AddtlRptInf"]},
             "function": {
                 "name": "map",
                 "input": {
@@ -191,16 +178,16 @@
                         {
                             "path": "data.SwiftMT.fields.#86",
                             "logic": { "if": [
-                                {">": [{"length": {"var": "data.ISO20022_MX.document.Rpt.AddtlRptInf"}}, 390]},
+                                {">": [{"length": {"var": "data.ISO20022_MX.Document.BkToCstmrAcctRpt.Rpt.AddtlRptInf"}}, 390]},
                                 {
                                     "cat": [
                                         {
-                                            "substr": [{"var": "data.ISO20022_MX.document.Rpt.AddtlRptInf"}, 0, 389]
+                                            "substr": [{"var": "data.ISO20022_MX.Document.BkToCstmrAcctRpt.Rpt.AddtlRptInf"}, 0, 389]
                                         },
                                         "+"
                                     ]
                                 },
-                                {"var": "data.ISO20022_MX.document.Rpt.AddtlRptInf"}
+                                {"var": "data.ISO20022_MX.Document.BkToCstmrAcctRpt.Rpt.AddtlRptInf"}
                             ]}
                         }
                     ]

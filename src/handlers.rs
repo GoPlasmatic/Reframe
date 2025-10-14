@@ -6,7 +6,6 @@ use axum::{
     response::Response,
 };
 use dataflow_rs::engine::message::Message;
-use once_cell::sync::Lazy;
 use serde_json::Value;
 use std::sync::Arc;
 use std::time::Instant;
@@ -15,29 +14,13 @@ use uuid::Uuid;
 
 use crate::engine::reload_engines;
 use crate::types::{
-    AppState, DebugInfo, EngineStatus, HealthResponse, ReframeError, ReloadResponse,
-    SampleDebugInfo, SampleGenerationRequest, SampleGenerationResponse, TransformationRequest,
-    TransformationResponse, ValidationRequest, ValidationResponse,
+    AppState, DebugInfo, EngineStatus, HealthResponse, PackageDetails, PackagesResponse,
+    ReframeError, ReloadResponse, SampleDebugInfo, SampleGenerationRequest,
+    SampleGenerationResponse, TransformationRequest, TransformationResponse, ValidationRequest,
+    ValidationResponse, WorkflowInfo, WorkflowsInfo,
 };
 
-// Preload scenarios index for better performance
-static SCENARIOS_INDEX: Lazy<Value> =
-    Lazy::new(|| match std::fs::read_to_string("scenarios/index.json") {
-        Ok(content) => match serde_json::from_str(&content) {
-            Ok(v) => {
-                info!("Scenarios index loaded successfully");
-                v
-            }
-            Err(e) => {
-                error!("Failed to parse scenarios index: {}", e);
-                Value::Object(serde_json::Map::new())
-            }
-        },
-        Err(e) => {
-            error!("Failed to read scenarios index: {}", e);
-            Value::Object(serde_json::Map::new())
-        }
-    });
+// Note: SCENARIOS_INDEX removed - now using package manager for scenario loading
 
 /// Extracts workflow errors from the message object
 pub fn extract_workflow_errors(message: &Message) -> Vec<String> {
@@ -128,403 +111,10 @@ pub async fn correlation_middleware(mut req: Request, next: Next) -> Response {
     response
 }
 
-// New endpoint handlers
-#[utoipa::path(
-    post,
-    path = "/transform/mt-to-mx",
-    tag = "transformation",
-    request_body = TransformationRequest,
-    responses(
-        (status = 200, description = "Transformation successful", body = TransformationResponse),
-        (status = 400, description = "Invalid MT message", body = TransformationResponse),
-        (status = 500, description = "Internal server error", body = TransformationResponse)
-    )
-)]
-#[instrument(skip(state, request), fields(message_length = request.message.len()))]
-pub async fn transform_mt_to_mx(
-    State(state): State<AppState>,
-    Json(request): Json<TransformationRequest>,
-) -> Result<Json<TransformationResponse>, StatusCode> {
-    let start_time = Instant::now();
-
-    info!("🔄 Processing MT to MX transformation request");
-    debug!("Request options: {:?}", request.options);
-
-    // Prepare message for transformation
-    let payload_value = Value::String(request.message.clone());
-    let mut message = Message::new(Arc::new(payload_value));
-
-    if let Some(metadata_obj) = message.metadata_mut().as_object_mut() {
-        metadata_obj.insert("transformation_direction".to_string(), "mt-to-mx".into());
-    }
-
-    // Process message using the async forward engine
-    match state
-        .forward_engine
-        .load()
-        .process_message(&mut message)
-        .await
-    {
-        Ok(()) => {
-            let processing_time = start_time.elapsed().as_millis() as u64;
-            info!(
-                "✅ MT to MX transformation completed in {}ms",
-                processing_time
-            );
-
-            // Check for validation/processing errors even if engine returned Ok
-            let workflow_errors = extract_workflow_errors(&message);
-            if !workflow_errors.is_empty() {
-                error!(
-                    "❌ MT to MX transformation failed with validation errors: {:?}",
-                    workflow_errors
-                );
-                return Ok(Json(TransformationResponse {
-                    success: false,
-                    result: None,
-                    debug_info: if request.options.debug {
-                        let message_json = serde_json::to_value(&message).unwrap();
-                        Some(DebugInfo {
-                            engine_state: "forward (threaded)".to_string(),
-                            workflow_execution: vec!["Failed - Validation errors".to_string()],
-                            intermediate_data: message_json,
-                        })
-                    } else {
-                        None
-                    },
-                    errors: workflow_errors
-                        .into_iter()
-                        .map(|e| ReframeError::transformation_error("WORKFLOW_ERROR", e))
-                        .collect(),
-                    warnings: Vec::new(),
-                }));
-            }
-
-            // Validate that the transformation actually produced a result
-            match message.data().get("result") {
-                Some(result) if !result.is_null() => {
-                    // Handle both string and array results (MT to MX can produce multiple messages)
-                    match result {
-                        Value::String(s) if !s.trim().is_empty() => {
-                            // Single string result
-                            Ok(Json(TransformationResponse {
-                                success: true,
-                                result: Some(result.clone()),
-                                debug_info: if request.options.debug {
-                                    let message_json = serde_json::to_value(&message).unwrap();
-                                    Some(DebugInfo {
-                                        engine_state: "forward (threaded)".to_string(),
-                                        workflow_execution: vec!["Completed".to_string()],
-                                        intermediate_data: message_json,
-                                    })
-                                } else {
-                                    None
-                                },
-                                errors: Vec::new(),
-                                warnings: Vec::new(),
-                            }))
-                        }
-                        Value::Array(arr) if !arr.is_empty() => {
-                            // Multiple results
-                            Ok(Json(TransformationResponse {
-                                success: true,
-                                result: Some(result.clone()),
-                                debug_info: if request.options.debug {
-                                    let message_json = serde_json::to_value(&message).unwrap();
-                                    Some(DebugInfo {
-                                        engine_state: "forward (threaded)".to_string(),
-                                        workflow_execution: vec![format!(
-                                            "Completed - {} messages generated",
-                                            arr.len()
-                                        )],
-                                        intermediate_data: message_json,
-                                    })
-                                } else {
-                                    None
-                                },
-                                errors: Vec::new(),
-                                warnings: Vec::new(),
-                            }))
-                        }
-                        _ => {
-                            error!(
-                                message_type = "MT",
-                                error_type = "EMPTY_RESULT",
-                                "Transformation produced empty or invalid result"
-                            );
-                            Ok(Json(TransformationResponse {
-                                success: false,
-                                result: None,
-                                debug_info: if request.options.debug {
-                                    let message_json = serde_json::to_value(message).unwrap();
-                                    Some(DebugInfo {
-                                        engine_state: "forward (threaded)".to_string(),
-                                        workflow_execution: vec![
-                                            "Failed - Empty or invalid result".to_string(),
-                                        ],
-                                        intermediate_data: message_json,
-                                    })
-                                } else {
-                                    None
-                                },
-                                errors: vec![ReframeError::transformation_error(
-                                    "EMPTY_RESULT",
-                                    "Transformation completed but produced empty or invalid result"
-                                        .to_string(),
-                                )],
-                                warnings: Vec::new(),
-                            }))
-                        }
-                    }
-                }
-                _ => {
-                    error!(
-                        message_type = "MT",
-                        error_type = "NO_RESULT",
-                        "Transformation completed but no valid result found"
-                    );
-                    Ok(Json(TransformationResponse {
-                        success: false,
-                        result: None,
-                        debug_info: if request.options.debug {
-                            let message_json = serde_json::to_value(message).unwrap();
-                            Some(DebugInfo {
-                                engine_state: "forward (threaded)".to_string(),
-                                workflow_execution: vec!["Failed - No result produced".to_string()],
-                                intermediate_data: message_json,
-                            })
-                        } else {
-                            None
-                        },
-                        errors: vec![ReframeError::transformation_error(
-                            "NO_RESULT",
-                            "Transformation completed but no valid result was produced".to_string(),
-                        )],
-                        warnings: Vec::new(),
-                    }))
-                }
-            }
-        }
-        Err(e) => {
-            error!(
-                message_type = "MT",
-                error_type = "TRANSFORMATION_FAILED",
-                error = %e,
-                "Transformation failed"
-            );
-
-            Ok(Json(TransformationResponse {
-                success: false,
-                result: None,
-                debug_info: if request.options.debug {
-                    let message_json = serde_json::to_value(&message).unwrap();
-                    Some(DebugInfo {
-                        engine_state: "forward".to_string(),
-                        workflow_execution: vec![format!("Failed - Engine error: {}", e)],
-                        intermediate_data: message_json,
-                    })
-                } else {
-                    None
-                },
-                errors: vec![ReframeError::internal_error(e.to_string())],
-                warnings: Vec::new(),
-            }))
-        }
-    }
-}
-
-#[utoipa::path(
-    post,
-    path = "/transform/mx-to-mt",
-    tag = "transformation",
-    request_body = TransformationRequest,
-    responses(
-        (status = 200, description = "Transformation successful", body = TransformationResponse),
-        (status = 400, description = "Invalid MX message", body = TransformationResponse),
-        (status = 500, description = "Internal server error", body = TransformationResponse)
-    )
-)]
-#[instrument(skip(state, request), fields(message_length = request.message.len()))]
-pub async fn transform_mx_to_mt(
-    State(state): State<AppState>,
-    Json(request): Json<TransformationRequest>,
-) -> Result<Json<TransformationResponse>, StatusCode> {
-    let start_time = Instant::now();
-
-    info!("🔄 Processing MX to MT transformation request");
-    debug!("Request options: {:?}", request.options);
-
-    // Prepare message for transformation
-    let payload_value = Value::String(request.message.clone());
-    let mut message = Message::new(Arc::new(payload_value));
-    if let Some(metadata_obj) = message.metadata_mut().as_object_mut() {
-        metadata_obj.insert("transformation_direction".to_string(), "mx-to-mt".into());
-    }
-
-    // Process message using the async reverse engine
-    match state
-        .reverse_engine
-        .load()
-        .process_message(&mut message)
-        .await
-    {
-        Ok(()) => {
-            let processing_time = start_time.elapsed().as_millis() as u64;
-            info!(
-                "✅ MX to MT transformation completed in {}ms",
-                processing_time
-            );
-
-            // Check for validation/processing errors even if engine returned Ok
-            let workflow_errors = extract_workflow_errors(&message);
-            if !workflow_errors.is_empty() {
-                error!(
-                    "❌ MX to MT transformation failed with validation errors: {:?}",
-                    workflow_errors
-                );
-                return Ok(Json(TransformationResponse {
-                    success: false,
-                    result: None,
-                    debug_info: if request.options.debug {
-                        let message_json = serde_json::to_value(&message).unwrap();
-                        Some(DebugInfo {
-                            engine_state: "reverse (threaded)".to_string(),
-                            workflow_execution: vec!["Failed - Validation errors".to_string()],
-                            intermediate_data: message_json,
-                        })
-                    } else {
-                        None
-                    },
-                    errors: workflow_errors
-                        .into_iter()
-                        .map(|e| ReframeError::transformation_error("WORKFLOW_ERROR", e))
-                        .collect(),
-                    warnings: Vec::new(),
-                }));
-            }
-
-            // Validate that the transformation actually produced a result
-            match message.data().get("result") {
-                Some(result) if !result.is_null() => {
-                    // Handle both string and array results (workflow can return either)
-                    let result_str = match result {
-                        Value::String(s) => Some(s.as_str()),
-                        Value::Array(arr) if !arr.is_empty() => arr[0].as_str(),
-                        _ => None,
-                    };
-
-                    // Check if result is a valid non-empty string
-                    match result_str {
-                        Some(result_str) if !result_str.trim().is_empty() => {
-                            // Return the result
-                            Ok(Json(TransformationResponse {
-                                success: true,
-                                result: Some(Value::String(result_str.to_string())),
-                                debug_info: if request.options.debug {
-                                    let message_json = serde_json::to_value(&message).unwrap();
-                                    Some(DebugInfo {
-                                        engine_state: "reverse (threaded)".to_string(),
-                                        workflow_execution: vec!["Completed".to_string()],
-                                        intermediate_data: message_json,
-                                    })
-                                } else {
-                                    None
-                                },
-                                errors: Vec::new(),
-                                warnings: Vec::new(),
-                            }))
-                        }
-                        _ => {
-                            error!(
-                                message_type = "MX",
-                                error_type = "EMPTY_RESULT",
-                                "Transformation produced empty or invalid result"
-                            );
-                            Ok(Json(TransformationResponse {
-                                success: false,
-                                result: None,
-                                debug_info: if request.options.debug {
-                                    let message_json = serde_json::to_value(message).unwrap();
-                                    Some(DebugInfo {
-                                        engine_state: "reverse (threaded)".to_string(),
-                                        workflow_execution: vec![
-                                            "Failed - Empty or invalid result".to_string(),
-                                        ],
-                                        intermediate_data: message_json,
-                                    })
-                                } else {
-                                    None
-                                },
-                                errors: vec![ReframeError::transformation_error(
-                                    "EMPTY_RESULT",
-                                    "Transformation completed but produced empty or invalid result"
-                                        .to_string(),
-                                )],
-                                warnings: Vec::new(),
-                            }))
-                        }
-                    }
-                }
-                _ => {
-                    error!(
-                        message_type = "MX",
-                        error_type = "NO_RESULT",
-                        "Transformation completed but no valid result found"
-                    );
-                    Ok(Json(TransformationResponse {
-                        success: false,
-                        result: None,
-                        debug_info: if request.options.debug {
-                            let message_json = serde_json::to_value(message).unwrap();
-                            Some(DebugInfo {
-                                engine_state: "reverse (threaded)".to_string(),
-                                workflow_execution: vec!["Failed - No result produced".to_string()],
-                                intermediate_data: message_json,
-                            })
-                        } else {
-                            None
-                        },
-                        errors: vec![ReframeError::transformation_error(
-                            "NO_RESULT",
-                            "Transformation completed but no valid result was produced".to_string(),
-                        )],
-                        warnings: Vec::new(),
-                    }))
-                }
-            }
-        }
-        Err(e) => {
-            error!(
-                message_type = "MX",
-                error_type = "TRANSFORMATION_FAILED",
-                error = %e,
-                "Transformation failed"
-            );
-
-            Ok(Json(TransformationResponse {
-                success: false,
-                result: None,
-                debug_info: if request.options.debug {
-                    let message_json = serde_json::to_value(&message).unwrap();
-                    Some(DebugInfo {
-                        engine_state: "reverse".to_string(),
-                        workflow_execution: vec![format!("Failed - Engine error: {}", e)],
-                        intermediate_data: message_json,
-                    })
-                } else {
-                    None
-                },
-                errors: vec![ReframeError::internal_error(e.to_string())],
-                warnings: Vec::new(),
-            }))
-        }
-    }
-}
-
 // Unified sample generation endpoint using workflow engine
 #[utoipa::path(
     post,
-    path = "/generate/sample",
+    path = "/api/generate",
     tag = "generation",
     request_body = SampleGenerationRequest,
     responses(
@@ -540,23 +130,99 @@ pub async fn generate_sample(
 ) -> Result<Json<SampleGenerationResponse>, StatusCode> {
     let start_time = Instant::now();
 
-    info!(
-        "🔄 Processing sample generation request for {} with scenario '{}'",
-        request.message_type, request.scenario
-    );
-    debug!("Request options: {:?}", request.options);
+    // Get package to use (default if not specified)
+    let package_id = if let Some(ref pkg) = request.package {
+        pkg.clone()
+    } else {
+        let pm = state.package_manager.read().unwrap();
+        pm.get_default_package()
+            .map(|p| p.id.clone())
+            .unwrap_or_else(|| "unknown".to_string())
+    };
 
-    // Load scenario from preloaded index
+    info!(
+        "🔄 Processing sample generation request for {} with scenario '{}' (package: {})",
+        request.message_type, request.scenario, package_id
+    );
+    debug!("Debug: {}", request.debug);
+
+    // Load scenario from package manager
     let scenario_name = &request.scenario;
     let schema_data = {
-        // Use the preloaded scenarios index
-        let index = &*SCENARIOS_INDEX;
+        // Get the package
+        let pm = state.package_manager.read().unwrap();
+        let package = if let Some(ref pkg_id) = request.package {
+            pm.get_package(pkg_id)
+        } else {
+            pm.get_default_package()
+        };
+
+        let package = match package {
+            Some(p) => p,
+            None => {
+                error!("Package '{}' not found", package_id);
+                return Ok(Json(SampleGenerationResponse {
+                    success: false,
+                    package: package_id.clone(),
+                    message_type: request.message_type.clone(),
+                    result: None,
+                    scenario: Some(scenario_name.to_string()),
+                    errors: vec![ReframeError::generation_error(
+                        "PACKAGE_NOT_FOUND",
+                        format!("Package '{}' not found", package_id),
+                    )],
+                    debug_info: None,
+                    processing_time_ms: Some(start_time.elapsed().as_millis() as u64),
+                }));
+            }
+        };
 
         // Determine which section to look in based on message type
-        let (section, is_mt) = if request.message_type.starts_with("MT") {
-            ("forward", true)
+        let section = if request.message_type.starts_with("MT") {
+            "outgoing" // MT→MX (outgoing)
         } else {
-            ("reverse", false)
+            "incoming" // MX→MT (incoming)
+        };
+
+        // Load scenarios index from package
+        let package_path = std::path::PathBuf::from(&package.package_path);
+        let scenarios_index_path = package_path.join("scenarios").join("index.json");
+        let index: Value = match std::fs::read_to_string(&scenarios_index_path) {
+            Ok(content) => match serde_json::from_str(&content) {
+                Ok(v) => v,
+                Err(e) => {
+                    error!("Failed to parse scenarios index: {}", e);
+                    return Ok(Json(SampleGenerationResponse {
+                        success: false,
+                        package: package_id.clone(),
+                        message_type: request.message_type.clone(),
+                        result: None,
+                        scenario: Some(scenario_name.to_string()),
+                        errors: vec![ReframeError::generation_error(
+                            "INDEX_PARSE_ERROR",
+                            format!("Failed to parse scenarios index: {}", e),
+                        )],
+                        debug_info: None,
+                        processing_time_ms: Some(start_time.elapsed().as_millis() as u64),
+                    }));
+                }
+            },
+            Err(e) => {
+                error!("Failed to read scenarios index: {}", e);
+                return Ok(Json(SampleGenerationResponse {
+                    success: false,
+                    package: package_id.clone(),
+                    message_type: request.message_type.clone(),
+                    result: None,
+                    scenario: Some(scenario_name.to_string()),
+                    errors: vec![ReframeError::generation_error(
+                        "INDEX_NOT_FOUND",
+                        format!("Scenarios index not found in package '{}'", package_id),
+                    )],
+                    debug_info: None,
+                    processing_time_ms: Some(start_time.elapsed().as_millis() as u64),
+                }));
+            }
         };
 
         // Find the matching scenario in the index
@@ -564,7 +230,6 @@ pub async fn generate_sample(
             let mut found_file = None;
 
             for scenario in scenarios {
-                // For MT, check source field; for MX, check source field
                 let source_field = scenario
                     .get("source")
                     .and_then(|s| s.as_str())
@@ -572,17 +237,17 @@ pub async fn generate_sample(
                 let id_field = scenario.get("id").and_then(|s| s.as_str()).unwrap_or("");
 
                 // Check if this scenario matches
-                let matches = if is_mt {
+                let matches = if request.message_type.starts_with("MT") {
                     source_field == request.message_type && id_field == scenario_name
                 } else {
-                    // For MX messages, the source is the MX type (e.g., "pacs.008")
+                    // For MX messages, normalize the comparison
                     let mx_type = request.message_type.replace(".", "").to_lowercase();
                     let source_type = source_field.replace(".", "").to_lowercase();
                     source_type == mx_type && id_field == scenario_name
                 };
 
                 if matches && let Some(file) = scenario.get("file").and_then(|f| f.as_str()) {
-                    found_file = Some(format!("scenarios/{}", file));
+                    found_file = Some(package_path.join("scenarios").join(file));
                     break;
                 }
             }
@@ -591,41 +256,51 @@ pub async fn generate_sample(
                 Some(f) => f,
                 None => {
                     error!(
-                        "Scenario '{}' not found for message type '{}'",
-                        scenario_name, request.message_type
+                        "Scenario '{}' not found for message type '{}' in package '{}'",
+                        scenario_name, request.message_type, package_id
                     );
                     return Ok(Json(SampleGenerationResponse {
                         success: false,
+                        package: package_id.clone(),
                         message_type: request.message_type.clone(),
                         result: None,
                         scenario: Some(scenario_name.to_string()),
                         errors: vec![ReframeError::generation_error(
                             "SCENARIO_NOT_FOUND",
                             format!(
-                                "Scenario '{}' not found for message type '{}'",
-                                scenario_name, request.message_type
+                                "Scenario '{}' not found for message type '{}' in package '{}'",
+                                scenario_name, request.message_type, package_id
                             ),
                         )],
                         debug_info: None,
+                        processing_time_ms: Some(start_time.elapsed().as_millis() as u64),
                     }));
                 }
             }
         } else {
-            error!("Invalid scenarios index structure");
+            error!(
+                "Invalid scenarios index structure in package '{}'",
+                package_id
+            );
             return Ok(Json(SampleGenerationResponse {
                 success: false,
+                package: package_id.clone(),
                 message_type: request.message_type.clone(),
                 result: None,
                 scenario: Some(scenario_name.to_string()),
                 errors: vec![ReframeError::generation_error(
                     "INDEX_STRUCTURE_ERROR",
-                    "Invalid scenarios index structure".to_string(),
+                    format!(
+                        "Invalid scenarios index structure in package '{}'",
+                        package_id
+                    ),
                 )],
                 debug_info: None,
+                processing_time_ms: Some(start_time.elapsed().as_millis() as u64),
             }));
         };
 
-        debug!("Loading scenario from: {}", scenario_file);
+        debug!("Loading scenario from: {}", scenario_file.display());
 
         // Load the scenario file
         match std::fs::read_to_string(&scenario_file) {
@@ -639,6 +314,7 @@ pub async fn generate_sample(
                         error!("Failed to parse scenario file: {}", e);
                         return Ok(Json(SampleGenerationResponse {
                             success: false,
+                            package: package_id.clone(),
                             message_type: request.message_type.clone(),
                             result: None,
                             scenario: Some(scenario_name.to_string()),
@@ -647,22 +323,29 @@ pub async fn generate_sample(
                                 format!("Failed to parse scenario file: {}", e),
                             )],
                             debug_info: None,
+                            processing_time_ms: Some(start_time.elapsed().as_millis() as u64),
                         }));
                     }
                 }
             }
             Err(_e) => {
-                error!("Scenario file not found: {}", scenario_file);
+                error!("Scenario file not found: {}", scenario_file.display());
                 return Ok(Json(SampleGenerationResponse {
                     success: false,
+                    package: package_id.clone(),
                     message_type: request.message_type.clone(),
                     result: None,
                     scenario: Some(scenario_name.to_string()),
                     errors: vec![ReframeError::generation_error(
                         "SCENARIO_FILE_NOT_FOUND",
-                        format!("Scenario file '{}' not found", scenario_file),
+                        format!(
+                            "Scenario file '{}' not found in package '{}'",
+                            scenario_file.display(),
+                            package_id
+                        ),
                     )],
                     debug_info: None,
+                    processing_time_ms: Some(start_time.elapsed().as_millis() as u64),
                 }));
             }
         }
@@ -679,6 +362,15 @@ pub async fn generate_sample(
             "message_type".to_string(),
             request.message_type.clone().into(),
         );
+
+        // Merge user-provided metadata if present
+        if let Some(user_metadata) = &request.metadata
+            && let Some(user_obj) = user_metadata.as_object()
+        {
+            for (key, value) in user_obj {
+                metadata_obj.insert(key.clone(), value.clone());
+            }
+        }
     }
 
     // Debug: Log message structure BEFORE workflow execution
@@ -706,11 +398,12 @@ pub async fn generate_sample(
 
                     Ok(Json(SampleGenerationResponse {
                         success: true,
+                        package: package_id.clone(),
                         message_type: request.message_type.clone(),
                         result: Some(result_str.to_string()),
                         scenario: Some(request.scenario.clone()),
                         errors: Vec::new(),
-                        debug_info: if request.options.debug {
+                        debug_info: if request.debug {
                             Some(SampleDebugInfo {
                                 scenario_config: serde_json::json!({
                                     "scenario": request.scenario.clone()
@@ -722,11 +415,13 @@ pub async fn generate_sample(
                         } else {
                             None
                         },
+                        processing_time_ms: Some(start_time.elapsed().as_millis() as u64),
                     }))
                 } else {
                     error!("Generation workflow did not produce a string result");
                     Ok(Json(SampleGenerationResponse {
                         success: false,
+                        package: package_id.clone(),
                         message_type: request.message_type.clone(),
                         result: None,
                         scenario: None,
@@ -735,6 +430,7 @@ pub async fn generate_sample(
                             "Generation workflow did not produce a valid result".to_string(),
                         )],
                         debug_info: None,
+                        processing_time_ms: Some(start_time.elapsed().as_millis() as u64),
                     }))
                 }
             } else {
@@ -744,6 +440,7 @@ pub async fn generate_sample(
                     error!("Generation failed with errors: {:?}", workflow_errors);
                     Ok(Json(SampleGenerationResponse {
                         success: false,
+                        package: package_id.clone(),
                         message_type: request.message_type.clone(),
                         result: None,
                         scenario: None,
@@ -752,11 +449,13 @@ pub async fn generate_sample(
                             .map(|e| ReframeError::generation_error("WORKFLOW_ERROR", e))
                             .collect(),
                         debug_info: None,
+                        processing_time_ms: Some(start_time.elapsed().as_millis() as u64),
                     }))
                 } else {
                     error!("Generation workflow did not produce a result");
                     Ok(Json(SampleGenerationResponse {
                         success: false,
+                        package: package_id.clone(),
                         message_type: request.message_type.clone(),
                         result: None,
                         scenario: None,
@@ -765,6 +464,7 @@ pub async fn generate_sample(
                             "Generation workflow did not produce a result".to_string(),
                         )],
                         debug_info: None,
+                        processing_time_ms: Some(start_time.elapsed().as_millis() as u64),
                     }))
                 }
             }
@@ -777,6 +477,7 @@ pub async fn generate_sample(
 
             Ok(Json(SampleGenerationResponse {
                 success: false,
+                package: package_id.clone(),
                 message_type: request.message_type.clone(),
                 result: None,
                 scenario: None,
@@ -784,7 +485,7 @@ pub async fn generate_sample(
                     "GENERATION_FAILED",
                     e.to_string(),
                 )],
-                debug_info: if request.options.debug {
+                debug_info: if request.debug {
                     Some(SampleDebugInfo {
                         scenario_config: serde_json::json!({
                             "scenario": request.scenario.clone()
@@ -796,6 +497,7 @@ pub async fn generate_sample(
                 } else {
                     None
                 },
+                processing_time_ms: Some(start_time.elapsed().as_millis() as u64),
             }))
         }
     }
@@ -814,24 +516,29 @@ pub async fn health_check(State(_state): State<AppState>) -> Json<HealthResponse
     // Async Engine is always healthy if it exists
     let cpu_count = num_cpus::get();
 
-    let forward_status = "healthy (Async Engine, Tokio runtime)".to_string();
-    let reverse_status = "healthy (Async Engine, Tokio runtime)".to_string();
+    let transform_status =
+        "healthy (Unified bidirectional, Async Engine, Tokio runtime)".to_string();
+    let generation_status = "healthy (Async Engine, Tokio runtime)".to_string();
+    let validation_status = "healthy (Async Engine, Tokio runtime)".to_string();
 
     Json(HealthResponse {
         status: "running".to_string(),
         timestamp: chrono::Utc::now().to_rfc3339(),
         engines: EngineStatus {
-            forward: forward_status.clone(),
-            reverse: reverse_status.clone(),
+            transform: transform_status,
+            generation: generation_status,
+            validation: validation_status,
         },
         config: Some(crate::types::ConfigInfo {
             thread_count: cpu_count,
         }),
         capabilities: vec![
-            "MT-to-MX transformation (Async Engine, Tokio runtime)".to_string(),
-            "MX-to-MT transformation (Async Engine, Tokio runtime)".to_string(),
+            "Unified bidirectional transformation MT ↔ MX (Async Engine, Tokio runtime)"
+                .to_string(),
+            "Package-based workflow architecture".to_string(),
             "High-performance async multi-threaded processing".to_string(),
-            "MT sample generation (26 message types)".to_string(),
+            "Sample generation for MT and MX messages".to_string(),
+            "Unified validation for MT and MX messages".to_string(),
         ],
     })
 }
@@ -886,132 +593,280 @@ pub async fn reload_workflows(
     }
 }
 
-// MT validation endpoint using workflow engine
+/// Unified transformation endpoint that handles both MT↔MX transformations
 #[utoipa::path(
     post,
-    path = "/validate/mt",
-    tag = "validation",
-    request_body = ValidationRequest,
+    path = "/api/transform",
+    tag = "transformation",
+    request_body = TransformationRequest,
     responses(
-        (status = 200, description = "Validation completed", body = ValidationResponse),
-        (status = 400, description = "Invalid request", body = ValidationResponse)
+        (status = 200, description = "Transformation successful", body = TransformationResponse),
+        (status = 400, description = "Invalid message", body = TransformationResponse),
+        (status = 500, description = "Internal server error", body = TransformationResponse)
     )
 )]
 #[instrument(skip(state, request), fields(message_length = request.message.len()))]
-pub async fn validate_mt(
+pub async fn transform(
     State(state): State<AppState>,
-    Json(request): Json<ValidationRequest>,
-) -> Result<Json<ValidationResponse>, StatusCode> {
+    Json(request): Json<TransformationRequest>,
+) -> Result<Json<TransformationResponse>, StatusCode> {
     let start_time = Instant::now();
 
-    info!("🔍 Processing MT validation request");
-    debug!("Request options: {:?}", request.options);
+    // Get package to use (default if not specified)
+    let package_id = if let Some(ref pkg) = request.package {
+        pkg.clone()
+    } else {
+        let pm = state.package_manager.read().unwrap();
+        pm.get_default_package()
+            .map(|p| p.id.clone())
+            .unwrap_or_else(|| "unknown".to_string())
+    };
 
-    // Prepare message for validation workflow
+    info!(
+        "🔄 Processing unified transformation request (package: {})",
+        package_id
+    );
+    debug!(
+        "Validation: {}, Debug: {}",
+        request.validation, request.debug
+    );
+    if let Some(ref hint) = request.message_type_hint {
+        debug!("Message type hint: {}", hint);
+    }
+
+    // Prepare message for transformation
     let payload_value = Value::String(request.message.clone());
     let mut message = Message::new(Arc::new(payload_value));
 
-    // Set metadata for workflow detection (generic "MT" for routing)
+    // Detect transformation direction (MT→MX or MX→MT)
+    let transformation_direction = if request.message.trim_start().starts_with('<')
+        || request.message.trim_start().starts_with("<?xml")
+    {
+        "mx-to-mt" // MX message, convert to MT
+    } else {
+        "mt-to-mx" // MT message, convert to MX
+    };
+
+    // Set metadata for workflow detection
     if let Some(metadata_obj) = message.metadata_mut().as_object_mut() {
-        metadata_obj.insert("message_type".to_string(), "MT".into());
+        metadata_obj.insert(
+            "transformation_direction".to_string(),
+            transformation_direction.into(),
+        );
+        metadata_obj.insert("validation".to_string(), request.validation.into());
+
+        // Add message type hint if provided
+        if let Some(ref hint) = request.message_type_hint {
+            metadata_obj.insert("message_type_hint".to_string(), hint.clone().into());
+        }
+
+        // Merge user-provided metadata if present
+        if let Some(user_metadata) = &request.metadata
+            && let Some(user_obj) = user_metadata.as_object()
+        {
+            for (key, value) in user_obj {
+                metadata_obj.insert(key.clone(), value.clone());
+            }
+        }
     }
 
-    // Process message using the validation engine
+    debug!(
+        "Detected transformation direction: {}",
+        transformation_direction
+    );
+
+    // Process message using the unified transform engine
     match state
-        .validation_engine
+        .transform_engine
         .load()
         .process_message(&mut message)
         .await
     {
         Ok(()) => {
             let processing_time = start_time.elapsed().as_millis() as u64;
+            info!("✅ Transformation completed in {}ms", processing_time);
 
-            // Check for workflow errors
+            // Check for validation/processing errors even if engine returned Ok
             let workflow_errors = extract_workflow_errors(&message);
             if !workflow_errors.is_empty() {
-                error!("MT validation failed with errors: {:?}", workflow_errors);
-                return Ok(Json(ValidationResponse {
+                error!(
+                    "❌ Transformation failed with validation errors: {:?}",
+                    workflow_errors
+                );
+                return Ok(Json(TransformationResponse {
                     success: false,
+                    package: package_id.clone(),
                     message_type: None,
-                    canonical_json: None,
+                    result: None,
+                    debug_info: if request.debug {
+                        let message_json = serde_json::to_value(&message).unwrap();
+                        Some(DebugInfo {
+                            engine_state: "transform (unified)".to_string(),
+                            workflow_execution: vec!["Failed - Validation errors".to_string()],
+                            intermediate_data: message_json,
+                        })
+                    } else {
+                        None
+                    },
                     errors: workflow_errors
                         .into_iter()
-                        .map(|e| ReframeError::transformation_error("VALIDATION_ERROR", e))
+                        .map(|e| ReframeError::transformation_error("WORKFLOW_ERROR", e))
                         .collect(),
+                    warnings: Vec::new(),
+                    processing_time_ms: Some(processing_time),
                 }));
             }
 
-            // Extract validation result from workflow output
-            if let Some(output) = message.data().get("output") {
-                let valid = output
-                    .get("valid")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false);
-                let message_type = output
-                    .get("message_type")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-
-                // Extract errors array
-                let errors: Vec<ReframeError> = output
-                    .get("errors")
-                    .and_then(|e| e.as_array())
-                    .map(|arr| {
-                        arr.iter()
-                            .filter_map(|e| e.as_str())
-                            .map(|msg| {
-                                ReframeError::transformation_error(
-                                    "VALIDATION_ERROR",
-                                    msg.to_string(),
-                                )
+            // Validate that the transformation actually produced a result
+            match message.data().get("result") {
+                Some(result) if !result.is_null() => {
+                    // Handle both string and array results
+                    match result {
+                        Value::String(s) if !s.trim().is_empty() => {
+                            // Single string result
+                            Ok(Json(TransformationResponse {
+                                success: true,
+                                package: package_id.clone(),
+                                message_type: None,
+                                result: Some(result.clone()),
+                                debug_info: if request.debug {
+                                    let message_json = serde_json::to_value(&message).unwrap();
+                                    Some(DebugInfo {
+                                        engine_state: "transform (unified)".to_string(),
+                                        workflow_execution: vec!["Completed".to_string()],
+                                        intermediate_data: message_json,
+                                    })
+                                } else {
+                                    None
+                                },
+                                errors: Vec::new(),
+                                warnings: Vec::new(),
+                                processing_time_ms: Some(processing_time),
+                            }))
+                        }
+                        Value::Array(arr) if !arr.is_empty() => {
+                            // Multiple results
+                            Ok(Json(TransformationResponse {
+                                success: true,
+                                package: package_id.clone(),
+                                message_type: None,
+                                result: Some(result.clone()),
+                                debug_info: if request.debug {
+                                    let message_json = serde_json::to_value(&message).unwrap();
+                                    Some(DebugInfo {
+                                        engine_state: "transform (unified)".to_string(),
+                                        workflow_execution: vec![format!(
+                                            "Completed - {} messages generated",
+                                            arr.len()
+                                        )],
+                                        intermediate_data: message_json,
+                                    })
+                                } else {
+                                    None
+                                },
+                                errors: Vec::new(),
+                                warnings: Vec::new(),
+                                processing_time_ms: Some(processing_time),
+                            }))
+                        }
+                        _ => {
+                            error!(
+                                error_type = "EMPTY_RESULT",
+                                "Transformation produced empty or invalid result"
+                            );
+                            Ok(Json(TransformationResponse {
+                                success: false,
+                                package: package_id.clone(),
+                                message_type: None,
+                                result: None,
+                                debug_info: if request.debug {
+                                    let message_json = serde_json::to_value(message).unwrap();
+                                    Some(DebugInfo {
+                                        engine_state: "transform (unified)".to_string(),
+                                        workflow_execution: vec![
+                                            "Failed - Empty or invalid result".to_string(),
+                                        ],
+                                        intermediate_data: message_json,
+                                    })
+                                } else {
+                                    None
+                                },
+                                errors: vec![ReframeError::transformation_error(
+                                    "EMPTY_RESULT",
+                                    "Transformation completed but produced empty or invalid result"
+                                        .to_string(),
+                                )],
+                                warnings: Vec::new(),
+                                processing_time_ms: Some(processing_time),
+                            }))
+                        }
+                    }
+                }
+                _ => {
+                    error!(
+                        error_type = "NO_RESULT",
+                        "Transformation completed but no valid result found"
+                    );
+                    Ok(Json(TransformationResponse {
+                        success: false,
+                        package: package_id.clone(),
+                        message_type: None,
+                        result: None,
+                        debug_info: if request.debug {
+                            let message_json = serde_json::to_value(message).unwrap();
+                            Some(DebugInfo {
+                                engine_state: "transform (unified)".to_string(),
+                                workflow_execution: vec!["Failed - No result produced".to_string()],
+                                intermediate_data: message_json,
                             })
-                            .collect()
-                    })
-                    .unwrap_or_default();
-
-                info!(
-                    "✅ MT validation completed in {}ms - Valid: {}, Type: {:?}",
-                    processing_time, valid, message_type
-                );
-
-                Ok(Json(ValidationResponse {
-                    success: valid,
-                    message_type,
-                    canonical_json: None,
-                    errors,
-                }))
-            } else {
-                error!("Validation workflow did not produce output");
-                Ok(Json(ValidationResponse {
-                    success: false,
-                    message_type: None,
-                    canonical_json: None,
-                    errors: vec![ReframeError::internal_error(
-                        "Validation workflow did not produce output".to_string(),
-                    )],
-                }))
+                        } else {
+                            None
+                        },
+                        errors: vec![ReframeError::transformation_error(
+                            "NO_RESULT",
+                            "Transformation completed but no valid result was produced".to_string(),
+                        )],
+                        warnings: Vec::new(),
+                        processing_time_ms: Some(processing_time),
+                    }))
+                }
             }
         }
         Err(e) => {
+            let processing_time = start_time.elapsed().as_millis() as u64;
             error!(
+                error_type = "TRANSFORMATION_FAILED",
                 error = %e,
-                "MT validation failed"
+                "Transformation failed"
             );
 
-            Ok(Json(ValidationResponse {
+            Ok(Json(TransformationResponse {
                 success: false,
+                package: package_id.clone(),
                 message_type: None,
-                canonical_json: None,
+                result: None,
+                debug_info: if request.debug {
+                    let message_json = serde_json::to_value(&message).unwrap();
+                    Some(DebugInfo {
+                        engine_state: "transform (unified)".to_string(),
+                        workflow_execution: vec![format!("Failed - Engine error: {}", e)],
+                        intermediate_data: message_json,
+                    })
+                } else {
+                    None
+                },
                 errors: vec![ReframeError::internal_error(e.to_string())],
+                warnings: Vec::new(),
+                processing_time_ms: Some(processing_time),
             }))
         }
     }
 }
 
-// MX validation endpoint
+/// Unified validation endpoint that handles both MT and MX validation
 #[utoipa::path(
     post,
-    path = "/validate/mx",
+    path = "/api/validate",
     tag = "validation",
     request_body = ValidationRequest,
     responses(
@@ -1020,23 +875,64 @@ pub async fn validate_mt(
     )
 )]
 #[instrument(skip(state, request), fields(message_length = request.message.len()))]
-pub async fn validate_mx(
+pub async fn validate(
     State(state): State<AppState>,
     Json(request): Json<ValidationRequest>,
 ) -> Result<Json<ValidationResponse>, StatusCode> {
     let start_time = Instant::now();
 
-    info!("🔍 Processing MX validation request");
-    debug!("Request options: {:?}", request.options);
+    // Get package to use (default if not specified)
+    let package_id = if let Some(ref pkg) = request.package {
+        pkg.clone()
+    } else {
+        let pm = state.package_manager.read().unwrap();
+        pm.get_default_package()
+            .map(|p| p.id.clone())
+            .unwrap_or_else(|| "unknown".to_string())
+    };
+
+    info!(
+        "🔍 Processing unified validation request (package: {})",
+        package_id
+    );
+    debug!(
+        "Canonical: {}, Business validation: {}",
+        request.canonical, request.business_validation
+    );
 
     // Prepare message for validation workflow
     let payload_value = Value::String(request.message.clone());
     let mut message = Message::new(Arc::new(payload_value));
 
-    // Set metadata for workflow detection (generic "MX" for routing)
+    // Detect message type (MT or MX) and set in metadata for workflow selection
+    let message_type = if request.message.trim_start().starts_with('<')
+        || request.message.trim_start().starts_with("<?xml")
+    {
+        "MX"
+    } else {
+        "MT"
+    };
+
+    // Set metadata for workflow detection
     if let Some(metadata_obj) = message.metadata_mut().as_object_mut() {
-        metadata_obj.insert("message_type".to_string(), "MX".into());
+        metadata_obj.insert("message_type".to_string(), message_type.into());
+        metadata_obj.insert("canonical".to_string(), request.canonical.into());
+        metadata_obj.insert(
+            "business_validation".to_string(),
+            request.business_validation.into(),
+        );
+
+        // Merge user-provided metadata if present
+        if let Some(user_metadata) = &request.metadata
+            && let Some(user_obj) = user_metadata.as_object()
+        {
+            for (key, value) in user_obj {
+                metadata_obj.insert(key.clone(), value.clone());
+            }
+        }
     }
+
+    debug!("Detected message type: {}", message_type);
 
     // Process message using the validation engine
     match state
@@ -1051,15 +947,17 @@ pub async fn validate_mx(
             // Check for workflow errors
             let workflow_errors = extract_workflow_errors(&message);
             if !workflow_errors.is_empty() {
-                error!("MX validation failed with errors: {:?}", workflow_errors);
+                error!("Validation failed with errors: {:?}", workflow_errors);
                 return Ok(Json(ValidationResponse {
                     success: false,
+                    package: package_id.clone(),
                     message_type: None,
                     canonical_json: None,
                     errors: workflow_errors
                         .into_iter()
                         .map(|e| ReframeError::transformation_error("VALIDATION_ERROR", e))
                         .collect(),
+                    processing_time_ms: Some(start_time.elapsed().as_millis() as u64),
                 }));
             }
 
@@ -1092,40 +990,128 @@ pub async fn validate_mx(
                     .unwrap_or_default();
 
                 info!(
-                    "✅ MX validation completed in {}ms - Valid: {}, Type: {:?}",
+                    "✅ Validation completed in {}ms - Valid: {}, Type: {:?}",
                     processing_time, valid, message_type
                 );
 
                 Ok(Json(ValidationResponse {
                     success: valid,
+                    package: package_id.clone(),
                     message_type,
                     canonical_json: None,
                     errors,
+                    processing_time_ms: Some(start_time.elapsed().as_millis() as u64),
                 }))
             } else {
                 error!("Validation workflow did not produce output");
                 Ok(Json(ValidationResponse {
                     success: false,
+                    package: package_id.clone(),
                     message_type: None,
                     canonical_json: None,
                     errors: vec![ReframeError::internal_error(
                         "Validation workflow did not produce output".to_string(),
                     )],
+                    processing_time_ms: Some(start_time.elapsed().as_millis() as u64),
                 }))
             }
         }
         Err(e) => {
             error!(
                 error = %e,
-                "MX validation failed"
+                "Validation failed"
             );
 
             Ok(Json(ValidationResponse {
                 success: false,
+                package: package_id.clone(),
                 message_type: None,
                 canonical_json: None,
                 errors: vec![ReframeError::internal_error(e.to_string())],
+                processing_time_ms: Some(start_time.elapsed().as_millis() as u64),
             }))
         }
     }
+}
+
+/// List all loaded packages with their details
+#[utoipa::path(
+    get,
+    path = "/api/packages",
+    tag = "packages",
+    responses(
+        (status = 200, description = "Packages listed successfully", body = PackagesResponse),
+    )
+)]
+pub async fn list_packages(State(state): State<AppState>) -> Json<PackagesResponse> {
+    info!("📦 Processing package list request");
+
+    let pm = state.package_manager.read().unwrap();
+    let packages = pm.get_packages();
+
+    let package_details: Vec<PackageDetails> = packages
+        .values()
+        .map(|pkg| {
+            // Build workflow info
+            let transform_info = pkg
+                .workflows
+                .get("transform")
+                .map(|w| WorkflowInfo {
+                    available: true,
+                    description: w.description.clone(),
+                })
+                .unwrap_or_else(|| WorkflowInfo {
+                    available: false,
+                    description: "Not available".to_string(),
+                });
+
+            let generate_info = pkg
+                .workflows
+                .get("generate")
+                .map(|w| WorkflowInfo {
+                    available: true,
+                    description: w.description.clone(),
+                })
+                .unwrap_or_else(|| WorkflowInfo {
+                    available: false,
+                    description: "Not available".to_string(),
+                });
+
+            let validate_info = pkg
+                .workflows
+                .get("validate")
+                .map(|w| WorkflowInfo {
+                    available: true,
+                    description: w.description.clone(),
+                })
+                .unwrap_or_else(|| WorkflowInfo {
+                    available: false,
+                    description: "Not available".to_string(),
+                });
+
+            PackageDetails {
+                id: pkg.id.clone(),
+                name: pkg.name.clone(),
+                version: pkg.version.clone(),
+                description: pkg.description.clone(),
+                author: pkg.author.clone(),
+                license: pkg.license.clone(),
+                engine_version: pkg.engine_version.clone(),
+                status: if pkg.enabled { "loaded" } else { "disabled" }.to_string(),
+                workflows: WorkflowsInfo {
+                    transform: transform_info,
+                    generate: generate_info,
+                    validate: validate_info,
+                },
+                loaded_at: pkg.loaded_at.to_rfc3339(),
+            }
+        })
+        .collect();
+
+    info!("✅ Listed {} package(s)", package_details.len());
+
+    Json(PackagesResponse {
+        success: true,
+        packages: package_details,
+    })
 }

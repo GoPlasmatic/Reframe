@@ -36,16 +36,13 @@ class TestStatus(Enum):
 class APIEndpoints:
     """API endpoint configuration"""
     base_url: str
-    generate_sample: str = "/generate/sample"
-    validate_mt: str = "/validate/mt"
-    validate_mx: str = "/validate/mx"
-    transform_mt_to_mx: str = "/transform/mt-to-mx"
-    transform_mx_to_mt: str = "/transform/mx-to-mt"
-    
+    generate_sample: str = "/api/generate"
+    validate: str = "/api/validate"
+    transform: str = "/api/transform"
+
     def __post_init__(self):
         """Ensure all endpoints are properly formatted"""
-        for attr in ['generate_sample', 'validate_mt', 'validate_mx', 
-                     'transform_mt_to_mx', 'transform_mx_to_mt']:
+        for attr in ['generate_sample', 'validate', 'transform']:
             endpoint = getattr(self, attr)
             if not endpoint.startswith('/'):
                 setattr(self, attr, '/' + endpoint)
@@ -133,12 +130,12 @@ class ReframeAPIClient:
             self._log_debug(f"Request failed: {str(e)}")
             raise
     
-    def generate_sample(self, message_type: str, scenario: str, options: Optional[Dict[str, Any]] = None) -> Optional[Any]:
+    def generate_sample(self, message_type: str, scenario: str, debug: bool = False) -> Optional[Any]:
         """Generate a sample message"""
         payload = {
             "message_type": message_type,
             "scenario": scenario,
-            "options": options or {"debug": False}
+            "debug": debug
         }
         response = self._make_request(
             "POST",
@@ -152,35 +149,21 @@ class ReframeAPIClient:
                 return result.get("result")
         return None
     
-    def validate_mt(self, message: str) -> Tuple[bool, List[str]]:
-        """Validate MT message"""
-        response = self._make_request(
-            "POST",
-            self.endpoints.validate_mt,
-            json={"message": message, "options": {"canonical": True, "business_validation": True}}
-        )
-        
-        errors = []
-        if response.status_code == 200:
-            result = response.json()
-            if not result.get("success"):
-                api_errors = result.get("errors", [])
-                for err in api_errors:
-                    errors.append(f"{err.get('code', 'UNKNOWN')}: {err.get('message', 'Unknown error')}")
-            return result.get("success", False), errors
-        return False, [f"HTTP {response.status_code}"]
-    
-    def validate_mx(self, message: Any) -> Tuple[bool, List[str]]:
-        """Validate MX message"""
+    def validate(self, message: str, canonical: bool = True, business_validation: bool = False) -> Tuple[bool, List[str]]:
+        """Validate message (MT or MX)"""
         # Convert to string if needed
         message_str = json.dumps(message) if isinstance(message, dict) else message
-        
+
         response = self._make_request(
             "POST",
-            self.endpoints.validate_mx,
-            json={"message": message_str, "options": {"canonical": True}}
+            self.endpoints.validate,
+            json={
+                "message": message_str,
+                "canonical": canonical,
+                "business_validation": business_validation
+            }
         )
-        
+
         errors = []
         if response.status_code == 200:
             result = response.json()
@@ -191,24 +174,8 @@ class ReframeAPIClient:
             return result.get("success", False), errors
         return False, [f"HTTP {response.status_code}"]
     
-    # Removed debug validation methods as they're not used in simplified flow
-    
-    def transform_mt_to_mx(self, message: str) -> Optional[str]:
-        """Transform MT to MX"""
-        response = self._make_request(
-            "POST",
-            self.endpoints.transform_mt_to_mx,
-            json={"message": message, "options": {"debug": True}}
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            if result.get("success"):
-                return result.get("result")
-        return None
-    
-    def transform_mx_to_mt(self, message: Any) -> Optional[str]:
-        """Transform MX to MT"""
+    def transform(self, message: str, debug: bool = False) -> Optional[Any]:
+        """Transform message (MT↔MX or MX↔MT)"""
         # Handle different message formats
         if isinstance(message, list) and len(message) > 0:
             # Result from transformation is a list with XML strings
@@ -217,13 +184,17 @@ class ReframeAPIClient:
             message_str = json.dumps(message)
         else:
             message_str = str(message)
-        
+
         response = self._make_request(
             "POST",
-            self.endpoints.transform_mx_to_mt,
-            json={"message": message_str, "options": {"debug": True}}
+            self.endpoints.transform,
+            json={
+                "message": message_str,
+                "debug": debug,
+                "validation": True
+            }
         )
-        
+
         if response.status_code == 200:
             result = response.json()
             if result.get("success"):
@@ -234,47 +205,67 @@ class ReframeAPIClient:
 # ==================== Scenario Management ====================
 
 class ScenarioManager:
-    """Manages scenario discovery and loading"""
-    
-    def __init__(self, transformation_index_path: Path = None):
-        if transformation_index_path is None:
-            # Try both paths
-            if Path("../scenarios/index.json").exists():
-                self.index_path = Path("../scenarios/index.json")
-            elif Path("scenarios/index.json").exists():
-                self.index_path = Path("scenarios/index.json")
-            else:
-                self.index_path = Path("../scenarios/index.json")  # default
-        else:
-            self.index_path = transformation_index_path
+    """Manages scenario discovery and loading from packages"""
+
+    def __init__(self, config_path: Path = None):
+        if config_path is None:
+            config_path = Path("reframe.config.json")
+
+        self.packages = []
+        self.index_paths = []
+
+        # Load packages from config
+        if config_path.exists():
+            try:
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                    for pkg in config.get("packages", []):
+                        if pkg.get("enabled", True):
+                            pkg_path = Path(pkg["path"])
+                            scenarios_path = pkg_path / "scenarios" / "index.json"
+                            if scenarios_path.exists():
+                                self.packages.append(pkg_path)
+                                self.index_paths.append(scenarios_path)
+            except Exception as e:
+                print(f"Warning: Failed to load config: {e}")
+
+        # If no packages loaded, try default paths
+        if not self.index_paths:
+            for default_path in ["../reframe-package-swift-cbpr/scenarios/index.json",
+                                "scenarios/index.json"]:
+                p = Path(default_path)
+                if p.exists():
+                    self.index_paths.append(p)
+                    break
     
     def discover_message_types(self) -> Dict[str, List[str]]:
-        """Discover all available message types from transformation scenarios"""
+        """Discover all available message types from all package scenarios"""
         message_types = {"MT": set(), "MX": set()}
-        
-        if not self.index_path.exists():
+
+        if not self.index_paths:
             return {"MT": [], "MX": []}
-        
-        try:
-            with open(self.index_path, 'r') as f:
-                data = json.load(f)
-                
-                # Process forward transformations (MT -> MX)
-                for scenario in data.get("forward", []):
-                    source = scenario.get("source", "")
-                    if source:
-                        message_types["MT"].add(source.upper())
-                
-                # Process reverse transformations (MX -> MT)
-                for scenario in data.get("reverse", []):
-                    source = scenario.get("source", "")
-                    if source:
-                        message_types["MX"].add(source)
-        
-        except Exception as e:
-            print(f"Error loading transformation index: {e}")
-            return {"MT": [], "MX": []}
-        
+
+        for index_path in self.index_paths:
+            try:
+                with open(index_path, 'r') as f:
+                    data = json.load(f)
+
+                    # Process outgoing transformations (MT -> MX)
+                    for scenario in data.get("outgoing", []):
+                        source = scenario.get("source", "")
+                        if source:
+                            message_types["MT"].add(source.upper())
+
+                    # Process incoming transformations (MX -> MT)
+                    for scenario in data.get("incoming", []):
+                        source = scenario.get("source", "")
+                        if source:
+                            message_types["MX"].add(source)
+
+            except Exception as e:
+                print(f"Error loading transformation index from {index_path}: {e}")
+                continue
+
         # Convert sets to sorted lists
         return {
             "MT": sorted(list(message_types["MT"])),
@@ -282,36 +273,39 @@ class ScenarioManager:
         }
     
     def load_scenarios_for_type(self, message_type: str) -> List[Dict[str, str]]:
-        """Load scenarios for a specific message type"""
-        if not self.index_path.exists():
+        """Load scenarios for a specific message type from all packages"""
+        if not self.index_paths:
             return []
-        
-        try:
-            with open(self.index_path, 'r') as f:
-                data = json.load(f)
-                
-                scenario_list = []
-                normalized_type = message_type.upper() if message_type.upper().startswith("MT") else message_type
-                
-                # Search in both forward and reverse transformations
-                all_scenarios = data.get("forward", []) + data.get("reverse", [])
-                
-                for scenario in all_scenarios:
-                    source = scenario.get("source", "")
-                    normalized_source = source.upper() if source.upper().startswith("MT") else source
-                    
-                    if normalized_source == normalized_type:
-                        scenario_id = scenario.get("id", "")
-                        if scenario_id:
-                            scenario_list.append({
-                                "id": scenario_id,
-                                "description": scenario.get("description", ""),
-                                "target": scenario.get("target", "")
-                            })
-                
-                return scenario_list
-        except Exception:
-            return []
+
+        scenario_list = []
+        normalized_type = message_type.upper() if message_type.upper().startswith("MT") else message_type
+
+        for index_path in self.index_paths:
+            try:
+                with open(index_path, 'r') as f:
+                    data = json.load(f)
+
+                    # Search in both outgoing (MT->MX) and incoming (MX->MT) transformations
+                    all_scenarios = data.get("outgoing", []) + data.get("incoming", [])
+
+                    for scenario in all_scenarios:
+                        source = scenario.get("source", "")
+                        normalized_source = source.upper() if source.upper().startswith("MT") else source
+
+                        if normalized_source == normalized_type:
+                            scenario_id = scenario.get("id", "")
+                            if scenario_id:
+                                scenario_list.append({
+                                    "id": scenario_id,
+                                    "description": scenario.get("description", ""),
+                                    "target": scenario.get("target", "")
+                                })
+
+            except Exception as e:
+                print(f"Error loading scenarios from {index_path}: {e}")
+                continue
+
+        return scenario_list
 
 
 # ==================== Test Engine ====================
@@ -352,12 +346,9 @@ class ScenarioTester:
         result.generation = TestStatus.SUCCESS
         self.statistics["generation_success"] += 1
         
-        # Step 2: Validate the generated message structure using validation API
-        if format_type == "MT":
-            is_valid, errors = self.api.validate_mt(message)
-        else:
-            is_valid, errors = self.api.validate_mx(message)
-        
+        # Step 2: Validate the generated message structure using unified validation API
+        is_valid, errors = self.api.validate(message, canonical=True, business_validation=(format_type == "MT"))
+
         if is_valid:
             result.validation = TestStatus.SUCCESS
             self.statistics["validation_success"] += 1
@@ -368,24 +359,15 @@ class ScenarioTester:
             self.statistics["total"] += 1
             self.statistics[f"by_type_{message_type}"] += 1
             return result
-        
-        # Step 3: Transform the message using the Transformation API
-        if format_type == "MT":
-            transformed = self.api.transform_mt_to_mx(message)
-            if transformed:
-                result.transformation = TestStatus.SUCCESS
-                self.statistics["transformation_success"] += 1
-            else:
-                result.errors.append("MT to MX transformation failed")
-                result.transformation = TestStatus.FAILURE
+
+        # Step 3: Transform the message using unified Transformation API
+        transformed = self.api.transform(message, debug=False)
+        if transformed:
+            result.transformation = TestStatus.SUCCESS
+            self.statistics["transformation_success"] += 1
         else:
-            transformed = self.api.transform_mx_to_mt(message)
-            if transformed:
-                result.transformation = TestStatus.SUCCESS
-                self.statistics["transformation_success"] += 1
-            else:
-                result.errors.append("MX to MT transformation failed")
-                result.transformation = TestStatus.FAILURE
+            result.errors.append("Transformation failed")
+            result.transformation = TestStatus.FAILURE
         
         self.statistics["total"] += 1
         self.statistics[f"by_type_{message_type}"] += 1

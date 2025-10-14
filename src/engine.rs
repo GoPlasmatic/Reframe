@@ -13,152 +13,152 @@ use crate::types::AppState;
 use mx_message::plugin::register_mx_functions;
 use swift_mt_message::plugin::register_swift_mt_functions;
 
-pub async fn initialize_forward_engine() -> Result<Arc<Engine>, Box<dyn std::error::Error>> {
-    debug!("Setting up forward engine (MT to ISO 20022) with async Engine");
+// Re-use package config types from package_manager
+use crate::package_manager::PackageConfig;
 
-    // Load forward workflows
-    let workflows = load_workflows("workflows/forward").await?;
+/// Load package configuration from reframe-package.json
+fn load_package_config(package_path: &str) -> Result<PackageConfig, Box<dyn std::error::Error>> {
+    let config_path = format!("{}/reframe-package.json", package_path);
+    debug!("Loading package configuration from: {}", config_path);
 
-    // Register all functions for forward transformation
-    let mut custom_functions: HashMap<String, Box<dyn AsyncFunctionHandler + Send + Sync>> =
-        HashMap::new();
+    let config_content = fs::read_to_string(&config_path)?;
+    let config: PackageConfig = serde_json::from_str(&config_content)?;
 
-    // Register all MT plugin functions
-    let mt_functions = register_swift_mt_functions();
-    for (name, handler) in mt_functions {
-        debug!("Registering MT function: {}", name);
-        custom_functions.insert(name.to_string(), handler);
-    }
+    info!("Loaded package: {} v{}", config.name, config.version);
+    Ok(config)
+}
 
-    // Register all MX plugin functions
-    let mx_functions = register_mx_functions();
-    for (name, handler) in mx_functions {
-        debug!("Registering MX function: {}", name);
-        custom_functions.insert(name.to_string(), handler);
-    }
+/// Initialize unified transform engine that handles both outgoing (MT→MX) and incoming (MX→MT)
+///
+/// Loads transformation workflows from the configured package and registers all plugin functions
+pub async fn initialize_transform_engine(
+    package_path: &str,
+) -> Result<Arc<Engine>, Box<dyn std::error::Error>> {
+    debug!("Initializing unified transform engine (bidirectional MT ↔ MX)");
 
+    // Load package configuration
+    let config = load_package_config(package_path)?;
+
+    // Get transform workflow configuration
+    let transform_config = config
+        .workflows
+        .get("transform")
+        .ok_or("Transform workflow configuration not found in package")?;
+
+    let workflow_path = format!("{}/{}", package_path, transform_config.path);
+
+    // Load unified transform workflows
+    let workflows = load_workflows(&workflow_path).await?;
+    let workflow_count = workflows.len();
+
+    // Register all plugin functions
+    let custom_functions = register_all_functions();
     let function_count = custom_functions.len();
 
     // Create async engine with workflows and custom functions
     let engine = Engine::new(workflows, Some(custom_functions));
 
     info!(
-        "Forward engine initialized with {} custom functions",
-        function_count
+        "✓ Transform engine: {} workflows, {} functions",
+        workflow_count, function_count
     );
-    debug!("Forward engine ready with async Engine and plugin functions");
     Ok(Arc::new(engine))
 }
 
-pub async fn initialize_reverse_engine() -> Result<Arc<Engine>, Box<dyn std::error::Error>> {
-    debug!("Setting up reverse engine (ISO 20022 to MT) with async Engine");
+/// Initialize generation engine from package
+///
+/// Loads sample generation workflows from the configured package
+pub async fn initialize_generation_engine(
+    package_path: &str,
+) -> Result<Arc<Engine>, Box<dyn std::error::Error>> {
+    debug!("Initializing sample generation engine");
 
-    // Load reverse workflows
-    let workflows = load_workflows("workflows/reverse").await?;
+    // Load package configuration
+    let config = load_package_config(package_path)?;
 
-    // Register all functions for reverse transformation
-    let mut custom_functions: HashMap<String, Box<dyn AsyncFunctionHandler + Send + Sync>> =
-        HashMap::new();
+    // Get generate workflow configuration
+    let generate_config = config
+        .workflows
+        .get("generate")
+        .ok_or("Generate workflow configuration not found in package")?;
 
-    // Register all MT plugin functions
-    let mt_functions = register_swift_mt_functions();
-    for (name, handler) in mt_functions {
-        debug!("Registering MT function: {}", name);
-        custom_functions.insert(name.to_string(), handler);
-    }
-
-    // Register all MX plugin functions
-    let mx_functions = register_mx_functions();
-    for (name, handler) in mx_functions {
-        debug!("Registering MX function: {}", name);
-        custom_functions.insert(name.to_string(), handler);
-    }
-
-    let function_count = custom_functions.len();
-
-    // Create async engine with workflows and custom functions
-    let engine = Engine::new(workflows, Some(custom_functions));
-
-    info!(
-        "Reverse engine initialized with {} custom functions",
-        function_count
-    );
-    debug!("Reverse engine ready with async Engine and plugin functions");
-    Ok(Arc::new(engine))
-}
-
-pub async fn initialize_generation_engine() -> Result<Arc<Engine>, Box<dyn std::error::Error>> {
-    debug!("Setting up generation engine with async Engine");
+    let workflow_path = format!("{}/{}", package_path, generate_config.path);
 
     // Load generation workflows
-    let workflows = load_workflows("workflows/generation").await?;
+    let workflows = load_workflows(&workflow_path).await?;
+    let workflow_count = workflows.len();
 
-    // Register all functions for message generation
-    let mut custom_functions: HashMap<String, Box<dyn AsyncFunctionHandler + Send + Sync>> =
-        HashMap::new();
-
-    // Register all MT plugin functions (includes generate_mt)
-    let mt_functions = register_swift_mt_functions();
-    for (name, handler) in mt_functions {
-        debug!("Registering MT function: {}", name);
-        custom_functions.insert(name.to_string(), handler);
-    }
-
-    // Register all MX plugin functions (includes generate_mx)
-    let mx_functions = register_mx_functions();
-    for (name, handler) in mx_functions {
-        debug!("Registering MX function: {}", name);
-        custom_functions.insert(name.to_string(), handler);
-    }
-
+    // Register all plugin functions
+    let custom_functions = register_all_functions();
     let function_count = custom_functions.len();
 
     // Create async engine with workflows and custom functions
     let engine = Engine::new(workflows, Some(custom_functions));
 
     info!(
-        "Generation engine initialized with {} custom functions",
-        function_count
+        "✓ Generation engine: {} workflows, {} functions",
+        workflow_count, function_count
     );
-    debug!("Generation engine ready with async Engine and plugin functions");
     Ok(Arc::new(engine))
 }
 
-pub async fn initialize_validation_engine() -> Result<Arc<Engine>, Box<dyn std::error::Error>> {
-    debug!("Setting up validation engine with async Engine");
+/// Initialize validation engine from package
+///
+/// Loads message validation workflows from the configured package
+pub async fn initialize_validation_engine(
+    package_path: &str,
+) -> Result<Arc<Engine>, Box<dyn std::error::Error>> {
+    debug!("Initializing message validation engine");
+
+    // Load package configuration
+    let config = load_package_config(package_path)?;
+
+    // Get validate workflow configuration
+    let validate_config = config
+        .workflows
+        .get("validate")
+        .ok_or("Validate workflow configuration not found in package")?;
+
+    let workflow_path = format!("{}/{}", package_path, validate_config.path);
 
     // Load validation workflows
-    let workflows = load_workflows("workflows/validation").await?;
+    let workflows = load_workflows(&workflow_path).await?;
+    let workflow_count = workflows.len();
 
-    // Register all functions for message validation
-    let mut custom_functions: HashMap<String, Box<dyn AsyncFunctionHandler + Send + Sync>> =
-        HashMap::new();
-
-    // Register all MT plugin functions (includes validate_mt)
-    let mt_functions = register_swift_mt_functions();
-    for (name, handler) in mt_functions {
-        debug!("Registering MT function: {}", name);
-        custom_functions.insert(name.to_string(), handler);
-    }
-
-    // Register all MX plugin functions (includes validate_mx)
-    let mx_functions = register_mx_functions();
-    for (name, handler) in mx_functions {
-        debug!("Registering MX function: {}", name);
-        custom_functions.insert(name.to_string(), handler);
-    }
-
+    // Register all plugin functions
+    let custom_functions = register_all_functions();
     let function_count = custom_functions.len();
 
     // Create async engine with workflows and custom functions
     let engine = Engine::new(workflows, Some(custom_functions));
 
     info!(
-        "Validation engine initialized with {} custom functions",
-        function_count
+        "✓ Validation engine: {} workflows, {} functions",
+        workflow_count, function_count
     );
-    debug!("Validation engine ready with async Engine and plugin functions");
     Ok(Arc::new(engine))
+}
+
+/// Helper function to register all plugin functions
+fn register_all_functions() -> HashMap<String, Box<dyn AsyncFunctionHandler + Send + Sync>> {
+    let mut custom_functions: HashMap<String, Box<dyn AsyncFunctionHandler + Send + Sync>> =
+        HashMap::new();
+
+    // Register all MT plugin functions
+    let mt_functions = register_swift_mt_functions();
+    for (name, handler) in mt_functions {
+        debug!("Registering MT function: {}", name);
+        custom_functions.insert(name.to_string(), handler);
+    }
+
+    // Register all MX plugin functions
+    let mx_functions = register_mx_functions();
+    for (name, handler) in mx_functions {
+        debug!("Registering MX function: {}", name);
+        custom_functions.insert(name.to_string(), handler);
+    }
+
+    custom_functions
 }
 
 async fn load_workflows(workflow_dir: &str) -> Result<Vec<Workflow>, Box<dyn std::error::Error>> {
@@ -198,67 +198,95 @@ async fn load_workflows(workflow_dir: &str) -> Result<Vec<Workflow>, Box<dyn std
 }
 
 /// Initialize async engines for high-performance multi-threaded processing
+///
+/// Loads configuration, discovers packages, and initializes all three engines:
+/// - Transform: Bidirectional MT ↔ MX transformations
+/// - Generation: Sample message creation
+/// - Validation: Message compliance checking
 pub async fn initialize_engines() -> AppState {
-    info!("Initializing async Engine for high-performance multi-threaded processing");
+    info!("⚙️  Initializing engines...");
 
-    info!("Configuration:");
-    info!("  • CPU cores available: {}", num_cpus::get());
-    info!("  • Engine type: Async Engine (Tokio runtime)");
-    info!("  • Runtime: Tokio multi-threaded");
+    // Initialize PackageManager
+    let mut package_manager = crate::package_manager::PackageManager::new(None)
+        .expect("Failed to initialize package manager");
 
-    // Create forward engine with async support
-    let forward_engine = initialize_forward_engine()
+    // Discover and load packages
+    package_manager
+        .discover_packages()
+        .expect("Failed to discover packages");
+
+    // Get default package for engine initialization
+    let default_package = package_manager
+        .get_default_package()
+        .expect("No packages loaded");
+
+    let package_path = &default_package.package_path;
+    debug!(
+        "Loading engines from package: {} v{} ({})",
+        default_package.name, default_package.version, package_path
+    );
+
+    // Create unified transform engine with async support
+    let transform_engine = initialize_transform_engine(package_path)
         .await
-        .expect("Failed to initialize forward engine");
-
-    // Create reverse engine with async support
-    let reverse_engine = initialize_reverse_engine()
-        .await
-        .expect("Failed to initialize reverse engine");
+        .expect("Failed to initialize transform engine");
 
     // Create generation engine with async support
-    let generation_engine = initialize_generation_engine()
+    let generation_engine = initialize_generation_engine(package_path)
         .await
         .expect("Failed to initialize generation engine");
 
     // Create validation engine with async support
-    let validation_engine = initialize_validation_engine()
+    let validation_engine = initialize_validation_engine(package_path)
         .await
         .expect("Failed to initialize validation engine");
 
-    info!("Async Engine instances initialized successfully");
+    info!("✅ All engines initialized successfully");
 
     AppState {
-        forward_engine: Arc::new(ArcSwap::from(forward_engine)),
-        reverse_engine: Arc::new(ArcSwap::from(reverse_engine)),
+        transform_engine: Arc::new(ArcSwap::from(transform_engine)),
         generation_engine: Arc::new(ArcSwap::from(generation_engine)),
         validation_engine: Arc::new(ArcSwap::from(validation_engine)),
+        package_manager: Arc::new(std::sync::RwLock::new(package_manager)),
     }
 }
 
+/// Reload all engines with updated workflow configurations from packages
+///
+/// This allows hot-reloading of workflow changes without restarting the service
 pub async fn reload_engines(app_state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
-    info!("Reloading workflow configurations for async Engine");
+    info!("🔄 Reloading workflow configurations and packages...");
 
-    // Create new forward engine with updated workflows
-    let new_forward_engine = initialize_forward_engine().await?;
+    // Reload packages
+    {
+        let mut pm = app_state.package_manager.write().unwrap();
+        pm.reload_packages()?;
+    }
 
-    // Create new reverse engine with updated workflows
-    let new_reverse_engine = initialize_reverse_engine().await?;
+    // Get default package for engine reloading
+    let package_path = {
+        let pm = app_state.package_manager.read().unwrap();
+        let default_package = pm
+            .get_default_package()
+            .ok_or("No packages loaded after reload")?;
+        default_package.package_path.clone()
+    };
+
+    // Create new transform engine with updated workflows
+    let new_transform_engine = initialize_transform_engine(&package_path).await?;
 
     // Create new generation engine with updated workflows
-    let new_generation_engine = initialize_generation_engine().await?;
+    let new_generation_engine = initialize_generation_engine(&package_path).await?;
 
     // Create new validation engine with updated workflows
-    let new_validation_engine = initialize_validation_engine().await?;
+    let new_validation_engine = initialize_validation_engine(&package_path).await?;
 
     // Atomically swap the engines
-    app_state.forward_engine.store(new_forward_engine);
-    app_state.reverse_engine.store(new_reverse_engine);
+    app_state.transform_engine.store(new_transform_engine);
     app_state.generation_engine.store(new_generation_engine);
     app_state.validation_engine.store(new_validation_engine);
 
-    info!("✅ Workflow reload completed successfully");
-    info!("All new requests will use the updated workflows");
+    info!("✅ Workflow reload completed - new requests will use updated workflows");
 
     Ok(())
 }

@@ -492,8 +492,7 @@ Cheque stop payment status transformation.
 ## Next Steps
 
 1. **[Installation Guide](installation.md)** - Setup and deployment instructions
-2. **[Workflow Guide](workflow-guide.md)** - Configuration and customization
-3. **[Mapping Guide](mapping-guide.md)** - Field mapping and business rules
-4. **[Architecture Guide](architecture.md)** - Technical architecture details
+2. **[Configuration Guide](configuration.md)** - Configuration options and settings
+3. **[Architecture Guide](architecture.md)** - Technical architecture details
 
 ---

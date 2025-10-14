@@ -1,15 +1,24 @@
 version: '3.8'
 
 services:
-  # Reframe application instance with custom performance configuration
+  # Reframe application instance with package-based configuration
   reframe-app:
     build: .
     container_name: reframe-app
     ports:
       - "3000:3000"
+    volumes:
+      # Mount workflow package (read-only)
+      - ../reframe-package-swift-cbpr:/packages/swift-cbpr:ro
+      # Mount configuration file (optional, read-only)
+      - ./reframe.config.json:/app/reframe.config.json:ro
+      # Mount logs directory
+      - ./logs:/var/log/reframe
     environment:
-      - RUST_LOG=error
-      - REFRAME_THREAD_COUNT=10
+      - RUST_LOG=info
+      - TOKIO_WORKER_THREADS=8
+      - REFRAME_PACKAGE_PATH=/packages/swift-cbpr
+      - API_SERVER_URL=http://localhost:3000
     networks:
       - reframe-network
     healthcheck:
@@ -18,6 +27,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    restart: unless-stopped
 
   # Benchmark runner container
   benchmark-runner:
@@ -34,6 +44,8 @@ services:
     networks:
       - reframe-network
     command: python3 /app/test/simple_benchmark.py
+    profiles:
+      - benchmark
 
 networks:
   reframe-network:

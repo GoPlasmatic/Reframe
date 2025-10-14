@@ -38,43 +38,61 @@ python3 test/simple_benchmark.py
 
 ### Performance Configuration
 
-Reframe uses an async Engine with Tokio runtime for high-performance message processing:
+Reframe uses an async Engine with Tokio runtime for high-performance message processing. Performance settings can be configured via `reframe.config.json` or environment variables.
+
+#### Runtime Architecture
+
 - **Async I/O**: Non-blocking operations for network and file handling
-- **CPU optimization**: Tokio worker threads automatically utilize all available CPU cores
+- **CPU optimization**: Tokio worker threads configurable (defaults to all CPU cores)
 - **Efficient concurrency**: Handles thousands of concurrent requests efficiently
+- **Memory efficiency**: Async operations reduce memory overhead
 
-#### Environment Variables
+#### Configuration Methods
 
-- **`TOKIO_WORKER_THREADS`**: Number of Tokio async runtime worker threads (default: CPU count)
-  - Controls the Tokio runtime thread pool size for async I/O and request handling
-  - Defaults to all available CPU cores for maximum performance
-  - Recommended: Leave unset for automatic CPU detection, or set explicitly for resource-constrained environments
+Performance can be configured in three ways (priority order):
 
-#### Configuration Examples
+1. **Environment Variables** (highest priority)
+   ```bash
+   TOKIO_WORKER_THREADS=8 cargo run
+   ```
+
+2. **Configuration File** (`reframe.config.json`)
+   ```json
+   {
+     "server": {
+       "runtime": {
+         "tokio_worker_threads": "8"
+       }
+     }
+   }
+   ```
+
+3. **Auto-detection** (fallback)
+   - Set `tokio_worker_threads: "auto"` in config
+   - Automatically uses all available CPU cores
+
+#### Performance Examples
 
 ```bash
-# Default (uses all CPU cores)
+# Use configuration from reframe.config.json
 cargo run --release
 
-# Conservative (low resources, single-core VPS)
-TOKIO_WORKER_THREADS=1 cargo run
-
-# Balanced (4-core server)
+# Override with environment variable
 TOKIO_WORKER_THREADS=4 cargo run --release
 
-# High performance (8-core server)
-TOKIO_WORKER_THREADS=8 cargo run --release
+# Conservative (low resources)
+TOKIO_WORKER_THREADS=1 cargo run
 
-# Maximum throughput (16+ core servers)
+# High performance (specific core count)
 TOKIO_WORKER_THREADS=16 cargo run --release
 ```
 
-#### Performance Characteristics
+#### Runtime Characteristics
 
-- **Async operations**: Non-blocking I/O for efficient resource utilization
-- **Automatic scaling**: Tokio runtime automatically scales with available CPU cores
-- **Efficient concurrency**: Handles multiple concurrent transformations efficiently
-- **Memory efficiency**: Async operations reduce memory overhead compared to thread-per-request models
+- **Automatic scaling**: Configurable to match available resources
+- **Efficient concurrency**: Handles multiple concurrent transformations
+- **Resource awareness**: Can be tuned for resource-constrained environments
+- **Hot-reload**: Workflow changes reload without restart
 
 ### Testing
 
@@ -140,19 +158,21 @@ docker run -p 3000:3000 -v $(pwd)/workflows:/app/workflows reframe
 
 ### Core Components
 
-The application follows a dual-engine architecture with clear separation of concerns:
+The application follows a unified package-based architecture with clear separation of concerns:
 
-1. **Main Server** (`src/main.rs`): 
+1. **Main Server** (`src/main.rs`):
    - Axum HTTP server setup
-   - Route configuration
-   - Engine initialization
-   - Sets environment variables for scenario paths
+   - Route configuration with unified API endpoints
+   - Engine initialization from external packages
+   - Package-based workflow loading
 
 2. **Transformation Engines** (`src/engine.rs`):
-   - **Forward Engine**: MT → ISO 20022 transformations
-   - **Reverse Engine**: ISO 20022 → MT transformations
-   - Both engines use dataflow-rs for workflow orchestration
-   - Engines are initialized once and reused across requests
+   - **Transform Engine**: Unified bidirectional MT ↔ ISO 20022 transformations
+   - **Generation Engine**: Sample message generation for both MT and MX
+   - **Validation Engine**: Message validation for both MT and MX
+   - All engines use dataflow-rs for workflow orchestration
+   - Engines are initialized once from package configuration and reused across requests
+   - Package loading system supports `REFRAME_PACKAGE_PATH` environment variable
 
 3. **Message Parsing**:
    - `src/parse_mt.rs`: SWIFT MT parsing with custom parser
@@ -169,11 +189,12 @@ The application follows a dual-engine architecture with clear separation of conc
    - `src/publish_mt.rs`: Formats and publishes MT messages
    - `src/publish_mx.rs`: Formats and publishes MX messages
 
-6. **API Handlers** (`src/handlers.rs`):
+6. **API Handlers**:
+   - `src/handlers.rs`: Sample generation, health check, and workflow reload handlers
+   - `src/handlers_unified.rs`: Unified transformation and validation handlers
    - Request validation and routing
-   - Engine invocation
-   - Response formatting
-   - Error handling and reporting
+   - Engine invocation with unified architecture
+   - Response formatting and error handling
 
 7. **OpenAPI Documentation** (`src/openapi.rs`):
    - Swagger/OpenAPI spec generation using utoipa
@@ -181,47 +202,81 @@ The application follows a dual-engine architecture with clear separation of conc
 
 8. **Type Definitions** (`src/types.rs`):
    - Common data structures and types
-   - Request/response models
+   - Request/response models with unified AppState (3 engines)
 
 9. **Helper Functions** (`src/helper.rs`):
    - Utility functions used across the codebase
 
-### Workflow System
+### Package-Based Workflow System
 
-Workflows are JSON-based transformation rules processed by dataflow-rs:
-
-```
-workflows/
-├── forward/           # MT → MX transformations
-│   ├── index.json    # Workflow loading order
-│   ├── parse-mt.json # Common MT parsing
-│   ├── MT103/        # Message-specific workflows
-│   │   ├── bah-mapping.json      # Business Application Header
-│   │   ├── document-mapping.json # Document body mapping
-│   │   ├── precondition.json     # Validation rules
-│   │   └── postcondition.json    # Post-processing rules
-│   └── combine-xml.json          # Final XML assembly
-└── reverse/           # MX → MT transformations
-    ├── index.json
-    ├── parse-mx.json
-    └── pacs008/      # Message-specific workflows
-        ├── 01-variant-detection.json
-        ├── 02-preconditions.json
-        └── ...
-```
-
-### Scenario System
-
-Scenarios provide test data generation using datafake-rs:
+Workflows are now loaded from external packages (default: `../reframe-package-swift-cbpr/`):
 
 ```
-scenarios/
-├── index.json         # Scenario registry
-├── forward/          # MT → MX test scenarios
-│   └── mt103_to_pacs008_cbpr_standard.json
-└── reverse/          # MX → MT test scenarios
-    ├── camt052_to_mt942_cbpr.json
-    └── pacs008_to_mt103_cbpr_standard.json
+reframe-package-swift-cbpr/
+├── reframe-package.json    # Package configuration
+├── transform/
+│   ├── index.json          # Unified bidirectional workflow index
+│   ├── outgoing/           # MT → MX transformations
+│   │   ├── parse-mt.json   # Common MT parsing
+│   │   ├── MT103/          # Message-specific workflows
+│   │   │   ├── bah-mapping.json
+│   │   │   ├── document-mapping.json
+│   │   │   ├── precondition.json
+│   │   │   └── postcondition.json
+│   │   └── combine-xml.json
+│   └── incoming/           # MX → MT transformations
+│       ├── parse-mx.json
+│       └── pacs008/
+│           ├── 01-variant-detection.json
+│           ├── 02-preconditions.json
+│           └── ...
+├── generate/
+│   ├── index.json
+│   ├── generate-mt.json
+│   └── generate-mx.json
+├── validate/
+│   ├── index.json
+│   ├── validate-mt.json
+│   └── validate-mx.json
+└── scenarios/
+    ├── index.json           # Scenario registry
+    ├── outgoing/            # MT → MX test scenarios
+    │   └── mt103_to_pacs008_cbpr_standard.json
+    └── incoming/            # MX → MT test scenarios
+        ├── camt052_to_mt942_cbpr.json
+        └── pacs008_to_mt103_cbpr_standard.json
+```
+
+#### Package Configuration (`reframe-package.json`)
+
+```json
+{
+  "id": "swift-cbpr-mt-mx",
+  "name": "SWIFT CBPR+ MT <-> MX Transformations - SR2025",
+  "version": "2.0.0",
+  "workflows": {
+    "transform": {
+      "path": "transform",
+      "description": "Unified bidirectional transformation workflows",
+      "entry_point": "index.json"
+    },
+    "generate": {
+      "path": "generate",
+      "description": "Sample message generation",
+      "entry_point": "index.json"
+    },
+    "validate": {
+      "path": "validate",
+      "description": "Message validation workflows",
+      "entry_point": "index.json"
+    }
+  },
+  "scenarios": {
+    "path": "scenarios",
+    "description": "Test scenarios",
+    "entry_point": "index.json"
+  }
+}
 ```
 
 Each scenario file contains:
@@ -241,46 +296,234 @@ Each scenario file contains:
 
 ## API Endpoints
 
-### Core Transformation APIs
+### Core Transformation API (Unified)
 
-- `POST /transform/mt-to-mx`: Convert SWIFT MT to ISO 20022
-- `POST /transform/mx-to-mt`: Convert ISO 20022 to SWIFT MT
+- `POST /api/transform`: Unified bidirectional transformation endpoint
+  - Automatically detects message format (MT or MX) from content
+  - Supports optional `message_type_hint` field for routing optimization
+  - Handles both MT → MX and MX → MT transformations
+  - Request body:
+    ```json
+    {
+      "message": "<MT or MX message content>",
+      "message_type_hint": "MT103",  // Optional
+      "options": {
+        "validation": true,
+        "debug": false
+      }
+    }
+    ```
 
 ### Sample Generation
 
-- `POST /generate/sample`: Generate sample messages for testing
+- `POST /api/generate`: Generate sample messages for testing
   - Automatically detects MT vs MX message types
-  - Uses scenario files for realistic data
+  - Uses scenario files from package for realistic data
+  - Request body:
+    ```json
+    {
+      "message_type": "MT103",
+      "scenario": "standard",
+      "options": { "debug": false }
+    }
+    ```
 
-### Validation
+### Validation (Unified)
 
-- `POST /validate/mt`: Validate SWIFT MT messages
-- `POST /validate/mx`: Validate ISO 20022 messages
+- `POST /api/validate`: Unified validation endpoint
+  - Automatically detects and validates MT or MX messages
+  - Returns validation status and errors
+  - Request body:
+    ```json
+    {
+      "message": "<MT or MX message content>",
+      "options": {
+        "canonical": false,
+        "business_validation": false
+      }
+    }
+    ```
 
 ### Administration
 
-- `POST /admin/reload-workflows`: Hot reload workflow configurations
-- `GET /health`: Health check with engine status
+- `POST /admin/reload-workflows`: Hot reload workflow configurations from package
+- `GET /health`: Health check with engine status (shows 3 engines: transform, generate, validate)
+- `GET /swagger-ui`: Interactive API documentation
+- `GET /api-docs/openapi.json`: OpenAPI specification
 
 ## Common Development Tasks
 
 ### Adding Support for a New Message Type
 
-1. **For MT → MX transformation**:
-   - Create workflow directory: `workflows/forward/MT{XXX}/`
-   - Add workflow files: `bah-mapping.json`, `document-mapping.json`, `precondition.json`, `postcondition.json`
-   - Update `workflows/forward/index.json`
-   - Add test scenario in `scenarios/forward/`
+All workflows are now in the external package (`../reframe-package-swift-cbpr/`):
 
-2. **For MX → MT transformation**:
-   - Create workflow directory: `workflows/reverse/{message_type}/`
+1. **For MT → MX transformation (outgoing)**:
+   - Navigate to package: `cd ../reframe-package-swift-cbpr`
+   - Create workflow directory: `transform/outgoing/MT{XXX}/`
+   - Add workflow files: `bah-mapping.json`, `document-mapping.json`, `precondition.json`, `postcondition.json`
+   - Update `transform/index.json` to include new workflows (with `outgoing/MT{XXX}/` prefix)
+   - Add test scenario in `scenarios/outgoing/`
+
+2. **For MX → MT transformation (incoming)**:
+   - Navigate to package: `cd ../reframe-package-swift-cbpr`
+   - Create workflow directory: `transform/incoming/{message_type}/`
    - Add numbered workflow files following existing patterns (01-variant-detection.json, etc.)
-   - Update `workflows/reverse/index.json`
-   - Add test scenario in `scenarios/reverse/`
+   - Update `transform/index.json` to include new workflows (with `incoming/{message_type}/` prefix)
+   - Add test scenario in `scenarios/incoming/`
 
 3. **Register scenarios**:
-   - Update `scenarios/index.json` with new scenario mappings
+   - Update `scenarios/index.json` with new scenario mappings (use "outgoing"/"incoming" keys)
+   - Reload workflows in Reframe: `POST /admin/reload-workflows`
    - Test with: `python3 test/test_scenarios.py -m {message_type} -d`
+
+## Configuration
+
+Reframe uses a centralized `reframe.config.json` configuration file with sensible defaults. All configuration can be overridden via environment variables.
+
+### Configuration File (`reframe.config.json`)
+
+The configuration file supports the following sections:
+
+```json
+{
+  "version": "1.0",
+  "packages": [
+    {
+      "path": "../reframe-package-swift-cbpr",
+      "enabled": true
+    }
+  ],
+  "server": {
+    "host": "0.0.0.0",
+    "port": 3000,
+    "runtime": {
+      "tokio_worker_threads": "auto",
+      "thread_name_prefix": "reframe-worker"
+    }
+  },
+  "logging": {
+    "format": "compact",
+    "level": "info",
+    "show_target": false,
+    "show_thread": false,
+    "show_file_location": false,
+    "show_span_events": false,
+    "file_output": {
+      "enabled": false,
+      "directory": "./logs",
+      "file_prefix": "reframe",
+      "rotation": "daily"
+    }
+  },
+  "api_docs": {
+    "enabled": true,
+    "title": "Reframe API",
+    "version": "3.1.1",
+    "description": "Enterprise-grade bidirectional SWIFT MT ↔ ISO 20022 transformation service",
+    "contact": {
+      "name": "Plasmatic Team",
+      "email": "enquires@goplasmatic.io"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "identifier": "Apache-2.0",
+      "url": "https://opensource.org/license/apache-2-0"
+    },
+    "external_docs_url": "https://sandbox.goplasmatic.io",
+    "server_url": "http://localhost:3000"
+  },
+  "defaults": {
+    "package_id": null,
+    "package_path": "../reframe-package-swift-cbpr"
+  }
+}
+```
+
+### Configuration Priority
+
+Configuration values are resolved in this order (highest priority first):
+1. **Environment Variables** - Override everything
+2. **Configuration File** - `reframe.config.json`
+3. **Built-in Defaults** - Hardcoded fallbacks
+
+### Environment Variables
+
+All configuration values can be overridden via environment variables:
+
+#### Server Configuration
+- **`REFRAME_HOST`**: Server bind address (default: from config or `0.0.0.0`)
+- **`REFRAME_PORT`**: Server port (default: from config or `3000`)
+- **`TOKIO_WORKER_THREADS`**: Number of Tokio async runtime worker threads (default: from config or CPU count)
+- **`TOKIO_THREAD_NAME`**: Thread name prefix (default: from config or `reframe-worker`)
+
+#### Package Configuration
+- **`REFRAME_PACKAGE_PATH`**: Path to workflow package (default: from config or `../reframe-package-swift-cbpr`)
+- **`REFRAME_DEFAULT_PACKAGE`**: Default package ID to use (optional)
+
+#### Logging Configuration
+- **`RUST_LOG`**: Log level (default: from config or `info`)
+- **`LOG_FORMAT`**: Log format - `json`, `compact`, or `pretty` (default: from config or `compact`)
+
+#### API Documentation
+- **`API_SERVER_URL`**: Server URL for OpenAPI docs (default: from config or `http://localhost:3000`)
+
+### Configuration Examples
+
+#### Development Configuration
+```json
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 3000,
+    "runtime": {
+      "tokio_worker_threads": "auto"
+    }
+  },
+  "logging": {
+    "format": "pretty",
+    "level": "debug",
+    "show_file_location": true
+  }
+}
+```
+
+#### Production Configuration
+```json
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8080,
+    "runtime": {
+      "tokio_worker_threads": "16"
+    }
+  },
+  "logging": {
+    "format": "json",
+    "level": "info",
+    "file_output": {
+      "enabled": true,
+      "directory": "/var/log/reframe",
+      "rotation": "daily"
+    }
+  },
+  "api_docs": {
+    "server_url": "https://api.example.com"
+  }
+}
+```
+
+#### Testing Configuration
+```json
+{
+  "server": {
+    "port": 3001
+  },
+  "logging": {
+    "format": "compact",
+    "level": "debug"
+  }
+}
+```
 
 ### Debugging Transformation Issues
 
@@ -342,7 +585,9 @@ Common issues when creating/fixing MX scenarios:
 - `one_of` is not valid in dataflow-rs JSONLogic (use alternative logic)
 
 ### Engine Management
-- The application maintains separate forward and reverse engines that persist across requests
+- The application maintains 3 unified engines (transform, generate, validate) that persist across requests
+- Transform engine handles both outgoing (MT→MX) and incoming (MX→MT) transformations
+- Workflow packages are loaded from external directory (configurable via `REFRAME_PACKAGE_PATH`)
 - Workflow modifications can be hot-reloaded without restart via `/admin/reload-workflows`
 - All transformations are logged with structured tracing
 
@@ -368,9 +613,15 @@ Common issues when creating/fixing MX scenarios:
 
 3. **Manual testing**: Use curl or Postman
    ```bash
-   curl -X POST http://localhost:3000/transform/mt-to-mx \
+   # Unified transformation endpoint (auto-detects direction)
+   curl -X POST http://localhost:3000/api/transform \
      -H "Content-Type: application/json" \
-     -d @test/data/mt103.json
+     -d '{"message": "{1:F01BANKBEBBAXXX...}", "options": {"debug": true}}'
+
+   # With message type hint for optimization
+   curl -X POST http://localhost:3000/api/transform \
+     -H "Content-Type: application/json" \
+     -d '{"message": "...", "message_type_hint": "MT103", "options": {"debug": false}}'
    ```
 
 4. **Validation testing**: Ensure generated messages pass validation

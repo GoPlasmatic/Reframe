@@ -3,17 +3,19 @@ use utoipa::openapi::ServerBuilder;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::types::{
-    DebugInfo, EngineStatus, ErrorType, HealthResponse, ReframeError, ReloadResponse,
-    ResponseMetadata, SampleDebugInfo, SampleGenerationOptions, SampleGenerationRequest,
-    SampleGenerationResponse, TransformationOptions, TransformationRequest, TransformationResponse,
-    ValidationOptions, ValidationRequest, ValidationResponse,
+    DebugInfo, EngineStatus, ErrorType, HealthResponse, PackageDetails, PackagesResponse,
+    ReframeError, ReloadResponse, ResponseMetadata, SampleDebugInfo, SampleGenerationRequest,
+    SampleGenerationResponse, TransformationRequest, TransformationResponse, ValidationRequest,
+    ValidationResponse, WorkflowInfo, WorkflowsInfo,
 };
 
+// Note: OpenAPI macro uses compile-time values, so we keep defaults here
+// but allow runtime override via with_config method
 #[derive(OpenApi)]
 #[openapi(
     info(
         title = "Reframe API",
-        version = "3.0.0",
+        version = "3.1.1",
         description = "Enterprise-grade bidirectional SWIFT MT ↔ ISO 20022 transformation service",
         contact(
             name = "Plasmatic Team",
@@ -27,22 +29,18 @@ use crate::types::{
     ),
     paths(
         crate::handlers::health_check,
-        crate::handlers::transform_mt_to_mx,
-        crate::handlers::transform_mx_to_mt,
+        crate::handlers::transform,
+        crate::handlers::validate,
         crate::handlers::generate_sample,
-        crate::handlers::validate_mt,
-        crate::handlers::validate_mx,
+        crate::handlers::list_packages,
         crate::handlers::reload_workflows,
     ),
     components(
         schemas(
             // Request types
             TransformationRequest,
-            TransformationOptions,
             SampleGenerationRequest,
-            SampleGenerationOptions,
             ValidationRequest,
-            ValidationOptions,
 
             // Response types
             HealthResponse,
@@ -50,6 +48,7 @@ use crate::types::{
             SampleGenerationResponse,
             ValidationResponse,
             ReloadResponse,
+            PackagesResponse,
 
             // Shared types
             ReframeError,
@@ -58,6 +57,9 @@ use crate::types::{
             DebugInfo,
             SampleDebugInfo,
             ResponseMetadata,
+            PackageDetails,
+            WorkflowsInfo,
+            WorkflowInfo,
         )
     ),
     tags(
@@ -65,6 +67,7 @@ use crate::types::{
         (name = "transformation", description = "Message transformation endpoints"),
         (name = "validation", description = "Message validation endpoints"),
         (name = "generation", description = "Sample message generation endpoints"),
+        (name = "packages", description = "Package management endpoints"),
         (name = "admin", description = "Administrative endpoints")
     ),
     external_docs(url = "https://sandbox.goplasmatic.io", description = "Full API documentation")
@@ -72,12 +75,14 @@ use crate::types::{
 pub struct ApiDoc;
 
 impl ApiDoc {
-    pub fn with_server() -> utoipa::openapi::OpenApi {
+    pub fn with_config(
+        api_config: &crate::package_manager::ApiDocsConfig,
+    ) -> utoipa::openapi::OpenApi {
         let mut doc = Self::openapi();
 
-        // Get server URL from environment variable, default to localhost
+        // Override with config values (env var takes precedence)
         let server_url =
-            std::env::var("API_SERVER_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
+            std::env::var("API_SERVER_URL").unwrap_or_else(|_| api_config.server_url.clone());
 
         let description = if server_url.contains("localhost") {
             "Local development server"
@@ -92,10 +97,33 @@ impl ApiDoc {
                 .build(),
         ]);
 
+        // Update info with config values
+        doc.info.title = api_config.title.clone();
+        doc.info.version = api_config.version.clone();
+        doc.info.description = Some(api_config.description.clone());
+
+        if let Some(contact) = &mut doc.info.contact {
+            contact.name = Some(api_config.contact.name.clone());
+            contact.email = Some(api_config.contact.email.clone());
+        }
+
+        if let Some(license) = &mut doc.info.license {
+            license.name = api_config.license.name.clone();
+            license.identifier = Some(api_config.license.identifier.clone());
+        }
+
+        // Set external docs
+        doc.external_docs = Some(
+            utoipa::openapi::external_docs::ExternalDocsBuilder::new()
+                .url(api_config.external_docs_url.clone())
+                .description(Some("Full API documentation".to_string()))
+                .build(),
+        );
+
         doc
     }
 }
 
-pub fn swagger_ui() -> SwaggerUi {
-    SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::with_server())
+pub fn swagger_ui_with_config(api_config: &crate::package_manager::ApiDocsConfig) -> SwaggerUi {
+    SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::with_config(api_config))
 }

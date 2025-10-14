@@ -20,10 +20,8 @@ RUN mkdir src && \
     cargo build --release && \
     rm -rf src
 
-# Copy source code and other files
+# Copy source code
 COPY src/ ./src/
-COPY workflows/ ./workflows/
-COPY scenarios/ ./scenarios/
 
 # Build the application
 RUN touch src/main.rs && cargo build --release
@@ -47,12 +45,11 @@ WORKDIR /app
 # Copy the binary from builder stage
 COPY --from=builder /app/target/release/Reframe /app/reframe
 
-# Copy workflows and scenarios directories
-COPY --from=builder /app/workflows/ /app/workflows/
-COPY --from=builder /app/scenarios/ /app/scenarios/
+# Create directories for packages and config
+RUN mkdir -p /packages /app/config /var/log/reframe
 
 # Change ownership to app user
-RUN chown -R appuser:appuser /app
+RUN chown -R appuser:appuser /app /packages /var/log/reframe
 
 # Switch to app user
 USER appuser
@@ -62,14 +59,14 @@ EXPOSE 3000
 
 # Set environment variables
 ENV RUST_LOG=info
-ENV REFRAME_PORT=3000
+ENV TOKIO_WORKER_THREADS=auto
 ENV API_SERVER_URL=http://localhost:3000
-# Performance tuning variables (can be overridden at runtime)
-ENV REFRAME_THREAD_COUNT=""
+# Default package path (can be overridden)
+ENV REFRAME_PACKAGE_PATH=/packages/swift-cbpr
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3000/health || exit 1
 
 # Run the application
-CMD ["./reframe"] 
+CMD ["./reframe"]

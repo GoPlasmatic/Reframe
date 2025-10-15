@@ -130,7 +130,7 @@ Configure which workflow package to download by creating a `.env` file:
 cp .env.example .env
 
 # Edit to set your package URL
-PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.0.0/reframe-swift-cbpr-v2.0.0.zip
+PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.0/reframe-swift-cbpr-v2.1.0.zip
 ```
 
 **Examples**:
@@ -450,7 +450,7 @@ services:
     build:
       context: .
       args:
-        PACKAGE_URL: https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.0.0/reframe-swift-cbpr-v2.0.0.zip
+        PACKAGE_URL: https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.0/reframe-swift-cbpr-v2.1.0.zip
     image: myorg/reframe:3.1.1
     container_name: reframe-prod
     ports:
@@ -541,7 +541,7 @@ services:
    ```yaml
    build:
      args:
-       PACKAGE_URL: https://github.com/.../releases/download/v2.0.0/package-v2.0.0.zip
+       PACKAGE_URL: https://github.com/.../releases/download/v2.1.0/package-v2.1.0.zip
    ```
 
 2. **Use explicit image versions** in production:

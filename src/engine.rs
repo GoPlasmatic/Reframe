@@ -13,6 +13,9 @@ use crate::types::AppState;
 use mx_message::plugin::register_mx_functions;
 use swift_mt_message::plugin::register_swift_mt_functions;
 
+// Import detection module
+use crate::detection;
+
 // Re-use package config types from package_manager
 use crate::package_manager::PackageConfig;
 
@@ -143,6 +146,10 @@ pub async fn initialize_validation_engine(
 fn register_all_functions() -> HashMap<String, Box<dyn AsyncFunctionHandler + Send + Sync>> {
     let mut custom_functions: HashMap<String, Box<dyn AsyncFunctionHandler + Send + Sync>> =
         HashMap::new();
+
+    // Register generic detection function
+    debug!("Registering generic detection function");
+    custom_functions.insert("detect".to_string(), Box::new(detection::Detect));
 
     // Register all MT plugin functions
     let mt_functions = register_swift_mt_functions();

@@ -229,7 +229,7 @@ fn default_api_version() -> String {
 }
 
 fn default_api_description() -> String {
-    "Enterprise-grade bidirectional SWIFT MT ↔ ISO 20022 transformation service".to_string()
+    "A Universal Message Transformation Engine".to_string()
 }
 
 fn default_contact_name() -> String {

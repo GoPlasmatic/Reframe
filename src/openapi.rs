@@ -2,12 +2,12 @@ use utoipa::OpenApi;
 use utoipa::openapi::ServerBuilder;
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::types::{
-    DebugInfo, EngineStatus, ErrorType, HealthResponse, PackageDetails, PackagesResponse,
-    ReframeError, ReloadResponse, ResponseMetadata, SampleDebugInfo, SampleGenerationRequest,
-    SampleGenerationResponse, TransformationRequest, TransformationResponse, ValidationRequest,
-    ValidationResponse, WorkflowInfo, WorkflowsInfo,
+use crate::handlers::types::{
+    ConfigInfo, EngineStatus, HealthResponse, PackageDetails, PackagesResponse, ReloadResponse,
+    ResponseMetadata, SampleGenerationRequest, SampleGenerationResponse, TransformationRequest,
+    TransformationResponse, ValidationRequest, ValidationResponse, WorkflowInfo, WorkflowsInfo,
 };
+use crate::types::{ErrorType, ReframeError};
 
 // Note: OpenAPI macro uses compile-time values, so we keep defaults here
 // but allow runtime override via with_config method
@@ -16,7 +16,7 @@ use crate::types::{
     info(
         title = "Reframe API",
         version = "3.1.1",
-        description = "Enterprise-grade bidirectional SWIFT MT ↔ ISO 20022 transformation service",
+        description = "A Universal Message Transformation Engine",
         contact(
             name = "Plasmatic Team",
             email = "enquires@goplasmatic.io"
@@ -28,12 +28,12 @@ use crate::types::{
         )
     ),
     paths(
-        crate::handlers::health_check,
-        crate::handlers::transform,
-        crate::handlers::validate,
-        crate::handlers::generate_sample,
-        crate::handlers::list_packages,
-        crate::handlers::reload_workflows,
+        crate::handlers::admin::health_check,
+        crate::handlers::transform::transform,
+        crate::handlers::validate::validate,
+        crate::handlers::generate::generate_sample,
+        crate::handlers::admin::list_packages,
+        crate::handlers::admin::reload_workflows,
     ),
     components(
         schemas(
@@ -54,8 +54,7 @@ use crate::types::{
             ReframeError,
             ErrorType,
             EngineStatus,
-            DebugInfo,
-            SampleDebugInfo,
+            ConfigInfo,
             ResponseMetadata,
             PackageDetails,
             WorkflowsInfo,

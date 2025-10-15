@@ -149,7 +149,7 @@ class ReframeAPIClient:
                 return result.get("result")
         return None
     
-    def validate(self, message: str, canonical: bool = True, business_validation: bool = False) -> Tuple[bool, List[str]]:
+    def validate(self, message: str, debug: bool = False) -> Tuple[bool, List[str]]:
         """Validate message (MT or MX)"""
         # Convert to string if needed
         message_str = json.dumps(message) if isinstance(message, dict) else message
@@ -159,8 +159,7 @@ class ReframeAPIClient:
             self.endpoints.validate,
             json={
                 "message": message_str,
-                "canonical": canonical,
-                "business_validation": business_validation
+                "debug": debug
             }
         )
 
@@ -347,7 +346,7 @@ class ScenarioTester:
         self.statistics["generation_success"] += 1
         
         # Step 2: Validate the generated message structure using unified validation API
-        is_valid, errors = self.api.validate(message, canonical=True, business_validation=(format_type == "MT"))
+        is_valid, errors = self.api.validate(message, debug=True)
 
         if is_valid:
             result.validation = TestStatus.SUCCESS

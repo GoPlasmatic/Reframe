@@ -148,7 +148,7 @@ cargo clippy -- -D warnings
 docker build -t reframe .
 
 # Build with specific package URL
-docker build --build-arg PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.0.0/reframe-swift-cbpr-v2.0.0.zip -t reframe .
+docker build --build-arg PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.0/reframe-swift-cbpr-v2.1.0.zip -t reframe .
 
 # Run container (package is baked into image)
 docker run -p 3000:3000 reframe
@@ -582,7 +582,6 @@ Common issues when creating/fixing MX scenarios:
 ## Important Implementation Notes
 
 ### Workflow Processing
-- The condition field in workflow gets the entire metadata field as the context, so no need to add `metadata.` prefix in variable access
 - Date format in reverse mappings must be `yyyy-mm-dd` (parsed as NativeDate)
 - Numeric path components need `#` prefix to avoid array notation interpretation
 - `one_of` is not valid in dataflow-rs JSONLogic (use alternative logic)

@@ -6,6 +6,7 @@ use tracing::info;
 
 // Module declarations
 mod ascii_art;
+mod detection;
 mod engine;
 mod handlers;
 mod logging;

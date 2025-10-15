@@ -9,6 +9,14 @@ use super::helpers::{create_debug_info, extract_workflow_errors, resolve_package
 use super::types::{ValidationRequest, ValidationResponse};
 use crate::types::{AppState, ReframeError};
 
+/// Publish message to database for audit logging (if enabled and persist_validate is true)
+fn publish_to_database(state: &AppState, message: &Message) {
+    if state.database_config.persist_validate && state.database_client.is_some()
+        && let Some(ref client) = state.database_client {
+            client.clone().publish_message(message);
+        }
+}
+
 /// Unified validation endpoint that handles both MT and MX validation
 #[utoipa::path(
     post,
@@ -43,6 +51,12 @@ pub async fn validate(
     // Note: Package workflows are responsible for detecting message format
     // and setting message_type in metadata
     if let Some(metadata_obj) = message.metadata_mut().as_object_mut() {
+        // Add Reframe version
+        metadata_obj.insert(
+            "reframe_version".to_string(),
+            env!("CARGO_PKG_VERSION").to_string().into(),
+        );
+
         // Merge user-provided metadata if present
         if let Some(user_metadata) = &request.metadata
             && let Some(user_obj) = user_metadata.as_object()
@@ -68,6 +82,10 @@ pub async fn validate(
             let workflow_errors = extract_workflow_errors(&message);
             if !workflow_errors.is_empty() {
                 error!("Validation failed with errors: {:?}", workflow_errors);
+
+                // Publish validation to database
+                publish_to_database(&state, &message);
+
                 return Ok(Json(ValidationResponse {
                     success: false,
                     package: package_id.clone(),
@@ -115,6 +133,9 @@ pub async fn validate(
                     processing_time, valid, message_type
                 );
 
+                // Publish validation to database
+                publish_to_database(&state, &message);
+
                 Ok(Json(ValidationResponse {
                     success: valid,
                     package: package_id.clone(),
@@ -126,6 +147,10 @@ pub async fn validate(
                 }))
             } else {
                 error!("Validation workflow did not produce output");
+
+                // Publish failed validation to database
+                publish_to_database(&state, &message);
+
                 Ok(Json(ValidationResponse {
                     success: false,
                     package: package_id.clone(),
@@ -144,6 +169,9 @@ pub async fn validate(
                 error = %e,
                 "Validation failed"
             );
+
+            // Publish failed validation to database
+            publish_to_database(&state, &message);
 
             Ok(Json(ValidationResponse {
                 success: false,

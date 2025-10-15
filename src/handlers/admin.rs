@@ -3,8 +3,8 @@ use std::time::Instant;
 use tracing::{error, info, instrument};
 
 use super::types::{
-    ConfigInfo, EngineStatus, HealthResponse, PackageDetails, PackagesResponse, ReloadResponse,
-    WorkflowInfo, WorkflowsInfo,
+    ConfigInfo, DatabaseStatus, EngineStatus, HealthResponse, PackageDetails, PackagesResponse,
+    ReloadResponse, WorkflowInfo, WorkflowsInfo,
 };
 use crate::engine::reload_engines;
 use crate::types::AppState;
@@ -18,7 +18,7 @@ use crate::types::AppState;
         (status = 200, description = "Service is healthy", body = HealthResponse),
     )
 )]
-pub async fn health_check(State(_state): State<AppState>) -> Json<HealthResponse> {
+pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse> {
     // Async Engine is always healthy if it exists
     let cpu_count = num_cpus::get();
 
@@ -26,6 +26,33 @@ pub async fn health_check(State(_state): State<AppState>) -> Json<HealthResponse
         "healthy (Unified bidirectional, Async Engine, Tokio runtime)".to_string();
     let generation_status = "healthy (Async Engine, Tokio runtime)".to_string();
     let validation_status = "healthy (Async Engine, Tokio runtime)".to_string();
+
+    // Check database status
+    let database_status = if let Some(ref client) = state.database_client {
+        match client.ping().await {
+            Ok(_) => DatabaseStatus {
+                enabled: true,
+                status: "connected".to_string(),
+                message: Some(format!(
+                    "Persistence: transform={}, validate={}, generate={}",
+                    state.database_config.persist_transform,
+                    state.database_config.persist_validate,
+                    state.database_config.persist_generate
+                )),
+            },
+            Err(e) => DatabaseStatus {
+                enabled: true,
+                status: "error".to_string(),
+                message: Some(format!("Connection failed: {}", e)),
+            },
+        }
+    } else {
+        DatabaseStatus {
+            enabled: false,
+            status: "disabled".to_string(),
+            message: Some("Database persistence is disabled".to_string()),
+        }
+    };
 
     Json(HealthResponse {
         status: "running".to_string(),
@@ -35,17 +62,10 @@ pub async fn health_check(State(_state): State<AppState>) -> Json<HealthResponse
             generation: generation_status,
             validation: validation_status,
         },
+        database: database_status,
         config: Some(ConfigInfo {
             thread_count: cpu_count,
         }),
-        capabilities: vec![
-            "Unified bidirectional transformation MT ↔ MX (Async Engine, Tokio runtime)"
-                .to_string(),
-            "Package-based workflow architecture".to_string(),
-            "High-performance async multi-threaded processing".to_string(),
-            "Sample generation for MT and MX messages".to_string(),
-            "Unified validation for MT and MX messages".to_string(),
-        ],
     })
 }
 

@@ -9,6 +9,14 @@ use super::helpers::{create_debug_info, extract_workflow_errors, resolve_package
 use super::types::{TransformationRequest, TransformationResponse};
 use crate::types::{AppState, ReframeError};
 
+/// Publish message to database for audit logging (if enabled and persist_transform is true)
+fn publish_to_database(state: &AppState, message: &Message) {
+    if state.database_config.persist_transform && state.database_client.is_some()
+        && let Some(ref client) = state.database_client {
+            client.clone().publish_message(message);
+        }
+}
+
 /// Unified transformation endpoint that handles both MT↔MX transformations
 #[utoipa::path(
     post,
@@ -51,6 +59,12 @@ pub async fn transform(
     // Note: Package workflows are responsible for detecting message format
     // and setting transformation_direction in metadata
     if let Some(metadata_obj) = message.metadata_mut().as_object_mut() {
+        // Add Reframe version
+        metadata_obj.insert(
+            "reframe_version".to_string(),
+            env!("CARGO_PKG_VERSION").to_string().into(),
+        );
+
         metadata_obj.insert("validation".to_string(), request.validation.into());
 
         // Add message type hint if provided
@@ -87,6 +101,10 @@ pub async fn transform(
                     "❌ Transformation failed with validation errors: {:?}",
                     workflow_errors
                 );
+
+                // Publish failed transformation to database
+                publish_to_database(&state, &message);
+
                 return Ok(Json(TransformationResponse {
                     success: false,
                     package: package_id.clone(),
@@ -108,6 +126,9 @@ pub async fn transform(
                     // Handle both string and array results
                     match result {
                         Value::String(s) if !s.trim().is_empty() => {
+                            // Publish to database before returning
+                            publish_to_database(&state, &message);
+
                             // Single string result
                             Ok(Json(TransformationResponse {
                                 success: true,
@@ -121,6 +142,9 @@ pub async fn transform(
                             }))
                         }
                         Value::Array(arr) if !arr.is_empty() => {
+                            // Publish to database before returning
+                            publish_to_database(&state, &message);
+
                             // Multiple results
                             Ok(Json(TransformationResponse {
                                 success: true,
@@ -138,6 +162,10 @@ pub async fn transform(
                                 error_type = "EMPTY_RESULT",
                                 "Transformation produced empty or invalid result"
                             );
+
+                            // Publish failed transformation to database
+                            publish_to_database(&state, &message);
+
                             Ok(Json(TransformationResponse {
                                 success: false,
                                 package: package_id.clone(),
@@ -160,6 +188,10 @@ pub async fn transform(
                         error_type = "NO_RESULT",
                         "Transformation completed but no valid result found"
                     );
+
+                    // Publish failed transformation to database
+                    publish_to_database(&state, &message);
+
                     Ok(Json(TransformationResponse {
                         success: false,
                         package: package_id.clone(),
@@ -183,6 +215,9 @@ pub async fn transform(
                 error = %e,
                 "Transformation failed"
             );
+
+            // Publish failed transformation to database
+            publish_to_database(&state, &message);
 
             Ok(Json(TransformationResponse {
                 success: false,

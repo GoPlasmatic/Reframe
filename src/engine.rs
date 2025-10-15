@@ -250,11 +250,43 @@ pub async fn initialize_engines() -> AppState {
 
     info!("✅ All engines initialized successfully");
 
+    // Load database configuration
+    let db_config = crate::database::DatabaseConfig::load();
+
+    // Initialize database client only if persistence is enabled for at least one operation
+    let database_client = if db_config.persist_transform
+        || db_config.persist_validate
+        || db_config.persist_generate
+    {
+        info!(
+            "🔌 Initializing database client (persist_transform: {}, persist_validate: {}, persist_generate: {})",
+            db_config.persist_transform, db_config.persist_validate, db_config.persist_generate
+        );
+
+        let client = crate::database::create_database_client(&db_config)
+            .await
+            .expect("Failed to initialize database client");
+
+        info!(
+            "✅ Database audit logging initialized (type: {:?}, database: {}.{})",
+            db_config.db_type, db_config.database_name, db_config.collection_name
+        );
+
+        Some(client)
+    } else {
+        info!(
+            "⚠️  Database persistence disabled (persist_transform: false, persist_validate: false, persist_generate: false)"
+        );
+        None
+    };
+
     AppState {
         transform_engine: Arc::new(ArcSwap::from(transform_engine)),
         generation_engine: Arc::new(ArcSwap::from(generation_engine)),
         validation_engine: Arc::new(ArcSwap::from(validation_engine)),
         package_manager: Arc::new(std::sync::RwLock::new(package_manager)),
+        database_client,
+        database_config: Arc::new(db_config),
     }
 }
 

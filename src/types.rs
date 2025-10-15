@@ -11,6 +11,8 @@ pub struct AppState {
     pub generation_engine: Arc<ArcSwap<dataflow_rs::Engine>>,
     pub validation_engine: Arc<ArcSwap<dataflow_rs::Engine>>,
     pub package_manager: Arc<std::sync::RwLock<crate::package_manager::PackageManager>>,
+    pub database_client: Option<Arc<dyn crate::database::DatabaseClient>>,
+    pub database_config: Arc<crate::database::DatabaseConfig>,
 }
 
 #[derive(Debug, Serialize, Clone, ToSchema)]

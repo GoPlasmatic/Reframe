@@ -70,7 +70,7 @@ pub struct ReframeConfig {
     #[serde(default)]
     pub api_docs: ApiDocsConfig,
     #[serde(default)]
-    pub defaults: DefaultsConfig,
+    pub database: DatabaseConfigFile,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -261,26 +261,6 @@ fn default_server_url() -> String {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct DefaultsConfig {
-    pub package_id: Option<String>,
-    #[serde(default = "default_package_path")]
-    pub package_path: String,
-}
-
-impl Default for DefaultsConfig {
-    fn default() -> Self {
-        Self {
-            package_id: None,
-            package_path: default_package_path(),
-        }
-    }
-}
-
-fn default_package_path() -> String {
-    "../reframe-package-swift-cbpr".to_string()
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PackageReference {
     pub path: String,
     #[serde(default = "default_true")]
@@ -345,6 +325,137 @@ impl Default for ServerConfig {
     }
 }
 
+/// Database configuration from config file
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DatabaseConfigFile {
+    #[serde(rename = "type", default = "default_db_type")]
+    pub db_type: String,
+    #[serde(default)]
+    pub connection: DatabaseConnectionConfig,
+    #[serde(default)]
+    pub storage: DatabaseStorageConfig,
+    #[serde(default)]
+    pub options: DatabaseOptionsConfig,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DatabaseConnectionConfig {
+    #[serde(default = "default_db_uri")]
+    pub uri: String,
+    #[serde(default = "default_db_timeout")]
+    pub timeout_ms: u64,
+    #[serde(default)]
+    pub pool: DatabasePoolConfig,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DatabasePoolConfig {
+    #[serde(default = "default_pool_max_size")]
+    pub max_size: u32,
+    #[serde(default = "default_pool_min_size")]
+    pub min_size: u32,
+    #[serde(default = "default_pool_max_idle_time")]
+    pub max_idle_time_ms: u64,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DatabaseStorageConfig {
+    #[serde(default = "default_db_database")]
+    pub database: String,
+    #[serde(default = "default_db_collection")]
+    pub collection: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DatabaseOptionsConfig {
+    #[serde(default = "default_publish_mode")]
+    pub publish_mode: String,
+}
+
+impl Default for DatabaseConfigFile {
+    fn default() -> Self {
+        Self {
+            db_type: default_db_type(),
+            connection: DatabaseConnectionConfig::default(),
+            storage: DatabaseStorageConfig::default(),
+            options: DatabaseOptionsConfig::default(),
+        }
+    }
+}
+
+impl Default for DatabaseConnectionConfig {
+    fn default() -> Self {
+        Self {
+            uri: default_db_uri(),
+            timeout_ms: default_db_timeout(),
+            pool: DatabasePoolConfig::default(),
+        }
+    }
+}
+
+impl Default for DatabasePoolConfig {
+    fn default() -> Self {
+        Self {
+            max_size: default_pool_max_size(),
+            min_size: default_pool_min_size(),
+            max_idle_time_ms: default_pool_max_idle_time(),
+        }
+    }
+}
+
+impl Default for DatabaseStorageConfig {
+    fn default() -> Self {
+        Self {
+            database: default_db_database(),
+            collection: default_db_collection(),
+        }
+    }
+}
+
+impl Default for DatabaseOptionsConfig {
+    fn default() -> Self {
+        Self {
+            publish_mode: default_publish_mode(),
+        }
+    }
+}
+
+fn default_db_type() -> String {
+    "mongodb".to_string()
+}
+
+fn default_db_uri() -> String {
+    "mongodb://localhost:27017".to_string()
+}
+
+fn default_db_timeout() -> u64 {
+    5000
+}
+
+fn default_pool_max_size() -> u32 {
+    10
+}
+
+fn default_pool_min_size() -> u32 {
+    2
+}
+
+fn default_pool_max_idle_time() -> u64 {
+    60000
+}
+
+fn default_db_database() -> String {
+    "reframe".to_string()
+}
+
+fn default_db_collection() -> String {
+    "reframe_audit".to_string()
+}
+
+fn default_publish_mode() -> String {
+    "async".to_string()
+}
+
 /// Package Manager - handles discovery, loading, and validation of packages
 pub struct PackageManager {
     config: ReframeConfig,
@@ -383,8 +494,8 @@ impl PackageManager {
 
     /// Create default configuration (uses environment variable or default path)
     fn default_config() -> ReframeConfig {
-        let package_path =
-            std::env::var("REFRAME_PACKAGE_PATH").unwrap_or_else(|_| default_package_path());
+        let package_path = std::env::var("REFRAME_PACKAGE_PATH")
+            .unwrap_or_else(|_| "../reframe-package-swift-cbpr".to_string());
 
         ReframeConfig {
             packages: vec![PackageReference {
@@ -394,7 +505,7 @@ impl PackageManager {
             server: ServerConfig::default(),
             logging: LoggingConfig::default(),
             api_docs: ApiDocsConfig::default(),
-            defaults: DefaultsConfig::default(),
+            database: DatabaseConfigFile::default(),
         }
     }
 

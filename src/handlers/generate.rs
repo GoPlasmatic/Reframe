@@ -10,6 +10,14 @@ use super::helpers::{
 use super::types::{SampleGenerationRequest, SampleGenerationResponse};
 use crate::types::{AppState, ReframeError};
 
+/// Publish message to database for audit logging (if enabled and persist_generate is true)
+fn publish_to_database(state: &AppState, message: &Message) {
+    if state.database_config.persist_generate && state.database_client.is_some()
+        && let Some(ref client) = state.database_client {
+            client.clone().publish_message(message);
+        }
+}
+
 // Unified sample generation endpoint using workflow engine
 #[utoipa::path(
     post,
@@ -96,6 +104,12 @@ pub async fn generate_sample(
 
     // Set metadata for workflow detection
     if let Some(metadata_obj) = message.metadata_mut().as_object_mut() {
+        // Add Reframe version
+        metadata_obj.insert(
+            "reframe_version".to_string(),
+            env!("CARGO_PKG_VERSION").to_string().into(),
+        );
+
         // Set the actual message type (e.g., "MT103" or "pacs.008")
         metadata_obj.insert(
             "message_type".to_string(),
@@ -135,6 +149,9 @@ pub async fn generate_sample(
                 if let Some(result_str) = result.as_str() {
                     info!("✅ Sample generation completed in {}ms", processing_time);
 
+                    // Publish successful generation to database
+                    publish_to_database(&state, &message);
+
                     Ok(Json(SampleGenerationResponse {
                         success: true,
                         package: package_id.clone(),
@@ -148,6 +165,10 @@ pub async fn generate_sample(
                     }))
                 } else {
                     error!("Generation workflow did not produce a string result");
+
+                    // Publish failed generation to database
+                    publish_to_database(&state, &message);
+
                     Ok(Json(SampleGenerationResponse {
                         success: false,
                         package: package_id.clone(),
@@ -168,6 +189,10 @@ pub async fn generate_sample(
                 let workflow_errors = extract_workflow_errors(&message);
                 if !workflow_errors.is_empty() {
                     error!("Generation failed with errors: {:?}", workflow_errors);
+
+                    // Publish failed generation to database
+                    publish_to_database(&state, &message);
+
                     Ok(Json(SampleGenerationResponse {
                         success: false,
                         package: package_id.clone(),
@@ -184,6 +209,10 @@ pub async fn generate_sample(
                     }))
                 } else {
                     error!("Generation workflow did not produce a result");
+
+                    // Publish failed generation to database
+                    publish_to_database(&state, &message);
+
                     Ok(Json(SampleGenerationResponse {
                         success: false,
                         package: package_id.clone(),
@@ -206,6 +235,9 @@ pub async fn generate_sample(
                 error = %e,
                 "Sample generation failed"
             );
+
+            // Publish failed generation to database
+            publish_to_database(&state, &message);
 
             Ok(Json(SampleGenerationResponse {
                 success: false,

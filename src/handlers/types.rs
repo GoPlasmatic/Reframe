@@ -117,7 +117,7 @@ pub struct HealthResponse {
     pub status: String,
     pub timestamp: String,
     pub engines: EngineStatus,
-    pub capabilities: Vec<String>,
+    pub database: DatabaseStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub config: Option<ConfigInfo>,
 }
@@ -127,6 +127,14 @@ pub struct EngineStatus {
     pub transform: String,
     pub generation: String,
     pub validation: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct DatabaseStatus {
+    pub enabled: bool,
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]

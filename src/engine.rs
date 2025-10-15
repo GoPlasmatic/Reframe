@@ -254,7 +254,7 @@ pub async fn initialize_engines() -> AppState {
     let db_config = crate::database::DatabaseConfig::load();
 
     // Initialize database client only if persistence is enabled for at least one operation
-    let database_client = if db_config.persist_transform
+    let (database_client, mongodb_client) = if db_config.persist_transform
         || db_config.persist_validate
         || db_config.persist_generate
     {
@@ -272,12 +272,23 @@ pub async fn initialize_engines() -> AppState {
             db_config.db_type, db_config.database_name, db_config.collection_name
         );
 
-        Some(client)
+        // If MongoDB, create a second reference for GraphQL
+        let mongo_client = if matches!(db_config.db_type, crate::database::DatabaseType::MongoDB) {
+            Some(Arc::new(
+                crate::database::mongodb::MongoDBClient::new(&db_config)
+                    .await
+                    .expect("Failed to create MongoDB client for GraphQL"),
+            ))
+        } else {
+            None
+        };
+
+        (Some(client), mongo_client)
     } else {
         info!(
             "⚠️  Database persistence disabled (persist_transform: false, persist_validate: false, persist_generate: false)"
         );
-        None
+        (None, None)
     };
 
     AppState {
@@ -286,6 +297,7 @@ pub async fn initialize_engines() -> AppState {
         validation_engine: Arc::new(ArcSwap::from(validation_engine)),
         package_manager: Arc::new(std::sync::RwLock::new(package_manager)),
         database_client,
+        mongodb_client,
         database_config: Arc::new(db_config),
     }
 }

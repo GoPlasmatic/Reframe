@@ -1,14 +1,21 @@
 use axum::{
     Router, middleware,
+    response::{Html, IntoResponse},
     routing::{get, post},
+    Extension,
 };
 use tracing::info;
+
+// GraphQL imports
+use async_graphql::http::{playground_source, GraphQLPlaygroundConfig};
+use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 
 // Module declarations
 mod ascii_art;
 mod database;
 mod detection;
 mod engine;
+mod graphql;
 mod handlers;
 mod logging;
 mod openapi;
@@ -24,6 +31,18 @@ use handlers::{
 };
 use logging::{LogConfig, init_logging, log_system_info};
 use openapi::swagger_ui_with_config;
+
+// GraphQL handler functions
+async fn graphql_handler(
+    schema: Extension<graphql::ReframeSchema>,
+    req: GraphQLRequest,
+) -> GraphQLResponse {
+    schema.execute(req.into_inner()).await.into()
+}
+
+async fn graphql_playground() -> impl IntoResponse {
+    Html(playground_source(GraphQLPlaygroundConfig::new("/graphql")))
+}
 
 fn main() {
     // Load configuration to determine runtime settings
@@ -136,14 +155,35 @@ async fn async_main() {
         )
     };
 
-    // Build router with unified endpoints
-    let app = Router::new()
+    // Build base router with core endpoints
+    let mut app = Router::new()
         .route("/health", get(health_check))
         .route("/api/transform", post(transform))
         .route("/api/generate", post(generate_sample))
         .route("/api/validate", post(validate))
         .route("/api/packages", get(list_packages))
-        .route("/admin/reload-workflows", post(reload_workflows))
+        .route("/admin/reload-workflows", post(reload_workflows));
+
+    // Add GraphQL routes if MongoDB client is available
+    let graphql_enabled = if let Some(ref mongo_client) = app_state.mongodb_client {
+        info!("🔍 Initializing GraphQL API");
+
+        // Create GraphQL schema with MongoDB client
+        let schema = graphql::create_schema(mongo_client.clone());
+
+        // Add GraphQL routes and schema extension
+        app = app
+            .route("/graphql", post(graphql_handler))
+            .route("/graphql/playground", get(graphql_playground))
+            .layer(Extension(schema));
+
+        true
+    } else {
+        false
+    };
+
+    // Complete the router
+    let app = app
         .merge(swagger_ui_with_config(&api_docs_config))
         .layer(middleware::from_fn(correlation_middleware))
         .with_state(app_state);
@@ -217,6 +257,13 @@ async fn async_main() {
     info!("  GET  /health                 - Health check");
     info!("  GET  /swagger-ui             - API documentation");
     info!("  GET  /api-docs/openapi.json  - OpenAPI spec");
+
+    if graphql_enabled {
+        info!("");
+        info!("🔍 GraphQL API:");
+        info!("  POST /graphql                - GraphQL query endpoint");
+        info!("  GET  /graphql/playground     - Interactive GraphQL Playground");
+    }
 
     axum::serve(listener, app)
         .await

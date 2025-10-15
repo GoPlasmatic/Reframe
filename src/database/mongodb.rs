@@ -10,6 +10,14 @@ use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, error, info};
 
+// Import GraphQL types for query methods
+use crate::graphql::types::{
+    MessageConnection, MessageFilter, MessageStats, MessageTypeCount, TransformationMessage,
+};
+
+// Import conversion utilities
+use super::conversion::document_to_transformation_message;
+
 /// MongoDB implementation of DatabaseClient
 pub struct MongoDBClient {
     database: Database,
@@ -111,6 +119,275 @@ impl MongoDBClient {
 
         Ok(())
     }
+
+    // ========== GraphQL Query Methods ==========
+
+    /// Find a single message by ID
+    pub async fn find_message_by_id(&self, id: &str) -> Result<Option<TransformationMessage>, String> {
+        let collection = self.database.collection::<Document>(&self.collection_name);
+
+        let filter = doc! { "id": id };
+        let result = collection
+            .find_one(filter)
+            .await
+            .map_err(|e| format!("MongoDB query failed: {}", e))?;
+
+        match result {
+            Some(doc) => {
+                let message = document_to_transformation_message(doc)?;
+                Ok(Some(message))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Find messages with filtering and pagination
+    pub async fn find_messages(
+        &self,
+        filter: Option<MessageFilter>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Result<MessageConnection, String> {
+        let collection = self.database.collection::<Document>(&self.collection_name);
+
+        // Build filter document
+        let mut query = doc! {};
+
+        if let Some(f) = filter {
+            if let Some(msg_type) = f.message_type {
+                query.insert("metadata.message_type_hint", msg_type);
+            }
+            if let Some(direction) = f.direction {
+                query.insert("metadata.transformation_direction", direction);
+            }
+            if let Some(success) = f.success {
+                query.insert("success", success);
+            }
+            if let Some(date_from) = f.date_from {
+                query.insert(
+                    "timestamp",
+                    doc! { "$gte": mongodb::bson::DateTime::from_chrono(date_from) },
+                );
+            }
+            if let Some(date_to) = f.date_to {
+                let existing_timestamp = query.get("timestamp");
+                match existing_timestamp {
+                    Some(mongodb::bson::Bson::Document(ts_doc)) => {
+                        let mut new_ts = ts_doc.clone();
+                        new_ts.insert("$lte", mongodb::bson::DateTime::from_chrono(date_to));
+                        query.insert("timestamp", new_ts);
+                    }
+                    None => {
+                        query.insert(
+                            "timestamp",
+                            doc! { "$lte": mongodb::bson::DateTime::from_chrono(date_to) },
+                        );
+                    }
+                    _ => {}
+                }
+            }
+            if let Some(search) = f.search {
+                // Text search requires a text index
+                query.insert("$text", doc! { "$search": search });
+            }
+        }
+
+        // Get total count
+        let total_count = collection
+            .count_documents(query.clone())
+            .await
+            .map_err(|e| format!("Failed to count documents: {}", e))? as i64;
+
+        // Query with pagination
+        let limit = limit.unwrap_or(50).min(1000);
+        let offset = offset.unwrap_or(0);
+
+        let mut cursor = collection
+            .find(query)
+            .sort(doc! { "timestamp": -1 })
+            .skip(offset as u64)
+            .limit(limit)
+            .await
+            .map_err(|e| format!("MongoDB query failed: {}", e))?;
+
+        let mut messages = Vec::new();
+        while cursor.advance().await.map_err(|e| format!("Cursor error: {}", e))? {
+            let doc = cursor
+                .deserialize_current()
+                .map_err(|e| format!("Failed to deserialize document: {}", e))?;
+            let message = document_to_transformation_message(doc)?;
+            messages.push(message);
+        }
+
+        let has_next_page = (offset + limit) < total_count;
+
+        Ok(MessageConnection {
+            messages,
+            total_count,
+            has_next_page,
+        })
+    }
+
+    /// Search messages using text search
+    pub async fn search_messages(
+        &self,
+        query: &str,
+        limit: Option<i64>,
+    ) -> Result<Vec<TransformationMessage>, String> {
+        let collection = self.database.collection::<Document>(&self.collection_name);
+
+        let search_filter = doc! { "$text": { "$search": query } };
+        let limit = limit.unwrap_or(50).min(1000);
+
+        let mut cursor = collection
+            .find(search_filter)
+            .limit(limit)
+            .await
+            .map_err(|e| format!("MongoDB search failed: {}", e))?;
+
+        let mut messages = Vec::new();
+        while cursor.advance().await.map_err(|e| format!("Cursor error: {}", e))? {
+            let doc = cursor
+                .deserialize_current()
+                .map_err(|e| format!("Failed to deserialize document: {}", e))?;
+            let message = document_to_transformation_message(doc)?;
+            messages.push(message);
+        }
+
+        Ok(messages)
+    }
+
+    /// Get aggregated statistics
+    pub async fn get_statistics(&self) -> Result<MessageStats, String> {
+        let collection = self.database.collection::<Document>(&self.collection_name);
+
+        // Total messages
+        let total_messages = collection
+            .count_documents(doc! {})
+            .await
+            .map_err(|e| format!("Failed to count documents: {}", e))? as i64;
+
+        // Success/failure counts based on errors array
+        // Success = errors array is empty or doesn't exist
+        let success_count = collection
+            .count_documents(doc! {
+                "$or": [
+                    { "errors": { "$exists": false } },
+                    { "errors": { "$size": 0 } }
+                ]
+            })
+            .await
+            .map_err(|e| format!("Failed to count successes: {}", e))? as i64;
+
+        let failure_count = total_messages - success_count;
+
+        let success_rate = if total_messages > 0 {
+            (success_count as f64 / total_messages as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        // Average processing time from context.metadata.processing_time_ms
+        let pipeline = vec![
+            doc! {
+                "$match": {
+                    "context.metadata.processing_time_ms": { "$exists": true }
+                }
+            },
+            doc! {
+                "$group": {
+                    "_id": null,
+                    "avg_time": { "$avg": "$context.metadata.processing_time_ms" }
+                }
+            },
+        ];
+
+        let mut cursor = collection
+            .aggregate(pipeline)
+            .await
+            .map_err(|e| format!("Aggregation failed: {}", e))?;
+
+        let mut average_processing_time_ms = 0.0;
+        if cursor.advance().await.map_err(|e| format!("Cursor error: {}", e))? {
+            let doc = cursor
+                .deserialize_current()
+                .map_err(|e| format!("Failed to deserialize: {}", e))?;
+            if let Some(avg) = doc.get("avg_time") {
+                average_processing_time_ms = avg.as_f64().unwrap_or(0.0);
+            }
+        }
+
+        // Message type breakdown - aggregate by direction and message type
+        let pipeline = vec![
+            doc! {
+                "$project": {
+                    "direction": "$context.metadata.direction",
+                    "mx_type": "$context.metadata.ISO20022_MX.message_type",
+                    "mt_type": "$context.data.SwiftMT.message_type"
+                }
+            },
+            doc! {
+                "$project": {
+                    "message_type": {
+                        "$cond": {
+                            "if": { "$eq": ["$direction", "outgoing"] },
+                            "then": { "$concat": ["MT", { "$toString": "$mt_type" }, " → MX"] },
+                            "else": {
+                                "$cond": {
+                                    "if": { "$ne": ["$mx_type", null] },
+                                    "then": { "$concat": ["MX:", "$mx_type", " → MT"] },
+                                    "else": "unknown"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            doc! {
+                "$group": {
+                    "_id": "$message_type",
+                    "count": { "$sum": 1 }
+                }
+            },
+            doc! {
+                "$sort": { "count": -1 }
+            },
+        ];
+
+        let mut cursor = collection
+            .aggregate(pipeline)
+            .await
+            .map_err(|e| format!("Aggregation failed: {}", e))?;
+
+        let mut message_type_breakdown = Vec::new();
+        while cursor.advance().await.map_err(|e| format!("Cursor error: {}", e))? {
+            let doc = cursor
+                .deserialize_current()
+                .map_err(|e| format!("Failed to deserialize: {}", e))?;
+
+            let message_type = doc
+                .get("_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string();
+            let count = doc.get("count").and_then(|v| v.as_i32()).unwrap_or(0) as i64;
+
+            message_type_breakdown.push(MessageTypeCount {
+                message_type,
+                count,
+            });
+        }
+
+        Ok(MessageStats {
+            total_messages,
+            success_count,
+            failure_count,
+            success_rate,
+            average_processing_time_ms,
+            message_type_breakdown,
+        })
+    }
+
 }
 
 #[async_trait]

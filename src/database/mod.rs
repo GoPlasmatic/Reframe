@@ -1,4 +1,8 @@
+pub mod conversion;
 pub mod mongodb;
+
+// Re-export MongoDBClient for GraphQL
+pub use mongodb::MongoDBClient;
 
 use async_trait::async_trait;
 use dataflow_rs::engine::message::Message;

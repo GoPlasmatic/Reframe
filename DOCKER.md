@@ -5,7 +5,7 @@ Complete guide for running Reframe in Docker with the package-based architecture
 ## Quick Start
 
 ```bash
-# Build and run with docker-compose
+# Build and run with docker-compose (downloads package automatically)
 docker-compose up -d
 
 # View logs
@@ -22,14 +22,15 @@ docker-compose down
 
 The Docker setup for Reframe v3.1.1 uses a **package-based architecture** where:
 - The Reframe application binary is built into the container
-- Workflow packages are **mounted as volumes** at runtime
-- Configuration is **mounted as a volume** for flexibility
+- Workflow packages are **downloaded during build** from a configurable URL
+- Configuration is **baked into the image** with Docker-appropriate paths
 - Logs are persisted to a mounted volume
 
 This approach allows you to:
-- Update workflows without rebuilding the container
-- Switch between different package versions
-- Customize configuration per environment
+- No need to clone packages locally - they're downloaded automatically
+- Configure package versions via URL (e.g., GitHub releases)
+- Switch between different package versions by changing the URL
+- Deploy to environments without local package dependencies
 - Persist logs for debugging
 
 ## Files
@@ -39,15 +40,16 @@ This approach allows you to:
 Multi-stage build that creates a minimal runtime image:
 - **Builder stage**: Compiles Reframe with Rust 1.89
 - **Runtime stage**: Debian slim with only necessary dependencies
-- **No embedded workflows**: Expects packages to be mounted
+- **Package Download**: Downloads and extracts workflow package from URL during build
+- **Configuration**: Bakes reframe.config.json into the image
 
 ### docker-compose.yml
 
-Orchestrates the Reframe service with proper volume mounts:
-- Mounts the external workflow package (read-only)
-- Mounts optional configuration file (read-only)
-- Mounts logs directory (read-write)
-- Includes benchmark runner service (optional profile)
+Orchestrates the Reframe service:
+- **Build Args**: Configures PACKAGE_URL for downloading workflow packages
+- **Environment Variables**: Allows .env file configuration
+- **Logs Mount**: Mounts logs directory (read-write)
+- **Benchmark Service**: Includes benchmark runner service (optional profile)
 
 ### .dockerignore
 
@@ -55,8 +57,15 @@ Excludes unnecessary files from the Docker build context:
 - Documentation and markdown files
 - Build artifacts (target/)
 - IDE and editor files
-- Old workflows/ and scenarios/ directories (now external)
-- Configuration files (mounted at runtime)
+- Old workflows/ and scenarios/ directories (now downloaded during build)
+- Environment files (.env)
+
+### .env.example
+
+Example environment configuration for docker-compose:
+- **PACKAGE_URL**: Configurable URL for downloading workflow packages
+- Supports GitHub releases, custom servers, or any accessible URL
+- Allows easy switching between package versions
 
 ### Dockerfile.benchmark
 
@@ -71,32 +80,26 @@ Before running with Docker, ensure you have:
 
 1. **Docker** installed (20.10+)
 2. **Docker Compose** installed (v2.0+)
-3. **Workflow Package** cloned:
-   ```bash
-   cd ..
-   git clone https://github.com/GoPlasmatic/reframe-package-swift-cbpr.git
-   cd Reframe
-   ```
+3. **Internet connection** for downloading workflow packages during build
+
+**Note**: No need to clone workflow packages locally - they are downloaded automatically during the Docker build process.
 
 ## Directory Structure
 
-Your directory structure should look like:
+Your directory structure is simple:
 
 ```
-parent-directory/
-├── Reframe/                          # This repository
-│   ├── Dockerfile
-│   ├── docker-compose.yml
-│   ├── reframe.config.json           # Optional: Custom configuration
-│   ├── logs/                         # Created automatically
-│   └── src/
-└── reframe-package-swift-cbpr/       # External workflow package
-    ├── reframe-package.json
-    ├── transform/
-    ├── generate/
-    ├── validate/
-    └── scenarios/
+Reframe/                              # This repository
+├── Dockerfile
+├── docker-compose.yml
+├── .env.example                      # Example configuration
+├── .env                              # Optional: Your configuration
+├── reframe.config.json               # Configuration (baked into image)
+├── logs/                             # Created automatically for log output
+└── src/
 ```
+
+**Workflow packages are downloaded during build and stored in `/packages/swift-cbpr` inside the container.**
 
 ## Usage
 
@@ -118,33 +121,32 @@ docker-compose ps
 docker-compose down
 ```
 
-### Custom Configuration
+### Custom Package URL
 
-Create a `reframe.config.json` file for custom settings:
+Configure which workflow package to download by creating a `.env` file:
 
-```json
-{
-  "packages": [
-    {
-      "path": "/packages/swift-cbpr",
-      "enabled": true
-    }
-  ],
-  "server": {
-    "host": "0.0.0.0",
-    "port": 3000,
-    "runtime": {
-      "tokio_worker_threads": "8"
-    }
-  },
-  "logging": {
-    "format": "json",
-    "level": "info"
-  }
-}
+```bash
+# Copy the example
+cp .env.example .env
+
+# Edit to set your package URL
+PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.0.0/reframe-swift-cbpr-v2.0.0.zip
 ```
 
-The docker-compose.yml will automatically mount this file.
+**Examples**:
+```bash
+# Use a specific version
+PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.0/reframe-swift-cbpr-v2.1.0.zip
+
+# Use a custom server
+PACKAGE_URL=https://your-server.com/packages/custom-package.zip
+```
+
+After changing the URL, rebuild:
+```bash
+docker-compose build
+docker-compose up -d
+```
 
 ### Environment Variables
 
@@ -182,29 +184,7 @@ docker-compose logs -f benchmark-runner
 
 ## Volume Mounts
 
-### Workflow Package Mount
-
-```yaml
-volumes:
-  - ../reframe-package-swift-cbpr:/packages/swift-cbpr:ro
-```
-
-- **Source**: `../reframe-package-swift-cbpr` (relative path)
-- **Target**: `/packages/swift-cbpr` (container path)
-- **Mode**: `ro` (read-only for safety)
-
-### Configuration Mount
-
-```yaml
-volumes:
-  - ./reframe.config.json:/app/reframe.config.json:ro
-```
-
-- **Source**: `./reframe.config.json` (optional)
-- **Target**: `/app/reframe.config.json`
-- **Mode**: `ro` (read-only)
-
-### Logs Mount
+### Logs Mount (Only Volume)
 
 ```yaml
 volumes:
@@ -214,6 +194,8 @@ volumes:
 - **Source**: `./logs` (created automatically)
 - **Target**: `/var/log/reframe`
 - **Mode**: `rw` (read-write)
+
+**Note**: Workflow packages and configuration are no longer mounted as volumes - they are baked into the Docker image during build.
 
 ## Building
 
@@ -232,10 +214,20 @@ docker build -t myorg/reframe:latest .
 
 ### Build Arguments
 
-The Dockerfile uses Rust 1.89 by default. To use a different version:
+The Dockerfile supports the following build arguments:
 
 ```bash
+# Specify package URL
+docker build --build-arg PACKAGE_URL=https://example.com/package.zip -t reframe:3.1.1 .
+
+# Use different Rust version (default: 1.89)
 docker build --build-arg RUST_VERSION=1.85 -t reframe:3.1.1 .
+
+# Combine both
+docker build \
+  --build-arg PACKAGE_URL=https://example.com/package.zip \
+  --build-arg RUST_VERSION=1.89 \
+  -t reframe:3.1.1 .
 ```
 
 ## Running
@@ -256,15 +248,13 @@ docker-compose up -d --scale reframe-app=3
 ### Run Standalone
 
 ```bash
-# Run with mounted package
+# Run the container (package already baked in during build)
 docker run -d \
   --name reframe \
   -p 3000:3000 \
-  -v $(pwd)/../reframe-package-swift-cbpr:/packages/swift-cbpr:ro \
   -v $(pwd)/logs:/var/log/reframe \
   -e RUST_LOG=info \
   -e TOKIO_WORKER_THREADS=8 \
-  -e REFRAME_PACKAGE_PATH=/packages/swift-cbpr \
   reframe:3.1.1
 
 # View logs
@@ -275,15 +265,22 @@ docker stop reframe
 docker rm reframe
 ```
 
-### Run with Custom Package Location
+### Run with Different Package Version
+
+To use a different package version, rebuild the image with a new PACKAGE_URL:
 
 ```bash
+# Build with specific package version
+docker build \
+  --build-arg PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.0/reframe-swift-cbpr-v2.1.0.zip \
+  -t reframe:3.1.1-v2.1 .
+
+# Run the new image
 docker run -d \
   --name reframe \
   -p 3000:3000 \
-  -v /opt/packages/swift-cbpr-v2:/packages/swift-cbpr:ro \
-  -e REFRAME_PACKAGE_PATH=/packages/swift-cbpr \
-  reframe:3.1.1
+  -v $(pwd)/logs:/var/log/reframe \
+  reframe:3.1.1-v2.1
 ```
 
 ## Health Checks
@@ -371,9 +368,9 @@ docker-compose logs reframe-app
      - "8080:3000"
    ```
 
-### Package Mount Issues
+### Package Download Issues
 
-**Check if package is mounted**:
+**Check if package was downloaded correctly**:
 ```bash
 docker exec reframe-app ls -la /packages/swift-cbpr/
 ```
@@ -386,6 +383,11 @@ drwxr-xr-x  generate/
 drwxr-xr-x  validate/
 drwxr-xr-x  scenarios/
 ```
+
+**If package is missing**:
+1. Check build logs for download errors: `docker-compose build`
+2. Verify PACKAGE_URL is accessible: `curl -I $PACKAGE_URL`
+3. Try rebuilding with `--no-cache`: `docker-compose build --no-cache`
 
 ### Performance Issues
 
@@ -415,21 +417,26 @@ deploy:
       memory: 2G
 ```
 
-### Workflow Reload
+### Workflow Updates
 
-Reload workflows without restarting:
+To update workflows to a new version:
 
 ```bash
-# Update workflows in package directory
-cd ../reframe-package-swift-cbpr
-git pull
+# 1. Update PACKAGE_URL in .env to point to new version
+echo "PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.0/reframe-swift-cbpr-v2.1.0.zip" > .env
 
-# Reload via API
-curl -X POST http://localhost:3000/admin/reload-workflows
+# 2. Rebuild the image
+docker-compose build
 
-# Check logs
-docker-compose logs -f reframe-app
+# 3. Restart with new image
+docker-compose down
+docker-compose up -d
+
+# 4. Verify new version
+curl http://localhost:3000/health
 ```
+
+**Note**: Workflows are baked into the image, so updates require a rebuild. However, rebuilds are fast since only the package download layer changes.
 
 ## Production Deployment
 
@@ -440,13 +447,15 @@ version: '3.8'
 
 services:
   reframe:
+    build:
+      context: .
+      args:
+        PACKAGE_URL: https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.0.0/reframe-swift-cbpr-v2.0.0.zip
     image: myorg/reframe:3.1.1
     container_name: reframe-prod
     ports:
       - "3000:3000"
     volumes:
-      - /opt/packages/swift-cbpr:/packages/swift-cbpr:ro
-      - /opt/reframe/config/reframe.config.json:/app/reframe.config.json:ro
       - /var/log/reframe:/var/log/reframe
     environment:
       - RUST_LOG=info
@@ -474,6 +483,8 @@ networks:
   production-network:
     driver: bridge
 ```
+
+**Note**: Package is downloaded during build, not mounted at runtime.
 
 ### Multi-Node Setup
 
@@ -526,12 +537,14 @@ services:
 
 ## Best Practices
 
-1. **Always use read-only mounts** for packages and config:
+1. **Use explicit package versions** in production:
    ```yaml
-   - ../reframe-package-swift-cbpr:/packages/swift-cbpr:ro
+   build:
+     args:
+       PACKAGE_URL: https://github.com/.../releases/download/v2.0.0/package-v2.0.0.zip
    ```
 
-2. **Use explicit versions** in production:
+2. **Use explicit image versions** in production:
    ```yaml
    image: myorg/reframe:3.1.1  # Not :latest
    ```

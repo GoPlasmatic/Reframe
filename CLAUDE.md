@@ -144,14 +144,17 @@ cargo clippy -- -D warnings
 ### Docker Operations
 
 ```bash
-# Build container
+# Build container (downloads package automatically)
 docker build -t reframe .
 
-# Run container
+# Build with specific package URL
+docker build --build-arg PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.0.0/reframe-swift-cbpr-v2.0.0.zip -t reframe .
+
+# Run container (package is baked into image)
 docker run -p 3000:3000 reframe
 
-# Run with local workflow mount for development
-docker run -p 3000:3000 -v $(pwd)/workflows:/app/workflows reframe
+# Build and run with docker-compose (recommended)
+docker-compose up -d
 ```
 
 ## Architecture and Code Structure
@@ -642,9 +645,16 @@ Common issues when creating/fixing MX scenarios:
 The Dockerfile uses a multi-stage build:
 1. **Builder stage**: Compiles the Rust application with dependencies cached
 2. **Runtime stage**: Minimal Debian image with only runtime dependencies
-3. **Scenario loading**: Clones SwiftMTMessage and MXMessage repos for test scenarios
+3. **Package Download**: Downloads and extracts workflow package from configurable URL during build
+4. **Configuration**: Bakes reframe.config.json into the image with Docker-appropriate paths
 
 Container runs as non-root user (appuser) on port 3000.
+
+**Key Features**:
+- Workflow packages downloaded automatically from GitHub releases or custom URLs
+- No need to clone packages locally - fully self-contained build
+- Package URL configurable via `PACKAGE_URL` build argument or docker-compose .env file
+- Packages stored at `/packages/swift-cbpr` inside container
 
 ## Workflow-Specific Notes
 

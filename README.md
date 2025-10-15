@@ -86,16 +86,20 @@ Reframe is **not** specific to SWIFT or any particular standard. It's a general-
 
 ### Prerequisites
 
-1. **Rust 1.89+** (for building from source) or **Docker** (for containerized deployment)
-2. **A transformation package** (e.g., [reframe-package-swift-cbpr](https://github.com/GoPlasmatic/reframe-package-swift-cbpr))
+- **Docker** (for containerized deployment) - Recommended
+- **Rust 1.89+** (for building from source)
+- **Internet connection** (for Docker to download workflow packages)
+
+**Note**: When using Docker, workflow packages are downloaded automatically - no manual setup required!
 
 ### Option 1: Docker (Recommended)
 
 ```bash
-# 1. Clone the SWIFT CBPR+ package (or your own package)
-git clone https://github.com/GoPlasmatic/reframe-package-swift-cbpr.git
+# 1. Clone Reframe
+git clone https://github.com/GoPlasmatic/Reframe.git
+cd Reframe
 
-# 2. Run with docker-compose
+# 2. Run with docker-compose (downloads package automatically)
 docker-compose up -d
 
 # 3. Check health
@@ -104,6 +108,8 @@ curl http://localhost:3000/health
 # 4. View API documentation
 open http://localhost:3000/swagger-ui
 ```
+
+**Note**: No need to clone workflow packages separately - they are downloaded automatically during the Docker build from GitHub releases.
 
 ### Option 2: From Source
 

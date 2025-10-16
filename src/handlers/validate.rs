@@ -11,10 +11,12 @@ use crate::types::{AppState, ReframeError};
 
 /// Publish message to database for audit logging (if enabled and persist_validate is true)
 fn publish_to_database(state: &AppState, message: &Message) {
-    if state.database_config.persist_validate && state.database_client.is_some()
-        && let Some(ref client) = state.database_client {
-            client.clone().publish_message(message);
-        }
+    if state.database_config.persist_validate
+        && state.database_client.is_some()
+        && let Some(ref client) = state.database_client
+    {
+        client.clone().publish_message(message);
+    }
 }
 
 /// Unified validation endpoint that handles both MT and MX validation

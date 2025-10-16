@@ -12,7 +12,7 @@ pub struct AppState {
     pub validation_engine: Arc<ArcSwap<dataflow_rs::Engine>>,
     pub package_manager: Arc<std::sync::RwLock<crate::package_manager::PackageManager>>,
     pub database_client: Option<Arc<dyn crate::database::DatabaseClient>>,
-    pub mongodb_client: Option<Arc<crate::database::MongoDBClient>>,  // For GraphQL
+    pub mongodb_client: Option<Arc<crate::database::MongoDBClient>>, // For GraphQL
     pub database_config: Arc<crate::database::DatabaseConfig>,
 }
 

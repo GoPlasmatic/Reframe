@@ -1,13 +1,12 @@
 use axum::{
-    Router, middleware,
+    Extension, Router, middleware,
     response::{Html, IntoResponse},
     routing::{get, post},
-    Extension,
 };
 use tracing::info;
 
 // GraphQL imports
-use async_graphql::http::{playground_source, GraphQLPlaygroundConfig};
+use async_graphql::http::{GraphQLPlaygroundConfig, playground_source};
 use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 
 // Module declarations

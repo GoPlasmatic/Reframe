@@ -1,18 +1,15 @@
-/// MongoDB BSON to GraphQL type conversions
-///
-/// This module handles the conversion between MongoDB BSON documents
-/// and GraphQL types, keeping the conversion logic separate from database operations.
-
-use mongodb::bson::Document;
+//! MongoDB BSON to GraphQL type conversions
+//!
+//! This module handles the conversion between MongoDB BSON documents
+//! and GraphQL types, keeping the conversion logic separate from database operations.
 use crate::graphql::types::{AuditTrailEntry, ChangeEntry, ErrorInfoEntry, TransformationMessage};
+use mongodb::bson::Document;
 
 /// Convert BSON document to TransformationMessage
 ///
 /// Extracts and converts all fields from a MongoDB document into a GraphQL-compatible
 /// TransformationMessage structure.
-pub fn document_to_transformation_message(
-    doc: Document,
-) -> Result<TransformationMessage, String> {
+pub fn document_to_transformation_message(doc: Document) -> Result<TransformationMessage, String> {
     let id = extract_id(&doc)?;
     let payload = extract_payload(&doc)?;
     let context = extract_context(&doc)?;
@@ -60,12 +57,7 @@ fn extract_context(doc: &Document) -> Result<serde_json::Value, String> {
 fn extract_audit_trail(doc: &Document) -> Vec<AuditTrailEntry> {
     doc.get("audit_trail")
         .and_then(|v| v.as_array())
-        .map(|trail_bson| {
-            trail_bson
-                .iter()
-                .filter_map(parse_audit_entry)
-                .collect()
-        })
+        .map(|trail_bson| trail_bson.iter().filter_map(parse_audit_entry).collect())
         .unwrap_or_default()
 }
 
@@ -132,12 +124,7 @@ fn parse_change_entry(change: &mongodb::bson::Bson) -> Option<ChangeEntry> {
 fn extract_errors(doc: &Document) -> Vec<ErrorInfoEntry> {
     doc.get("errors")
         .and_then(|v| v.as_array())
-        .map(|errors_bson| {
-            errors_bson
-                .iter()
-                .filter_map(parse_error_entry)
-                .collect()
-        })
+        .map(|errors_bson| errors_bson.iter().filter_map(parse_error_entry).collect())
         .unwrap_or_default()
 }
 

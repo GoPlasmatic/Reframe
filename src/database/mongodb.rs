@@ -2,9 +2,9 @@ use super::{DatabaseClient, DatabaseConfig, PublishMode};
 use async_trait::async_trait;
 use dataflow_rs::engine::message::Message;
 use mongodb::{
-    bson::{doc, Document},
-    options::ClientOptions,
     Client, Database,
+    bson::{Document, doc},
+    options::ClientOptions,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -123,7 +123,10 @@ impl MongoDBClient {
     // ========== GraphQL Query Methods ==========
 
     /// Find a single message by ID
-    pub async fn find_message_by_id(&self, id: &str) -> Result<Option<TransformationMessage>, String> {
+    pub async fn find_message_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<TransformationMessage>, String> {
         let collection = self.database.collection::<Document>(&self.collection_name);
 
         let filter = doc! { "id": id };
@@ -196,7 +199,8 @@ impl MongoDBClient {
         let total_count = collection
             .count_documents(query.clone())
             .await
-            .map_err(|e| format!("Failed to count documents: {}", e))? as i64;
+            .map_err(|e| format!("Failed to count documents: {}", e))?
+            as i64;
 
         // Query with pagination
         let limit = limit.unwrap_or(50).min(1000);
@@ -211,7 +215,11 @@ impl MongoDBClient {
             .map_err(|e| format!("MongoDB query failed: {}", e))?;
 
         let mut messages = Vec::new();
-        while cursor.advance().await.map_err(|e| format!("Cursor error: {}", e))? {
+        while cursor
+            .advance()
+            .await
+            .map_err(|e| format!("Cursor error: {}", e))?
+        {
             let doc = cursor
                 .deserialize_current()
                 .map_err(|e| format!("Failed to deserialize document: {}", e))?;
@@ -246,7 +254,11 @@ impl MongoDBClient {
             .map_err(|e| format!("MongoDB search failed: {}", e))?;
 
         let mut messages = Vec::new();
-        while cursor.advance().await.map_err(|e| format!("Cursor error: {}", e))? {
+        while cursor
+            .advance()
+            .await
+            .map_err(|e| format!("Cursor error: {}", e))?
+        {
             let doc = cursor
                 .deserialize_current()
                 .map_err(|e| format!("Failed to deserialize document: {}", e))?;
@@ -265,7 +277,8 @@ impl MongoDBClient {
         let total_messages = collection
             .count_documents(doc! {})
             .await
-            .map_err(|e| format!("Failed to count documents: {}", e))? as i64;
+            .map_err(|e| format!("Failed to count documents: {}", e))?
+            as i64;
 
         // Success/failure counts based on errors array
         // Success = errors array is empty or doesn't exist
@@ -277,7 +290,8 @@ impl MongoDBClient {
                 ]
             })
             .await
-            .map_err(|e| format!("Failed to count successes: {}", e))? as i64;
+            .map_err(|e| format!("Failed to count successes: {}", e))?
+            as i64;
 
         let failure_count = total_messages - success_count;
 
@@ -308,7 +322,11 @@ impl MongoDBClient {
             .map_err(|e| format!("Aggregation failed: {}", e))?;
 
         let mut average_processing_time_ms = 0.0;
-        if cursor.advance().await.map_err(|e| format!("Cursor error: {}", e))? {
+        if cursor
+            .advance()
+            .await
+            .map_err(|e| format!("Cursor error: {}", e))?
+        {
             let doc = cursor
                 .deserialize_current()
                 .map_err(|e| format!("Failed to deserialize: {}", e))?;
@@ -360,7 +378,11 @@ impl MongoDBClient {
             .map_err(|e| format!("Aggregation failed: {}", e))?;
 
         let mut message_type_breakdown = Vec::new();
-        while cursor.advance().await.map_err(|e| format!("Cursor error: {}", e))? {
+        while cursor
+            .advance()
+            .await
+            .map_err(|e| format!("Cursor error: {}", e))?
+        {
             let doc = cursor
                 .deserialize_current()
                 .map_err(|e| format!("Failed to deserialize: {}", e))?;
@@ -387,7 +409,6 @@ impl MongoDBClient {
             message_type_breakdown,
         })
     }
-
 }
 
 #[async_trait]

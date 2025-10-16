@@ -12,10 +12,12 @@ use crate::types::{AppState, ReframeError};
 
 /// Publish message to database for audit logging (if enabled and persist_generate is true)
 fn publish_to_database(state: &AppState, message: &Message) {
-    if state.database_config.persist_generate && state.database_client.is_some()
-        && let Some(ref client) = state.database_client {
-            client.clone().publish_message(message);
-        }
+    if state.database_config.persist_generate
+        && state.database_client.is_some()
+        && let Some(ref client) = state.database_client
+    {
+        client.clone().publish_message(message);
+    }
 }
 
 // Unified sample generation endpoint using workflow engine

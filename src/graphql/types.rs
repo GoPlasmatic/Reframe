@@ -4,8 +4,10 @@ use serde::{Deserialize, Serialize};
 
 /// Transformation message stored in the audit database
 /// This matches the dataflow-rs Message structure
-#[derive(SimpleObject, Serialize, Deserialize, Clone, Debug)]
-#[graphql(rename_fields = "snake_case")]
+///
+/// Note: This is now a data structure only, not exposed directly in GraphQL.
+/// The dynamic schema in dynamic_schema.rs builds the GraphQL type at runtime.
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TransformationMessage {
     /// Unique message ID (UUID)
     pub id: String,
@@ -31,7 +33,7 @@ pub struct TransformationMessage {
     pub package_id: Option<String>,
 
     /// Custom fields computed based on package configuration
-    /// This is a JSON object containing dynamic fields defined in the package's api_config.json
+    /// Internal storage only - not exposed directly in GraphQL
     #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_fields: Option<serde_json::Value>,
 }
@@ -106,7 +108,7 @@ pub struct ErrorInfoEntry {
 }
 
 /// Filter criteria for querying messages
-#[derive(InputObject, Debug, Clone)]
+#[derive(InputObject, Debug, Clone, Deserialize)]
 #[graphql(rename_fields = "snake_case")]
 pub struct MessageFilter {
     /// Filter by message type (e.g., MT103, pacs.008)
@@ -136,8 +138,8 @@ pub struct MessageFilter {
 }
 
 /// Paginated response for messages query
-#[derive(SimpleObject, Debug, Clone)]
-#[graphql(rename_fields = "snake_case")]
+/// Note: This is a data structure only, represented dynamically in GraphQL
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MessageConnection {
     /// List of transformation messages
     pub messages: Vec<TransformationMessage>,

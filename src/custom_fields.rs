@@ -265,10 +265,10 @@ pub fn validate_custom_field_definitions(
         // Validate field type
         if !matches!(
             def.field_type.as_str(),
-            "string" | "number" | "boolean" | "json"
+            "string" | "number" | "int" | "boolean" | "datetime" | "json"
         ) {
             return Err(format!(
-                "Invalid field type '{}' for field '{}'. Must be: string, number, boolean, or json",
+                "Invalid field type '{}' for field '{}'. Must be: string, number, int, boolean, datetime, or json",
                 def.field_type, def.name
             ));
         }

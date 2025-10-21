@@ -168,8 +168,11 @@ async fn async_main() {
     let graphql_enabled = if let Some(ref mongo_client) = app_state.mongodb_client {
         info!("🔍 Initializing GraphQL API");
 
-        // Create GraphQL schema with MongoDB client
-        let schema = graphql::create_schema(mongo_client.clone());
+        // Create GraphQL schema with MongoDB client and package manager
+        let schema = graphql::create_schema(
+            mongo_client.clone(),
+            app_state.package_manager.clone(),
+        );
 
         // Add GraphQL routes and schema extension
         app = app

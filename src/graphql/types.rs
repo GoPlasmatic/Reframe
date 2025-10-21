@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 /// Transformation message stored in the audit database
 /// This matches the dataflow-rs Message structure
 #[derive(SimpleObject, Serialize, Deserialize, Clone, Debug)]
+#[graphql(rename_fields = "snake_case")]
 pub struct TransformationMessage {
     /// Unique message ID (UUID)
     pub id: String,
@@ -37,6 +38,7 @@ pub struct TransformationMessage {
 
 /// Audit trail entry showing workflow/task execution
 #[derive(SimpleObject, Serialize, Deserialize, Clone, Debug)]
+#[graphql(rename_fields = "snake_case")]
 pub struct AuditTrailEntry {
     /// Workflow ID that executed
     pub workflow_id: String,
@@ -56,6 +58,7 @@ pub struct AuditTrailEntry {
 
 /// Change made by a workflow task
 #[derive(SimpleObject, Serialize, Deserialize, Clone, Debug)]
+#[graphql(rename_fields = "snake_case")]
 pub struct ChangeEntry {
     /// JSONPath to the changed field
     pub path: String,
@@ -69,6 +72,7 @@ pub struct ChangeEntry {
 
 /// Error information from message processing
 #[derive(SimpleObject, Serialize, Deserialize, Clone, Debug)]
+#[graphql(rename_fields = "snake_case")]
 pub struct ErrorInfoEntry {
     /// Error code (e.g., "VALIDATION_ERROR", "WORKFLOW_ERROR")
     pub code: String,
@@ -103,6 +107,7 @@ pub struct ErrorInfoEntry {
 
 /// Filter criteria for querying messages
 #[derive(InputObject, Debug, Clone)]
+#[graphql(rename_fields = "snake_case")]
 pub struct MessageFilter {
     /// Filter by message type (e.g., MT103, pacs.008)
     pub message_type: Option<String>,
@@ -132,6 +137,7 @@ pub struct MessageFilter {
 
 /// Paginated response for messages query
 #[derive(SimpleObject, Debug, Clone)]
+#[graphql(rename_fields = "snake_case")]
 pub struct MessageConnection {
     /// List of transformation messages
     pub messages: Vec<TransformationMessage>,
@@ -145,6 +151,7 @@ pub struct MessageConnection {
 
 /// Statistics about transformation messages
 #[derive(SimpleObject, Debug, Clone)]
+#[graphql(rename_fields = "snake_case")]
 pub struct MessageStats {
     /// Total number of messages
     pub total_messages: i64,
@@ -167,6 +174,7 @@ pub struct MessageStats {
 
 /// Count of messages by type
 #[derive(SimpleObject, Debug, Clone)]
+#[graphql(rename_fields = "snake_case")]
 pub struct MessageTypeCount {
     /// Message type (e.g., MT103, pacs.008)
     pub message_type: String,

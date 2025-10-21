@@ -4,6 +4,8 @@ use std::fs;
 use std::path::Path;
 use tracing::{debug, error, info, warn};
 
+use crate::custom_fields::CustomFieldDefinition;
+
 /// Package configuration loaded from reframe-package.json
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PackageConfig {
@@ -56,6 +58,8 @@ pub struct PackageInfo {
     pub enabled: bool,
     pub package_path: String,
     pub loaded_at: chrono::DateTime<chrono::Utc>,
+    /// Custom field definitions from api_config.json
+    pub custom_fields: Vec<CustomFieldDefinition>,
 }
 
 /// Reframe configuration file structure
@@ -556,6 +560,9 @@ impl PackageManager {
         // Validate package
         self.validate_package(&package_config)?;
 
+        // Load custom field definitions from api_config.json (if it exists)
+        let custom_fields = self.load_custom_fields(package_path, &package_config.id)?;
+
         // Create package info
         let package_info = PackageInfo {
             id: package_config.id,
@@ -571,6 +578,7 @@ impl PackageManager {
             enabled: true,
             package_path: package_path.to_string(),
             loaded_at: chrono::Utc::now(),
+            custom_fields,
         };
 
         Ok(package_info)
@@ -607,6 +615,50 @@ impl PackageManager {
 
         debug!("Package '{}' validation passed", package.id);
         Ok(())
+    }
+
+    /// Load custom field definitions from api_config.json
+    fn load_custom_fields(
+        &self,
+        package_path: &str,
+        package_id: &str,
+    ) -> Result<Vec<CustomFieldDefinition>, Box<dyn std::error::Error>> {
+        use crate::custom_fields::validate_custom_field_definitions;
+
+        let api_config_path = format!("{}/api_config.json", package_path);
+
+        // Check if api_config.json exists
+        if !Path::new(&api_config_path).exists() {
+            debug!(
+                package_id = %package_id,
+                "No api_config.json found, package has no custom fields"
+            );
+            return Ok(Vec::new());
+        }
+
+        // Read and parse api_config.json
+        debug!(
+            package_id = %package_id,
+            path = %api_config_path,
+            "Loading custom field definitions"
+        );
+
+        let content = fs::read_to_string(&api_config_path)
+            .map_err(|e| format!("Failed to read api_config.json: {}", e))?;
+
+        let api_config: crate::custom_fields::ApiConfig = serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse api_config.json: {}", e))?;
+
+        // Validate custom field definitions
+        validate_custom_field_definitions(&api_config.custom_fields)?;
+
+        info!(
+            package_id = %package_id,
+            field_count = api_config.custom_fields.len(),
+            "✅ Loaded custom field definitions"
+        );
+
+        Ok(api_config.custom_fields)
     }
 
     /// Get all loaded packages

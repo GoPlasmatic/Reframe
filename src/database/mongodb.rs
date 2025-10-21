@@ -3,10 +3,10 @@ use async_trait::async_trait;
 use dataflow_rs::engine::message::Message;
 use mongodb::{
     Client, Database,
-    bson::{Document, doc},
+    bson::{Bson, Document, doc},
     options::ClientOptions,
 };
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tracing::{debug, error, info};
 
@@ -17,17 +17,22 @@ use crate::graphql::types::{
 
 // Import conversion utilities
 use super::conversion::document_to_transformation_message;
+use crate::package_manager::PackageManager;
 
 /// MongoDB implementation of DatabaseClient
 pub struct MongoDBClient {
     database: Database,
     collection_name: String,
     publish_mode: PublishMode,
+    package_manager: Arc<RwLock<PackageManager>>,
 }
 
 impl MongoDBClient {
     /// Create a new MongoDB client from generic database configuration
-    pub async fn new(config: &DatabaseConfig) -> Result<Self, String> {
+    pub async fn new(
+        config: &DatabaseConfig,
+        package_manager: Arc<RwLock<PackageManager>>,
+    ) -> Result<Self, String> {
         info!("🔌 Connecting to MongoDB: {}", config.database_name);
 
         // Parse connection URI and configure client options
@@ -78,11 +83,26 @@ impl MongoDBClient {
             database,
             collection_name: config.collection_name.clone(),
             publish_mode: config.publish_mode.clone(),
+            package_manager,
         })
     }
 
     /// Serialize a dataflow-rs Message to BSON document
     fn message_to_document(message: &Message) -> Result<Document, String> {
+        // Log custom fields in context before serialization
+        if let Some(custom_fields) = message.context.get("custom_fields") {
+            debug!(
+                message_id = %message.id,
+                custom_fields_present = !custom_fields.is_null(),
+                "Message serialized with custom_fields"
+            );
+        } else {
+            debug!(
+                message_id = %message.id,
+                "Message serialized WITHOUT custom_fields in context"
+            );
+        }
+
         // Convert Message to JSON Value
         let json_value = serde_json::to_value(message)
             .map_err(|e| format!("Failed to serialize message to JSON: {}", e))?;
@@ -150,6 +170,7 @@ impl MongoDBClient {
         filter: Option<MessageFilter>,
         limit: Option<i64>,
         offset: Option<i64>,
+        recompute_custom_fields: bool,
     ) -> Result<MessageConnection, String> {
         let collection = self.database.collection::<Document>(&self.collection_name);
 
@@ -193,6 +214,15 @@ impl MongoDBClient {
                 // Text search requires a text index
                 query.insert("$text", doc! { "$search": search });
             }
+            if let Some(package_id) = f.package_id {
+                query.insert("context.metadata.package_id", package_id);
+            }
+            if let Some(custom_filters) = f.custom_field_filters {
+                // Apply custom field filters
+                if let Err(e) = apply_custom_field_filters(&mut query, &custom_filters) {
+                    return Err(format!("Invalid custom field filters: {}", e));
+                }
+            }
         }
 
         // Get total count
@@ -225,6 +255,47 @@ impl MongoDBClient {
                 .map_err(|e| format!("Failed to deserialize document: {}", e))?;
             let message = document_to_transformation_message(doc)?;
             messages.push(message);
+        }
+
+        // Compute runtime and hybrid custom fields at query time
+        for message in &mut messages {
+            if let Some(ref package_id) = message.package_id {
+                // Get package custom field definitions
+                let pm = self.package_manager.read().unwrap();
+                if let Some(package) = pm.get_package(package_id) {
+                    let custom_field_defs = package.custom_fields.clone();
+                    drop(pm); // Release lock early
+
+                    // Skip if package has no custom fields
+                    if custom_field_defs.is_empty() {
+                        continue;
+                    }
+
+                    // Compute runtime fields (and hybrid if recompute requested)
+                    let computed = crate::custom_fields::compute_runtime_fields(
+                        message,
+                        &custom_field_defs,
+                        recompute_custom_fields,
+                    );
+
+                    // Merge computed fields with existing custom_fields
+                    if !computed.is_empty() {
+                        if let Some(ref mut existing) = message.custom_fields {
+                            if let Some(obj) = existing.as_object_mut() {
+                                // Merge: computed fields override stored fields if recompute is true
+                                for (key, value) in computed {
+                                    obj.insert(key, value);
+                                }
+                            }
+                        } else {
+                            // No existing custom fields, create new object
+                            message.custom_fields = Some(
+                                serde_json::to_value(&computed).unwrap_or(serde_json::json!({})),
+                            );
+                        }
+                    }
+                }
+            }
         }
 
         let has_next_page = (offset + limit) < total_count;
@@ -408,6 +479,116 @@ impl MongoDBClient {
             average_processing_time_ms,
             message_type_breakdown,
         })
+    }
+}
+
+/// Apply custom field filters to MongoDB query
+///
+/// Converts JSON filter format to MongoDB query syntax.
+/// Supports operators: eq, ne, gt, gte, lt, lte, in, exists
+///
+/// Example input:
+/// ```json
+/// {
+///   "transaction_risk_score": { "gte": 70 },
+///   "is_cross_border": true
+/// }
+/// ```
+///
+/// Becomes MongoDB query:
+/// ```json
+/// {
+///   "context.custom_fields.transaction_risk_score": { "$gte": 70 },
+///   "context.custom_fields.is_cross_border": true
+/// }
+/// ```
+fn apply_custom_field_filters(
+    query: &mut Document,
+    filters: &serde_json::Value,
+) -> Result<(), String> {
+    let filters_obj = filters
+        .as_object()
+        .ok_or_else(|| "custom_field_filters must be an object".to_string())?;
+
+    for (field_name, filter_value) in filters_obj {
+        let db_field = format!("context.custom_fields.{}", field_name);
+
+        match filter_value {
+            // Direct value comparison: {"field": value}
+            serde_json::Value::String(s) => {
+                query.insert(db_field, s.clone());
+            }
+            serde_json::Value::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    query.insert(db_field, i);
+                } else if let Some(f) = n.as_f64() {
+                    query.insert(db_field, f);
+                }
+            }
+            serde_json::Value::Bool(b) => {
+                query.insert(db_field, *b);
+            }
+
+            // Operator-based filter: {"field": {"gte": 70}}
+            serde_json::Value::Object(operators) => {
+                let mut filter_doc = Document::new();
+
+                for (op, val) in operators {
+                    let mongo_op = match op.as_str() {
+                        "eq" => "$eq",
+                        "ne" => "$ne",
+                        "gt" => "$gt",
+                        "gte" => "$gte",
+                        "lt" => "$lt",
+                        "lte" => "$lte",
+                        "in" => "$in",
+                        "exists" => "$exists",
+                        _ => return Err(format!("Unknown operator: {}", op)),
+                    };
+
+                    // Convert JSON value to BSON
+                    let bson_val = json_to_bson(val)?;
+                    filter_doc.insert(mongo_op, bson_val);
+                }
+
+                query.insert(db_field, filter_doc);
+            }
+
+            _ => {
+                return Err(format!("Invalid filter value for field '{}'", field_name));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Convert serde_json::Value to mongodb::bson::Bson
+fn json_to_bson(value: &serde_json::Value) -> Result<Bson, String> {
+    match value {
+        serde_json::Value::Null => Ok(Bson::Null),
+        serde_json::Value::Bool(b) => Ok(Bson::Boolean(*b)),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Ok(Bson::Int64(i))
+            } else if let Some(f) = n.as_f64() {
+                Ok(Bson::Double(f))
+            } else {
+                Err("Unsupported number type".to_string())
+            }
+        }
+        serde_json::Value::String(s) => Ok(Bson::String(s.clone())),
+        serde_json::Value::Array(arr) => {
+            let bson_arr: Result<Vec<Bson>, String> = arr.iter().map(json_to_bson).collect();
+            Ok(Bson::Array(bson_arr?))
+        }
+        serde_json::Value::Object(obj) => {
+            let mut doc = Document::new();
+            for (k, v) in obj {
+                doc.insert(k, json_to_bson(v)?);
+            }
+            Ok(Bson::Document(doc))
+        }
     }
 }
 

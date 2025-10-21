@@ -253,6 +253,9 @@ pub async fn initialize_engines() -> AppState {
     // Load database configuration
     let db_config = crate::database::DatabaseConfig::load();
 
+    // Create Arc<RwLock<PackageManager>> once for sharing
+    let package_manager_arc = Arc::new(std::sync::RwLock::new(package_manager));
+
     // Initialize database client only if persistence is enabled for at least one operation
     let (database_client, mongodb_client) = if db_config.persist_transform
         || db_config.persist_validate
@@ -263,9 +266,10 @@ pub async fn initialize_engines() -> AppState {
             db_config.persist_transform, db_config.persist_validate, db_config.persist_generate
         );
 
-        let client = crate::database::create_database_client(&db_config)
-            .await
-            .expect("Failed to initialize database client");
+        let client =
+            crate::database::create_database_client(&db_config, Arc::clone(&package_manager_arc))
+                .await
+                .expect("Failed to initialize database client");
 
         info!(
             "✅ Database audit logging initialized (type: {:?}, database: {}.{})",
@@ -275,9 +279,12 @@ pub async fn initialize_engines() -> AppState {
         // If MongoDB, create a second reference for GraphQL
         let mongo_client = if matches!(db_config.db_type, crate::database::DatabaseType::MongoDB) {
             Some(Arc::new(
-                crate::database::mongodb::MongoDBClient::new(&db_config)
-                    .await
-                    .expect("Failed to create MongoDB client for GraphQL"),
+                crate::database::mongodb::MongoDBClient::new(
+                    &db_config,
+                    Arc::clone(&package_manager_arc),
+                )
+                .await
+                .expect("Failed to create MongoDB client for GraphQL"),
             ))
         } else {
             None
@@ -295,7 +302,7 @@ pub async fn initialize_engines() -> AppState {
         transform_engine: Arc::new(ArcSwap::from(transform_engine)),
         generation_engine: Arc::new(ArcSwap::from(generation_engine)),
         validation_engine: Arc::new(ArcSwap::from(validation_engine)),
-        package_manager: Arc::new(std::sync::RwLock::new(package_manager)),
+        package_manager: package_manager_arc,
         database_client,
         mongodb_client,
         database_config: Arc::new(db_config),

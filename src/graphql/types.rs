@@ -24,6 +24,15 @@ pub struct TransformationMessage {
     /// Timestamp when stored (added by MongoDB)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timestamp: Option<DateTime<Utc>>,
+
+    /// Package ID used for this transformation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub package_id: Option<String>,
+
+    /// Custom fields computed based on package configuration
+    /// This is a JSON object containing dynamic fields defined in the package's api_config.json
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_fields: Option<serde_json::Value>,
 }
 
 /// Audit trail entry showing workflow/task execution
@@ -112,6 +121,13 @@ pub struct MessageFilter {
 
     /// Text search across message content
     pub search: Option<String>,
+
+    /// Filter by package ID
+    pub package_id: Option<String>,
+
+    /// Filter by custom field values
+    /// Example: {"transaction_risk_score": {"gte": 70}, "is_cross_border": true}
+    pub custom_field_filters: Option<serde_json::Value>,
 }
 
 /// Paginated response for messages query

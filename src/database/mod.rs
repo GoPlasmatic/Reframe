@@ -229,10 +229,11 @@ impl DatabaseConfig {
 /// without modifying consumer code
 pub async fn create_database_client(
     config: &DatabaseConfig,
+    package_manager: std::sync::Arc<std::sync::RwLock<crate::package_manager::PackageManager>>,
 ) -> Result<Arc<dyn DatabaseClient>, String> {
     match config.db_type {
         DatabaseType::MongoDB => {
-            let client = mongodb::MongoDBClient::new(config).await?;
+            let client = mongodb::MongoDBClient::new(config, package_manager).await?;
             Ok(Arc::new(client))
         } // Future implementations:
           // DatabaseType::PostgreSQL => {

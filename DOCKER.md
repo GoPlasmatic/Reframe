@@ -130,13 +130,13 @@ Configure which workflow package to download by creating a `.env` file:
 cp .env.example .env
 
 # Edit to set your package URL
-PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.0/reframe-swift-cbpr-v2.1.0.zip
+PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.1/reframe-swift-cbpr-v2.1.1.zip
 ```
 
 **Examples**:
 ```bash
 # Use a specific version
-PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.0/reframe-swift-cbpr-v2.1.0.zip
+PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.1/reframe-swift-cbpr-v2.1.1.zip
 
 # Use a custom server
 PACKAGE_URL=https://your-server.com/packages/custom-package.zip
@@ -272,7 +272,7 @@ To use a different package version, rebuild the image with a new PACKAGE_URL:
 ```bash
 # Build with specific package version
 docker build \
-  --build-arg PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.0/reframe-swift-cbpr-v2.1.0.zip \
+  --build-arg PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.1/reframe-swift-cbpr-v2.1.1.zip \
   -t reframe:3.1.1-v2.1 .
 
 # Run the new image
@@ -423,7 +423,7 @@ To update workflows to a new version:
 
 ```bash
 # 1. Update PACKAGE_URL in .env to point to new version
-echo "PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.0/reframe-swift-cbpr-v2.1.0.zip" > .env
+echo "PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.1/reframe-swift-cbpr-v2.1.1.zip" > .env
 
 # 2. Rebuild the image
 docker-compose build
@@ -450,7 +450,7 @@ services:
     build:
       context: .
       args:
-        PACKAGE_URL: https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.0/reframe-swift-cbpr-v2.1.0.zip
+        PACKAGE_URL: https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.1/reframe-swift-cbpr-v2.1.1.zip
     image: myorg/reframe:3.1.1
     container_name: reframe-prod
     ports:

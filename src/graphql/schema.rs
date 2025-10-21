@@ -31,9 +31,10 @@ impl QueryRoot {
     /// List transformation messages with optional filtering and pagination
     ///
     /// # Arguments
-    /// * `filter` - Optional filter criteria (message_type, direction, success, date ranges, search)
+    /// * `filter` - Optional filter criteria (message_type, direction, success, date ranges, search, package_id, custom_field_filters)
     /// * `limit` - Maximum number of messages to return (default: 50, max: 1000)
     /// * `offset` - Number of messages to skip for pagination (default: 0)
+    /// * `recompute_custom_fields` - If true, recompute custom fields with latest logic for hybrid storage fields (default: false)
     ///
     /// # Returns
     /// A paginated list of messages with total count and pagination info
@@ -43,12 +44,13 @@ impl QueryRoot {
         filter: Option<MessageFilter>,
         #[graphql(default = 50)] limit: i64,
         #[graphql(default = 0)] offset: i64,
+        #[graphql(default = false)] recompute_custom_fields: bool,
     ) -> Result<MessageConnection> {
         let db_client = ctx.data::<Arc<MongoDBClient>>()?;
         let limit = limit.min(1000); // Enforce maximum limit
 
         db_client
-            .find_messages(filter, Some(limit), Some(offset))
+            .find_messages(filter, Some(limit), Some(offset), recompute_custom_fields)
             .await
             .map_err(|e| Error::new(format!("Database error: {}", e)))
     }

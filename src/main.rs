@@ -11,6 +11,7 @@ use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 
 // Module declarations
 mod ascii_art;
+mod custom_fields;
 mod database;
 mod detection;
 mod engine;

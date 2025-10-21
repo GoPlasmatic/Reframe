@@ -6,6 +6,7 @@ use std::time::Instant;
 use tracing::{Span, debug, error, info, warn};
 use uuid::Uuid;
 
+use crate::custom_fields::compute_and_store_fields;
 use crate::package_manager::PackageInfo;
 use crate::types::{AppState, ReframeError};
 
@@ -195,4 +196,135 @@ fn find_scenario_file(
             scenario_name, message_type
         ),
     ))
+}
+
+/// Compute and store custom fields for a message based on its package
+///
+/// This function:
+/// 1. Extracts the package_id from message metadata
+/// 2. Retrieves custom field definitions from the package
+/// 3. Computes and stores custom fields in the message context
+///
+/// # Arguments
+/// * `state` - Application state containing package manager
+/// * `message` - Message to compute fields for (modified in place)
+///
+/// # Returns
+/// Ok(()) on success, or an error message on failure
+pub fn compute_and_store_custom_fields(
+    state: &AppState,
+    message: &mut Message,
+) -> Result<(), String> {
+    // Get package ID from context root (preferred) or metadata (fallback)
+    // We store at context root to prevent workflow overwrites
+    let package_id = message
+        .context
+        .get("package_id")
+        .and_then(|v| v.as_str())
+        .or_else(|| {
+            message
+                .metadata()
+                .get("package_id")
+                .and_then(|v| v.as_str())
+        })
+        .map(String::from)
+        .ok_or_else(|| "No package_id in message context or metadata".to_string())?;
+
+    // Get package from package manager
+    let pm = state.package_manager.read().unwrap();
+    let package = pm
+        .get_package(&package_id)
+        .ok_or_else(|| format!("Package '{}' not found", package_id))?;
+
+    // Clone custom fields to avoid borrow issues
+    let custom_fields = package.custom_fields.clone();
+
+    // Drop the lock early
+    drop(pm);
+
+    // Skip if package has no custom fields
+    if custom_fields.is_empty() {
+        debug!("Package has no custom fields, skipping computation");
+        return Ok(());
+    }
+
+    // Compute and store custom fields
+    compute_and_store_fields(message, &custom_fields)?;
+
+    debug!(
+        package_id = %package_id,
+        field_count = custom_fields.len(),
+        "Computed and stored custom fields"
+    );
+
+    Ok(())
+}
+
+/// Publish message to database with custom fields computation
+///
+/// This is a unified helper for all handlers to publish messages to the database.
+/// It handles:
+/// 1. Computing and storing custom fields before publishing
+/// 2. Publishing the message if database client is available
+/// 3. Error handling for custom field computation failures
+///
+/// # Arguments
+/// * `state` - Application state
+/// * `message` - Message to publish (modified in place to add custom fields)
+/// * `persist_enabled` - Whether persistence is enabled for this operation type
+pub fn publish_to_database_with_custom_fields(
+    state: &AppState,
+    message: &mut Message,
+    persist_enabled: bool,
+) {
+    if !persist_enabled || state.database_client.is_none() {
+        return;
+    }
+
+    if let Some(ref client) = state.database_client {
+        // Extract values before mutable borrow to avoid lifetime issues
+        let msg_id = message.id.clone();
+        let direction = message
+            .metadata()
+            .get("transformation_direction")
+            .and_then(|v| v.as_str())
+            .map(String::from)
+            .unwrap_or_else(|| "unknown".to_string());
+        let pkg_id_before = message
+            .context
+            .get("package_id")
+            .or_else(|| message.metadata().get("package_id"))
+            .and_then(|v| v.as_str())
+            .map(String::from);
+
+        debug!(
+            message_id = %msg_id,
+            direction = %direction,
+            package_id_before = ?pkg_id_before,
+            "About to compute custom fields"
+        );
+
+        // Compute and store custom fields before publishing
+        let computation_result = compute_and_store_custom_fields(state, message);
+
+        if let Err(e) = computation_result {
+            error!(
+                error = %e,
+                message_id = %msg_id,
+                direction = %direction,
+                "Failed to compute custom fields, publishing without them"
+            );
+        } else {
+            // Log after successful computation
+            let has_custom_fields = message.context.get("custom_fields").is_some();
+            debug!(
+                message_id = %msg_id,
+                direction = %direction,
+                has_custom_fields = has_custom_fields,
+                "Custom fields computed successfully"
+            );
+        }
+
+        client.clone().publish_message(message);
+    }
 }

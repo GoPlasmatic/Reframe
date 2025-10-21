@@ -5,19 +5,12 @@ use std::sync::Arc;
 use std::time::Instant;
 use tracing::{debug, error, info, instrument};
 
-use super::helpers::{create_debug_info, extract_workflow_errors, resolve_package_id};
+use super::helpers::{
+    create_debug_info, extract_workflow_errors, publish_to_database_with_custom_fields,
+    resolve_package_id,
+};
 use super::types::{TransformationRequest, TransformationResponse};
 use crate::types::{AppState, ReframeError};
-
-/// Publish message to database for audit logging (if enabled and persist_transform is true)
-fn publish_to_database(state: &AppState, message: &Message) {
-    if state.database_config.persist_transform
-        && state.database_client.is_some()
-        && let Some(ref client) = state.database_client
-    {
-        client.clone().publish_message(message);
-    }
-}
 
 /// Unified transformation endpoint that handles both MT↔MX transformations
 #[utoipa::path(
@@ -60,26 +53,38 @@ pub async fn transform(
     // Set metadata for workflow detection
     // Note: Package workflows are responsible for detecting message format
     // and setting transformation_direction in metadata
-    if let Some(metadata_obj) = message.metadata_mut().as_object_mut() {
-        // Add Reframe version
-        metadata_obj.insert(
-            "reframe_version".to_string(),
-            env!("CARGO_PKG_VERSION").to_string().into(),
-        );
+    if let Some(context_obj) = message.context.as_object_mut() {
+        // Add package ID at context root level (not in metadata) to prevent workflow overwrites
+        // Custom fields computation will read from here
+        context_obj.insert("package_id".to_string(), package_id.clone().into());
 
-        metadata_obj.insert("validation".to_string(), request.validation.into());
-
-        // Add message type hint if provided
-        if let Some(ref hint) = request.message_type_hint {
-            metadata_obj.insert("message_type_hint".to_string(), hint.clone().into());
-        }
-
-        // Merge user-provided metadata if present
-        if let Some(user_metadata) = &request.metadata
-            && let Some(user_obj) = user_metadata.as_object()
+        if let Some(metadata_obj) = context_obj
+            .get_mut("metadata")
+            .and_then(|v| v.as_object_mut())
         {
-            for (key, value) in user_obj {
-                metadata_obj.insert(key.clone(), value.clone());
+            // Add Reframe version
+            metadata_obj.insert(
+                "reframe_version".to_string(),
+                env!("CARGO_PKG_VERSION").to_string().into(),
+            );
+
+            // Also add package ID to metadata for backwards compatibility
+            metadata_obj.insert("package_id".to_string(), package_id.clone().into());
+
+            metadata_obj.insert("validation".to_string(), request.validation.into());
+
+            // Add message type hint if provided
+            if let Some(ref hint) = request.message_type_hint {
+                metadata_obj.insert("message_type_hint".to_string(), hint.clone().into());
+            }
+
+            // Merge user-provided metadata if present
+            if let Some(user_metadata) = &request.metadata
+                && let Some(user_obj) = user_metadata.as_object()
+            {
+                for (key, value) in user_obj {
+                    metadata_obj.insert(key.clone(), value.clone());
+                }
             }
         }
     }
@@ -105,7 +110,11 @@ pub async fn transform(
                 );
 
                 // Publish failed transformation to database
-                publish_to_database(&state, &message);
+                publish_to_database_with_custom_fields(
+                    &state,
+                    &mut message,
+                    state.database_config.persist_transform,
+                );
 
                 return Ok(Json(TransformationResponse {
                     success: false,
@@ -125,18 +134,25 @@ pub async fn transform(
             // Validate that the transformation actually produced a result
             match message.data().get("result") {
                 Some(result) if !result.is_null() => {
+                    // Clone result early to avoid borrow checker issues
+                    let result_clone = result.clone();
+
                     // Handle both string and array results
                     match result {
                         Value::String(s) if !s.trim().is_empty() => {
                             // Publish to database before returning
-                            publish_to_database(&state, &message);
+                            publish_to_database_with_custom_fields(
+                                &state,
+                                &mut message,
+                                state.database_config.persist_transform,
+                            );
 
                             // Single string result
                             Ok(Json(TransformationResponse {
                                 success: true,
                                 package: package_id.clone(),
                                 message_type: None,
-                                result: Some(result.clone()),
+                                result: Some(result_clone),
                                 debug_info: create_debug_info(request.debug, &message),
                                 errors: Vec::new(),
                                 warnings: Vec::new(),
@@ -145,14 +161,18 @@ pub async fn transform(
                         }
                         Value::Array(arr) if !arr.is_empty() => {
                             // Publish to database before returning
-                            publish_to_database(&state, &message);
+                            publish_to_database_with_custom_fields(
+                                &state,
+                                &mut message,
+                                state.database_config.persist_transform,
+                            );
 
                             // Multiple results
                             Ok(Json(TransformationResponse {
                                 success: true,
                                 package: package_id.clone(),
                                 message_type: None,
-                                result: Some(result.clone()),
+                                result: Some(result_clone),
                                 debug_info: create_debug_info(request.debug, &message),
                                 errors: Vec::new(),
                                 warnings: Vec::new(),
@@ -166,7 +186,11 @@ pub async fn transform(
                             );
 
                             // Publish failed transformation to database
-                            publish_to_database(&state, &message);
+                            publish_to_database_with_custom_fields(
+                                &state,
+                                &mut message,
+                                state.database_config.persist_transform,
+                            );
 
                             Ok(Json(TransformationResponse {
                                 success: false,
@@ -192,7 +216,11 @@ pub async fn transform(
                     );
 
                     // Publish failed transformation to database
-                    publish_to_database(&state, &message);
+                    publish_to_database_with_custom_fields(
+                        &state,
+                        &mut message,
+                        state.database_config.persist_transform,
+                    );
 
                     Ok(Json(TransformationResponse {
                         success: false,
@@ -219,7 +247,11 @@ pub async fn transform(
             );
 
             // Publish failed transformation to database
-            publish_to_database(&state, &message);
+            publish_to_database_with_custom_fields(
+                &state,
+                &mut message,
+                state.database_config.persist_transform,
+            );
 
             Ok(Json(TransformationResponse {
                 success: false,

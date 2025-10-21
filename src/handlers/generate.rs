@@ -5,20 +5,11 @@ use std::time::Instant;
 use tracing::{debug, error, info, instrument};
 
 use super::helpers::{
-    create_debug_info, extract_workflow_errors, load_scenario_from_package, resolve_package_id,
+    create_debug_info, extract_workflow_errors, load_scenario_from_package,
+    publish_to_database_with_custom_fields, resolve_package_id,
 };
 use super::types::{SampleGenerationRequest, SampleGenerationResponse};
 use crate::types::{AppState, ReframeError};
-
-/// Publish message to database for audit logging (if enabled and persist_generate is true)
-fn publish_to_database(state: &AppState, message: &Message) {
-    if state.database_config.persist_generate
-        && state.database_client.is_some()
-        && let Some(ref client) = state.database_client
-    {
-        client.clone().publish_message(message);
-    }
-}
 
 // Unified sample generation endpoint using workflow engine
 #[utoipa::path(
@@ -112,6 +103,9 @@ pub async fn generate_sample(
             env!("CARGO_PKG_VERSION").to_string().into(),
         );
 
+        // Add package ID for custom fields
+        metadata_obj.insert("package_id".to_string(), package_id.clone().into());
+
         // Set the actual message type (e.g., "MT103" or "pacs.008")
         metadata_obj.insert(
             "message_type".to_string(),
@@ -149,16 +143,23 @@ pub async fn generate_sample(
             // Check if generation produced a result
             if let Some(result) = message.data().get("result") {
                 if let Some(result_str) = result.as_str() {
+                    // Clone result string before publishing
+                    let result_string = result_str.to_string();
+
                     info!("✅ Sample generation completed in {}ms", processing_time);
 
                     // Publish successful generation to database
-                    publish_to_database(&state, &message);
+                    publish_to_database_with_custom_fields(
+                        &state,
+                        &mut message,
+                        state.database_config.persist_generate,
+                    );
 
                     Ok(Json(SampleGenerationResponse {
                         success: true,
                         package: package_id.clone(),
                         message_type: request.message_type.clone(),
-                        result: Some(result_str.to_string()),
+                        result: Some(result_string),
                         scenario: Some(request.scenario.clone()),
                         errors: Vec::new(),
                         warnings: Vec::new(),
@@ -169,7 +170,11 @@ pub async fn generate_sample(
                     error!("Generation workflow did not produce a string result");
 
                     // Publish failed generation to database
-                    publish_to_database(&state, &message);
+                    publish_to_database_with_custom_fields(
+                        &state,
+                        &mut message,
+                        state.database_config.persist_generate,
+                    );
 
                     Ok(Json(SampleGenerationResponse {
                         success: false,
@@ -193,7 +198,11 @@ pub async fn generate_sample(
                     error!("Generation failed with errors: {:?}", workflow_errors);
 
                     // Publish failed generation to database
-                    publish_to_database(&state, &message);
+                    publish_to_database_with_custom_fields(
+                        &state,
+                        &mut message,
+                        state.database_config.persist_generate,
+                    );
 
                     Ok(Json(SampleGenerationResponse {
                         success: false,
@@ -213,7 +222,11 @@ pub async fn generate_sample(
                     error!("Generation workflow did not produce a result");
 
                     // Publish failed generation to database
-                    publish_to_database(&state, &message);
+                    publish_to_database_with_custom_fields(
+                        &state,
+                        &mut message,
+                        state.database_config.persist_generate,
+                    );
 
                     Ok(Json(SampleGenerationResponse {
                         success: false,
@@ -239,7 +252,11 @@ pub async fn generate_sample(
             );
 
             // Publish failed generation to database
-            publish_to_database(&state, &message);
+            publish_to_database_with_custom_fields(
+                &state,
+                &mut message,
+                state.database_config.persist_generate,
+            );
 
             Ok(Json(SampleGenerationResponse {
                 success: false,

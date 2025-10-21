@@ -16,6 +16,8 @@ pub fn document_to_transformation_message(doc: Document) -> Result<Transformatio
     let audit_trail = extract_audit_trail(&doc);
     let errors = extract_errors(&doc);
     let timestamp = extract_timestamp(&doc);
+    let package_id = extract_package_id(&doc);
+    let custom_fields = extract_custom_fields(&doc);
 
     Ok(TransformationMessage {
         id,
@@ -24,6 +26,8 @@ pub fn document_to_transformation_message(doc: Document) -> Result<Transformatio
         audit_trail,
         errors,
         timestamp,
+        package_id,
+        custom_fields,
     })
 }
 
@@ -170,6 +174,35 @@ fn extract_timestamp(doc: &Document) -> Option<chrono::DateTime<chrono::Utc>> {
     doc.get("timestamp")
         .and_then(|v| v.as_datetime())
         .map(|dt| dt.to_chrono())
+}
+
+/// Extract package ID from document
+/// Tries context.package_id first (preferred), falls back to context.metadata.package_id
+fn extract_package_id(doc: &Document) -> Option<String> {
+    doc.get("context")
+        .and_then(|v| v.as_document())
+        .and_then(|ctx| {
+            // Try context root first (where we now store it)
+            ctx.get("package_id")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+                .or_else(|| {
+                    // Fallback to metadata.package_id for backwards compatibility
+                    ctx.get("metadata")
+                        .and_then(|v| v.as_document())
+                        .and_then(|meta| meta.get("package_id"))
+                        .and_then(|v| v.as_str())
+                        .map(String::from)
+                })
+        })
+}
+
+/// Extract custom fields from document (from context.custom_fields)
+fn extract_custom_fields(doc: &Document) -> Option<serde_json::Value> {
+    doc.get("context")
+        .and_then(|v| v.as_document())
+        .and_then(|ctx| ctx.get("custom_fields"))
+        .and_then(|cf_bson| bson_to_json(cf_bson).ok())
 }
 
 /// Convert BSON value to JSON value

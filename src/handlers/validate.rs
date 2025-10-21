@@ -5,19 +5,12 @@ use std::sync::Arc;
 use std::time::Instant;
 use tracing::{error, info, instrument};
 
-use super::helpers::{create_debug_info, extract_workflow_errors, resolve_package_id};
+use super::helpers::{
+    create_debug_info, extract_workflow_errors, publish_to_database_with_custom_fields,
+    resolve_package_id,
+};
 use super::types::{ValidationRequest, ValidationResponse};
 use crate::types::{AppState, ReframeError};
-
-/// Publish message to database for audit logging (if enabled and persist_validate is true)
-fn publish_to_database(state: &AppState, message: &Message) {
-    if state.database_config.persist_validate
-        && state.database_client.is_some()
-        && let Some(ref client) = state.database_client
-    {
-        client.clone().publish_message(message);
-    }
-}
 
 /// Unified validation endpoint that handles both MT and MX validation
 #[utoipa::path(
@@ -59,6 +52,9 @@ pub async fn validate(
             env!("CARGO_PKG_VERSION").to_string().into(),
         );
 
+        // Add package ID for custom fields
+        metadata_obj.insert("package_id".to_string(), package_id.clone().into());
+
         // Merge user-provided metadata if present
         if let Some(user_metadata) = &request.metadata
             && let Some(user_obj) = user_metadata.as_object()
@@ -86,7 +82,11 @@ pub async fn validate(
                 error!("Validation failed with errors: {:?}", workflow_errors);
 
                 // Publish validation to database
-                publish_to_database(&state, &message);
+                publish_to_database_with_custom_fields(
+                    &state,
+                    &mut message,
+                    state.database_config.persist_validate,
+                );
 
                 return Ok(Json(ValidationResponse {
                     success: false,
@@ -136,7 +136,11 @@ pub async fn validate(
                 );
 
                 // Publish validation to database
-                publish_to_database(&state, &message);
+                publish_to_database_with_custom_fields(
+                    &state,
+                    &mut message,
+                    state.database_config.persist_validate,
+                );
 
                 Ok(Json(ValidationResponse {
                     success: valid,
@@ -151,7 +155,11 @@ pub async fn validate(
                 error!("Validation workflow did not produce output");
 
                 // Publish failed validation to database
-                publish_to_database(&state, &message);
+                publish_to_database_with_custom_fields(
+                    &state,
+                    &mut message,
+                    state.database_config.persist_validate,
+                );
 
                 Ok(Json(ValidationResponse {
                     success: false,
@@ -173,7 +181,11 @@ pub async fn validate(
             );
 
             // Publish failed validation to database
-            publish_to_database(&state, &message);
+            publish_to_database_with_custom_fields(
+                &state,
+                &mut message,
+                state.database_config.persist_validate,
+            );
 
             Ok(Json(ValidationResponse {
                 success: false,

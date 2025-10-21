@@ -70,6 +70,7 @@ Reframe is **not** specific to SWIFT or any particular standard. It's a general-
 
 - **RESTful API**: Simple, unified endpoints for all operations
 - **OpenAPI Documentation**: Interactive Swagger UI included
+- **GraphQL API**: Query audit data with custom fields support
 - **Docker-Ready**: Single container deployment with volume mounts
 - **Configuration Management**: Three-tier config system (env vars, config file, defaults)
 
@@ -79,6 +80,13 @@ Reframe is **not** specific to SWIFT or any particular standard. It's a general-
 - **Auditable Rules**: All transformation logic in JSON
 - **Workflow Engine**: Powered by [dataflow-rs](https://github.com/GoPlasmatic/dataflow-rs)
 - **Declarative Logic**: Uses [datalogic-rs](https://github.com/GoPlasmatic/datalogic-rs)
+
+### 📊 **Custom Fields & Analytics**
+
+- **Package-Specific Fields**: Define computed fields using JSONLogic expressions
+- **GraphQL Integration**: Query and filter by custom fields
+- **Flexible Storage**: Choose between precompute, runtime, or hybrid strategies
+- **Business Intelligence**: Add risk scoring, categorization, and derived insights
 
 ---
 
@@ -175,8 +183,32 @@ curl -X POST http://localhost:3000/admin/reload-workflows
 curl http://localhost:3000/packages
 ```
 
+### GraphQL API
+```graphql
+# Query messages with custom fields
+query {
+  messages(
+    filter: {
+      package_id: "swift-cbpr-mt-mx",
+      custom_field_filters: {
+        transaction_risk_score: { gte: 70 },
+        is_cross_border: true
+      }
+    },
+    limit: 10
+  ) {
+    messages {
+      id
+      custom_fields
+    }
+    total_count
+  }
+}
+```
+
 ### Interactive Documentation
-Visit `http://localhost:3000/swagger-ui` for full API documentation with try-it-now functionality.
+- **REST API**: Visit `http://localhost:3000/swagger-ui` for full API documentation
+- **GraphQL API**: Visit `http://localhost:3000/graphql` for interactive GraphQL playground
 
 ---
 
@@ -272,6 +304,7 @@ See [Configuration Guide](docs/configuration.md) for full details.
 | **Transparency** | ✅ 100% auditable JSON workflows | ❌ Proprietary black boxes |
 | **Performance** | ✅ Rust-powered, sub-ms latency | ❌ Slower, often JVM-based |
 | **Updates** | ✅ Hot-reload, zero downtime | ❌ Requires restarts/deployments |
+| **Analytics** | ✅ Custom fields with GraphQL API | ❌ Limited or no built-in analytics |
 | **Extensibility** | ✅ Create custom packages easily | ❌ Vendor-dependent customization |
 | **License** | ✅ Apache 2.0 (free & open) | ❌ Expensive proprietary licenses |
 | **Deployment** | ✅ Single Docker container | ❌ Complex multi-component setups |
@@ -287,6 +320,7 @@ See [Configuration Guide](docs/configuration.md) for full details.
 | [⚙️ Configuration](docs/configuration.md) | Complete configuration reference |
 | [🐳 Docker Guide](DOCKER.md) | Docker setup and deployment |
 | [📋 Message Formats](docs/message-formats.md) | Supported message types (package-specific) |
+| [📊 Custom Fields](docs/custom-fields.md) | Package-specific computed fields and GraphQL API |
 
 ---
 
@@ -298,6 +332,12 @@ See [Configuration Guide](docs/configuration.md) for full details.
 - **Configuration System**: Flexible three-tier configuration
 - **Hot-Reload**: Update packages without service restart
 
+### Custom Fields & Analytics
+- **Package-Specific Fields**: Define computed fields using JSONLogic expressions
+- **GraphQL Integration**: Query transformation history with custom fields
+- **Flexible Storage**: Choose precompute, runtime, or hybrid strategies
+- **Business Logic**: Add risk scoring, categorization, and compliance checks
+
 ### Unified API
 - **Single Transform Endpoint**: Auto-detection replaces separate MT/MX endpoints
 - **Metadata Support**: Pass custom metadata through workflows
@@ -308,7 +348,7 @@ See [Configuration Guide](docs/configuration.md) for full details.
 - **Async Engine**: Non-blocking I/O with Tokio runtime
 - **Optimized Threading**: Configurable worker threads
 - **Resource Efficiency**: Better CPU and memory utilization
-- **Faster Startup**: Streamlined initialization
+- **Database Integration**: MongoDB persistence with audit trail
 
 ---
 

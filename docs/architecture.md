@@ -27,6 +27,9 @@ Reframe v3.1.1 is an enterprise-grade bidirectional SWIFT MT ↔ ISO 20022 trans
 - **Package-Based Architecture**: External workflow packages with reframe-package.json configuration
 - **Configuration-Driven**: Runtime configuration via reframe.config.json with environment variable overrides
 - **Unified Transformation Engine**: Single bidirectional engine handling both MT→MX and MX→MT transformations
+- **GraphQL API**: Query transformation history with custom fields support
+- **Custom Fields**: Package-specific computed fields using JSONLogic expressions
+- **Database Integration**: MongoDB persistence with audit trail
 - **Metadata Support**: User-provided metadata for workflow customization
 - **Hot-Reload Capability**: Update workflows without service restart
 - **Simplified API**: Unified endpoints with automatic message detection
@@ -240,12 +243,30 @@ graph TB
 - **MT Publisher** (`src/publish_mt.rs`): Format and publish MT messages
 - **MX Publisher** (`src/publish_mx.rs`): Format and publish MX messages with proper namespaces
 
-### 8. **Scenario Management** (`src/scenario_loader.rs`)
+### 8. **Custom Fields Module** (`src/custom_fields.rs`)
+- Package-specific computed fields using JSONLogic expressions
+- Three storage strategies: precompute, runtime, and hybrid
+- Field evaluation at storage and query time
+- Error handling with graceful degradation
+
+### 9. **Database Integration** (`src/database/`)
+- **MongoDB Client** (`mongodb.rs`): Audit trail persistence with custom field support
+- **Conversion Utilities** (`conversion.rs`): Message to/from database document conversion
+- Custom field filtering and querying
+- Transaction history and analytics
+
+### 10. **GraphQL API** (`src/graphql/`)
+- **Schema** (`schema.rs`): GraphQL query and mutation definitions
+- **Types** (`types.rs`): GraphQL types with custom fields support
+- Message querying with filters and pagination
+- Package-specific custom field resolvers
+
+### 11. **Scenario Management** (`src/scenario_loader.rs`)
 - Load test scenarios from package
 - Generate realistic test data
 - Support for multiple message variants
 
-### 9. **OpenAPI Documentation** (`src/openapi.rs`)
+### 12. **OpenAPI Documentation** (`src/openapi.rs`)
 - Swagger/OpenAPI spec generation with runtime configuration
 - Interactive API documentation
 - Request/response examples
@@ -744,10 +765,10 @@ Key metrics to monitor:
 ## Future Roadmap
 
 ### Near Term
-- GraphQL API support
 - Kafka/RabbitMQ integration
 - Enhanced monitoring dashboard
-- Multi-package support
+- Multi-package support (beyond single default package)
+- Real-time WebSocket notifications
 
 ### Medium Term
 - Plugin system for custom functions
@@ -777,4 +798,5 @@ Reframe v3.1.1 represents a significant advancement with its unified package-bas
 For more information, see our other documentation:
 - [Configuration Guide](configuration.md) - Detailed configuration options
 - [Installation Guide](installation.md) - Setup and deployment
+- [Custom Fields Guide](custom-fields.md) - Package-specific computed fields and GraphQL API
 - [Message Formats](message-formats.md) - Supported messages

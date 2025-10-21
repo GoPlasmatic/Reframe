@@ -148,7 +148,7 @@ cargo clippy -- -D warnings
 docker build -t reframe .
 
 # Build with specific package URL
-docker build --build-arg PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.0/reframe-swift-cbpr-v2.1.0.zip -t reframe .
+docker build --build-arg PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.1/reframe-swift-cbpr-v2.1.1.zip -t reframe .
 
 # Run container (package is baked into image)
 docker run -p 3000:3000 reframe
@@ -598,6 +598,129 @@ Common issues when creating/fixing MX scenarios:
 - MX messages are validated against ISO 20022 schemas
 - Both directions support Business Application Header (BAH) generation
 - Envelope structures are automatically handled in transformations
+
+## Custom Fields
+
+Reframe supports package-specific custom fields that are computed using JSONLogic expressions and exposed through the GraphQL API. This feature enables packages to add domain-specific business logic and derived fields without modifying the core Reframe codebase.
+
+### Overview
+
+- **Package-Specific**: Each package can define its own custom fields in `api_config.json`
+- **JSONLogic-Based**: Fields are computed using JSONLogic expressions evaluated against message data
+- **Flexible Storage**: Three storage strategies (precompute, runtime, hybrid)
+- **GraphQL Integration**: Custom fields are queryable and filterable through GraphQL
+- **Automatic Computation**: Fields are automatically computed and stored when messages are saved to the database
+
+### Package Configuration
+
+Create `api_config.json` in the package root directory:
+
+```json
+{
+  "custom_fields": [
+    {
+      "name": "transaction_risk_score",
+      "description": "Computed risk score based on amount",
+      "type": "number",
+      "storage": "precompute",
+      "logic": {
+        "if": [
+          {">": [{"var": "context.data.amount"}, 100000]},
+          100,
+          {">": [{"var": "context.data.amount"}, 50000]},
+          70,
+          30
+        ]
+      }
+    },
+    {
+      "name": "is_cross_border",
+      "description": "Whether transaction crosses borders",
+      "type": "boolean",
+      "storage": "precompute",
+      "logic": {
+        "!=": [
+          {"var": "context.data.debtor_country"},
+          {"var": "context.data.creditor_country"}
+        ]
+      }
+    }
+  ]
+}
+```
+
+### Storage Strategies
+
+1. **precompute**: Computed at storage time, stored in DB (fast queries, best for filters/sorting)
+2. **runtime**: Computed at query time only (not stored, best for time-dependent fields)
+3. **hybrid**: Stored but can be recomputed with latest logic (flexible)
+
+### GraphQL Queries
+
+Custom fields are accessible through the GraphQL API:
+
+```graphql
+query {
+  messages(
+    filter: {
+      package_id: "swift-cbpr-mt-mx",
+      custom_field_filters: {
+        transaction_risk_score: { gte: 70 },
+        is_cross_border: true
+      }
+    },
+    limit: 10
+  ) {
+    messages {
+      id
+      package_id
+      custom_fields  # JSON object with all custom fields
+    }
+    total_count
+  }
+}
+```
+
+### Filter Operators
+
+Supported operators for custom field filters:
+- `eq`, `ne`: Equality/inequality
+- `gt`, `gte`, `lt`, `lte`: Comparison
+- `in`: Value in array
+- `exists`: Field exists
+
+### Database Structure
+
+Custom fields are stored in `context.custom_fields`:
+
+```json
+{
+  "id": "msg-123",
+  "context": {
+    "metadata": {
+      "package_id": "swift-cbpr-mt-mx"
+    },
+    "custom_fields": {
+      "transaction_risk_score": 70,
+      "is_cross_border": true
+    }
+  }
+}
+```
+
+### Implementation Details
+
+- **Module**: `src/custom_fields.rs` - Core JSONLogic evaluation
+- **Package Loading**: `src/package_manager.rs` - Loads `api_config.json` during package discovery
+- **Handler Integration**: All handlers (transform, validate, generate) automatically compute custom fields before database persistence
+- **GraphQL Types**: `src/graphql/types.rs` - Adds `package_id` and `custom_fields` to TransformationMessage
+- **MongoDB Filtering**: `src/database/mongodb.rs` - Implements custom field query filters
+
+### Documentation
+
+For complete documentation, see:
+- **Full Guide**: `docs/custom-fields.md`
+- **Example Configuration**: `examples/api_config.example.json`
 
 ## Testing Strategy
 

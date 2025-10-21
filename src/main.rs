@@ -11,6 +11,7 @@ use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 
 // Module declarations
 mod ascii_art;
+mod config_helpers;
 mod custom_fields;
 mod database;
 mod detection;
@@ -21,6 +22,7 @@ mod logging;
 mod openapi;
 mod package_manager;
 mod types;
+mod utils;
 
 // Import public items from modules
 use ascii_art::display_ascii_art;
@@ -51,24 +53,9 @@ fn main() {
         crate::package_manager::PackageManager::new(None).expect("Failed to load configuration");
     let runtime_config = &temp_config.get_server_config().runtime;
 
-    // Configure Tokio worker threads with 3-tier priority:
-    // 1. Environment variable (TOKIO_WORKER_THREADS) - highest priority
-    // 2. Configuration file value
-    // 3. Auto-detect from CPU cores - fallback
-    let tokio_threads = std::env::var("TOKIO_WORKER_THREADS")
-        .ok()
-        .and_then(|s| s.parse::<usize>().ok())
-        .or_else(|| {
-            if runtime_config.tokio_worker_threads == "auto" {
-                None
-            } else {
-                runtime_config.tokio_worker_threads.parse::<usize>().ok()
-            }
-        })
-        .unwrap_or_else(num_cpus::get);
-
-    let thread_name_prefix = std::env::var("TOKIO_THREAD_NAME")
-        .unwrap_or_else(|_| runtime_config.thread_name_prefix.clone());
+    // Configure Tokio worker threads using helper (handles env override and config)
+    let tokio_threads = config_helpers::calculate_tokio_threads(runtime_config);
+    let thread_name_prefix = config_helpers::get_thread_name_prefix(runtime_config);
 
     // Build Tokio runtime with configured worker threads
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -94,21 +81,7 @@ async fn async_main() {
 
     // Initialize logging system from configuration
     // Environment variables (RUST_LOG, LOG_FORMAT) override config file settings
-    let log_format = std::env::var("LOG_FORMAT")
-        .ok()
-        .and_then(|f| match f.as_str() {
-            "json" => Some(logging::LogFormat::Json),
-            "compact" => Some(logging::LogFormat::Compact),
-            "pretty" => Some(logging::LogFormat::Pretty),
-            _ => None,
-        })
-        .unwrap_or({
-            match logging_config.format.as_str() {
-                "json" => logging::LogFormat::Json,
-                "pretty" => logging::LogFormat::Pretty,
-                _ => logging::LogFormat::Compact,
-            }
-        });
+    let log_format = config_helpers::parse_log_format(&logging_config.format);
 
     let log_config = LogConfig {
         format: log_format,
@@ -169,10 +142,8 @@ async fn async_main() {
         info!("🔍 Initializing GraphQL API");
 
         // Create GraphQL schema with MongoDB client and package manager
-        let schema = graphql::create_schema(
-            mongo_client.clone(),
-            app_state.package_manager.clone(),
-        );
+        let schema =
+            graphql::create_schema(mongo_client.clone(), app_state.package_manager.clone());
 
         // Add GraphQL routes and schema extension
         app = app
@@ -207,21 +178,8 @@ async fn async_main() {
     info!("Service started successfully");
     info!("Listening on: http://{}", bind_address);
 
-    let tokio_threads = std::env::var("TOKIO_WORKER_THREADS")
-        .ok()
-        .and_then(|s| s.parse::<usize>().ok())
-        .or_else(|| {
-            if server_config.runtime.tokio_worker_threads == "auto" {
-                None
-            } else {
-                server_config
-                    .runtime
-                    .tokio_worker_threads
-                    .parse::<usize>()
-                    .ok()
-            }
-        })
-        .unwrap_or_else(num_cpus::get);
+    // Get tokio threads for logging (reuse config helper)
+    let tokio_threads = config_helpers::calculate_tokio_threads(&server_config.runtime);
 
     info!("🚀 Runtime Configuration:");
     info!("  • Server: {}", bind_address);

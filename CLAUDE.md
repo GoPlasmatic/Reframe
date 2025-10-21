@@ -148,7 +148,7 @@ cargo clippy -- -D warnings
 docker build -t reframe .
 
 # Build with specific package URL
-docker build --build-arg PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.1/reframe-swift-cbpr-v2.1.1.zip -t reframe .
+docker build --build-arg PACKAGE_URL=https://github.com/GoPlasmatic/reframe-package-swift-cbpr/releases/download/v2.1.2/reframe-swift-cbpr-v2.1.2.zip -t reframe .
 
 # Run container (package is baked into image)
 docker run -p 3000:3000 reframe

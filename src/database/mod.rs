@@ -103,108 +103,72 @@ impl DatabaseConfig {
         let config: Option<serde_json::Value> =
             config_content.and_then(|c| serde_json::from_str(&c).ok());
 
-        let db_config = config
-            .as_ref()
-            .and_then(|c| c.get("database"))
-            .and_then(|v| v.as_object());
+        // Get database config section
+        let db_config_section = config.as_ref().and_then(|c| c.get("database"));
+
+        // Create ConfigLoader
+        let loader = crate::utils::ConfigLoader::new(db_config_section);
 
         // Get database type
-        let db_type_str = std::env::var("DB_TYPE")
-            .ok()
-            .or_else(|| db_config.and_then(|d| d.get("type")?.as_str().map(String::from)))
-            .unwrap_or_else(|| "mongodb".to_string());
-
+        let db_type_str = loader.get_string("DB_TYPE", &["type"], "mongodb");
         let db_type = match db_type_str.to_lowercase().as_str() {
             "mongodb" => DatabaseType::MongoDB,
             _ => panic!("Unsupported database type: {}", db_type_str),
         };
 
-        // Get connection settings
-        let connection = db_config
-            .and_then(|d| d.get("connection"))
-            .and_then(|v| v.as_object());
+        // Get connection settings using ConfigLoader
+        let connection_uri = loader.get_string(
+            "DB_URI",
+            &["connection", "uri"],
+            "mongodb://localhost:27017",
+        );
 
-        let connection_uri = std::env::var("DB_URI")
-            .ok()
-            .or_else(|| connection.and_then(|c| c.get("uri")?.as_str().map(String::from)))
-            .unwrap_or_else(|| "mongodb://localhost:27017".to_string());
-
-        let connection_timeout_ms = std::env::var("DB_CONNECTION_TIMEOUT_MS")
-            .ok()
-            .and_then(|s| s.parse::<u64>().ok())
-            .or_else(|| connection.and_then(|c| c.get("timeout_ms")?.as_u64()))
-            .unwrap_or(5000);
+        let connection_timeout_ms = loader.get_u64(
+            "DB_CONNECTION_TIMEOUT_MS",
+            &["connection", "timeout_ms"],
+            5000,
+        );
 
         // Get pool settings
-        let pool = connection
-            .and_then(|c| c.get("pool"))
-            .and_then(|v| v.as_object());
-
-        let max_pool_size = std::env::var("DB_POOL_MAX_SIZE")
-            .ok()
-            .and_then(|s| s.parse::<u32>().ok())
-            .or_else(|| pool.and_then(|p| p.get("max_size")?.as_u64().map(|v| v as u32)))
-            .unwrap_or(10);
-
-        let min_pool_size = std::env::var("DB_POOL_MIN_SIZE")
-            .ok()
-            .and_then(|s| s.parse::<u32>().ok())
-            .or_else(|| pool.and_then(|p| p.get("min_size")?.as_u64().map(|v| v as u32)))
-            .unwrap_or(2);
-
-        let max_idle_time_ms = std::env::var("DB_MAX_IDLE_TIME_MS")
-            .ok()
-            .and_then(|s| s.parse::<u64>().ok())
-            .or_else(|| pool.and_then(|p| p.get("max_idle_time_ms")?.as_u64()))
-            .unwrap_or(60000);
+        let max_pool_size =
+            loader.get_u32("DB_POOL_MAX_SIZE", &["connection", "pool", "max_size"], 10);
+        let min_pool_size =
+            loader.get_u32("DB_POOL_MIN_SIZE", &["connection", "pool", "min_size"], 2);
+        let max_idle_time_ms = loader.get_u64(
+            "DB_MAX_IDLE_TIME_MS",
+            &["connection", "pool", "max_idle_time_ms"],
+            60000,
+        );
 
         // Get storage settings
-        let storage = db_config
-            .and_then(|d| d.get("storage"))
-            .and_then(|v| v.as_object());
+        let database_name = loader.get_string("DB_NAME", &["storage", "database"], "reframe");
+        let collection_name =
+            loader.get_string("DB_COLLECTION", &["storage", "collection"], "reframe_audit");
 
-        let database_name = std::env::var("DB_NAME")
-            .ok()
-            .or_else(|| storage.and_then(|s| s.get("database")?.as_str().map(String::from)))
-            .unwrap_or_else(|| "reframe".to_string());
-
-        let collection_name = std::env::var("DB_COLLECTION")
-            .ok()
-            .or_else(|| storage.and_then(|s| s.get("collection")?.as_str().map(String::from)))
-            .unwrap_or_else(|| "reframe_audit".to_string());
-
-        // Get options
-        let options = db_config
-            .and_then(|d| d.get("options"))
-            .and_then(|v| v.as_object());
-
-        let publish_mode_str = std::env::var("DB_PUBLISH_MODE")
-            .ok()
-            .or_else(|| options.and_then(|o| o.get("publish_mode")?.as_str().map(String::from)))
-            .unwrap_or_else(|| "async".to_string());
-
+        // Get publish mode
+        let publish_mode_str =
+            loader.get_string("DB_PUBLISH_MODE", &["options", "publish_mode"], "async");
         let publish_mode = match publish_mode_str.as_str() {
             "sync" => PublishMode::Sync,
             _ => PublishMode::Async,
         };
 
-        let persist_transform = std::env::var("DB_PERSIST_TRANSFORM")
-            .ok()
-            .and_then(|s| s.parse::<bool>().ok())
-            .or_else(|| options.and_then(|o| o.get("persist_transform")?.as_bool()))
-            .unwrap_or(true);
-
-        let persist_validate = std::env::var("DB_PERSIST_VALIDATE")
-            .ok()
-            .and_then(|s| s.parse::<bool>().ok())
-            .or_else(|| options.and_then(|o| o.get("persist_validate")?.as_bool()))
-            .unwrap_or(false);
-
-        let persist_generate = std::env::var("DB_PERSIST_GENERATE")
-            .ok()
-            .and_then(|s| s.parse::<bool>().ok())
-            .or_else(|| options.and_then(|o| o.get("persist_generate")?.as_bool()))
-            .unwrap_or(false);
+        // Get persistence options
+        let persist_transform = loader.get_bool(
+            "DB_PERSIST_TRANSFORM",
+            &["options", "persist_transform"],
+            true,
+        );
+        let persist_validate = loader.get_bool(
+            "DB_PERSIST_VALIDATE",
+            &["options", "persist_validate"],
+            false,
+        );
+        let persist_generate = loader.get_bool(
+            "DB_PERSIST_GENERATE",
+            &["options", "persist_generate"],
+            false,
+        );
 
         Self {
             db_type,

@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use dataflow_rs::engine::message::Message;
 use mongodb::{
     Client, Database,
-    bson::{Bson, Document, doc},
+    bson::{Document, doc},
     options::ClientOptions,
 };
 use std::sync::{Arc, RwLock};
@@ -18,6 +18,7 @@ use crate::graphql::types::{
 // Import conversion utilities
 use super::conversion::document_to_transformation_message;
 use crate::package_manager::PackageManager;
+use crate::utils::json_to_bson;
 
 /// MongoDB implementation of DatabaseClient
 pub struct MongoDBClient {
@@ -259,10 +260,10 @@ impl MongoDBClient {
 
         // Compute runtime and hybrid custom fields at query time
         for message in &mut messages {
-            if let Some(ref package_id) = message.package_id {
+            if let Some(package_id) = &message.package_id {
                 // Get package custom field definitions
                 let pm = self.package_manager.read().unwrap();
-                if let Some(package) = pm.get_package(package_id) {
+                if let Some(package) = pm.get_package(package_id.as_str()) {
                     let custom_field_defs = package.custom_fields.clone();
                     drop(pm); // Release lock early
 
@@ -280,12 +281,11 @@ impl MongoDBClient {
 
                     // Merge computed fields with existing custom_fields
                     if !computed.is_empty() {
-                        if let Some(ref mut existing) = message.custom_fields {
-                            if let Some(obj) = existing.as_object_mut() {
-                                // Merge: computed fields override stored fields if recompute is true
-                                for (key, value) in computed {
-                                    obj.insert(key, value);
-                                }
+                        if let Some(serde_json::Value::Object(ref mut obj)) = message.custom_fields
+                        {
+                            // Merge: computed fields override stored fields if recompute is true
+                            for (key, value) in computed {
+                                obj.insert(key, value);
                             }
                         } else {
                             // No existing custom fields, create new object
@@ -547,7 +547,8 @@ fn apply_custom_field_filters(
                     };
 
                     // Convert JSON value to BSON
-                    let bson_val = json_to_bson(val)?;
+                    let bson_val = json_to_bson(val)
+                        .map_err(|e| format!("Failed to convert filter value: {}", e))?;
                     filter_doc.insert(mongo_op, bson_val);
                 }
 
@@ -561,35 +562,6 @@ fn apply_custom_field_filters(
     }
 
     Ok(())
-}
-
-/// Convert serde_json::Value to mongodb::bson::Bson
-fn json_to_bson(value: &serde_json::Value) -> Result<Bson, String> {
-    match value {
-        serde_json::Value::Null => Ok(Bson::Null),
-        serde_json::Value::Bool(b) => Ok(Bson::Boolean(*b)),
-        serde_json::Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                Ok(Bson::Int64(i))
-            } else if let Some(f) = n.as_f64() {
-                Ok(Bson::Double(f))
-            } else {
-                Err("Unsupported number type".to_string())
-            }
-        }
-        serde_json::Value::String(s) => Ok(Bson::String(s.clone())),
-        serde_json::Value::Array(arr) => {
-            let bson_arr: Result<Vec<Bson>, String> = arr.iter().map(json_to_bson).collect();
-            Ok(Bson::Array(bson_arr?))
-        }
-        serde_json::Value::Object(obj) => {
-            let mut doc = Document::new();
-            for (k, v) in obj {
-                doc.insert(k, json_to_bson(v)?);
-            }
-            Ok(Bson::Document(doc))
-        }
-    }
 }
 
 #[async_trait]

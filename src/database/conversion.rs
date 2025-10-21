@@ -3,13 +3,14 @@
 //! This module handles the conversion between MongoDB BSON documents
 //! and GraphQL types, keeping the conversion logic separate from database operations.
 use crate::graphql::types::{AuditTrailEntry, ChangeEntry, ErrorInfoEntry, TransformationMessage};
+use crate::utils::{DatabaseError, DatabaseResult, bson_to_json};
 use mongodb::bson::Document;
 
 /// Convert BSON document to TransformationMessage
 ///
 /// Extracts and converts all fields from a MongoDB document into a GraphQL-compatible
 /// TransformationMessage structure.
-pub fn document_to_transformation_message(doc: Document) -> Result<TransformationMessage, String> {
+pub fn document_to_transformation_message(doc: Document) -> DatabaseResult<TransformationMessage> {
     let id = extract_id(&doc)?;
     let payload = extract_payload(&doc)?;
     let context = extract_context(&doc)?;
@@ -32,27 +33,27 @@ pub fn document_to_transformation_message(doc: Document) -> Result<Transformatio
 }
 
 /// Extract message ID from document
-fn extract_id(doc: &Document) -> Result<String, String> {
+fn extract_id(doc: &Document) -> DatabaseResult<String> {
     doc.get("id")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| "Missing id field".to_string())
+        .ok_or_else(|| DatabaseError::MissingField("id".to_string()))
         .map(String::from)
 }
 
 /// Extract payload from document and convert to JSON
-fn extract_payload(doc: &Document) -> Result<serde_json::Value, String> {
+fn extract_payload(doc: &Document) -> DatabaseResult<serde_json::Value> {
     let payload_bson = doc
         .get("payload")
-        .ok_or_else(|| "Missing payload field".to_string())?;
+        .ok_or_else(|| DatabaseError::MissingField("payload".to_string()))?;
 
     bson_to_json(payload_bson)
 }
 
 /// Extract context from document and convert to JSON
-fn extract_context(doc: &Document) -> Result<serde_json::Value, String> {
+fn extract_context(doc: &Document) -> DatabaseResult<serde_json::Value> {
     let context_bson = doc
         .get("context")
-        .ok_or_else(|| "Missing context field".to_string())?;
+        .ok_or_else(|| DatabaseError::MissingField("context".to_string()))?;
 
     bson_to_json(context_bson)
 }
@@ -203,15 +204,4 @@ fn extract_custom_fields(doc: &Document) -> Option<serde_json::Value> {
         .and_then(|v| v.as_document())
         .and_then(|ctx| ctx.get("custom_fields"))
         .and_then(|cf_bson| bson_to_json(cf_bson).ok())
-}
-
-/// Convert BSON value to JSON value
-///
-/// This is a helper function that handles the conversion between MongoDB's BSON
-/// format and standard JSON values.
-fn bson_to_json(bson: &mongodb::bson::Bson) -> Result<serde_json::Value, String> {
-    mongodb::bson::to_bson(bson)
-        .ok()
-        .and_then(|b| serde_json::to_value(&b).ok())
-        .ok_or_else(|| "Failed to convert BSON to JSON".to_string())
 }

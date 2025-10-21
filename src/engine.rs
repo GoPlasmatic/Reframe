@@ -31,118 +31,9 @@ fn load_package_config(package_path: &str) -> Result<PackageConfig, Box<dyn std:
     Ok(config)
 }
 
-/// Initialize unified transform engine that handles both outgoing (MT→MX) and incoming (MX→MT)
-///
-/// Loads transformation workflows from the configured package and registers all plugin functions
-pub async fn initialize_transform_engine(
-    package_path: &str,
-) -> Result<Arc<Engine>, Box<dyn std::error::Error>> {
-    debug!("Initializing unified transform engine (bidirectional MT ↔ MX)");
-
-    // Load package configuration
-    let config = load_package_config(package_path)?;
-
-    // Get transform workflow configuration
-    let transform_config = config
-        .workflows
-        .get("transform")
-        .ok_or("Transform workflow configuration not found in package")?;
-
-    let workflow_path = format!("{}/{}", package_path, transform_config.path);
-
-    // Load unified transform workflows
-    let workflows = load_workflows(&workflow_path).await?;
-    let workflow_count = workflows.len();
-
-    // Register all plugin functions
-    let custom_functions = register_all_functions();
-    let function_count = custom_functions.len();
-
-    // Create async engine with workflows and custom functions
-    let engine = Engine::new(workflows, Some(custom_functions));
-
-    info!(
-        "✓ Transform engine: {} workflows, {} functions",
-        workflow_count, function_count
-    );
-    Ok(Arc::new(engine))
-}
-
-/// Initialize generation engine from package
-///
-/// Loads sample generation workflows from the configured package
-pub async fn initialize_generation_engine(
-    package_path: &str,
-) -> Result<Arc<Engine>, Box<dyn std::error::Error>> {
-    debug!("Initializing sample generation engine");
-
-    // Load package configuration
-    let config = load_package_config(package_path)?;
-
-    // Get generate workflow configuration
-    let generate_config = config
-        .workflows
-        .get("generate")
-        .ok_or("Generate workflow configuration not found in package")?;
-
-    let workflow_path = format!("{}/{}", package_path, generate_config.path);
-
-    // Load generation workflows
-    let workflows = load_workflows(&workflow_path).await?;
-    let workflow_count = workflows.len();
-
-    // Register all plugin functions
-    let custom_functions = register_all_functions();
-    let function_count = custom_functions.len();
-
-    // Create async engine with workflows and custom functions
-    let engine = Engine::new(workflows, Some(custom_functions));
-
-    info!(
-        "✓ Generation engine: {} workflows, {} functions",
-        workflow_count, function_count
-    );
-    Ok(Arc::new(engine))
-}
-
-/// Initialize validation engine from package
-///
-/// Loads message validation workflows from the configured package
-pub async fn initialize_validation_engine(
-    package_path: &str,
-) -> Result<Arc<Engine>, Box<dyn std::error::Error>> {
-    debug!("Initializing message validation engine");
-
-    // Load package configuration
-    let config = load_package_config(package_path)?;
-
-    // Get validate workflow configuration
-    let validate_config = config
-        .workflows
-        .get("validate")
-        .ok_or("Validate workflow configuration not found in package")?;
-
-    let workflow_path = format!("{}/{}", package_path, validate_config.path);
-
-    // Load validation workflows
-    let workflows = load_workflows(&workflow_path).await?;
-    let workflow_count = workflows.len();
-
-    // Register all plugin functions
-    let custom_functions = register_all_functions();
-    let function_count = custom_functions.len();
-
-    // Create async engine with workflows and custom functions
-    let engine = Engine::new(workflows, Some(custom_functions));
-
-    info!(
-        "✓ Validation engine: {} workflows, {} functions",
-        workflow_count, function_count
-    );
-    Ok(Arc::new(engine))
-}
-
 /// Helper function to register all plugin functions
+///
+/// This is cached and reused across all engines to avoid redundant registration
 fn register_all_functions() -> HashMap<String, Box<dyn AsyncFunctionHandler + Send + Sync>> {
     let mut custom_functions: HashMap<String, Box<dyn AsyncFunctionHandler + Send + Sync>> =
         HashMap::new();
@@ -166,6 +57,60 @@ fn register_all_functions() -> HashMap<String, Box<dyn AsyncFunctionHandler + Se
     }
 
     custom_functions
+}
+
+/// Generic engine initialization function for any workflow type
+///
+/// This consolidates the common logic for initializing transform, generation, and validation engines
+///
+/// # Arguments
+/// * `config` - Package configuration
+/// * `package_path` - Path to the package directory
+/// * `workflow_type` - Type of workflow ("transform", "generate", "validate")
+///
+/// # Returns
+/// The initialized engine or an error
+async fn initialize_engine_for_workflow(
+    config: &PackageConfig,
+    package_path: &str,
+    workflow_type: &str,
+) -> Result<Arc<Engine>, Box<dyn std::error::Error>> {
+    debug!(
+        "Initializing {} engine for package {}",
+        workflow_type, config.name
+    );
+
+    // Get workflow configuration
+    let workflow_config = config.workflows.get(workflow_type).ok_or_else(|| {
+        format!(
+            "{} workflow configuration not found in package",
+            workflow_type
+        )
+    })?;
+
+    let workflow_path = format!("{}/{}", package_path, workflow_config.path);
+
+    // Load workflows
+    let workflows = load_workflows(&workflow_path).await?;
+    let workflow_count = workflows.len();
+
+    // Register custom functions for this engine
+    // Note: Function handlers contain trait objects that can't be cloned,
+    // so we need to register separately for each engine
+    let custom_functions = register_all_functions();
+    let function_count = custom_functions.len();
+
+    // Create engine with workflows and custom functions
+    let engine = Engine::new(workflows, Some(custom_functions));
+
+    info!(
+        "✓ {} engine: {} workflows, {} functions",
+        workflow_type.to_string().to_uppercase(),
+        workflow_count,
+        function_count
+    );
+
+    Ok(Arc::new(engine))
 }
 
 async fn load_workflows(workflow_dir: &str) -> Result<Vec<Workflow>, Box<dyn std::error::Error>> {
@@ -233,18 +178,20 @@ pub async fn initialize_engines() -> AppState {
         default_package.name, default_package.version, package_path
     );
 
-    // Create unified transform engine with async support
-    let transform_engine = initialize_transform_engine(package_path)
+    // Load package config once (reuse across all engines)
+    let config = load_package_config(package_path).expect("Failed to load package config");
+
+    // Create all engines using shared config
+    // Note: Each engine gets its own function registry as trait objects can't be cloned
+    let transform_engine = initialize_engine_for_workflow(&config, package_path, "transform")
         .await
         .expect("Failed to initialize transform engine");
 
-    // Create generation engine with async support
-    let generation_engine = initialize_generation_engine(package_path)
+    let generation_engine = initialize_engine_for_workflow(&config, package_path, "generate")
         .await
         .expect("Failed to initialize generation engine");
 
-    // Create validation engine with async support
-    let validation_engine = initialize_validation_engine(package_path)
+    let validation_engine = initialize_engine_for_workflow(&config, package_path, "validate")
         .await
         .expect("Failed to initialize validation engine");
 
@@ -330,14 +277,18 @@ pub async fn reload_engines(app_state: &AppState) -> Result<(), Box<dyn std::err
         default_package.package_path.clone()
     };
 
-    // Create new transform engine with updated workflows
-    let new_transform_engine = initialize_transform_engine(&package_path).await?;
+    // Load package config once (reuse across all engines)
+    let config = load_package_config(&package_path)?;
 
-    // Create new generation engine with updated workflows
-    let new_generation_engine = initialize_generation_engine(&package_path).await?;
+    // Create new engines using shared config
+    let new_transform_engine =
+        initialize_engine_for_workflow(&config, &package_path, "transform").await?;
 
-    // Create new validation engine with updated workflows
-    let new_validation_engine = initialize_validation_engine(&package_path).await?;
+    let new_generation_engine =
+        initialize_engine_for_workflow(&config, &package_path, "generate").await?;
+
+    let new_validation_engine =
+        initialize_engine_for_workflow(&config, &package_path, "validate").await?;
 
     // Atomically swap the engines
     app_state.transform_engine.store(new_transform_engine);

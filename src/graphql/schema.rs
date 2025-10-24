@@ -2,8 +2,8 @@ use async_graphql::Error;
 use async_graphql::dynamic::{self, Field, FieldFuture, FieldValue, Object, Schema, TypeRef};
 use std::sync::Arc;
 
-use super::dynamic_schema;
 use super::types::*;
+use super::{aggregation_types, dynamic_schema, filters};
 use crate::database::mongodb::MongoDBClient;
 use crate::package_manager::PackageManager;
 
@@ -142,6 +142,85 @@ fn build_query_type() -> Object {
                 })
             },
         ))
+        // aggregate(...): AggregationResult
+        .field(
+            Field::new("aggregate", TypeRef::named_nn("AggregationResult"), |ctx| {
+                FieldFuture::new(async move {
+                    use crate::graphql::{aggregation_types, filters};
+
+                    let filter = ctx.args.try_get("filter").ok().and_then(|v| {
+                        let deserialized = v.deserialize().ok()?;
+                        serde_json::from_value::<filters::EnhancedMessageFilter>(deserialized).ok()
+                    });
+
+                    let group_by: Vec<aggregation_types::GroupByInput> = ctx
+                        .args
+                        .try_get("groupBy")
+                        .ok()
+                        .and_then(|v| {
+                            let deserialized = v.deserialize().ok()?;
+                            serde_json::from_value(deserialized).ok()
+                        })
+                        .unwrap_or_default();
+
+                    let metrics: Vec<aggregation_types::MetricInput> = ctx
+                        .args
+                        .try_get("metrics")
+                        .ok()
+                        .and_then(|v| {
+                            let deserialized = v.deserialize().ok()?;
+                            serde_json::from_value(deserialized).ok()
+                        })
+                        .ok_or_else(|| Error::new("metrics parameter is required"))?;
+
+                    let sort: Option<Vec<aggregation_types::SortInput>> =
+                        ctx.args.try_get("sort").ok().and_then(|v| {
+                            let deserialized = v.deserialize().ok()?;
+                            serde_json::from_value(deserialized).ok()
+                        });
+
+                    let limit = ctx
+                        .args
+                        .try_get("limit")
+                        .ok()
+                        .and_then(|v| v.i64().ok())
+                        .map(|l| l.min(1000));
+
+                    let db_client = ctx.data::<Arc<MongoDBClient>>()?;
+
+                    let start = std::time::Instant::now();
+                    let mut result = db_client
+                        .aggregate(filter, &group_by, &metrics, sort.as_deref(), limit)
+                        .await
+                        .map_err(|e| Error::new(format!("Aggregation failed: {}", e)))?;
+
+                    let duration = start.elapsed();
+                    result.execution_time_ms = duration.as_secs_f64() * 1000.0;
+
+                    Ok(Some(FieldValue::owned_any(result)))
+                })
+            })
+            .argument(dynamic::InputValue::new(
+                "filter",
+                TypeRef::named("EnhancedMessageFilter"),
+            ))
+            .argument(dynamic::InputValue::new(
+                "groupBy",
+                TypeRef::named_list("GroupByInput"),
+            ))
+            .argument(dynamic::InputValue::new(
+                "metrics",
+                TypeRef::named_nn_list_nn("MetricInput"),
+            ))
+            .argument(dynamic::InputValue::new(
+                "sort",
+                TypeRef::named_list("SortInput"),
+            ))
+            .argument(dynamic::InputValue::new(
+                "limit",
+                TypeRef::named(TypeRef::INT),
+            )),
+        )
 }
 
 /// Create the fully dynamic GraphQL schema
@@ -192,9 +271,9 @@ pub fn create_schema(
         }
     }
 
-    // Register other dynamic types needed
+    // Register other dynamic types needed (pass packages for context custom fields)
     schema_builder = schema_builder
-        .register(dynamic_schema::build_context_type())
+        .register(dynamic_schema::build_context_type(pm.get_packages()))
         .register(dynamic_schema::build_message_connection_type())
         .register(dynamic_schema::build_audit_trail_entry_type())
         .register(dynamic_schema::build_error_info_entry_type())
@@ -202,6 +281,32 @@ pub fn create_schema(
         .register(dynamic_schema::build_message_type_count_type())
         .register(dynamic_schema::build_change_entry_type())
         .register(dynamic_schema::build_message_filter_type());
+
+    // Register enhanced filter types
+    schema_builder = schema_builder
+        .register(filters::build_enhanced_message_filter_input())
+        .register(filters::build_string_filter_input())
+        .register(filters::build_time_range_filter_input())
+        .register(filters::build_json_path_filter_input());
+
+    // Register aggregation input types
+    schema_builder = schema_builder
+        .register(aggregation_types::build_group_by_input())
+        .register(aggregation_types::build_time_bucket_input())
+        .register(aggregation_types::build_numeric_bucket_input())
+        .register(aggregation_types::build_bucket_strategy_enum())
+        .register(aggregation_types::build_field_transform_input())
+        .register(aggregation_types::build_date_part_enum())
+        .register(aggregation_types::build_metric_input())
+        .register(aggregation_types::build_agg_function_enum())
+        .register(aggregation_types::build_sort_input())
+        .register(aggregation_types::build_sort_direction_enum());
+
+    // Register aggregation output types
+    schema_builder = schema_builder
+        .register(aggregation_types::build_aggregation_result_type())
+        .register(aggregation_types::build_data_point_type())
+        .register(aggregation_types::build_aggregation_metadata_type());
 
     // Add context data
     schema_builder = schema_builder

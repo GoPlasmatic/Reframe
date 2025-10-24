@@ -215,12 +215,15 @@ impl MongoDBClient {
                 // Text search requires a text index
                 query.insert("$text", doc! { "$search": search });
             }
-            if let Some(package_id) = f.package_id {
-                query.insert("context.metadata.package_id", package_id);
+            let package_id_opt = f.package_id.clone();
+            if let Some(ref package_id) = package_id_opt {
+                query.insert("context.metadata.package_id", package_id.clone());
             }
             if let Some(custom_filters) = f.custom_field_filters {
-                // Apply custom field filters
-                if let Err(e) = apply_custom_field_filters(&mut query, &custom_filters) {
+                // Apply custom field filters (requires package_id)
+                let pkg_id =
+                    package_id_opt.ok_or("package_id required when using custom_field_filters")?;
+                if let Err(e) = apply_custom_field_filters(&mut query, &custom_filters, &pkg_id) {
                     return Err(format!("Invalid custom field filters: {}", e));
                 }
             }
@@ -480,14 +483,103 @@ impl MongoDBClient {
             message_type_breakdown,
         })
     }
+
+    /// Execute aggregation query
+    ///
+    /// Builds and executes a MongoDB aggregation pipeline based on the provided
+    /// filter, groupBy, metrics, sort, and limit parameters.
+    pub async fn aggregate(
+        &self,
+        filter: Option<crate::graphql::filters::EnhancedMessageFilter>,
+        group_by: &[crate::graphql::aggregation_types::GroupByInput],
+        metrics: &[crate::graphql::aggregation_types::MetricInput],
+        sort: Option<&[crate::graphql::aggregation_types::SortInput]>,
+        limit: Option<i64>,
+    ) -> Result<crate::graphql::aggregation_types::AggregationResult, String> {
+        use super::aggregation_builder;
+        use super::filter_builder;
+        use crate::graphql::aggregation_types::{
+            AggregationMetadata, AggregationResult, DataPoint,
+        };
+        use crate::utils::bson_to_json;
+
+        let collection = self.database.collection::<Document>(&self.collection_name);
+
+        // Build filter query
+        let filter_query = if let Some(f) = filter {
+            filter_builder::build_mongodb_filter(&f)?
+        } else {
+            Document::new()
+        };
+
+        // Build aggregation pipeline
+        let pipeline = aggregation_builder::build_aggregation_pipeline(
+            filter_query,
+            group_by,
+            metrics,
+            sort,
+            limit,
+        )?;
+
+        debug!("Aggregation pipeline: {:?}", pipeline);
+
+        // Execute aggregation
+        let mut cursor = collection
+            .aggregate(pipeline)
+            .await
+            .map_err(|e| format!("Aggregation execution failed: {}", e))?;
+
+        // Collect results
+        let mut data = Vec::new();
+        while cursor
+            .advance()
+            .await
+            .map_err(|e| format!("Cursor error: {}", e))?
+        {
+            let doc = cursor
+                .deserialize_current()
+                .map_err(|e| format!("Deserialization error: {}", e))?;
+
+            let group_val = doc
+                .get("group")
+                .and_then(|v| bson_to_json(v).ok())
+                .unwrap_or(serde_json::json!({}));
+
+            let metrics_val = doc
+                .get("metrics")
+                .and_then(|v| bson_to_json(v).ok())
+                .unwrap_or(serde_json::json!({}));
+
+            data.push(DataPoint {
+                group: group_val,
+                metrics: metrics_val,
+            });
+        }
+
+        let total_groups = data.len() as i64;
+
+        Ok(AggregationResult {
+            data,
+            total_groups,
+            execution_time_ms: 0.0, // Set by GraphQL resolver
+            metadata: AggregationMetadata {
+                group_by_fields: group_by
+                    .iter()
+                    .map(|g| g.r#as.as_ref().unwrap_or(&g.field).clone())
+                    .collect(),
+                metric_fields: metrics.iter().map(|m| m.r#as.clone()).collect(),
+                total_messages: 0, // Optional: add separate count query if needed
+            },
+        })
+    }
 }
 
-/// Apply custom field filters to MongoDB query
+/// Apply custom field filters to MongoDB query using package-specific accessor
 ///
 /// Converts JSON filter format to MongoDB query syntax.
 /// Supports operators: eq, ne, gt, gte, lt, lte, in, exists
 ///
-/// Example input:
+/// Example input (for package "swift-cbpr-mt-mx"):
 /// ```json
 /// {
 ///   "transaction_risk_score": { "gte": 70 },
@@ -498,20 +590,26 @@ impl MongoDBClient {
 /// Becomes MongoDB query:
 /// ```json
 /// {
-///   "context.custom_fields.transaction_risk_score": { "$gte": 70 },
-///   "context.custom_fields.is_cross_border": true
+///   "context.swiftCbprMtMxFields.transaction_risk_score": { "$gte": 70 },
+///   "context.swiftCbprMtMxFields.is_cross_border": true
 /// }
 /// ```
 fn apply_custom_field_filters(
     query: &mut Document,
     filters: &serde_json::Value,
+    package_id: &str,
 ) -> Result<(), String> {
+    use crate::graphql::dynamic_schema::build_accessor_name;
+
     let filters_obj = filters
         .as_object()
         .ok_or_else(|| "custom_field_filters must be an object".to_string())?;
 
+    // Build package-specific accessor name
+    let accessor_name = build_accessor_name(package_id);
+
     for (field_name, filter_value) in filters_obj {
-        let db_field = format!("context.custom_fields.{}", field_name);
+        let db_field = format!("context.{}.{}", accessor_name, field_name);
 
         match filter_value {
             // Direct value comparison: {"field": value}

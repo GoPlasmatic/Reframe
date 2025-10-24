@@ -16,6 +16,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use tracing::{debug, warn};
 
+use crate::graphql::dynamic_schema::build_accessor_name;
 use crate::graphql::types::TransformationMessage;
 
 /// Storage strategy for custom fields
@@ -119,17 +120,19 @@ fn evaluate_jsonlogic<T: ContextProvider>(logic: &Value, message: &T) -> Value {
 /// Compute and store custom fields at message storage time
 ///
 /// This function evaluates all custom fields with storage strategy "precompute" or "hybrid"
-/// and stores the results in the message context.
+/// and stores the results in the message context using package-specific accessor name.
 ///
 /// # Arguments
 /// * `message` - The message to compute fields for (modified in place)
 /// * `custom_field_defs` - Custom field definitions from the package
+/// * `package_id` - Package identifier (e.g., "swift-cbpr-mt-mx")
 ///
 /// # Returns
 /// Ok(()) on success, or an error if computation fails
 pub fn compute_and_store_fields(
     message: &mut Message,
     custom_field_defs: &[CustomFieldDefinition],
+    package_id: &str,
 ) -> Result<(), String> {
     let mut stored_fields = serde_json::Map::new();
 
@@ -156,16 +159,18 @@ pub fn compute_and_store_fields(
         }
     }
 
-    // Store in message context
+    // Store in message context using package-specific accessor name
+    // Example: "swift-cbpr-mt-mx" → "swiftCbprMtMxFields"
+    let accessor_name = build_accessor_name(package_id);
+
     if let Some(context) = message.context.as_object_mut() {
-        context.insert(
-            "custom_fields".to_string(),
-            Value::Object(stored_fields.clone()),
-        );
+        context.insert(accessor_name.clone(), Value::Object(stored_fields.clone()));
         debug!(
+            package_id = %package_id,
+            accessor_name = %accessor_name,
             custom_fields = ?stored_fields,
             context_keys = ?context.keys().collect::<Vec<_>>(),
-            "Stored custom fields in message context"
+            "Stored custom fields in message context with package-specific accessor"
         );
     } else {
         return Err("Message context is not an object".to_string());
@@ -214,19 +219,25 @@ pub fn compute_runtime_fields(
                 evaluate_jsonlogic(&field_def.logic, message)
             }
             CustomFieldStorage::Precompute | CustomFieldStorage::Hybrid => {
-                // Use stored value from context.custom_fields
-                message
-                    .context
-                    .get("custom_fields")
-                    .and_then(|cf| cf.get(&field_def.name))
-                    .cloned()
-                    .unwrap_or_else(|| {
-                        debug!(
-                            field_name = %field_def.name,
-                            "Custom field not found in stored data, returning null"
-                        );
-                        Value::Null
-                    })
+                // Use stored value from context.{accessor_name}
+                // Extract package_id and build accessor name
+                let stored_value = message.package_id.as_ref().and_then(|pkg_id| {
+                    let accessor_name = build_accessor_name(pkg_id);
+                    message
+                        .context
+                        .get(&accessor_name)
+                        .and_then(|cf| cf.get(&field_def.name))
+                        .cloned()
+                });
+
+                stored_value.unwrap_or_else(|| {
+                    debug!(
+                        field_name = %field_def.name,
+                        package_id = ?message.package_id,
+                        "Custom field not found in stored data, returning null"
+                    );
+                    Value::Null
+                })
             }
         };
 

@@ -1,4 +1,4 @@
-use async_graphql::*;
+use async_graphql::InputObject;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -39,8 +39,7 @@ pub struct TransformationMessage {
 }
 
 /// Audit trail entry showing workflow/task execution
-#[derive(SimpleObject, Serialize, Deserialize, Clone, Debug)]
-#[graphql(rename_fields = "snake_case")]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AuditTrailEntry {
     /// Workflow ID that executed
     pub workflow_id: String,
@@ -59,8 +58,7 @@ pub struct AuditTrailEntry {
 }
 
 /// Change made by a workflow task
-#[derive(SimpleObject, Serialize, Deserialize, Clone, Debug)]
-#[graphql(rename_fields = "snake_case")]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChangeEntry {
     /// JSONPath to the changed field
     pub path: String,
@@ -73,8 +71,7 @@ pub struct ChangeEntry {
 }
 
 /// Error information from message processing
-#[derive(SimpleObject, Serialize, Deserialize, Clone, Debug)]
-#[graphql(rename_fields = "snake_case")]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ErrorInfoEntry {
     /// Error code (e.g., "VALIDATION_ERROR", "WORKFLOW_ERROR")
     pub code: String,
@@ -152,8 +149,7 @@ pub struct MessageConnection {
 }
 
 /// Statistics about transformation messages
-#[derive(SimpleObject, Debug, Clone)]
-#[graphql(rename_fields = "snake_case")]
+#[derive(Debug, Clone)]
 pub struct MessageStats {
     /// Total number of messages
     pub total_messages: i64,
@@ -175,8 +171,7 @@ pub struct MessageStats {
 }
 
 /// Count of messages by type
-#[derive(SimpleObject, Debug, Clone)]
-#[graphql(rename_fields = "snake_case")]
+#[derive(Debug, Clone)]
 pub struct MessageTypeCount {
     /// Message type (e.g., MT103, pacs.008)
     pub message_type: String,

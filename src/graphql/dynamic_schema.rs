@@ -125,7 +125,7 @@ pub fn build_accessor_name(package_id: &str) -> String {
 /// - Package-specific custom field accessors (e.g., swiftCbprMtMxCustomFields)
 ///
 /// Each package accessor returns null if the message doesn't belong to that package.
-pub fn build_transformation_message_type(packages: &HashMap<String, PackageInfo>) -> Object {
+pub fn build_transformation_message_type(_packages: &HashMap<String, PackageInfo>) -> Object {
     let mut obj = Object::new("TransformationMessage");
     obj = obj.description("Transformation message stored in the audit database");
 
@@ -234,49 +234,16 @@ pub fn build_transformation_message_type(packages: &HashMap<String, PackageInfo>
             .description("Errors that occurred during processing"),
         );
 
-    // Add package-specific custom field accessors
-    for (package_id, package) in packages {
-        if package.custom_fields.is_empty() {
-            continue;
-        }
-
-        let type_name = format!("{}Fields", to_pascal_case(package_id));
-        let accessor_name = build_accessor_name(package_id);
-        let pkg_id = package_id.clone();
-
-        let field = Field::new(&accessor_name, TypeRef::named(&type_name), move |ctx| {
-            let package_id_filter = pkg_id.clone();
-            FieldFuture::new(async move {
-                let msg = ctx
-                    .parent_value
-                    .try_downcast_ref::<TransformationMessage>()?;
-
-                // Only return data if message's packageId matches
-                if msg.package_id.as_ref() != Some(&package_id_filter) {
-                    return Ok(None);
-                }
-
-                // Parse custom_fields JSON to HashMap
-                let custom_fields_map: Option<HashMap<String, JsonValue>> = msg
-                    .custom_fields
-                    .as_ref()
-                    .and_then(|json| serde_json::from_value(json.clone()).ok());
-
-                Ok(custom_fields_map.map(|map| FieldValue::owned_any(map)))
-            })
-        })
-        .description(format!("Custom fields for {} package", package.name));
-
-        obj = obj.field(field);
-    }
+    // Note: Custom field accessors have been moved to Context type
+    // Access via: message.context.swiftCbprMtMxFields instead of message.swiftCbprMtMxFields
 
     obj
 }
 
-/// Build Context type with data and metadata fields
-pub fn build_context_type() -> Object {
-    Object::new("Context")
-        .description("Unified context containing data and metadata")
+/// Build Context type with data, metadata, and package-specific custom field accessors
+pub fn build_context_type(packages: &HashMap<String, PackageInfo>) -> Object {
+    let mut obj = Object::new("Context")
+        .description("Unified context containing data, metadata, and custom fields")
         .field(
             Field::new("data", TypeRef::named_nn("JSON"), |ctx| {
                 FieldFuture::new(async move {
@@ -298,7 +265,41 @@ pub fn build_context_type() -> Object {
                 })
             })
             .description("Metadata field as JSON object"),
-        )
+        );
+
+    // Add package-specific custom field accessors to Context
+    for (package_id, package) in packages {
+        if package.custom_fields.is_empty() {
+            continue;
+        }
+
+        let type_name = format!("{}Fields", to_pascal_case(package_id));
+        let accessor_name = build_accessor_name(package_id);
+        let accessor_name_clone = accessor_name.clone();
+
+        let field = Field::new(&accessor_name, TypeRef::named(&type_name), move |ctx| {
+            let accessor = accessor_name_clone.clone();
+            FieldFuture::new(async move {
+                let context = ctx
+                    .parent_value
+                    .try_downcast_ref::<serde_json::Map<String, JsonValue>>()?;
+
+                let custom_fields_map: Option<HashMap<String, JsonValue>> = context
+                    .get(&accessor)
+                    .and_then(|json| serde_json::from_value(json.clone()).ok());
+
+                Ok(custom_fields_map.map(FieldValue::owned_any))
+            })
+        })
+        .description(format!(
+            "Custom fields for {} package (stored at context.{})",
+            package.name, accessor_name
+        ));
+
+        obj = obj.field(field);
+    }
+
+    obj
 }
 
 /// Build AuditTrailEntry type

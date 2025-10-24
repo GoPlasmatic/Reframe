@@ -248,13 +248,13 @@ pub fn compute_and_store_custom_fields(
         return Ok(());
     }
 
-    // Compute and store custom fields
-    compute_and_store_fields(message, &custom_fields)?;
+    // Compute and store custom fields with package-specific accessor
+    compute_and_store_fields(message, &custom_fields, &package_id)?;
 
     debug!(
         package_id = %package_id,
         field_count = custom_fields.len(),
-        "Computed and stored custom fields"
+        "Computed and stored custom fields with package-specific accessor"
     );
 
     Ok(())

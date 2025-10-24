@@ -18,7 +18,11 @@ pub fn document_to_transformation_message(doc: Document) -> DatabaseResult<Trans
     let errors = extract_errors(&doc);
     let timestamp = extract_timestamp(&doc);
     let package_id = extract_package_id(&doc);
-    let custom_fields = extract_custom_fields(&doc);
+
+    // Extract custom fields using package-specific accessor
+    let custom_fields = package_id
+        .as_ref()
+        .and_then(|pkg_id| extract_custom_fields(&doc, pkg_id));
 
     Ok(TransformationMessage {
         id,
@@ -198,10 +202,16 @@ fn extract_package_id(doc: &Document) -> Option<String> {
         })
 }
 
-/// Extract custom fields from document (from context.custom_fields)
-fn extract_custom_fields(doc: &Document) -> Option<serde_json::Value> {
+/// Extract custom fields from document using package-specific accessor
+///
+/// Custom fields are stored at context.{packageId}Fields (e.g., context.swiftCbprMtMxFields)
+fn extract_custom_fields(doc: &Document, package_id: &str) -> Option<serde_json::Value> {
+    use crate::graphql::dynamic_schema::build_accessor_name;
+
+    let accessor_name = build_accessor_name(package_id);
+
     doc.get("context")
         .and_then(|v| v.as_document())
-        .and_then(|ctx| ctx.get("custom_fields"))
+        .and_then(|ctx| ctx.get(&accessor_name))
         .and_then(|cf_bson| bson_to_json(cf_bson).ok())
 }

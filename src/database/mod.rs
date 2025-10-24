@@ -1,4 +1,6 @@
+pub mod aggregation_builder;
 pub mod conversion;
+pub mod filter_builder;
 pub mod mongodb;
 
 // Re-export MongoDBClient for GraphQL

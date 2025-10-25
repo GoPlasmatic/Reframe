@@ -132,6 +132,101 @@ pub struct MessageFilter {
     /// Filter by custom field values
     /// Example: {"transaction_risk_score": {"gte": 70}, "is_cross_border": true}
     pub custom_field_filters: Option<serde_json::Value>,
+
+    /// Dynamic field filtering using dot-notation paths
+    /// Allows filtering on any field in the message structure
+    pub path: Option<Vec<PathFilter>>,
+}
+
+/// Path-based field filter for dynamic field access
+#[derive(InputObject, Debug, Clone, Deserialize)]
+#[graphql(rename_fields = "snake_case")]
+pub struct PathFilter {
+    /// Dot-notation path to the field (e.g., "context.metadata.direction")
+    pub field: String,
+
+    /// Filter value (supports different types)
+    pub value: FilterValue,
+}
+
+/// Filter value that can be of different types
+#[derive(InputObject, Debug, Clone, Deserialize)]
+#[graphql(rename_fields = "snake_case")]
+pub struct FilterValue {
+    /// String filter
+    pub string: Option<StringFilter>,
+
+    /// Number filter
+    pub number: Option<NumberFilter>,
+
+    /// Boolean value
+    pub boolean: Option<bool>,
+
+    /// Date filter
+    pub date: Option<DateFilter>,
+
+    /// Check if field exists
+    pub exists: Option<bool>,
+}
+
+/// String filter operations
+#[derive(InputObject, Debug, Clone, Deserialize)]
+#[graphql(rename_fields = "snake_case")]
+pub struct StringFilter {
+    /// Equals
+    pub eq: Option<String>,
+
+    /// Not equals
+    pub ne: Option<String>,
+
+    /// In array
+    pub r#in: Option<Vec<String>>,
+
+    /// Contains substring
+    pub contains: Option<String>,
+
+    /// Regular expression match
+    pub regex: Option<String>,
+}
+
+/// Number filter operations
+#[derive(InputObject, Debug, Clone, Deserialize)]
+#[graphql(rename_fields = "snake_case")]
+pub struct NumberFilter {
+    /// Equals
+    pub eq: Option<f64>,
+
+    /// Not equals
+    pub ne: Option<f64>,
+
+    /// Greater than
+    pub gt: Option<f64>,
+
+    /// Greater than or equal
+    pub gte: Option<f64>,
+
+    /// Less than
+    pub lt: Option<f64>,
+
+    /// Less than or equal
+    pub lte: Option<f64>,
+
+    /// Between range [min, max]
+    pub between: Option<Vec<f64>>,
+}
+
+/// Date filter operations
+#[derive(InputObject, Debug, Clone, Deserialize)]
+#[graphql(rename_fields = "snake_case")]
+pub struct DateFilter {
+    /// After this date
+    pub after: Option<DateTime<Utc>>,
+
+    /// Before this date
+    pub before: Option<DateTime<Utc>>,
+
+    /// Between dates [start, end]
+    pub between: Option<Vec<DateTime<Utc>>>,
 }
 
 /// Paginated response for messages query

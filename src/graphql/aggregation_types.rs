@@ -76,7 +76,7 @@ pub struct MetricInput {
     pub function: AggFunction,
     pub field: Option<String>,
     pub r#as: String,
-    pub filter: Option<super::filters::EnhancedMessageFilter>,
+    // Filter removed - filtering is now done at the query level only
     pub percentile: Option<f64>,
 }
 
@@ -238,10 +238,6 @@ pub fn build_metric_input() -> InputObject {
         ))
         .field(InputValue::new("field", TypeRef::named(TypeRef::STRING)))
         .field(InputValue::new("as", TypeRef::named_nn(TypeRef::STRING)))
-        .field(InputValue::new(
-            "filter",
-            TypeRef::named("EnhancedMessageFilter"),
-        ))
         .field(InputValue::new(
             "percentile",
             TypeRef::named(TypeRef::FLOAT),

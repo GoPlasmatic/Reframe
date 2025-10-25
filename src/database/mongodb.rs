@@ -11,9 +11,7 @@ use std::time::Duration;
 use tracing::{debug, error, info};
 
 // Import GraphQL types for query methods
-use crate::graphql::types::{
-    MessageConnection, MessageFilter, MessageStats, MessageTypeCount, TransformationMessage,
-};
+use crate::graphql::types::{MessageConnection, MessageFilter};
 
 // Import conversion utilities
 use super::conversion::document_to_transformation_message;
@@ -143,32 +141,11 @@ impl MongoDBClient {
 
     // ========== GraphQL Query Methods ==========
 
-    /// Find a single message by ID
-    pub async fn find_message_by_id(
-        &self,
-        id: &str,
-    ) -> Result<Option<TransformationMessage>, String> {
-        let collection = self.database.collection::<Document>(&self.collection_name);
-
-        let filter = doc! { "id": id };
-        let result = collection
-            .find_one(filter)
-            .await
-            .map_err(|e| format!("MongoDB query failed: {}", e))?;
-
-        match result {
-            Some(doc) => {
-                let message = document_to_transformation_message(doc)?;
-                Ok(Some(message))
-            }
-            None => Ok(None),
-        }
-    }
-
-    /// Find messages with filtering and pagination
+    /// Find messages with filtering, sorting, and pagination
     pub async fn find_messages(
         &self,
         filter: Option<MessageFilter>,
+        sort: Option<Vec<crate::graphql::aggregation_types::SortInput>>,
         limit: Option<i64>,
         offset: Option<i64>,
         recompute_custom_fields: bool,
@@ -180,13 +157,26 @@ impl MongoDBClient {
 
         if let Some(f) = filter {
             if let Some(msg_type) = f.message_type {
-                query.insert("metadata.message_type_hint", msg_type);
+                query.insert("context.metadata.message_type_hint", msg_type);
             }
             if let Some(direction) = f.direction {
-                query.insert("metadata.transformation_direction", direction);
+                query.insert("context.metadata.direction", direction);
             }
             if let Some(success) = f.success {
-                query.insert("success", success);
+                // Fixed: Check errors array instead of non-existent "success" field
+                if !success {
+                    // User wants failures - show messages with errors
+                    query.insert("errors", doc! { "$exists": true, "$ne": [] });
+                } else {
+                    // User wants successes - show messages without errors
+                    query.insert(
+                        "$or",
+                        vec![
+                            doc! { "errors": { "$exists": false } },
+                            doc! { "errors": { "$size": 0 } },
+                        ],
+                    );
+                }
             }
             if let Some(date_from) = f.date_from {
                 query.insert(
@@ -227,6 +217,14 @@ impl MongoDBClient {
                     return Err(format!("Invalid custom field filters: {}", e));
                 }
             }
+
+            // Handle PathFilter for dynamic field access
+            if let Some(path_filters) = f.path {
+                for path_filter in path_filters {
+                    let field_path = normalize_field_path(&path_filter.field);
+                    apply_path_filter(&mut query, &field_path, &path_filter.value)?;
+                }
+            }
         }
 
         // Get total count
@@ -240,9 +238,17 @@ impl MongoDBClient {
         let limit = limit.unwrap_or(50).min(1000);
         let offset = offset.unwrap_or(0);
 
+        // Build sort document
+        let sort_doc = if let Some(sort_inputs) = sort {
+            build_sort_document(&sort_inputs)
+        } else {
+            // Default sort by timestamp descending
+            doc! { "timestamp": -1 }
+        };
+
         let mut cursor = collection
             .find(query)
-            .sort(doc! { "timestamp": -1 })
+            .sort(sort_doc)
             .skip(offset as u64)
             .limit(limit)
             .await
@@ -310,187 +316,13 @@ impl MongoDBClient {
         })
     }
 
-    /// Search messages using text search
-    pub async fn search_messages(
-        &self,
-        query: &str,
-        limit: Option<i64>,
-    ) -> Result<Vec<TransformationMessage>, String> {
-        let collection = self.database.collection::<Document>(&self.collection_name);
-
-        let search_filter = doc! { "$text": { "$search": query } };
-        let limit = limit.unwrap_or(50).min(1000);
-
-        let mut cursor = collection
-            .find(search_filter)
-            .limit(limit)
-            .await
-            .map_err(|e| format!("MongoDB search failed: {}", e))?;
-
-        let mut messages = Vec::new();
-        while cursor
-            .advance()
-            .await
-            .map_err(|e| format!("Cursor error: {}", e))?
-        {
-            let doc = cursor
-                .deserialize_current()
-                .map_err(|e| format!("Failed to deserialize document: {}", e))?;
-            let message = document_to_transformation_message(doc)?;
-            messages.push(message);
-        }
-
-        Ok(messages)
-    }
-
-    /// Get aggregated statistics
-    pub async fn get_statistics(&self) -> Result<MessageStats, String> {
-        let collection = self.database.collection::<Document>(&self.collection_name);
-
-        // Total messages
-        let total_messages = collection
-            .count_documents(doc! {})
-            .await
-            .map_err(|e| format!("Failed to count documents: {}", e))?
-            as i64;
-
-        // Success/failure counts based on errors array
-        // Success = errors array is empty or doesn't exist
-        let success_count = collection
-            .count_documents(doc! {
-                "$or": [
-                    { "errors": { "$exists": false } },
-                    { "errors": { "$size": 0 } }
-                ]
-            })
-            .await
-            .map_err(|e| format!("Failed to count successes: {}", e))?
-            as i64;
-
-        let failure_count = total_messages - success_count;
-
-        let success_rate = if total_messages > 0 {
-            (success_count as f64 / total_messages as f64) * 100.0
-        } else {
-            0.0
-        };
-
-        // Average processing time from context.metadata.processing_time_ms
-        let pipeline = vec![
-            doc! {
-                "$match": {
-                    "context.metadata.processing_time_ms": { "$exists": true }
-                }
-            },
-            doc! {
-                "$group": {
-                    "_id": null,
-                    "avg_time": { "$avg": "$context.metadata.processing_time_ms" }
-                }
-            },
-        ];
-
-        let mut cursor = collection
-            .aggregate(pipeline)
-            .await
-            .map_err(|e| format!("Aggregation failed: {}", e))?;
-
-        let mut average_processing_time_ms = 0.0;
-        if cursor
-            .advance()
-            .await
-            .map_err(|e| format!("Cursor error: {}", e))?
-        {
-            let doc = cursor
-                .deserialize_current()
-                .map_err(|e| format!("Failed to deserialize: {}", e))?;
-            if let Some(avg) = doc.get("avg_time") {
-                average_processing_time_ms = avg.as_f64().unwrap_or(0.0);
-            }
-        }
-
-        // Message type breakdown - aggregate by direction and message type
-        let pipeline = vec![
-            doc! {
-                "$project": {
-                    "direction": "$context.metadata.direction",
-                    "mx_type": "$context.metadata.ISO20022_MX.message_type",
-                    "mt_type": "$context.data.SwiftMT.message_type"
-                }
-            },
-            doc! {
-                "$project": {
-                    "message_type": {
-                        "$cond": {
-                            "if": { "$eq": ["$direction", "outgoing"] },
-                            "then": { "$concat": ["MT", { "$toString": "$mt_type" }, " → MX"] },
-                            "else": {
-                                "$cond": {
-                                    "if": { "$ne": ["$mx_type", null] },
-                                    "then": { "$concat": ["MX:", "$mx_type", " → MT"] },
-                                    "else": "unknown"
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            doc! {
-                "$group": {
-                    "_id": "$message_type",
-                    "count": { "$sum": 1 }
-                }
-            },
-            doc! {
-                "$sort": { "count": -1 }
-            },
-        ];
-
-        let mut cursor = collection
-            .aggregate(pipeline)
-            .await
-            .map_err(|e| format!("Aggregation failed: {}", e))?;
-
-        let mut message_type_breakdown = Vec::new();
-        while cursor
-            .advance()
-            .await
-            .map_err(|e| format!("Cursor error: {}", e))?
-        {
-            let doc = cursor
-                .deserialize_current()
-                .map_err(|e| format!("Failed to deserialize: {}", e))?;
-
-            let message_type = doc
-                .get("_id")
-                .and_then(|v| v.as_str())
-                .unwrap_or("unknown")
-                .to_string();
-            let count = doc.get("count").and_then(|v| v.as_i32()).unwrap_or(0) as i64;
-
-            message_type_breakdown.push(MessageTypeCount {
-                message_type,
-                count,
-            });
-        }
-
-        Ok(MessageStats {
-            total_messages,
-            success_count,
-            failure_count,
-            success_rate,
-            average_processing_time_ms,
-            message_type_breakdown,
-        })
-    }
-
     /// Execute aggregation query
     ///
     /// Builds and executes a MongoDB aggregation pipeline based on the provided
     /// filter, groupBy, metrics, sort, and limit parameters.
     pub async fn aggregate(
         &self,
-        filter: Option<crate::graphql::filters::EnhancedMessageFilter>,
+        filter: Option<MessageFilter>,
         group_by: &[crate::graphql::aggregation_types::GroupByInput],
         metrics: &[crate::graphql::aggregation_types::MetricInput],
         sort: Option<&[crate::graphql::aggregation_types::SortInput]>,
@@ -660,6 +492,178 @@ fn apply_custom_field_filters(
     }
 
     Ok(())
+}
+
+/// Normalize field path for MongoDB queries
+/// Adds "context." prefix to fields that need it
+fn normalize_field_path(field: &str) -> String {
+    // Root-level fields that don't need context prefix
+    const ROOT_FIELDS: &[&str] = &[
+        "timestamp",
+        "id",
+        "_id",
+        "errors",
+        "audit_trail",
+        "package_id",
+    ];
+
+    // Check if this is a root field
+    if ROOT_FIELDS
+        .iter()
+        .any(|&rf| field == rf || field.starts_with(&format!("{}.", rf)))
+    {
+        return field.to_string();
+    }
+
+    // If already has context prefix, return as-is
+    if field.starts_with("context.") {
+        return field.to_string();
+    }
+
+    // Add context prefix
+    format!("context.{}", field)
+}
+
+/// Apply PathFilter to MongoDB query
+fn apply_path_filter(
+    query: &mut Document,
+    field_path: &str,
+    filter_value: &crate::graphql::types::FilterValue,
+) -> Result<(), String> {
+    use mongodb::bson::{Bson, doc};
+
+    // Check for field existence filter
+    if let Some(exists) = filter_value.exists {
+        query.insert(field_path, doc! { "$exists": exists });
+        return Ok(());
+    }
+
+    // Handle boolean filter
+    if let Some(boolean) = filter_value.boolean {
+        query.insert(field_path, boolean);
+        return Ok(());
+    }
+
+    // Handle string filter
+    if let Some(string_filter) = &filter_value.string {
+        let mut filter_doc = Document::new();
+
+        if let Some(eq) = &string_filter.eq {
+            query.insert(field_path, eq.clone());
+            return Ok(());
+        }
+        if let Some(ne) = &string_filter.ne {
+            filter_doc.insert("$ne", ne.clone());
+        }
+        if let Some(in_vals) = &string_filter.r#in {
+            let vals: Vec<Bson> = in_vals.iter().map(|s| Bson::String(s.clone())).collect();
+            filter_doc.insert("$in", vals);
+        }
+        if let Some(contains) = &string_filter.contains {
+            // Use regex for substring match (case-insensitive)
+            filter_doc.insert("$regex", contains.clone());
+            filter_doc.insert("$options", "i");
+        }
+        if let Some(regex) = &string_filter.regex {
+            filter_doc.insert("$regex", regex.clone());
+        }
+
+        if !filter_doc.is_empty() {
+            query.insert(field_path, filter_doc);
+        }
+        return Ok(());
+    }
+
+    // Handle number filter
+    if let Some(number_filter) = &filter_value.number {
+        let mut filter_doc = Document::new();
+
+        if let Some(eq) = number_filter.eq {
+            query.insert(field_path, eq);
+            return Ok(());
+        }
+        if let Some(ne) = number_filter.ne {
+            filter_doc.insert("$ne", ne);
+        }
+        if let Some(gt) = number_filter.gt {
+            filter_doc.insert("$gt", gt);
+        }
+        if let Some(gte) = number_filter.gte {
+            filter_doc.insert("$gte", gte);
+        }
+        if let Some(lt) = number_filter.lt {
+            filter_doc.insert("$lt", lt);
+        }
+        if let Some(lte) = number_filter.lte {
+            filter_doc.insert("$lte", lte);
+        }
+        if let Some(between) = &number_filter.between {
+            if between.len() == 2 {
+                filter_doc.insert("$gte", between[0]);
+                filter_doc.insert("$lte", between[1]);
+            } else {
+                return Err("between requires exactly 2 values [min, max]".to_string());
+            }
+        }
+
+        if !filter_doc.is_empty() {
+            query.insert(field_path, filter_doc);
+        }
+        return Ok(());
+    }
+
+    // Handle date filter
+    if let Some(date_filter) = &filter_value.date {
+        let mut filter_doc = Document::new();
+
+        if let Some(after) = date_filter.after {
+            filter_doc.insert("$gt", mongodb::bson::DateTime::from_chrono(after));
+        }
+        if let Some(before) = date_filter.before {
+            filter_doc.insert("$lt", mongodb::bson::DateTime::from_chrono(before));
+        }
+        if let Some(between) = &date_filter.between {
+            if between.len() == 2 {
+                filter_doc.insert("$gte", mongodb::bson::DateTime::from_chrono(between[0]));
+                filter_doc.insert("$lte", mongodb::bson::DateTime::from_chrono(between[1]));
+            } else {
+                return Err("between requires exactly 2 dates [start, end]".to_string());
+            }
+        }
+
+        if !filter_doc.is_empty() {
+            query.insert(field_path, filter_doc);
+        }
+        return Ok(());
+    }
+
+    Err("No valid filter value provided".to_string())
+}
+
+/// Build MongoDB sort document from SortInput
+fn build_sort_document(sort_inputs: &[crate::graphql::aggregation_types::SortInput]) -> Document {
+    use crate::graphql::aggregation_types::SortDirection;
+    let mut sort_doc = Document::new();
+
+    for sort_input in sort_inputs {
+        // Normalize field path
+        let field_path = normalize_field_path(&sort_input.field);
+
+        // Convert SortDirection to MongoDB sort direction (1 for ASC, -1 for DESC)
+        let direction = match sort_input.direction {
+            SortDirection::Asc => 1,
+            SortDirection::Desc => -1,
+        };
+
+        sort_doc.insert(field_path, direction);
+    }
+
+    // If no sort specified or empty, default to timestamp DESC
+    if sort_doc.is_empty() {
+        sort_doc.insert("timestamp", -1);
+    }
+
+    sort_doc
 }
 
 #[async_trait]

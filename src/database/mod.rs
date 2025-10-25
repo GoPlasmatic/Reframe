@@ -1,5 +1,7 @@
 pub mod aggregation_builder;
+pub mod constants;
 pub mod conversion;
+pub mod field_utils;
 pub mod filter_builder;
 pub mod mongodb;
 

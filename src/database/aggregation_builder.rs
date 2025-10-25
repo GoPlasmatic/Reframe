@@ -3,52 +3,12 @@
 //! Converts GraphQL aggregation queries to MongoDB aggregation pipelines
 //! with support for grouping, time bucketing, metrics, and transformations
 
+use crate::database::field_utils::normalize_field_path;
 use crate::graphql::aggregation_types::{
     AggFunction, DatePart, FieldTransform, GroupByInput, MetricInput, SortDirection, SortInput,
     TimeBucketInput,
 };
 use mongodb::bson::{Bson, Document, doc};
-
-/// Normalize field path for MongoDB queries
-///
-/// Converts GraphQL field paths to MongoDB document paths:
-/// - "$.swiftCbprMtMxFields.xxx" → "context.swiftCbprMtMxFields.xxx" (GraphQL accessor)
-/// - "$.context.swiftCbprMtMxFields.xxx" → "context.swiftCbprMtMxFields.xxx" (Full path)
-/// - "context.swiftCbprMtMxFields.xxx" → "context.swiftCbprMtMxFields.xxx" (Already normalized)
-/// - "metadata.package_id" → "context.metadata.package_id" (Add context prefix)
-/// - "$.context.data.amount" → "context.data.amount" (Strip $ prefix)
-fn normalize_field_path(field: &str) -> String {
-    // Handle JSONPath expressions starting with $
-    let field_without_jsonpath = if let Some(stripped) = field.strip_prefix("$.") {
-        stripped // Strip "$."
-    } else if let Some(stripped) = field.strip_prefix('$') {
-        stripped // Strip "$"
-    } else {
-        field
-    };
-
-    // Check if this is a GraphQL accessor name (e.g., "swiftCbprMtMxFields.direction")
-    // These are dynamically generated accessor names ending with "Fields"
-    if let Some(dot_pos) = field_without_jsonpath.find('.') {
-        let first_component = &field_without_jsonpath[..dot_pos];
-        let rest = &field_without_jsonpath[dot_pos + 1..];
-
-        // If first component ends with "Fields", it's a GraphQL accessor
-        // Keep it: "swiftCbprMtMxFields.direction" → "context.swiftCbprMtMxFields.direction"
-        if first_component.ends_with("Fields") && first_component != "customFields" {
-            return format!("context.{}.{}", first_component, rest);
-        }
-    }
-
-    // Now apply normal normalization
-    if field_without_jsonpath.starts_with("context.") {
-        // Already has context prefix, return as-is
-        field_without_jsonpath.to_string()
-    } else {
-        // Add context prefix
-        format!("context.{}", field_without_jsonpath)
-    }
-}
 
 /// Build MongoDB aggregation pipeline from aggregation inputs
 ///
@@ -176,43 +136,104 @@ pub fn build_aggregation_pipeline(
 
 /// Build time bucket expression for MongoDB
 ///
-/// Uses MongoDB's $dateTrunc operator to bucket timestamps
+/// Uses MongoDB's $dateTrunc operator for single units (1m, 1h, 1d)
+/// or manual bucketing for custom intervals (5m, 15m, 30m, etc.)
 fn build_time_bucket_expression(
     field: &str,
     time_bucket: &TimeBucketInput,
 ) -> Result<Bson, String> {
-    let unit = parse_interval(&time_bucket.interval)?;
+    let (amount, unit) = parse_interval_with_amount(&time_bucket.interval)?;
     let timezone = time_bucket.timezone.as_deref().unwrap_or("UTC");
 
-    Ok(Bson::Document(doc! {
-        "$dateTrunc": {
-            "date": format!("${}", field),
-            "unit": unit,
-            "timezone": timezone
-        }
-    }))
+    // For single units (1m, 1h, etc.), use $dateTrunc (more efficient)
+    if amount == 1 {
+        Ok(Bson::Document(doc! {
+            "$dateTrunc": {
+                "date": format!("${}", field),
+                "unit": unit,
+                "timezone": timezone
+            }
+        }))
+    } else {
+        // For custom intervals (5m, 15m, etc.), use manual bucketing
+        // Calculate interval in milliseconds
+        let interval_ms = match unit.as_str() {
+            "second" => amount * 1000,
+            "minute" => amount * 60 * 1000,
+            "hour" => amount * 60 * 60 * 1000,
+            "day" => amount * 24 * 60 * 60 * 1000,
+            _ => {
+                return Err(format!(
+                    "Unsupported unit for custom intervals: {}. Only s, m, h, d are supported for custom intervals.",
+                    unit
+                ));
+            }
+        };
+
+        // Manual bucketing:
+        // 1. Convert date to milliseconds since epoch ($toLong)
+        // 2. Divide by interval_ms and floor to get bucket number
+        // 3. Multiply back by interval_ms to get bucket start time
+        // 4. Convert back to date ($toDate)
+        Ok(Bson::Document(doc! {
+            "$toDate": {
+                "$multiply": [
+                    {
+                        "$floor": {
+                            "$divide": [
+                                { "$toLong": format!("${}", field) },
+                                interval_ms
+                            ]
+                        }
+                    },
+                    interval_ms
+                ]
+            }
+        }))
+    }
 }
 
-/// Parse interval string to MongoDB date unit
-fn parse_interval(interval: &str) -> Result<String, String> {
-    // Extract number and unit
+/// Parse interval with amount (e.g., "5m" -> (5, "minute"))
+///
+/// Supports formats:
+/// - "5m" -> (5, "minute")
+/// - "1h" -> (1, "hour")
+/// - "15m" -> (15, "minute")
+/// - "m" -> (1, "minute")  // defaults to 1
+fn parse_interval_with_amount(interval: &str) -> Result<(i64, String), String> {
     if interval.is_empty() {
         return Err("Empty interval".to_string());
     }
 
     let unit_char = interval.chars().last().unwrap();
+    let amount_str = &interval[..interval.len() - 1];
 
-    // For MongoDB $dateTrunc, we support: second, minute, hour, day, week, month, year
-    match unit_char {
-        's' => Ok("second".to_string()),
-        'm' => Ok("minute".to_string()),
-        'h' => Ok("hour".to_string()),
-        'd' => Ok("day".to_string()),
-        'w' => Ok("week".to_string()),
-        'M' => Ok("month".to_string()),
-        'y' => Ok("year".to_string()),
-        _ => Err(format!("Invalid interval unit: {}", unit_char)),
-    }
+    let amount: i64 = if amount_str.is_empty() {
+        1 // Default to 1 if no number specified
+    } else {
+        amount_str
+            .parse()
+            .map_err(|_| format!("Invalid interval amount: {}", amount_str))?
+    };
+
+    // Convert single-char unit to MongoDB date unit name
+    let unit = match unit_char {
+        's' => "second",
+        'm' => "minute",
+        'h' => "hour",
+        'd' => "day",
+        'w' => "week",
+        'M' => "month",
+        'y' => "year",
+        _ => {
+            return Err(format!(
+                "Invalid interval unit: {}. Supported units: s, m, h, d, w, M, y",
+                unit_char
+            ));
+        }
+    };
+
+    Ok((amount, unit.to_string()))
 }
 
 /// Build field transformation expression
@@ -327,6 +348,13 @@ mod tests {
 
     #[test]
     fn test_normalize_field_path_jsonpath() {
+        // Test root-level fields (no context prefix)
+        assert_eq!(normalize_field_path("timestamp"), "timestamp");
+
+        assert_eq!(normalize_field_path("$.timestamp"), "timestamp");
+
+        assert_eq!(normalize_field_path("id"), "id");
+
         // Test GraphQL accessor names (ending with "Fields")
         assert_eq!(
             normalize_field_path("$.swiftCbprMtMxFields.direction"),

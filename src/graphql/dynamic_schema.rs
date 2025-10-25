@@ -519,6 +519,92 @@ pub fn build_message_filter_type() -> InputObject {
             InputValue::new("customFieldFilters", TypeRef::named(TypeRef::STRING))
                 .description("Custom field filters as JSON string"),
         )
+        .field(
+            InputValue::new("path", TypeRef::named_list("PathFilter"))
+                .description("Dynamic field filtering using dot-notation paths"),
+        )
+}
+
+/// Build PathFilter input type
+pub fn build_path_filter_type() -> InputObject {
+    InputObject::new("PathFilter")
+        .description("Path-based field filter for dynamic field access")
+        .field(
+            InputValue::new("field", TypeRef::named_nn(TypeRef::STRING))
+                .description("Dot-notation path to the field"),
+        )
+        .field(
+            InputValue::new("value", TypeRef::named_nn("FilterValue"))
+                .description("Filter value (supports different types)"),
+        )
+}
+
+/// Build FilterValue input type
+pub fn build_filter_value_type() -> InputObject {
+    InputObject::new("FilterValue")
+        .description("Filter value that can be of different types")
+        .field(InputValue::new("string", TypeRef::named("StringFilter")))
+        .field(InputValue::new("number", TypeRef::named("NumberFilter")))
+        .field(InputValue::new("boolean", TypeRef::named(TypeRef::BOOLEAN)))
+        .field(InputValue::new("date", TypeRef::named("DateFilter")))
+        .field(InputValue::new("exists", TypeRef::named(TypeRef::BOOLEAN)))
+}
+
+/// Build StringFilter input type
+pub fn build_string_filter_type() -> InputObject {
+    InputObject::new("StringFilter")
+        .description("String filter operations")
+        .field(InputValue::new("eq", TypeRef::named(TypeRef::STRING)))
+        .field(InputValue::new("ne", TypeRef::named(TypeRef::STRING)))
+        .field(InputValue::new("in", TypeRef::named_list(TypeRef::STRING)))
+        .field(InputValue::new("contains", TypeRef::named(TypeRef::STRING)))
+        .field(InputValue::new("regex", TypeRef::named(TypeRef::STRING)))
+}
+
+/// Build NumberFilter input type
+pub fn build_number_filter_type() -> InputObject {
+    InputObject::new("NumberFilter")
+        .description("Number filter operations")
+        .field(InputValue::new("eq", TypeRef::named(TypeRef::FLOAT)))
+        .field(InputValue::new("ne", TypeRef::named(TypeRef::FLOAT)))
+        .field(InputValue::new("gt", TypeRef::named(TypeRef::FLOAT)))
+        .field(InputValue::new("gte", TypeRef::named(TypeRef::FLOAT)))
+        .field(InputValue::new("lt", TypeRef::named(TypeRef::FLOAT)))
+        .field(InputValue::new("lte", TypeRef::named(TypeRef::FLOAT)))
+        .field(
+            InputValue::new("between", TypeRef::named_list(TypeRef::FLOAT))
+                .description("Between range [min, max]"),
+        )
+}
+
+/// Build DateFilter input type
+pub fn build_date_filter_type() -> InputObject {
+    InputObject::new("DateFilter")
+        .description("Date filter operations")
+        .field(
+            InputValue::new("after", TypeRef::named(TypeRef::STRING))
+                .description("After this date (RFC3339 format)"),
+        )
+        .field(
+            InputValue::new("before", TypeRef::named(TypeRef::STRING))
+                .description("Before this date (RFC3339 format)"),
+        )
+        .field(
+            InputValue::new("between", TypeRef::named_list(TypeRef::STRING))
+                .description("Between dates [start, end] (RFC3339 format)"),
+        )
+}
+
+/// Build MessageResult union type for the unified messages query
+///
+/// This creates a GraphQL union type that can return either:
+/// - MessageConnection (for list mode)
+/// - AggregationResult (for aggregation mode)
+pub fn build_message_result_type() -> Union {
+    Union::new("MessageResult")
+        .description("Result of messages query - either list of messages or aggregation results")
+        .possible_type("MessageConnection")
+        .possible_type("AggregationResult")
 }
 
 /// Build MessageStats type

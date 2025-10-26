@@ -9,6 +9,65 @@ use crate::graphql::aggregation_types::{
     TimeBucketInput,
 };
 use mongodb::bson::{Bson, Document, doc};
+use std::collections::HashMap;
+
+/// Build a nested Document structure from a dot-notation path
+///
+/// Converts a field path like "context.metadata.direction" with a value reference
+/// into a nested Document structure:
+/// { "context": { "metadata": { "direction": "$_id.__grp_context_metadata_direction" } } }
+fn build_nested_document(path: &str, value: &str) -> Document {
+    let parts: Vec<&str> = path.split('.').collect();
+
+    if parts.len() == 1 {
+        // No nesting needed
+        return doc! { path: value };
+    }
+
+    // Build from innermost to outermost
+    let mut current = doc! { parts[parts.len() - 1]: value };
+
+    for i in (0..parts.len() - 1).rev() {
+        current = doc! { parts[i]: current };
+    }
+
+    current
+}
+
+/// Merge two Documents recursively, combining nested structures
+fn merge_documents(target: &mut Document, source: Document) {
+    for (key, value) in source {
+        if let Some(existing) = target.get_mut(&key) {
+            // Key exists - try to merge if both are documents
+            if let (Some(existing_doc), Some(value_doc)) =
+                (existing.as_document_mut(), value.as_document())
+            {
+                // Both are documents - merge recursively
+                merge_documents(existing_doc, value_doc.clone());
+            } else {
+                // Not both documents - replace
+                *existing = value;
+            }
+        } else {
+            // Key doesn't exist - insert
+            target.insert(key, value);
+        }
+    }
+}
+
+/// Sanitize a field name to make it MongoDB-safe for use in $group._id keys
+///
+/// MongoDB doesn't allow dots (.) in field names used as keys in the $group._id object.
+/// This function replaces dots with underscores and adds a prefix to avoid collisions.
+///
+/// # Examples
+/// ```
+/// sanitize_field_alias("context.metadata.direction") -> "__grp_context_metadata_direction"
+/// sanitize_field_alias("timestamp") -> "__grp_timestamp"
+/// ```
+fn sanitize_field_alias(field: &str) -> String {
+    format!("__grp_{}", field.replace(['.', '$'], "_"))
+}
 
 /// Build MongoDB aggregation pipeline from aggregation inputs
 ///
@@ -33,26 +92,43 @@ pub fn build_aggregation_pipeline(
         pipeline.push(doc! { "$match": filter_query });
     }
 
+    // Build mapping of original field names to sanitized aliases
+    // This is needed because MongoDB $group._id keys cannot contain dots
+    let mut field_mapping: HashMap<String, String> = HashMap::new();
+
+    for group_by_input in group_by {
+        let original_field = group_by_input
+            .r#as
+            .as_ref()
+            .unwrap_or(&group_by_input.field);
+        let sanitized_alias = sanitize_field_alias(original_field);
+        field_mapping.insert(original_field.clone(), sanitized_alias);
+    }
+
     // Stage 2: Add computed fields for grouping
     let mut add_fields = Document::new();
 
     for group_by_input in group_by {
         let field_path = normalize_field_path(&group_by_input.field);
-        let alias = group_by_input
+        let original_field = group_by_input
             .r#as
             .as_ref()
             .unwrap_or(&group_by_input.field);
+        let sanitized_alias = field_mapping.get(original_field).unwrap();
 
         if let Some(ref time_bucket) = group_by_input.time_bucket {
             add_fields.insert(
-                alias,
+                sanitized_alias,
                 build_time_bucket_expression(&field_path, time_bucket)?,
             );
         } else if let Some(ref transform) = group_by_input.transform {
-            add_fields.insert(alias, build_transform_expression(&field_path, transform)?);
+            add_fields.insert(
+                sanitized_alias,
+                build_transform_expression(&field_path, transform)?,
+            );
         } else {
             // Just add a reference to the field
-            add_fields.insert(alias, format!("${}", field_path));
+            add_fields.insert(sanitized_alias, format!("${}", field_path));
         }
     }
 
@@ -65,11 +141,13 @@ pub fn build_aggregation_pipeline(
     let mut group_id = Document::new();
 
     for group_by_input in group_by {
-        let alias = group_by_input
+        let original_field = group_by_input
             .r#as
             .as_ref()
             .unwrap_or(&group_by_input.field);
-        group_id.insert(alias, format!("${}", alias));
+        let sanitized_alias = field_mapping.get(original_field).unwrap();
+        // Use sanitized alias as both key and value reference
+        group_id.insert(sanitized_alias, format!("${}", sanitized_alias));
     }
 
     if group_id.is_empty() {
@@ -86,25 +164,9 @@ pub fn build_aggregation_pipeline(
 
     pipeline.push(doc! { "$group": group_doc });
 
-    // Stage 4: Project to final shape
-    let mut project_doc = Document::new();
-    project_doc.insert("_id", 0);
-
-    if !group_by.is_empty() {
-        project_doc.insert("group", "$_id");
-    } else {
-        project_doc.insert("group", doc! {});
-    }
-
-    let mut metrics_obj = Document::new();
-    for metric in metrics {
-        metrics_obj.insert(&metric.r#as, format!("${}", metric.r#as));
-    }
-    project_doc.insert("metrics", metrics_obj);
-
-    pipeline.push(doc! { "$project": project_doc });
-
-    // Stage 5: Sort
+    // Stage 4: Sort (before projection, using sanitized field names)
+    // This must happen before the final projection because MongoDB can't sort
+    // by field names containing dots when used as object keys
     if let Some(sort_inputs) = sort {
         let mut sort_doc = Document::new();
         for sort_input in sort_inputs {
@@ -118,13 +180,50 @@ pub fn build_aggregation_pipeline(
                 .iter()
                 .any(|g| g.r#as.as_ref().unwrap_or(&g.field) == &sort_input.field)
             {
-                sort_doc.insert(format!("group.{}", sort_input.field), direction);
+                // Use sanitized alias for sorting
+                let sanitized_alias = field_mapping.get(&sort_input.field).unwrap();
+                sort_doc.insert(format!("_id.{}", sanitized_alias), direction);
             } else {
-                sort_doc.insert(format!("metrics.{}", sort_input.field), direction);
+                sort_doc.insert(&sort_input.field, direction);
             }
         }
         pipeline.push(doc! { "$sort": sort_doc });
     }
+
+    // Stage 5: Project to final shape
+    // Build nested Document structures to properly handle fields with overlapping paths
+    let mut project_doc = Document::new();
+    project_doc.insert("_id", 0);
+
+    if !group_by.is_empty() {
+        // Build group object with properly nested structures
+        // For fields like "context.metadata.direction" and "context.metadata.message_type_hint",
+        // we need to manually build the nested structure and merge them
+        let mut group_obj = Document::new();
+        for group_by_input in group_by {
+            let original_field = group_by_input
+                .r#as
+                .as_ref()
+                .unwrap_or(&group_by_input.field);
+            let sanitized_alias = field_mapping.get(original_field).unwrap();
+            // Build nested document for this field
+            let nested_doc =
+                build_nested_document(original_field, &format!("$_id.{}", sanitized_alias));
+            // Merge into group_obj
+            merge_documents(&mut group_obj, nested_doc);
+        }
+        project_doc.insert("group", group_obj);
+    } else {
+        project_doc.insert("group", doc! {});
+    }
+
+    let mut metrics_obj = Document::new();
+    for metric in metrics {
+        metrics_obj.insert(&metric.r#as, format!("${}", metric.r#as));
+    }
+    project_doc.insert("metrics", metrics_obj);
+
+    pipeline.push(doc! { "$project": project_doc });
 
     // Stage 6: Limit
     if let Some(limit_val) = limit {

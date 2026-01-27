@@ -34,7 +34,7 @@
 mod detection;
 
 use dataflow_rs::{AsyncFunctionHandler, Engine, Message, Workflow};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
@@ -214,34 +214,37 @@ impl ReframeEngine {
 
     /// Generate a sample message.
     ///
-    /// The payload is stored as a raw string containing generation parameters.
+    /// The payload should be a JSON string containing a scenario schema with `source_type` field.
+    /// The `source_type` is used to set `metadata.message_type` for workflow routing.
     ///
     /// # Arguments
-    /// * `payload` - Raw string payload with generation parameters
+    /// * `payload` - JSON string containing the scenario schema
     ///
     /// # Returns
     /// A Promise that resolves to the generated message as a JSON string
     ///
     /// # Example
     /// ```javascript
-    /// const params = '{"message_type": "MT103", "scenario": "standard"}';
-    /// const result = await engine.generate(params);
+    /// const scenario = '{"source_type": "MT103", "schema": {...}}';
+    /// const result = await engine.generate(scenario);
+    /// const output = JSON.parse(result);
+    /// console.log(output.data.result); // Generated MT103 message
     /// ```
     #[wasm_bindgen]
     pub fn generate(&self, payload: &str) -> js_sys::Promise {
-        self.process_with_engine(&self.generate_engine, payload, false)
+        self.process_generate(&self.generate_engine, payload, false)
     }
 
     /// Generate a sample message with execution trace.
     ///
     /// # Arguments
-    /// * `payload` - Raw string payload with generation parameters
+    /// * `payload` - JSON string containing the scenario schema
     ///
     /// # Returns
     /// A Promise that resolves to the execution trace as a JSON string
     #[wasm_bindgen]
     pub fn generate_with_trace(&self, payload: &str) -> js_sys::Promise {
-        self.process_with_engine(&self.generate_engine, payload, true)
+        self.process_generate(&self.generate_engine, payload, true)
     }
 
     /// Validate a message.
@@ -386,6 +389,62 @@ impl ReframeEngine {
     ) -> js_sys::Promise {
         // Store payload as a raw string - parsing is done by the parse plugins
         let mut message = Message::from_value(&Value::String(payload.to_string()));
+
+        // Clone the Arc for the async block
+        let engine = Arc::clone(engine);
+
+        if with_trace {
+            future_to_promise(async move {
+                match engine.process_message_with_trace(&mut message).await {
+                    Ok(trace) => serde_json::to_string(&trace)
+                        .map(|s| JsValue::from_str(&s))
+                        .map_err(|e| JsValue::from_str(&e.to_string())),
+                    Err(e) => Err(JsValue::from_str(&e.to_string())),
+                }
+            })
+        } else {
+            future_to_promise(async move {
+                match engine.process_message(&mut message).await {
+                    Ok(()) => serde_json::to_string(&message)
+                        .map(|s| JsValue::from_str(&s))
+                        .map_err(|e| JsValue::from_str(&e.to_string())),
+                    Err(e) => Err(JsValue::from_str(&e.to_string())),
+                }
+            })
+        }
+    }
+
+    /// Internal helper to process a generate request.
+    /// Parses the scenario to extract source_type and sets it as metadata.message_type.
+    fn process_generate(
+        &self,
+        engine: &Arc<Engine>,
+        payload: &str,
+        with_trace: bool,
+    ) -> js_sys::Promise {
+        // Parse the scenario to extract source_type for workflow routing
+        let scenario: Value = match serde_json::from_str(payload) {
+            Ok(v) => v,
+            Err(e) => {
+                let error_msg = format!("Invalid scenario JSON: {}", e);
+                return future_to_promise(async move { Err(JsValue::from_str(&error_msg)) });
+            }
+        };
+
+        // Extract source_type from scenario
+        let message_type = scenario
+            .get("source_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+
+        // Create message with the scenario as payload
+        let mut message = Message::from_value(&scenario);
+
+        // Set metadata.message_type for workflow condition routing
+        if let Some(metadata) = message.metadata_mut().as_object_mut() {
+            metadata.insert("message_type".to_string(), json!(message_type));
+        }
 
         // Clone the Arc for the async block
         let engine = Arc::clone(engine);

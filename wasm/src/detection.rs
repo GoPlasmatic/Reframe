@@ -8,13 +8,13 @@
 use async_trait::async_trait;
 use dataflow_rs::engine::error::DataflowError;
 use dataflow_rs::engine::{
+    AsyncFunctionHandler, FunctionConfig,
     error::Result,
     message::{Change, Message},
-    AsyncFunctionHandler, FunctionConfig,
 };
 use datalogic_rs::DataLogic;
 use regex::Regex;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 pub struct Detect;
